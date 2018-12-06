@@ -1,0 +1,122 @@
+dnl Copyright (c) 2018 Mastercard
+
+dnl Licensed under the Apache License, Version 2.0 (the "License");
+dnl you may not use this file except in compliance with the License.
+dnl You may obtain a copy of the License at
+
+dnl   http://www.apache.org/licenses/LICENSE-2.0
+
+dnl Unless required by applicable law or agreed to in writing, software
+dnl distributed under the License is distributed on an "AS IS" BASIS,
+dnl WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+dnl See the License for the specific language governing permissions and
+dnl limitations under the License.
+
+
+AC_PREREQ(2.59)
+AC_INIT([pkcs11-tools], [1.0.0], [Eric Devolder < eric dot devolder at mastercard dot com >])
+AC_CONFIG_MACRO_DIR([m4])
+
+dnl adding AM_MAINTAINER_MODE to address autotools issues with git
+AM_MAINTAINER_MODE
+
+dnl pkginfo_pkgname contains the name of the package in Solaris packaging system
+AC_SUBST([pkginfo_pkgname], MApkcs11tools)
+dnl pkginfo_prefix contains the prefix for Solaris pkg build
+dnl typical value is /usr/local
+AC_SUBST([pkginfo_prefix], /usr/local)
+dnl pkginfo_timestamp for pkginfo file, in dist/solaris
+AC_SUBST([pkginfo_timestamp], $(LANG=C TZ=GMT date +%Y%m%d-%H%M%S))
+
+dnl detection of cross-compilation
+AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
+AC_PROG_CC
+AC_PATH_PROG([PERL],[perl])	dnl needed to execute scripts in lib directory
+AC_PROG_MKDIR_P			dnl needed for dist/solaris build
+AC_CHECK_PROGS([TAR], [gtar tar]) dnl need to find tar (GNU tar preferred)
+
+dnl need FLEX, not LEX
+dnl in case it is not there,
+AC_PROG_LEX
+if test "x$LEX" != xflex; then
+   AC_MSG_WARN([flex 2.5.22+ is required to regenerate lexer. Generated source code is provided, so it should be OK, unless you change the lexer source file.])
+fi
+
+dnl need BISON, not YACC
+AC_PROG_YACC
+if test "x$YACC" != "xbison -y"; then
+   AC_MSG_WARN([bison is required to regenerate parser. Generated source code is provided, so it should be OK, unless you change the parser source file.])
+fi
+
+
+gl_EARLY
+AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+
+AM_PROG_AR			dnl AM_PROG_AR is required on Solaris
+
+dnl libtool starts here
+LT_INIT
+AC_PROG_LIBTOOL
+AX_LIB_SOCKET_NSL		dnl needed on Solaris hosts, to add proper library nsl and socket
+AX_WITH_DMALLOC			dnl the project can be compiled with dmalloc for memory debugging
+gl_INIT				dnl GNULIB init
+
+dnl detect if we are cross-compiling for mingw32
+MINGW32=0
+case "$host_os" in
+  mingw32)
+    MINGW32=1;
+  ;;
+esac
+
+AM_CONDITIONAL([TARGET_OS_MINGW32], [test "$MINGW32" = "1"])
+
+dnl we need OpenSSL with elliptic curve support.
+dnl so, let's check for an ECC call.
+
+AM_COND_IF( [TARGET_OS_MINGW32],
+
+	    dnl if OS_MINGW32, we look for libeay32.dll. We do not add -lz, as it is confusing the compiler.
+	    [	dnl check for elliptic point support in libeay
+		AC_SEARCH_LIBS([EC_POINT_new], [eay32], [], [AC_MSG_FAILURE([can't find suitable OpenSSL crypto library.])])
+	     ],
+
+	    dnl else, UNIXish platforms
+	    [	dnl check for openssl with elliptic curve header
+		AC_CHECK_HEADERS([openssl/ec.h])
+		dnl find openssl library
+		AC_SEARCH_LIBS([EC_POINT_new], [crypto], [], [AC_MSG_FAILURE([can't find suitable OpenSSL crypto library.])])
+		dnl find dynamic linker library
+		AC_SEARCH_LIBS([dlopen], [dl dld], [], [AC_MSG_ERROR([unable to find the dlopen() function]) ])
+		] )
+
+dnl check if nCipher extensions can be compiled
+AC_ARG_WITH([ncipher],
+	[AS_HELP_STRING([--with-ncipher],
+	[enable support for Thales nCipher extensions (requires a separate header file to compile)])],
+	[	AC_DEFINE([HAVE_NCIPHER], [1], [define to 1 to compile with the nCipher extensions.])
+		AC_MSG_NOTICE([support for nCipher requested.])],
+	[AC_MSG_NOTICE([support for nCipher not requested.])] )
+
+dnl check endianness
+AC_C_BIGENDIAN
+dnl we need to know sizeof(long) for dealing with endianness conversion
+AC_CHECK_SIZEOF([unsigned long int])
+
+dnl try to find a proper bswap() function, defined in m4/local_fix_bswap.m4
+LOCAL_FIX_BSWAP
+
+
+dnl ========================================================================
+AC_CONFIG_HEADERS([include/config.h])
+AC_CONFIG_FILES([	gl/Makefile
+			lib/Makefile
+			src/Makefile
+			Makefile
+			dist/solaris/pkgproto
+			dist/solaris/pkginfo
+			dist/solaris/checkinstall
+			dist/redhat/pkcs11-tools.spec])
+AC_OUTPUT
+AX_CREATE_TARGET_H([include/target.h])

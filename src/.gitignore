@@ -1,0 +1,20 @@
+# ignoring generated files
+masqreq
+p11cat
+p11cp
+p11importcert
+p11importdata
+p11importpubk
+p11kcv
+p11keycomp
+p11keygen
+p11ls
+p11more
+p11mv
+p11od
+p11req
+p11rm
+p11setattr
+p11slotinfo
+p11unwrap
+p11wrap

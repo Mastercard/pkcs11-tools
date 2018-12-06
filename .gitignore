@@ -1,0 +1,35 @@
+## Compilation artefacts
+*.bak
+*.o
+*.a
+*.lo
+*.la
+*.sed
+.deps/
+.libs/
+
+## autotools
+Makefile
+config.log
+config.status
+config.cache
+libtool
+autom4te.cache/
+.dirstamp
+/bin/
+/include/stamp-h1
+
+# Directories ending with .ign will be ignored
+*.ign/
+
+# Tarballs
+*.tar.gz
+*.tar
+*.tgz
+
+# Solaris distribution files
+*.pkg
+/pkg/
+
+# emacs backup files
+*~

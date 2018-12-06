@@ -1,0 +1,3 @@
+# git- specific ignore files (those are generated)
+_attrinfo.h
+_mechinfo.h

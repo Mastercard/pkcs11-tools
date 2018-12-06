@@ -1,0 +1,8 @@
+PKG="@pkginfo_pkgname@"
+NAME="@PACKAGE_STRING@ a utility for managing PKCS#11 cryptographic tokens"
+VERSION="@PACKAGE_VERSION@"
+ARCH="@target_cpu@"
+CLASSES="commands docs"
+CATEGORY="utility"
+BASEDIR="@pkginfo_prefix@"
+PSTAMP="@pkginfo_timestamp@"
