@@ -229,7 +229,7 @@
    concept. */
 #undef HAVE_MSVC_INVALID_PARAMETER_HANDLER
 
-/* define to 1 to compile with the nCipher extensions. */
+/* define to compile with the nCipher extensions. */
 #undef HAVE_NCIPHER
 
 /* Define to 1 if you have the <netdb.h> header file. */

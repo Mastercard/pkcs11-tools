@@ -14,7 +14,7 @@ dnl limitations under the License.
 
 
 AC_PREREQ(2.59)
-AC_INIT([pkcs11-tools], [1.0.0], [Eric Devolder < eric dot devolder at mastercard dot com >])
+AC_INIT([pkcs11-tools], [1.0.1], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
 AC_CONFIG_MACRO_DIR([m4])
 
 dnl adding AM_MAINTAINER_MODE to address autotools issues with git
@@ -91,13 +91,24 @@ AM_COND_IF( [TARGET_OS_MINGW32],
 		AC_SEARCH_LIBS([dlopen], [dl dld], [], [AC_MSG_ERROR([unable to find the dlopen() function]) ])
 		] )
 
-dnl check if nCipher extensions can be compiled
+dnl check if nCipher extensions can be compiled. If requested, specific file 
 AC_ARG_WITH([ncipher],
 	[AS_HELP_STRING([--with-ncipher],
-	[enable support for Thales nCipher extensions (requires a separate header file to compile)])],
-	[	AC_DEFINE([HAVE_NCIPHER], [1], [define to 1 to compile with the nCipher extensions.])
-		AC_MSG_NOTICE([support for nCipher requested.])],
-	[AC_MSG_NOTICE([support for nCipher not requested.])] )
+	[enable support for Thales nCipher extensions (requires a separate ncipher.h header file to compile)])],
+        [],
+        [with_ncipher=check])
+
+hasncipher="no"
+AS_IF([test "x$with_ncipher" != xno],
+      [AC_CHECK_FILE([include/cryptoki/ncipher.h],
+              [AC_DEFINE([HAVE_NCIPHER], [1], [define to compile with the nCipher extensions.])
+	      hasncipher="yes"
+              ],
+              [if test "x$with_ncipher" != xcheck; then
+                 AC_MSG_FAILURE(
+                   [--with-ncipher was given, but required ncipher.h include file missing])
+               fi
+              ])])
 
 dnl check endianness
 AC_C_BIGENDIAN
@@ -120,3 +131,16 @@ AC_CONFIG_FILES([	gl/Makefile
 			dist/redhat/pkcs11-tools.spec])
 AC_OUTPUT
 AX_CREATE_TARGET_H([include/target.h])
+
+AC_MSG_NOTICE([------------------------------------------------------------------------])
+AC_MSG_NOTICE([compiler      : $CC])
+AC_MSG_NOTICE([compiler flags: $CFLAGS])
+AC_MSG_NOTICE([linker        : $LD])
+AC_MSG_NOTICE([linker flags  : $LDFLAGS])
+AC_MSG_NOTICE([libraries     : $LIBS])
+AC_MSG_NOTICE([lex           : $LEX])
+AC_MSG_NOTICE([yacc          : $YACC])
+AC_MSG_NOTICE([yacc flags    : $FLAGS])
+AC_MSG_NOTICE([with_ncipher  : $hasncipher])
+AC_MSG_NOTICE([------------------------------------------------------------------------])
+
