@@ -1,6 +1,6 @@
-# PKCS\#11 toolkit
+# PKCS\#11 tools
 
-pkcs11-toolkit is a toolkit containing a bunch of small utilities to perform key management tasks on cryptographic tokens implementing a PKCS\#11 interface.
+pkcs11-tools is a toolkit containing a bunch of small utilities to perform key management tasks on cryptographic tokens implementing a PKCS\#11 interface.
 It features a number of commands similar to the unix CLI utilities, such as `ls`, `mv`, `rm`, `od`, and `more`. It also has specific commands to generate keys, generate CSRs, import certificates and other files, in a fashion compatible with most implementations, including both IBM and Oracle JVMs.
 
 It is also able to interface with NSS libraries from [mozilla.org](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS)
