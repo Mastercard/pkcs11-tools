@@ -23,7 +23,7 @@ In case you need to deploy the tooklit on target environments, where openssl is 
 1. download openssl from http://www.openssl.org.
 2. configure openssl the following way, then compile
    ```bash
-   $ ./configure zlib no-shared --prefix=$HOME/openssl linux-x86_64
+   $ ./Configure zlib no-shared --prefix=$HOME/openssl linux-x86_64
    $ make install
    ```
    this will install openssl lib and include in $HOME/openssl.
@@ -40,7 +40,7 @@ In case you need to deploy the tooklit on target environments, where openssl is 
 1. for openssl installation:
    ```bash
    $ PATH=/usr/vac/bin:$PATH
-   $ ./configure no-hw no-zlib no-shared --prefix=[OPENSSL_TARGET_DIR] aix64-cc
+   $ ./Configure no-hw no-zlib no-shared --prefix=[OPENSSL_TARGET_DIR] aix64-cc
    $ make
    $ make install
    ```
