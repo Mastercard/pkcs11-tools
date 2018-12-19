@@ -58,10 +58,28 @@ In case you need to deploy the tooklit on target environments, where openssl is 
 You need to have GCC deployed on your computer. You can obtain and deploy GCC on your solaris plarform from [OpenCSW](https://www.opencsw.org/).
 
 #### static build
-1. Build a static openssl library. Please follow the same steps as for Linux or AIX (adapt target accordingly)
+1. Build a static openssl library. Please follow the same steps as for Linux or AIX.
+   For sparc 32 bits:
+   ```bash
+   $ ./Configure no-zlib no-shared --prefix=$HOME/openssl solaris-sparcv9-gcc
+   $ make install
+   ```
+   
+   For sparc 64 bits:
+   ```bash
+   $ ./Configure no-zlib no-shared --prefix=$HOME/openssl solaris64-sparcv9-gcc
+   $ make install
+   ```
+   
+   For IA 32 bits:
+   ```bash
+   $ ./Configure no-zlib no-shared --prefix=$HOME/openssl solaris-x86-gcc
+   $ make install
+   ```
+   
 2. To buill 32 bits binaries:
    ```bash
-   $ CFLAGS='-I$HOME/openssl/include' LDFLAGS=-L$HOME/openssl ./configure
+   $ CFLAGS='-I$HOME/openssl/include' LDFLAGS=-L$HOME/openssl ./configure --prefix=$PWD
    ```
    To build sparcv9 64 bits binaries:
    ```bash
