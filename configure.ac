@@ -100,7 +100,7 @@ AC_ARG_WITH([ncipher],
 
 hasncipher="no"
 AS_IF([test "x$with_ncipher" != xno],
-      [AC_CHECK_FILE([include/cryptoki/ncipher.h],
+      [AS_IF([test -r $srcdir/include/cryptoki/ncipher.h],
               [AC_DEFINE([HAVE_NCIPHER], [1], [define to compile with the nCipher extensions.])
 	      hasncipher="yes"
               ],
@@ -108,7 +108,7 @@ AS_IF([test "x$with_ncipher" != xno],
                  AC_MSG_FAILURE(
                    [--with-ncipher was given, but required ncipher.h include file missing])
                fi
-              ])])
+              ] )])
 
 dnl check endianness
 AC_C_BIGENDIAN
