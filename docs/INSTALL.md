@@ -86,7 +86,7 @@ Same instructions as for Solaris Sparc, 32 bits.
 ### Windows (cross-compiling)
 Cross-compilation works with mingw32-gcc under linux. [Debian](https://www.debian.org/) distros are offering off-the-shelf cross-compilers, so the examples below are assuming [Debian](https://www.debian.org/) as the build platform.
 
-#### >To create 32 bits executables:
+#### To create 32 bits executables:
 ##### Prerequisites
 - install cross-compiler (Debian package: `gcc-mingw-w64-i686`)
 - install wine on your linux host (Debian package: `wine`)
@@ -115,7 +115,7 @@ $ ln -s $HOME/.wine/drive_c/OpenSSL-Win64 openssl-win64
 
 ##### To compile:
 ```bash
-$ CFLAGS="-I$(pwd)/openssl-win64/include" LDFLAGS=-L$(pwd)/openssl-win32 ./configure --host=x86_64-w64-mingw32 --prefix=$PWD
+$ CFLAGS="-I$(pwd)/openssl-win64/include" LDFLAGS=-L$(pwd)/openssl-win64 ./configure --host=x86_64-w64-mingw32 --prefix=$PWD
 $ make install
 ```
 
