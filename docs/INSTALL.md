@@ -23,7 +23,7 @@ In case you need to deploy the tooklit on target environments, where openssl is 
 1. download openssl from http://www.openssl.org.
 2. configure openssl the following way, then compile
    ```bash
-   $ ./configure zlib no-shared --prefix=$HOME/openssl linux-x86_64
+   $ ./Configure zlib no-shared --prefix=$HOME/openssl linux-x86_64
    $ make install
    ```
    this will install openssl lib and include in $HOME/openssl.
@@ -40,7 +40,7 @@ In case you need to deploy the tooklit on target environments, where openssl is 
 1. for openssl installation:
    ```bash
    $ PATH=/usr/vac/bin:$PATH
-   $ ./configure no-hw no-zlib no-shared --prefix=[OPENSSL_TARGET_DIR] aix64-cc
+   $ ./Configure no-hw no-zlib no-shared --prefix=[OPENSSL_TARGET_DIR] aix64-cc
    $ make
    $ make install
    ```
@@ -58,10 +58,28 @@ In case you need to deploy the tooklit on target environments, where openssl is 
 You need to have GCC deployed on your computer. You can obtain and deploy GCC on your solaris plarform from [OpenCSW](https://www.opencsw.org/).
 
 #### static build
-1. Build a static openssl library. Please follow the same steps as for Linux or AIX (adapt target accordingly)
+1. Build a static openssl library. Please follow the same steps as for Linux or AIX.
+   For sparc 32 bits:
+   ```bash
+   $ ./Configure no-zlib no-shared --prefix=$HOME/openssl solaris-sparcv9-gcc
+   $ make install
+   ```
+   
+   For sparc 64 bits:
+   ```bash
+   $ ./Configure no-zlib no-shared --prefix=$HOME/openssl solaris64-sparcv9-gcc
+   $ make install
+   ```
+   
+   For IA 32 bits:
+   ```bash
+   $ ./Configure no-zlib no-shared --prefix=$HOME/openssl solaris-x86-gcc
+   $ make install
+   ```
+   
 2. To buill 32 bits binaries:
    ```bash
-   $ CFLAGS='-I$HOME/openssl/include' LDFLAGS=-L$HOME/openssl ./configure
+   $ CFLAGS='-I$HOME/openssl/include' LDFLAGS=-L$HOME/openssl ./configure --prefix=$PWD
    ```
    To build sparcv9 64 bits binaries:
    ```bash
@@ -86,7 +104,7 @@ Same instructions as for Solaris Sparc, 32 bits.
 ### Windows (cross-compiling)
 Cross-compilation works with mingw32-gcc under linux. [Debian](https://www.debian.org/) distros are offering off-the-shelf cross-compilers, so the examples below are assuming [Debian](https://www.debian.org/) as the build platform.
 
-#### >To create 32 bits executables:
+#### To create 32 bits executables:
 ##### Prerequisites
 - install cross-compiler (Debian package: `gcc-mingw-w64-i686`)
 - install wine on your linux host (Debian package: `wine`)
@@ -115,7 +133,7 @@ $ ln -s $HOME/.wine/drive_c/OpenSSL-Win64 openssl-win64
 
 ##### To compile:
 ```bash
-$ CFLAGS="-I$(pwd)/openssl-win64/include" LDFLAGS=-L$(pwd)/openssl-win32 ./configure --host=x86_64-w64-mingw32 --prefix=$PWD
+$ CFLAGS="-I$(pwd)/openssl-win64/include" LDFLAGS=-L$(pwd)/openssl-win64 ./configure --host=x86_64-w64-mingw32 --prefix=$PWD
 $ make install
 ```
 
