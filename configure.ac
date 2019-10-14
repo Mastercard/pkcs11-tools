@@ -14,7 +14,7 @@ dnl limitations under the License.
 
 
 AC_PREREQ(2.59)
-AC_INIT([pkcs11-tools], [1.0.2], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
+AC_INIT([pkcs11-tools], [1.0.3], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
 AC_CONFIG_MACRO_DIR([m4])
 
 dnl adding AM_MAINTAINER_MODE to address autotools issues with git
