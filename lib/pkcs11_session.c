@@ -25,27 +25,58 @@
 
 
 
-/* prototype */
-static CK_UTF8CHAR_PTR rtrim(CK_UTF8CHAR_PTR str, int limit);
+/* prototypes */
+static int tokenlabelcmp(const char *label, const char *reflabel, size_t reflabel_maxlen);
+static int min(const int a, const int b);
+static int max(const int a, const int b);
 
 
-static CK_UTF8CHAR_PTR rtrim(CK_UTF8CHAR_PTR str, int limit)
+static inline int min(const int a, const int b) {
+    return a<b ? a : b;
+}
+
+static inline int max(const int a, const int b) {
+    return a>b ? a : b;
+}
+
+/* tokenlabelcmp: compare label based on tokeninfo.tokenlabel
+**
+** arguments:
+**  - label: pointer to label to compare, assumed to be trimmed already
+**  - reflabel: pointer to a possibly non-NULL terminated reference label,
+**              ending with spaces
+**  - reflabel_maxlen: maximum lenght of reflabel
+**
+** return code: int -> 0 when label and tokenlabel are matching, 1/-1 otherwise
+**
+** the function will try to determine the actual length of the reference string
+** by counting space characters from the end, then perform a non-case sensitive 
+** string comparison, limited in length by reflabel_maxlen
+** 
+** caution: if label length exceeds reflabel_maxlen, the function returns prematurely
+**          with a warning.
+*/
+
+static int tokenlabelcmp(const char *label, const char *reflabel, size_t reflabel_maxlen)
 {
-    size_t n;
 
-    if (limit>0) {
-	n = strlen((const char *)str)>limit ? limit : strlen((const char *)str);
-    } else {
-	n = strlen((const char *)str);
+    size_t label_len = strlen(label);
+
+    if(label_len>reflabel_maxlen) {
+	fprintf(stderr, "Warning: string '%s' is longer than %d characters\n", label, reflabel_maxlen);
+	return 1;		/* return prematurely */
     }
 
-    
-    while (n > 0 && isspace(str[n - 1])) {
-	n--;
+    /* tokenlabel may end with spaces (expected), and \0x0 (less expected), /*
+    /* let's try to find where the token label actually ends (first non-space character) */
+    int reflabel_real_end=reflabel_maxlen;
+    while( reflabel_real_end>0 && ( isspace(reflabel[reflabel_real_end-1]) || reflabel[reflabel_real_end-1]==0x00) ) {
+	reflabel_real_end--;
     }
-    str[n] = '\0';
 
-    return str;
+    /* return a string compare, using the longest chain, but limiting it to the max length of reflabel */
+    /* (32 in our case) */
+    return strncasecmp(label, reflabel, min(reflabel_maxlen, max(label_len, reflabel_real_end)));
 }
 
 func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenlabel, char * password, int so, int interactive )
@@ -125,7 +156,8 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
 			pkcs11_error( rv, "C_GetTokenInfo" );
 		    }
 		} else {
-		    if(strcasecmp(tokenlabel, (const char *)rtrim(tokenInfo.label, sizeof(tokenInfo.label) ))==0) {
+		    /* comparison routine for the tokenlabel */
+		    if(tokenlabelcmp(tokenlabel, tokenInfo.label, sizeof tokenInfo.label)==0) {
 			slot=i;	/* remember the slot number */
 			break;	/* exit the loop */
 		    }
