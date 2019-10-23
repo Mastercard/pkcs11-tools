@@ -26,12 +26,12 @@ AM_CPPFLAGS = \
 # libcommon contain code common to all executables.
 # it is statically linked.
 
-noinst_LTLIBRARIES = libcommon.la
-libcommon_la_SOURCES = version.c
+noinst_LIBRARIES = libcommon.a
+libcommon_a_SOURCES = version.c
 
 # special treat for minw32/windows build
 if TARGET_OS_MINGW32
-libcommon_la_SOURCES += win_applink.c
+libcommon_a_SOURCES += win_applink.c
 endif
 
 
@@ -39,12 +39,12 @@ endif
 # p11 toolkit
 
 # the actual list of programs being compiled
-bin_PROGRAMS = p11wrap p11unwrap p11cp p11ls p11cat p11more p11od p11rm p11mv p11slotinfo p11req p11importcert p11importpubk p11importdata p11keycomp p11setattr masqreq p11keygen p11kcv 
+bin_PROGRAMS = p11wrap p11unwrap p11cp p11ls p11cat p11more p11od p11rm p11mv p11slotinfo p11req p11importcert p11importpubk p11importdata p11keycomp p11setattr masqreq p11keygen p11kcv
 
 
 SOURCES = $(bin_PROGRAMS:%=%.c)
 
-LDADD = $(builddir)/libcommon.la $(top_builddir)/lib/libp11.la $(top_builddir)/gl/libgnu.a $(GETHOSTNAME_LIB) $(LIBSOCKET) $(LIBINTL) $(LIBTHREAD)
+LDADD = $(builddir)/libcommon.a $(top_builddir)/lib/libp11.la $(top_builddir)/gl/libgnu.a $(LIBCRYPTO_LIBS) $(GETHOSTNAME_LIB) $(LIBSOCKET) $(LIBINTL) $(LIBTHREAD)
 
 
 #%.c: $(top_srcdir)/include/libpkcs11.h
