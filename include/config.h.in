@@ -140,6 +140,22 @@
    don't. */
 #undef HAVE_DECL_MBSINIT
 
+/* Define to 1 if you have the declaration of `OPENSSL_NO_DH', and to 0 if you
+   don't. */
+#undef HAVE_DECL_OPENSSL_NO_DH
+
+/* Define to 1 if you have the declaration of `OPENSSL_NO_DSA', and to 0 if
+   you don't. */
+#undef HAVE_DECL_OPENSSL_NO_DSA
+
+/* Define to 1 if you have the declaration of `OPENSSL_NO_EC', and to 0 if you
+   don't. */
+#undef HAVE_DECL_OPENSSL_NO_EC
+
+/* Define to 1 if you have the declaration of `OPENSSL_NO_RSA', and to 0 if
+   you don't. */
+#undef HAVE_DECL_OPENSSL_NO_RSA
+
 /* Define to 1 if you have the declaration of `strncasecmp', and to 0 if you
    don't. */
 #undef HAVE_DECL_STRNCASECMP
@@ -237,9 +253,6 @@
 
 /* Define to 1 if you have the 'nl_langinfo' function. */
 #undef HAVE_NL_LANGINFO
-
-/* Define to 1 if you have the <openssl/ec.h> header file. */
-#undef HAVE_OPENSSL_EC_H
 
 /* Define if the <pthread.h> defines PTHREAD_MUTEX_RECURSIVE. */
 #undef HAVE_PTHREAD_MUTEX_RECURSIVE
