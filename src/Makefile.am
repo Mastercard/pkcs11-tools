@@ -19,6 +19,9 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/include/cryptoki
 
 #AM_LDFLAGS = -L$(top_srcdir)/lib -L$(top_srcdir)/gl/lib
+if HAS_LIBCRYPTO_RPATH
+AM_LDFLAGS = -rpath $(LIBCRYPTO_RPATH)
+endif
 
 ################################################################################
 # libcommon
@@ -26,14 +29,15 @@ AM_CPPFLAGS = \
 # libcommon contain code common to all executables.
 # it is statically linked.
 
-noinst_LIBRARIES = libcommon.a
-libcommon_a_SOURCES = version.c
+noinst_LIBRARIES = libcommon.la
+libcommon_la_SOURCES = version.c
 
 # special treat for minw32/windows build
 if TARGET_OS_MINGW32
-libcommon_a_SOURCES += win_applink.c
+libcommon_la_SOURCES += win_applink.c
 endif
 
+libcommon_la_ldflags = -static
 
 ################################################################################
 # p11 toolkit
@@ -44,7 +48,8 @@ bin_PROGRAMS = p11wrap p11unwrap p11cp p11ls p11cat p11more p11od p11rm p11mv p1
 
 SOURCES = $(bin_PROGRAMS:%=%.c)
 
-LDADD = $(builddir)/libcommon.a $(top_builddir)/lib/libp11.la $(top_builddir)/gl/libgnu.a $(LIBCRYPTO_LIBS) $(GETHOSTNAME_LIB) $(LIBSOCKET) $(LIBINTL) $(LIBTHREAD)
+LDADD = $(builddir)/libcommon.la $(top_builddir)/lib/libp11.la $(top_builddir)/gl/libgnu.a $(LIBCRYPTO_LIBS) $(GETHOSTNAME_LIB) $(LIBSOCKET) $(LIBINTL) $(LIBTHREAD)
+
 
 
 #%.c: $(top_srcdir)/include/libpkcs11.h
