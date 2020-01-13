@@ -28,10 +28,13 @@ Makefile.in
 /install-sh
 /libtool
 /ltmain.sh
-/m4/
 .dirstamp
 /missing
 /ylwrap
+/m4
+!m4/ax_create_target_h.m4
+!m4/ax_lib_socket_nsl.m4
+!m4/ax_with_dmalloc.m4
 
 # Ignoring generated /bin directory
 /bin/
