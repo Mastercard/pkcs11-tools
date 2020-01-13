@@ -16,33 +16,25 @@
  * limitations under the License.
  */
 
-/* this file is derived from the RSA Security Inc. PKCS #11
- * Cryptographic Token Interface (Cryptoki)
- * original license follows */
+/* Original copyright notice: */
 
-/* pkcs11f.h include file for PKCS #11. */
-/* $Revision: 1.4 $ */
-
-/* License to copy and use this software is granted provided that it is
- * identified as "RSA Security Inc. PKCS #11 Cryptographic Token Interface
- * (Cryptoki)" in all material mentioning or referencing this software.
-
- * License is also granted to make and use derivative works provided that
- * such works are identified as "derived from the RSA Security Inc. PKCS #11
- * Cryptographic Token Interface (Cryptoki)" in all material mentioning or 
- * referencing the derived work.
-
- * RSA Security Inc. makes no representations concerning either the 
- * merchantability of this software or the suitability of this software for
- * any particular purpose. It is provided "as is" without express or implied
- * warranty of any kind.
+/* Copyright (c) OASIS Open 2016. All Rights Reserved./
+ * /Distributed under the terms of the OASIS IPR Policy,
+ * [http://www.oasis-open.org/policies-guidelines/ipr], AS-IS, WITHOUT ANY
+ * IMPLIED OR EXPRESS WARRANTY; there is no warranty of MERCHANTABILITY, FITNESS FOR A
+ * PARTICULAR PURPOSE or NONINFRINGEMENT of the rights of others.
  */
 
-/* This header file contains pretty much everything about all the */
-/* Cryptoki function prototypes.  Because this information is */
-/* used for more than just declaring function prototypes, the */
-/* order of the functions appearing herein is important, and */
-/* should not be altered. */
+/* Latest version of the specification:
+ * http://docs.oasis-open.org/pkcs11/pkcs11-base/v2.40/pkcs11-base-v2.40.html
+ */
+
+/* This header file contains pretty much everything about all the
+ * Cryptoki function prototypes.  Because this information is
+ * used for more than just declaring function prototypes, the
+ * order of the functions appearing herein is important, and
+ * should not be altered.
+ */
 
 /* General-purpose */
 
@@ -52,13 +44,15 @@ CK_PKCS11_FUNCTION_INFO(C_Initialize)
 (
   CK_VOID_PTR   pInitArgs  /* if this is not NULL_PTR, it gets
                             * cast to CK_C_INITIALIZE_ARGS_PTR
-                            * and dereferenced */
+                            * and dereferenced
+                            */
 );
 #endif
 
 
 /* C_Finalize indicates that an application is done with the
- * Cryptoki library. */
+ * Cryptoki library.
+ */
 CK_PKCS11_FUNCTION_INFO(C_Finalize)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -81,7 +75,8 @@ CK_PKCS11_FUNCTION_INFO(C_GetFunctionList)
 #ifdef CK_NEED_ARG_LIST
 (
   CK_FUNCTION_LIST_PTR_PTR ppFunctionList  /* receives pointer to
-                                            * function list */
+                                            * function list
+                                            */
 );
 #endif
 
@@ -93,7 +88,7 @@ CK_PKCS11_FUNCTION_INFO(C_GetFunctionList)
 CK_PKCS11_FUNCTION_INFO(C_GetSlotList)
 #ifdef CK_NEED_ARG_LIST
 (
-  CK_BBOOL       tokenPresent,  /* only slots with tokens? */
+  CK_BBOOL       tokenPresent,  /* only slots with tokens */
   CK_SLOT_ID_PTR pSlotList,     /* receives array of slot IDs */
   CK_ULONG_PTR   pulCount       /* receives number of slots */
 );
@@ -101,7 +96,8 @@ CK_PKCS11_FUNCTION_INFO(C_GetSlotList)
 
 
 /* C_GetSlotInfo obtains information about a particular slot in
- * the system. */
+ * the system.
+ */
 CK_PKCS11_FUNCTION_INFO(C_GetSlotInfo)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -112,7 +108,8 @@ CK_PKCS11_FUNCTION_INFO(C_GetSlotInfo)
 
 
 /* C_GetTokenInfo obtains information about a particular token
- * in the system. */
+ * in the system.
+ */
 CK_PKCS11_FUNCTION_INFO(C_GetTokenInfo)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -123,7 +120,8 @@ CK_PKCS11_FUNCTION_INFO(C_GetTokenInfo)
 
 
 /* C_GetMechanismList obtains a list of mechanism types
- * supported by a token. */
+ * supported by a token.
+ */
 CK_PKCS11_FUNCTION_INFO(C_GetMechanismList)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -135,7 +133,8 @@ CK_PKCS11_FUNCTION_INFO(C_GetMechanismList)
 
 
 /* C_GetMechanismInfo obtains information about a particular
- * mechanism possibly supported by a token. */
+ * mechanism possibly supported by a token.
+ */
 CK_PKCS11_FUNCTION_INFO(C_GetMechanismInfo)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -149,7 +148,6 @@ CK_PKCS11_FUNCTION_INFO(C_GetMechanismInfo)
 /* C_InitToken initializes a token. */
 CK_PKCS11_FUNCTION_INFO(C_InitToken)
 #ifdef CK_NEED_ARG_LIST
-/* pLabel changed from CK_CHAR_PTR to CK_UTF8CHAR_PTR for v2.10 */
 (
   CK_SLOT_ID      slotID,    /* ID of the token's slot */
   CK_UTF8CHAR_PTR pPin,      /* the SO's initial PIN */
@@ -187,7 +185,8 @@ CK_PKCS11_FUNCTION_INFO(C_SetPIN)
 /* Session management */
 
 /* C_OpenSession opens a session between an application and a
- * token. */
+ * token.
+ */
 CK_PKCS11_FUNCTION_INFO(C_OpenSession)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -201,7 +200,8 @@ CK_PKCS11_FUNCTION_INFO(C_OpenSession)
 
 
 /* C_CloseSession closes a session between an application and a
- * token. */
+ * token.
+ */
 CK_PKCS11_FUNCTION_INFO(C_CloseSession)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -230,7 +230,8 @@ CK_PKCS11_FUNCTION_INFO(C_GetSessionInfo)
 
 
 /* C_GetOperationState obtains the state of the cryptographic operation
- * in a session. */
+ * in a session.
+ */
 CK_PKCS11_FUNCTION_INFO(C_GetOperationState)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -242,7 +243,8 @@ CK_PKCS11_FUNCTION_INFO(C_GetOperationState)
 
 
 /* C_SetOperationState restores the state of the cryptographic
- * operation in a session. */
+ * operation in a session.
+ */
 CK_PKCS11_FUNCTION_INFO(C_SetOperationState)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -292,7 +294,8 @@ CK_PKCS11_FUNCTION_INFO(C_CreateObject)
 
 
 /* C_CopyObject copies an object, creating a new object for the
- * copy. */
+ * copy.
+ */
 CK_PKCS11_FUNCTION_INFO(C_CopyObject)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -327,7 +330,8 @@ CK_PKCS11_FUNCTION_INFO(C_GetObjectSize)
 
 
 /* C_GetAttributeValue obtains the value of one or more object
- * attributes. */
+ * attributes.
+ */
 CK_PKCS11_FUNCTION_INFO(C_GetAttributeValue)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -340,7 +344,8 @@ CK_PKCS11_FUNCTION_INFO(C_GetAttributeValue)
 
 
 /* C_SetAttributeValue modifies the value of one or more object
- * attributes */
+ * attributes.
+ */
 CK_PKCS11_FUNCTION_INFO(C_SetAttributeValue)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -353,7 +358,8 @@ CK_PKCS11_FUNCTION_INFO(C_SetAttributeValue)
 
 
 /* C_FindObjectsInit initializes a search for token and session
- * objects that match a template. */
+ * objects that match a template.
+ */
 CK_PKCS11_FUNCTION_INFO(C_FindObjectsInit)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -366,7 +372,8 @@ CK_PKCS11_FUNCTION_INFO(C_FindObjectsInit)
 
 /* C_FindObjects continues a search for token and session
  * objects that match a template, obtaining additional object
- * handles. */
+ * handles.
+ */
 CK_PKCS11_FUNCTION_INFO(C_FindObjects)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -379,7 +386,8 @@ CK_PKCS11_FUNCTION_INFO(C_FindObjects)
 
 
 /* C_FindObjectsFinal finishes a search for token and session
- * objects. */
+ * objects.
+ */
 CK_PKCS11_FUNCTION_INFO(C_FindObjectsFinal)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -416,7 +424,8 @@ CK_PKCS11_FUNCTION_INFO(C_Encrypt)
 
 
 /* C_EncryptUpdate continues a multiple-part encryption
- * operation. */
+ * operation.
+ */
 CK_PKCS11_FUNCTION_INFO(C_EncryptUpdate)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -430,7 +439,8 @@ CK_PKCS11_FUNCTION_INFO(C_EncryptUpdate)
 
 
 /* C_EncryptFinal finishes a multiple-part encryption
- * operation. */
+ * operation.
+ */
 CK_PKCS11_FUNCTION_INFO(C_EncryptFinal)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -466,7 +476,8 @@ CK_PKCS11_FUNCTION_INFO(C_Decrypt)
 
 
 /* C_DecryptUpdate continues a multiple-part decryption
- * operation. */
+ * operation.
+ */
 CK_PKCS11_FUNCTION_INFO(C_DecryptUpdate)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -480,7 +491,8 @@ CK_PKCS11_FUNCTION_INFO(C_DecryptUpdate)
 
 
 /* C_DecryptFinal finishes a multiple-part decryption
- * operation. */
+ * operation.
+ */
 CK_PKCS11_FUNCTION_INFO(C_DecryptFinal)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -518,7 +530,8 @@ CK_PKCS11_FUNCTION_INFO(C_Digest)
 
 
 /* C_DigestUpdate continues a multiple-part message-digesting
- * operation. */
+ * operation.
+ */
 CK_PKCS11_FUNCTION_INFO(C_DigestUpdate)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -531,7 +544,8 @@ CK_PKCS11_FUNCTION_INFO(C_DigestUpdate)
 
 /* C_DigestKey continues a multi-part message-digesting
  * operation, by digesting the value of a secret key as part of
- * the data already digested. */
+ * the data already digested.
+ */
 CK_PKCS11_FUNCTION_INFO(C_DigestKey)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -542,7 +556,8 @@ CK_PKCS11_FUNCTION_INFO(C_DigestKey)
 
 
 /* C_DigestFinal finishes a multiple-part message-digesting
- * operation. */
+ * operation.
+ */
 CK_PKCS11_FUNCTION_INFO(C_DigestFinal)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -559,7 +574,8 @@ CK_PKCS11_FUNCTION_INFO(C_DigestFinal)
 /* C_SignInit initializes a signature (private key encryption)
  * operation, where the signature is (will be) an appendix to
  * the data, and plaintext cannot be recovered from the
- *signature. */
+ * signature.
+ */
 CK_PKCS11_FUNCTION_INFO(C_SignInit)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -572,7 +588,8 @@ CK_PKCS11_FUNCTION_INFO(C_SignInit)
 
 /* C_Sign signs (encrypts with private key) data in a single
  * part, where the signature is (will be) an appendix to the
- * data, and plaintext cannot be recovered from the signature. */
+ * data, and plaintext cannot be recovered from the signature.
+ */
 CK_PKCS11_FUNCTION_INFO(C_Sign)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -586,8 +603,9 @@ CK_PKCS11_FUNCTION_INFO(C_Sign)
 
 
 /* C_SignUpdate continues a multiple-part signature operation,
- * where the signature is (will be) an appendix to the data, 
- * and plaintext cannot be recovered from the signature. */
+ * where the signature is (will be) an appendix to the data,
+ * and plaintext cannot be recovered from the signature.
+ */
 CK_PKCS11_FUNCTION_INFO(C_SignUpdate)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -598,8 +616,9 @@ CK_PKCS11_FUNCTION_INFO(C_SignUpdate)
 #endif
 
 
-/* C_SignFinal finishes a multiple-part signature operation, 
- * returning the signature. */
+/* C_SignFinal finishes a multiple-part signature operation,
+ * returning the signature.
+ */
 CK_PKCS11_FUNCTION_INFO(C_SignFinal)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -611,7 +630,8 @@ CK_PKCS11_FUNCTION_INFO(C_SignFinal)
 
 
 /* C_SignRecoverInit initializes a signature operation, where
- * the data can be recovered from the signature. */
+ * the data can be recovered from the signature.
+ */
 CK_PKCS11_FUNCTION_INFO(C_SignRecoverInit)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -623,7 +643,8 @@ CK_PKCS11_FUNCTION_INFO(C_SignRecoverInit)
 
 
 /* C_SignRecover signs data in a single operation, where the
- * data can be recovered from the signature. */
+ * data can be recovered from the signature.
+ */
 CK_PKCS11_FUNCTION_INFO(C_SignRecover)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -641,20 +662,22 @@ CK_PKCS11_FUNCTION_INFO(C_SignRecover)
 
 /* C_VerifyInit initializes a verification operation, where the
  * signature is an appendix to the data, and plaintext cannot
- *  cannot be recovered from the signature (e.g. DSA). */
+ * cannot be recovered from the signature (e.g. DSA).
+ */
 CK_PKCS11_FUNCTION_INFO(C_VerifyInit)
 #ifdef CK_NEED_ARG_LIST
 (
   CK_SESSION_HANDLE hSession,    /* the session's handle */
   CK_MECHANISM_PTR  pMechanism,  /* the verification mechanism */
-  CK_OBJECT_HANDLE  hKey         /* verification key */ 
+  CK_OBJECT_HANDLE  hKey         /* verification key */
 );
 #endif
 
 
-/* C_Verify verifies a signature in a single-part operation, 
+/* C_Verify verifies a signature in a single-part operation,
  * where the signature is an appendix to the data, and plaintext
- * cannot be recovered from the signature. */
+ * cannot be recovered from the signature.
+ */
 CK_PKCS11_FUNCTION_INFO(C_Verify)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -668,8 +691,9 @@ CK_PKCS11_FUNCTION_INFO(C_Verify)
 
 
 /* C_VerifyUpdate continues a multiple-part verification
- * operation, where the signature is an appendix to the data, 
- * and plaintext cannot be recovered from the signature. */
+ * operation, where the signature is an appendix to the data,
+ * and plaintext cannot be recovered from the signature.
+ */
 CK_PKCS11_FUNCTION_INFO(C_VerifyUpdate)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -681,7 +705,8 @@ CK_PKCS11_FUNCTION_INFO(C_VerifyUpdate)
 
 
 /* C_VerifyFinal finishes a multiple-part verification
- * operation, checking the signature. */
+ * operation, checking the signature.
+ */
 CK_PKCS11_FUNCTION_INFO(C_VerifyFinal)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -693,7 +718,8 @@ CK_PKCS11_FUNCTION_INFO(C_VerifyFinal)
 
 
 /* C_VerifyRecoverInit initializes a signature verification
- * operation, where the data is recovered from the signature. */
+ * operation, where the data is recovered from the signature.
+ */
 CK_PKCS11_FUNCTION_INFO(C_VerifyRecoverInit)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -705,7 +731,8 @@ CK_PKCS11_FUNCTION_INFO(C_VerifyRecoverInit)
 
 
 /* C_VerifyRecover verifies a signature in a single-part
- * operation, where the data is recovered from the signature. */
+ * operation, where the data is recovered from the signature.
+ */
 CK_PKCS11_FUNCTION_INFO(C_VerifyRecover)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -722,7 +749,8 @@ CK_PKCS11_FUNCTION_INFO(C_VerifyRecover)
 /* Dual-function cryptographic operations */
 
 /* C_DigestEncryptUpdate continues a multiple-part digesting
- * and encryption operation. */
+ * and encryption operation.
+ */
 CK_PKCS11_FUNCTION_INFO(C_DigestEncryptUpdate)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -736,7 +764,8 @@ CK_PKCS11_FUNCTION_INFO(C_DigestEncryptUpdate)
 
 
 /* C_DecryptDigestUpdate continues a multiple-part decryption and
- * digesting operation. */
+ * digesting operation.
+ */
 CK_PKCS11_FUNCTION_INFO(C_DecryptDigestUpdate)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -750,7 +779,8 @@ CK_PKCS11_FUNCTION_INFO(C_DecryptDigestUpdate)
 
 
 /* C_SignEncryptUpdate continues a multiple-part signing and
- * encryption operation. */
+ * encryption operation.
+ */
 CK_PKCS11_FUNCTION_INFO(C_SignEncryptUpdate)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -764,7 +794,8 @@ CK_PKCS11_FUNCTION_INFO(C_SignEncryptUpdate)
 
 
 /* C_DecryptVerifyUpdate continues a multiple-part decryption and
- * verify operation. */
+ * verify operation.
+ */
 CK_PKCS11_FUNCTION_INFO(C_DecryptVerifyUpdate)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -781,7 +812,8 @@ CK_PKCS11_FUNCTION_INFO(C_DecryptVerifyUpdate)
 /* Key management */
 
 /* C_GenerateKey generates a secret key, creating a new key
- * object. */
+ * object.
+ */
 CK_PKCS11_FUNCTION_INFO(C_GenerateKey)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -794,31 +826,20 @@ CK_PKCS11_FUNCTION_INFO(C_GenerateKey)
 #endif
 
 
-/* C_GenerateKeyPair generates a public-key/private-key pair, 
- * creating new key objects. */
+/* C_GenerateKeyPair generates a public-key/private-key pair,
+ * creating new key objects.
+ */
 CK_PKCS11_FUNCTION_INFO(C_GenerateKeyPair)
 #ifdef CK_NEED_ARG_LIST
 (
-  CK_SESSION_HANDLE    hSession,                    /* session
-                                                     * handle */
-  CK_MECHANISM_PTR     pMechanism,                  /* key-gen
-                                                     * mech. */
-  CK_ATTRIBUTE_PTR     pPublicKeyTemplate,          /* template
-                                                     * for pub.
-                                                     * key */
-  CK_ULONG             ulPublicKeyAttributeCount,   /* # pub.
-                                                     * attrs. */
-  CK_ATTRIBUTE_PTR     pPrivateKeyTemplate,         /* template
-                                                     * for priv.
-                                                     * key */
-  CK_ULONG             ulPrivateKeyAttributeCount,  /* # priv.
-                                                     * attrs. */
-  CK_OBJECT_HANDLE_PTR phPublicKey,                 /* gets pub.
-                                                     * key
-                                                     * handle */
-  CK_OBJECT_HANDLE_PTR phPrivateKey                 /* gets
-                                                     * priv. key
-                                                     * handle */
+  CK_SESSION_HANDLE    hSession,                    /* session handle */
+  CK_MECHANISM_PTR     pMechanism,                  /* key-gen mech. */
+  CK_ATTRIBUTE_PTR     pPublicKeyTemplate,          /* template for pub. key */
+  CK_ULONG             ulPublicKeyAttributeCount,   /* # pub. attrs. */
+  CK_ATTRIBUTE_PTR     pPrivateKeyTemplate,         /* template for priv. key */
+  CK_ULONG             ulPrivateKeyAttributeCount,  /* # priv.  attrs. */
+  CK_OBJECT_HANDLE_PTR phPublicKey,                 /* gets pub. key handle */
+  CK_OBJECT_HANDLE_PTR phPrivateKey                 /* gets priv. key handle */
 );
 #endif
 
@@ -838,7 +859,8 @@ CK_PKCS11_FUNCTION_INFO(C_WrapKey)
 
 
 /* C_UnwrapKey unwraps (decrypts) a wrapped key, creating a new
- * key object. */
+ * key object.
+ */
 CK_PKCS11_FUNCTION_INFO(C_UnwrapKey)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -855,7 +877,8 @@ CK_PKCS11_FUNCTION_INFO(C_UnwrapKey)
 
 
 /* C_DeriveKey derives a key from a base key, creating a new key
- * object. */
+ * object.
+ */
 CK_PKCS11_FUNCTION_INFO(C_DeriveKey)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -873,7 +896,8 @@ CK_PKCS11_FUNCTION_INFO(C_DeriveKey)
 /* Random number generation */
 
 /* C_SeedRandom mixes additional seed material into the token's
- * random number generator. */
+ * random number generator.
+ */
 CK_PKCS11_FUNCTION_INFO(C_SeedRandom)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -900,7 +924,8 @@ CK_PKCS11_FUNCTION_INFO(C_GenerateRandom)
 
 /* C_GetFunctionStatus is a legacy function; it obtains an
  * updated status of a function running in parallel with an
- * application. */
+ * application.
+ */
 CK_PKCS11_FUNCTION_INFO(C_GetFunctionStatus)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -910,7 +935,8 @@ CK_PKCS11_FUNCTION_INFO(C_GetFunctionStatus)
 
 
 /* C_CancelFunction is a legacy function; it cancels a function
- * running in parallel. */
+ * running in parallel.
+ */
 CK_PKCS11_FUNCTION_INFO(C_CancelFunction)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -919,11 +945,9 @@ CK_PKCS11_FUNCTION_INFO(C_CancelFunction)
 #endif
 
 
-
-/* Functions added in for Cryptoki Version 2.01 or later */
-
 /* C_WaitForSlotEvent waits for a slot event (token insertion,
- * removal, etc.) to occur. */
+ * removal, etc.) to occur.
+ */
 CK_PKCS11_FUNCTION_INFO(C_WaitForSlotEvent)
 #ifdef CK_NEED_ARG_LIST
 (
@@ -932,3 +956,4 @@ CK_PKCS11_FUNCTION_INFO(C_WaitForSlotEvent)
   CK_VOID_PTR pRserved   /* reserved.  Should be NULL_PTR */
 );
 #endif
+
