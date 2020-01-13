@@ -92,7 +92,6 @@
 #endif
 
 #if defined(_WIN32)
-#pragma warning(disable: 4103)
 #pragma pack(push, cryptoki, 1)
 #endif
 
@@ -104,7 +103,6 @@
 
 #if defined(_WIN32)
 #pragma pack(pop, cryptoki)
-#pragma warning(default: 4103)
 #endif
 
 #endif /* CRYPTOKI_H */
