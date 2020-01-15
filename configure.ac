@@ -14,7 +14,7 @@ dnl limitations under the License.
 
 
 AC_PREREQ(2.59)
-AC_INIT([pkcs11-tools], [1.0.3-devel], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
+AC_INIT([pkcs11-tools], [1.0.3], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
 AC_CONFIG_MACRO_DIR([m4])
 
 dnl adding AM_MAINTAINER_MODE to address autotools issues with git
@@ -70,13 +70,16 @@ AM_CONDITIONAL([TARGET_OS_MINGW32], [test "$MINGW32" = "1"])
 PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES([LIBCRYPTO],
 	          [libcrypto < 1.1.0],
-		  [ ac_save_CPPFLAGS=$CPPFLAGS
-		    CPPFLAGS="${CPPFLAGS} ${LIBCRYPTO_CFLAGS}"
-		    AC_CHECK_DECLS([OPENSSL_NO_RSA, OPENSSL_NO_DSA, OPENSSL_NO_DH, OPENSSL_NO_EC],
-		                  [AC_MSG_FAILURE([The OpenSSL crypto library is missing features/algorithm to allow compilation])],
-    				  [],
-				  [[#include <openssl/opensslconf.h>]])
-		    CPPFLAGS=${ac_save_CPPFLAGS} ])
+		  [ dnl if OS_MINGW32, we look for libeay32.dll. We do not add -lz, as it is confusing the compiler.
+       	    	    dnl check for elliptic point support in libeay
+		    AC_CHECK_HEADERS([openssl/ec.h])
+		    AC_CHECK_LIB( [crypto], dnl let's try on Unix first
+		    		  [EC_POINT_new],
+				  [AC_MSG_RESULT([yes])],
+				  [ AC_CHECK_LIB( [eay], dnl then let's try on Windows
+				    [EC_POINT_new],
+				    [AC_MSG_RESULT([yes])],
+				    [AC_MSG_FAILURE([The crypto library is lacking EC support.])])])])
 
 dnl on UNIX platforms, check for dynamic loader lib
 AM_COND_IF( [TARGET_OS_MINGW32],
@@ -92,7 +95,7 @@ AX_WITH_DMALLOC			dnl the project can be compiled with dmalloc for memory debugg
 dnl check if nCipher extensions can be compiled. If requested, specific file
 AC_ARG_WITH([ncipher],
 	[AS_HELP_STRING([--with-ncipher],
-	[enable support for the nCipher extensions (requires a separate ncipher.h header file to compile)])],
+	[enable support for Thales nCipher extensions (requires a separate ncipher.h header file to compile)])],
         [],
         [with_ncipher=check])
 
@@ -132,10 +135,12 @@ AX_CREATE_TARGET_H([include/target.h])
 
 AC_MSG_NOTICE([------------------------------------------------------------------------])
 AC_MSG_NOTICE([compiler      : $CC])
-AC_MSG_NOTICE([compiler flags: ${LIBCRYPTO_CFLAGS} $CFLAGS])
+AC_MSG_NOTICE([compiler flags: $CFLAGS])
+AC_MSG_NOTICE([                ${LIBCRYPTO_CFLAGS}])
 AC_MSG_NOTICE([linker        : $LD])
 AC_MSG_NOTICE([linker flags  : $LDFLAGS ])
-AC_MSG_NOTICE([libraries     : ${LIBCRYPTO_LIBS} $LIBS])
+AC_MSG_NOTICE([libraries     : $LIBS])
+AC_MSG_NOTICE([                ${LIBCRYPTO_LIBS}])
 AC_MSG_NOTICE([lex           : $LEX])
 AC_MSG_NOTICE([yacc          : $YACC])
 AC_MSG_NOTICE([yacc flags    : $FLAGS])
