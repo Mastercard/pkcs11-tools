@@ -29,7 +29,7 @@ endif
 # libcommon contain code common to all executables.
 # it is statically linked.
 
-noinst_LTLIBRARIES = libcommon.la
+noinst_LIBRARIES = libcommon.la
 libcommon_la_SOURCES = version.c
 
 # special treat for minw32/windows build
@@ -37,7 +37,7 @@ if TARGET_OS_MINGW32
 libcommon_la_SOURCES += win_applink.c
 endif
 
-libcommon_la_LDFLAGS = -static
+libcommon_la_ldflags = -static
 
 ################################################################################
 # p11 toolkit
