@@ -18,6 +18,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/cryptoki
 
+#AM_LDFLAGS = -L$(top_srcdir)/lib -L$(top_srcdir)/gl/lib
 if HAS_LIBCRYPTO_RPATH
 AM_LDFLAGS = -rpath $(LIBCRYPTO_RPATH)
 endif
@@ -47,7 +48,11 @@ bin_PROGRAMS = p11wrap p11unwrap p11cp p11ls p11cat p11more p11od p11rm p11mv p1
 
 SOURCES = $(bin_PROGRAMS:%=%.c)
 
-LDADD = libcommon.la $(top_builddir)/lib/libp11.la $(top_builddir)/gl/libgnu.a $(LIBCRYPTO_LIBS) $(GETHOSTNAME_LIB) $(LIBSOCKET) $(LIBINTL) $(LIBTHREAD)
+LDADD = $(builddir)/libcommon.la $(top_builddir)/lib/libp11.la $(top_builddir)/gl/libgnu.a $(LIBCRYPTO_LIBS) $(GETHOSTNAME_LIB) $(LIBSOCKET) $(LIBINTL) $(LIBTHREAD)
 
+
+
+#%.c: $(top_srcdir)/include/libpkcs11.h
 $(SOURCES): $(top_srcdir)/include/pkcs11lib.h
 
+#LDFLAGS = -static

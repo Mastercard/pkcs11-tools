@@ -13,7 +13,7 @@ dnl See the License for the specific language governing permissions and
 dnl limitations under the License.
 
 
-AC_PREREQ([2.63])
+AC_PREREQ(2.59)
 AC_INIT([pkcs11-tools], [1.0.3-devel], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -50,7 +50,7 @@ if test "x$YACC" != "xbison -y"; then
 fi
 
 gl_EARLY			dnl GNULIB early macro init
-AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
+AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 AM_PROG_AR			dnl AM_PROG_AR is required on Solaris
@@ -119,6 +119,9 @@ dnl check endianness
 AC_C_BIGENDIAN
 dnl we need to know sizeof(long) for dealing with endianness conversion
 AC_CHECK_SIZEOF([unsigned long int])
+
+dnl try to find a proper bswap() function, defined in m4/local_fix_bswap.m4
+dnl LOCAL_FIX_BSWAP
 
 
 dnl ========================================================================
