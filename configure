@@ -644,9 +644,6 @@ am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
-HAS_LIBCRYPTO_RPATH_FALSE
-HAS_LIBCRYPTO_RPATH_TRUE
-LIBCRYPTO_RPATH
 LIBCRYPTO_LIBS
 LIBCRYPTO_CFLAGS
 PKG_CONFIG_LIBDIR
@@ -1151,6 +1148,7 @@ PRAGMA_SYSTEM_HEADER
 INCLUDE_NEXT_AS_FIRST_DIRECTIVE
 INCLUDE_NEXT
 pkglibexecdir
+runstatedir
 lispdir
 GL_GENERATE_BYTESWAP_H_FALSE
 GL_GENERATE_BYTESWAP_H_TRUE
@@ -1282,7 +1280,6 @@ am__nodep
 AMDEPBACKSLASH
 AMDEP_FALSE
 AMDEP_TRUE
-am__quote
 am__include
 DEPDIR
 am__untar
@@ -1365,7 +1362,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -1384,7 +1380,8 @@ PACKAGE_VERSION
 PACKAGE_TARNAME
 PACKAGE_NAME
 PATH_SEPARATOR
-SHELL'
+SHELL
+am__quote'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
@@ -1422,8 +1419,7 @@ PKG_CONFIG
 PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
 LIBCRYPTO_CFLAGS
-LIBCRYPTO_LIBS
-LIBCRYPTO_RPATH'
+LIBCRYPTO_LIBS'
 
 
 # Initialize some variables set by options.
@@ -1462,7 +1458,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1715,15 +1710,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1861,7 +1847,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -2014,7 +2000,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -2121,10 +2106,6 @@ Some influential environment variables:
               C compiler flags for LIBCRYPTO, overriding pkg-config
   LIBCRYPTO_LIBS
               linker flags for LIBCRYPTO, overriding pkg-config
-  LIBCRYPTO_RPATH
-              provide RPATH to LIBCRYPTO, e.g.
-              LIBCRYPTO_RPATH=/usr/local/ssl/lib (useful when openssl is not
-              deployed to a system-wide location)
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -5512,7 +5493,7 @@ fi
   # Code from module wchar:
   # Code from module wcrtomb:
   # Code from module wctype-h:
-			am__api_version='1.15'
+			am__api_version='1.16'
 
 # Find a good install program.  We prefer a C program (faster),
 # so one script is as good as another.  But avoid the broken or
@@ -5896,45 +5877,45 @@ DEPDIR="${am__leading_dot}deps"
 
 ac_config_commands="$ac_config_commands depfiles"
 
-
-am_make=${MAKE-make}
-cat > confinc << 'END'
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether ${MAKE-make} supports the include directive" >&5
+$as_echo_n "checking whether ${MAKE-make} supports the include directive... " >&6; }
+cat > confinc.mk << 'END'
 am__doit:
-	@echo this is the am__doit target
+	@echo this is the am__doit target >confinc.out
 .PHONY: am__doit
 END
-# If we don't find an include directive, just comment out the code.
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for style of include used by $am_make" >&5
-$as_echo_n "checking for style of include used by $am_make... " >&6; }
 am__include="#"
 am__quote=
-_am_result=none
-# First try GNU make style include.
-echo "include confinc" > confmf
-# Ignore all kinds of additional output from 'make'.
-case `$am_make -s -f confmf 2> /dev/null` in #(
-*the\ am__doit\ target*)
-  am__include=include
-  am__quote=
-  _am_result=GNU
-  ;;
-esac
-# Now try BSD make style include.
-if test "$am__include" = "#"; then
-   echo '.include "confinc"' > confmf
-   case `$am_make -s -f confmf 2> /dev/null` in #(
-   *the\ am__doit\ target*)
-     am__include=.include
-     am__quote="\""
-     _am_result=BSD
+# BSD make does it like this.
+echo '.include "confinc.mk" # ignored' > confmf.BSD
+# Other make implementations (GNU, Solaris 10, AIX) do it like this.
+echo 'include confinc.mk # ignored' > confmf.GNU
+_am_result=no
+for s in GNU BSD; do
+  { echo "$as_me:$LINENO: ${MAKE-make} -f confmf.$s && cat confinc.out" >&5
+   (${MAKE-make} -f confmf.$s && cat confinc.out) >&5 2>&5
+   ac_status=$?
+   echo "$as_me:$LINENO: \$? = $ac_status" >&5
+   (exit $ac_status); }
+  case $?:`cat confinc.out 2>/dev/null` in #(
+  '0:this is the am__doit target') :
+    case $s in #(
+  BSD) :
+    am__include='.include' am__quote='"' ;; #(
+  *) :
+    am__include='include' am__quote='' ;;
+esac ;; #(
+  *) :
      ;;
-   esac
-fi
-
-
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $_am_result" >&5
-$as_echo "$_am_result" >&6; }
-rm -f confinc confmf
+esac
+  if test "$am__include" != "#"; then
+    _am_result="yes ($s style)"
+    break
+  fi
+done
+rm -f confinc.* confmf.*
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: ${_am_result}" >&5
+$as_echo "${_am_result}" >&6; }
 
 # Check whether --enable-dependency-tracking was given.
 if test "${enable_dependency_tracking+set}" = set; then :
@@ -6046,8 +6027,8 @@ MAKEINFO=${MAKEINFO-"${am_missing_run}makeinfo"}
 
 # For better backward compatibility.  To be removed once Automake 1.9.x
 # dies out for good.  For more background, see:
-# <http://lists.gnu.org/archive/html/automake/2012-07/msg00001.html>
-# <http://lists.gnu.org/archive/html/automake/2012-07/msg00014.html>
+# <https://lists.gnu.org/archive/html/automake/2012-07/msg00001.html>
+# <https://lists.gnu.org/archive/html/automake/2012-07/msg00014.html>
 mkdir_p='$(MKDIR_P)'
 
 # We need awk for the "check" target (and possibly the TAP driver).  The
@@ -6226,7 +6207,7 @@ END
 Aborting the configuration process, to ensure you take notice of the issue.
 
 You can download and install GNU coreutils to get an 'rm' implementation
-that behaves properly: <http://www.gnu.org/software/coreutils/>.
+that behaves properly: <https://www.gnu.org/software/coreutils/>.
 
 If you want to complete the configuration process using your problematic
 'rm' anyway, export the environment variable ACCEPT_INFERIOR_RM_PROGRAM
@@ -7556,7 +7537,7 @@ linux* | k*bsd*-gnu | kopensolaris*-gnu | gnu*)
   lt_cv_deplibs_check_method=pass_all
   ;;
 
-netbsd* | netbsdelf*-gnu)
+netbsd*)
   if echo __ELF__ | $CC -E - | $GREP __ELF__ > /dev/null; then
     lt_cv_deplibs_check_method='match_pattern /lib[^/]+(\.so\.[0-9]+\.[0-9]+|_pic\.a)$'
   else
@@ -10981,9 +10962,6 @@ $as_echo_n "checking whether the $compiler linker ($LD) supports shared librarie
   openbsd* | bitrig*)
     with_gnu_ld=no
     ;;
-  linux* | k*bsd*-gnu | gnu*)
-    link_all_deplibs=no
-    ;;
   esac
 
   ld_shlibs=yes
@@ -11238,7 +11216,7 @@ _LT_EOF
       fi
       ;;
 
-    netbsd* | netbsdelf*-gnu)
+    netbsd*)
       if echo __ELF__ | $CC -E - | $GREP __ELF__ >/dev/null; then
 	archive_cmds='$LD -Bshareable $libobjs $deplibs $linker_flags -o $lib'
 	wlarc=
@@ -11908,7 +11886,6 @@ $as_echo "$lt_cv_irix_exported_symbol" >&6; }
 	if test yes = "$lt_cv_irix_exported_symbol"; then
           archive_expsym_cmds='$CC -shared $pic_flag $libobjs $deplibs $compiler_flags $wl-soname $wl$soname `test -n "$verstring" && func_echo_all "$wl-set_version $wl$verstring"` $wl-update_registry $wl$output_objdir/so_locations $wl-exports_file $wl$export_symbols -o $lib'
 	fi
-	link_all_deplibs=no
       else
 	archive_cmds='$CC -shared $libobjs $deplibs $compiler_flags -soname $soname `test -n "$verstring" && func_echo_all "-set_version $verstring"` -update_registry $output_objdir/so_locations -o $lib'
 	archive_expsym_cmds='$CC -shared $libobjs $deplibs $compiler_flags -soname $soname `test -n "$verstring" && func_echo_all "-set_version $verstring"` -update_registry $output_objdir/so_locations -exports_file $export_symbols -o $lib'
@@ -11930,7 +11907,7 @@ $as_echo "$lt_cv_irix_exported_symbol" >&6; }
       esac
       ;;
 
-    netbsd* | netbsdelf*-gnu)
+    netbsd*)
       if echo __ELF__ | $CC -E - | $GREP __ELF__ >/dev/null; then
 	archive_cmds='$LD -Bshareable -o $lib $libobjs $deplibs $linker_flags'  # a.out
       else
@@ -13043,18 +13020,6 @@ fi
   # people can always --disable-shared, the test was removed, and we
   # assume the GNU/Linux dynamic linker is in use.
   dynamic_linker='GNU/Linux ld.so'
-  ;;
-
-netbsdelf*-gnu)
-  version_type=linux
-  need_lib_prefix=no
-  need_version=no
-  library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${release}${shared_ext}$major ${libname}${shared_ext}'
-  soname_spec='${libname}${release}${shared_ext}$major'
-  shlibpath_var=LD_LIBRARY_PATH
-  shlibpath_overrides_runpath=no
-  hardcode_into_libs=yes
-  dynamic_linker='NetBSD ld.elf_so'
   ;;
 
 netbsd*)
@@ -26055,12 +26020,14 @@ fi
   LIBGNU_LTLIBDEPS="$gl_ltlibdeps"
 
 
-if test "x$host_os" == "xmingw32"; then :
-  mingw32=1
-else
-  mingw32=0
-fi
- if test "$mingw32" = "1"; then
+MINGW32=0
+case "$host_os" in
+  mingw32)
+    MINGW32=1;
+  ;;
+esac
+
+ if test "$MINGW32" = "1"; then
   TARGET_OS_MINGW32_TRUE=
   TARGET_OS_MINGW32_FALSE='#'
 else
@@ -26191,8 +26158,8 @@ $as_echo "no" >&6; }
 fi
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for LIBCRYPTO" >&5
-$as_echo_n "checking for LIBCRYPTO... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libcrypto < 1.1.0" >&5
+$as_echo_n "checking for libcrypto < 1.1.0... " >&6; }
 
 if test -n "$LIBCRYPTO_CFLAGS"; then
     pkg_cv_LIBCRYPTO_CFLAGS="$LIBCRYPTO_CFLAGS"
@@ -26232,7 +26199,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -26259,7 +26226,7 @@ Alternatively, you may set the environment variables LIBCRYPTO_CFLAGS
 and LIBCRYPTO_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details." "$LINENO" 5
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
@@ -26621,25 +26588,6 @@ See \`config.log' for more details" "$LINENO" 5; }
 fi
 fi
 
-
- if test "x$LIBCRYPTO_RPATH" != "x"; then
-  HAS_LIBCRYPTO_RPATH_TRUE=
-  HAS_LIBCRYPTO_RPATH_FALSE='#'
-else
-  HAS_LIBCRYPTO_RPATH_TRUE='#'
-  HAS_LIBCRYPTO_RPATH_FALSE=
-fi
-
-
-
-#### TODO HERE
-if test "x$with_libcrypto_rpath" != xno && test "x$with_libcrypto_rpath" != xyes; then :
-
-$as_echo "#define LIBCRYPTO_RPATH \$with_libcrypto_rpath" >>confdefs.h
-
-fi
-
-
  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether byte ordering is bigendian" >&5
 $as_echo_n "checking whether byte ordering is bigendian... " >&6; }
 if ${ac_cv_c_bigendian+:} false; then :
@@ -26900,6 +26848,134 @@ _ACEOF
 
 
 
+# Checks for headers/macros for byte swapping
+# Known variants:
+#	<byteswap.h> bswap_16, bswap_32, bswap_64  (glibc)
+#	<sys/endian.h> __swap16, __swap32, __swap64 (OpenBSD)
+#	<sys/endian.h> bswap16, bswap32, bswap64 (other BSD's)
+#	and a fallback to local macros if none of the above are found
+
+# if <byteswap.h> is found, assume it's the correct version
+for ac_header in byteswap.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "byteswap.h" "ac_cv_header_byteswap_h" "$ac_includes_default"
+if test "x$ac_cv_header_byteswap_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_BYTESWAP_H 1
+_ACEOF
+
+fi
+
+done
+
+
+# if <sys/endian.h> is found, have to check which version
+ac_fn_c_check_header_mongrel "$LINENO" "sys/endian.h" "ac_cv_header_sys_endian_h" "$ac_includes_default"
+if test "x$ac_cv_header_sys_endian_h" = xyes; then :
+  HAVE_SYS_ENDIAN_H="yes"
+else
+  HAVE_SYS_ENDIAN_H="no"
+fi
+
+
+
+if test "x$HAVE_SYS_ENDIAN_H" = "xyes" ; then
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking for __swap16 variant of <sys/endian.h> byteswapping macros" >&5
+$as_echo_n "checking for __swap16 variant of <sys/endian.h> byteswapping macros... " >&6; }
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <sys/types.h>
+#include <sys/endian.h>
+
+int
+main ()
+{
+
+int a = 1, b;
+b = __swap16(a);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  SYS_ENDIAN__SWAP='yes'
+else
+  SYS_ENDIAN__SWAP='no'
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SYS_ENDIAN__SWAP" >&5
+$as_echo "$SYS_ENDIAN__SWAP" >&6; }
+
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bswap16 variant of <sys/endian.h> byteswapping macros" >&5
+$as_echo_n "checking for bswap16 variant of <sys/endian.h> byteswapping macros... " >&6; }
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <sys/types.h>
+#include <sys/endian.h>
+
+int
+main ()
+{
+
+int a = 1, b;
+b = bswap16(a);
+
+  ;
+  return 0;
+}
+
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  SYS_ENDIAN_BSWAP='yes'
+else
+  SYS_ENDIAN_BSWAP='no'
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $SYS_ENDIAN_BSWAP" >&5
+$as_echo "$SYS_ENDIAN_BSWAP" >&6; }
+
+	if test "$SYS_ENDIAN_BSWAP" = "yes" ; then
+		USE_SYS_ENDIAN_H=yes
+		BSWAP=bswap
+	else
+	    	if test "$SYS_ENDIAN__SWAP" = "yes" ; then
+			USE_SYS_ENDIAN_H=yes
+			BSWAP=__swap
+		else
+			USE_SYS_ENDIAN_H=no
+		fi
+	fi
+
+	if test "$USE_SYS_ENDIAN_H" = "yes" ; then
+
+$as_echo "#define USE_SYS_ENDIAN_H 1" >>confdefs.h
+
+
+cat >>confdefs.h <<_ACEOF
+#define bswap_16 ${BSWAP}16
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define bswap_32 ${BSWAP}32
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define bswap_64 ${BSWAP}64
+_ACEOF
+
+	fi
+fi
+
+
+
 ac_config_headers="$ac_config_headers include/config.h"
 
 ac_config_files="$ac_config_files gl/Makefile lib/Makefile src/Makefile Makefile dist/solaris/pkgproto dist/solaris/pkginfo dist/solaris/checkinstall dist/redhat/pkcs11-tools.spec"
@@ -27111,10 +27187,6 @@ fi
 
 if test -z "${TARGET_OS_MINGW32_TRUE}" && test -z "${TARGET_OS_MINGW32_FALSE}"; then
   as_fn_error $? "conditional \"TARGET_OS_MINGW32\" was never defined.
-Usually this means the macro was only invoked conditionally." "$LINENO" 5
-fi
-if test -z "${HAS_LIBCRYPTO_RPATH_TRUE}" && test -z "${HAS_LIBCRYPTO_RPATH_FALSE}"; then
-  as_fn_error $? "conditional \"HAS_LIBCRYPTO_RPATH\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 
@@ -27701,7 +27773,7 @@ cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1
 #
 # INIT-COMMANDS
 #
-AMDEP_TRUE="$AMDEP_TRUE" ac_aux_dir="$ac_aux_dir"
+AMDEP_TRUE="$AMDEP_TRUE" MAKE="${MAKE-make}"
 
 
 # The HP-UX ksh and POSIX shell print the target directory to stdout
@@ -28604,29 +28676,35 @@ $as_echo "$as_me: executing $ac_file commands" >&6;}
   # Older Autoconf quotes --file arguments for eval, but not when files
   # are listed without --file.  Let's play safe and only enable the eval
   # if we detect the quoting.
-  case $CONFIG_FILES in
-  *\'*) eval set x "$CONFIG_FILES" ;;
-  *)   set x $CONFIG_FILES ;;
-  esac
+  # TODO: see whether this extra hack can be removed once we start
+  # requiring Autoconf 2.70 or later.
+  case $CONFIG_FILES in #(
+  *\'*) :
+    eval set x "$CONFIG_FILES" ;; #(
+  *) :
+    set x $CONFIG_FILES ;; #(
+  *) :
+     ;;
+esac
   shift
-  for mf
+  # Used to flag and report bootstrapping failures.
+  am_rc=0
+  for am_mf
   do
     # Strip MF so we end up with the name of the file.
-    mf=`echo "$mf" | sed -e 's/:.*$//'`
-    # Check whether this is an Automake generated Makefile or not.
-    # We used to match only the files named 'Makefile.in', but
-    # some people rename them; so instead we look at the file content.
-    # Grep'ing the first line is not enough: some people post-process
-    # each Makefile.in and add a new line on top of each file to say so.
-    # Grep'ing the whole file is not good either: AIX grep has a line
+    am_mf=`$as_echo "$am_mf" | sed -e 's/:.*$//'`
+    # Check whether this is an Automake generated Makefile which includes
+    # dependency-tracking related rules and includes.
+    # Grep'ing the whole file directly is not great: AIX grep has a line
     # limit of 2048, but all sed's we know have understand at least 4000.
-    if sed -n 's,^#.*generated by automake.*,X,p' "$mf" | grep X >/dev/null 2>&1; then
-      dirpart=`$as_dirname -- "$mf" ||
-$as_expr X"$mf" : 'X\(.*[^/]\)//*[^/][^/]*/*$' \| \
-	 X"$mf" : 'X\(//\)[^/]' \| \
-	 X"$mf" : 'X\(//\)$' \| \
-	 X"$mf" : 'X\(/\)' \| . 2>/dev/null ||
-$as_echo X"$mf" |
+    sed -n 's,^am--depfiles:.*,X,p' "$am_mf" | grep X >/dev/null 2>&1 \
+      || continue
+    am_dirpart=`$as_dirname -- "$am_mf" ||
+$as_expr X"$am_mf" : 'X\(.*[^/]\)//*[^/][^/]*/*$' \| \
+	 X"$am_mf" : 'X\(//\)[^/]' \| \
+	 X"$am_mf" : 'X\(//\)$' \| \
+	 X"$am_mf" : 'X\(/\)' \| . 2>/dev/null ||
+$as_echo X"$am_mf" |
     sed '/^X\(.*[^/]\)\/\/*[^/][^/]*\/*$/{
 	    s//\1/
 	    q
@@ -28644,53 +28722,48 @@ $as_echo X"$mf" |
 	    q
 	  }
 	  s/.*/./; q'`
-    else
-      continue
-    fi
-    # Extract the definition of DEPDIR, am__include, and am__quote
-    # from the Makefile without running 'make'.
-    DEPDIR=`sed -n 's/^DEPDIR = //p' < "$mf"`
-    test -z "$DEPDIR" && continue
-    am__include=`sed -n 's/^am__include = //p' < "$mf"`
-    test -z "$am__include" && continue
-    am__quote=`sed -n 's/^am__quote = //p' < "$mf"`
-    # Find all dependency output files, they are included files with
-    # $(DEPDIR) in their names.  We invoke sed twice because it is the
-    # simplest approach to changing $(DEPDIR) to its actual value in the
-    # expansion.
-    for file in `sed -n "
-      s/^$am__include $am__quote\(.*(DEPDIR).*\)$am__quote"'$/\1/p' <"$mf" | \
-	 sed -e 's/\$(DEPDIR)/'"$DEPDIR"'/g'`; do
-      # Make sure the directory exists.
-      test -f "$dirpart/$file" && continue
-      fdir=`$as_dirname -- "$file" ||
-$as_expr X"$file" : 'X\(.*[^/]\)//*[^/][^/]*/*$' \| \
-	 X"$file" : 'X\(//\)[^/]' \| \
-	 X"$file" : 'X\(//\)$' \| \
-	 X"$file" : 'X\(/\)' \| . 2>/dev/null ||
-$as_echo X"$file" |
-    sed '/^X\(.*[^/]\)\/\/*[^/][^/]*\/*$/{
+    am_filepart=`$as_basename -- "$am_mf" ||
+$as_expr X/"$am_mf" : '.*/\([^/][^/]*\)/*$' \| \
+	 X"$am_mf" : 'X\(//\)$' \| \
+	 X"$am_mf" : 'X\(/\)' \| . 2>/dev/null ||
+$as_echo X/"$am_mf" |
+    sed '/^.*\/\([^/][^/]*\)\/*$/{
 	    s//\1/
 	    q
 	  }
-	  /^X\(\/\/\)[^/].*/{
+	  /^X\/\(\/\/\)$/{
 	    s//\1/
 	    q
 	  }
-	  /^X\(\/\/\)$/{
-	    s//\1/
-	    q
-	  }
-	  /^X\(\/\).*/{
+	  /^X\/\(\/\).*/{
 	    s//\1/
 	    q
 	  }
 	  s/.*/./; q'`
-      as_dir=$dirpart/$fdir; as_fn_mkdir_p
-      # echo "creating $dirpart/$file"
-      echo '# dummy' > "$dirpart/$file"
-    done
+    { echo "$as_me:$LINENO: cd "$am_dirpart" \
+      && sed -e '/# am--include-marker/d' "$am_filepart" \
+        | $MAKE -f - am--depfiles" >&5
+   (cd "$am_dirpart" \
+      && sed -e '/# am--include-marker/d' "$am_filepart" \
+        | $MAKE -f - am--depfiles) >&5 2>&5
+   ac_status=$?
+   echo "$as_me:$LINENO: \$? = $ac_status" >&5
+   (exit $ac_status); } || am_rc=$?
   done
+  if test $am_rc -ne 0; then
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "Something went wrong bootstrapping makefile fragments
+    for automatic dependency tracking.  Try re-running configure with the
+    '--disable-dependency-tracking' option to at least be able to build
+    the package (albeit without support for automatic dependency tracking).
+See \`config.log' for more details" "$LINENO" 5; }
+  fi
+  { am_dirpart=; unset am_dirpart;}
+  { am_filepart=; unset am_filepart;}
+  { am_mf=; unset am_mf;}
+  { am_rc=; unset am_rc;}
+  rm -f conftest-deps.mk
 }
  ;;
     "libtool":C)
@@ -28708,6 +28781,7 @@ $as_echo X"$file" |
     cat <<_LT_EOF >> "$cfgfile"
 #! $SHELL
 # Generated automatically by $as_me ($PACKAGE) $VERSION
+# Libtool was configured on host `(hostname || uname -n) 2>/dev/null | sed 1q`:
 # NOTE: Changes made to this file will be lost: look at ltmain.sh.
 
 # Provide generalized library-building support services.
@@ -29464,26 +29538,24 @@ done
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: ------------------------------------------------------------------------" >&5
 $as_echo "$as_me: ------------------------------------------------------------------------" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: compiler       : $CC" >&5
-$as_echo "$as_me: compiler       : $CC" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: compiler flags : ${LIBCRYPTO_CFLAGS} $CFLAGS" >&5
-$as_echo "$as_me: compiler flags : ${LIBCRYPTO_CFLAGS} $CFLAGS" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: linker         : $LD" >&5
-$as_echo "$as_me: linker         : $LD" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: linker flags   : $LDFLAGS" >&5
-$as_echo "$as_me: linker flags   : $LDFLAGS" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: libraries      : ${LIBCRYPTO_LIBS} $LIBS" >&5
-$as_echo "$as_me: libraries      : ${LIBCRYPTO_LIBS} $LIBS" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: lex            : $LEX" >&5
-$as_echo "$as_me: lex            : $LEX" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: yacc           : $YACC" >&5
-$as_echo "$as_me: yacc           : $YACC" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: yacc flags     : $FLAGS" >&5
-$as_echo "$as_me: yacc flags     : $FLAGS" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: with_ncipher   : $hasncipher" >&5
-$as_echo "$as_me: with_ncipher   : $hasncipher" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: libcrypto rpath: $LIBCRYPTO_RPATH" >&5
-$as_echo "$as_me: libcrypto rpath: $LIBCRYPTO_RPATH" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: compiler      : $CC" >&5
+$as_echo "$as_me: compiler      : $CC" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: compiler flags: ${LIBCRYPTO_CFLAGS} $CFLAGS" >&5
+$as_echo "$as_me: compiler flags: ${LIBCRYPTO_CFLAGS} $CFLAGS" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: linker        : $LD" >&5
+$as_echo "$as_me: linker        : $LD" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: linker flags  : $LDFLAGS " >&5
+$as_echo "$as_me: linker flags  : $LDFLAGS " >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: libraries     : ${LIBCRYPTO_LIBS} $LIBS" >&5
+$as_echo "$as_me: libraries     : ${LIBCRYPTO_LIBS} $LIBS" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: lex           : $LEX" >&5
+$as_echo "$as_me: lex           : $LEX" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: yacc          : $YACC" >&5
+$as_echo "$as_me: yacc          : $YACC" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: yacc flags    : $FLAGS" >&5
+$as_echo "$as_me: yacc flags    : $FLAGS" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: with_ncipher  : $hasncipher" >&5
+$as_echo "$as_me: with_ncipher  : $hasncipher" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: ------------------------------------------------------------------------" >&5
 $as_echo "$as_me: ------------------------------------------------------------------------" >&6;}
 

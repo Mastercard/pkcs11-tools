@@ -60,8 +60,14 @@ AC_PROG_LIBTOOL			dnl libtool init
 gl_INIT				dnl GNULIB init
 
 dnl detect if we are cross-compiling for mingw32
-AS_IF([test "x$host_os" == "xmingw32"],[mingw32=1],[mingw32=0])
-AM_CONDITIONAL([TARGET_OS_MINGW32], [test "$mingw32" = "1"])
+MINGW32=0
+case "$host_os" in
+  mingw32)
+    MINGW32=1;
+  ;;
+esac
+
+AM_CONDITIONAL([TARGET_OS_MINGW32], [test "$MINGW32" = "1"])
 
 PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES([LIBCRYPTO],
@@ -104,24 +110,13 @@ AS_IF([test "x$with_ncipher" != xno],
                fi
               ] )])
 
-dnl check if a specific rpath is provided when linking.
-dnl this option is needed when openssl is not deployed to a system-wide location
-AC_ARG_VAR([LIBCRYPTO_RPATH], 	[provide RPATH to LIBCRYPTO, e.g. LIBCRYPTO_RPATH=/usr/local/ssl/lib (useful when openssl is not deployed to a system-wide location)])
-AM_CONDITIONAL([HAS_LIBCRYPTO_RPATH], [test "x$LIBCRYPTO_RPATH" != "x"])
-
-
-#### TODO HERE
-AS_IF([test "x$with_libcrypto_rpath" != xno] && [test "x$with_libcrypto_rpath" != xyes],
-      [AC_DEFINE([LIBCRYPTO_RPATH], [$with_libcrypto_rpath], [RPATH to libcrypto]) ])
-
-
 dnl check endianness
 AC_C_BIGENDIAN
 dnl we need to know sizeof(long) for dealing with endianness conversion
 AC_CHECK_SIZEOF([unsigned long int])
 
 dnl try to find a proper bswap() function, defined in m4/local_fix_bswap.m4
-dnl LOCAL_FIX_BSWAP
+LOCAL_FIX_BSWAP
 
 
 dnl ========================================================================
@@ -138,15 +133,14 @@ AC_OUTPUT
 AX_CREATE_TARGET_H([include/target.h])
 
 AC_MSG_NOTICE([------------------------------------------------------------------------])
-AC_MSG_NOTICE([compiler       : $CC])
-AC_MSG_NOTICE([compiler flags : ${LIBCRYPTO_CFLAGS} $CFLAGS])
-AC_MSG_NOTICE([linker         : $LD])
-AC_MSG_NOTICE([linker flags   : $LDFLAGS])
-AC_MSG_NOTICE([libraries      : ${LIBCRYPTO_LIBS} $LIBS])
-AC_MSG_NOTICE([lex            : $LEX])
-AC_MSG_NOTICE([yacc           : $YACC])
-AC_MSG_NOTICE([yacc flags     : $FLAGS])
-AC_MSG_NOTICE([with_ncipher   : $hasncipher])
-AC_MSG_NOTICE([libcrypto rpath: $LIBCRYPTO_RPATH])
+AC_MSG_NOTICE([compiler      : $CC])
+AC_MSG_NOTICE([compiler flags: ${LIBCRYPTO_CFLAGS} $CFLAGS])
+AC_MSG_NOTICE([linker        : $LD])
+AC_MSG_NOTICE([linker flags  : $LDFLAGS ])
+AC_MSG_NOTICE([libraries     : ${LIBCRYPTO_LIBS} $LIBS])
+AC_MSG_NOTICE([lex           : $LEX])
+AC_MSG_NOTICE([yacc          : $YACC])
+AC_MSG_NOTICE([yacc flags    : $FLAGS])
+AC_MSG_NOTICE([with_ncipher  : $hasncipher])
 AC_MSG_NOTICE([------------------------------------------------------------------------])
 

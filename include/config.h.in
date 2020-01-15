@@ -861,9 +861,6 @@
 /* Define HOST_NAME_MAX when <limits.h> does not define it. */
 #undef HOST_NAME_MAX
 
-/* RPATH to libcrypto */
-#undef LIBCRYPTO_RPATH
-
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
@@ -988,6 +985,9 @@
 #endif
 
 
+/* Define to use byteswap macros from <sys/endian.h> */
+#undef USE_SYS_ENDIAN_H
+
 /* Define if the native Windows multithreading API can be used. */
 #undef USE_WINDOWS_THREADS
 
@@ -1065,6 +1065,15 @@
 /* Define to rpl_ if the getopt replacement functions and variables should be
    used. */
 #undef __GETOPT_PREFIX
+
+/* Define to 16-bit byteswap macro */
+#undef bswap_16
+
+/* Define to 32-bit byteswap macro */
+#undef bswap_32
+
+/* Define to 64-bit byteswap macro */
+#undef bswap_64
 
 /* Please see the Gnulib manual for how to use these macros.
 
