@@ -49,12 +49,17 @@ if test "x$YACC" != "xbison -y"; then
    AC_MSG_WARN([bison is required to regenerate parser. Generated source code is provided, so it should be OK, unless you change the parser source file.])
 fi
 
-gl_EARLY			dnl GNULIB early macro init
+
+gl_EARLY
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+
 AM_PROG_AR			dnl AM_PROG_AR is required on Solaris
 
-LT_INIT				dnl libtool init
-AC_PROG_LIBTOOL			dnl libtool init
+dnl libtool starts here
+LT_INIT
+AC_PROG_LIBTOOL
+AX_LIB_SOCKET_NSL		dnl needed on Solaris hosts, to add proper library nsl and socket
+AX_WITH_DMALLOC			dnl the project can be compiled with dmalloc for memory debugging
 gl_INIT				dnl GNULIB init
 
 dnl detect if we are cross-compiling for mingw32
@@ -67,32 +72,26 @@ esac
 
 AM_CONDITIONAL([TARGET_OS_MINGW32], [test "$MINGW32" = "1"])
 
-PKG_PROG_PKG_CONFIG
-PKG_CHECK_MODULES([LIBCRYPTO],
-	          [libcrypto < 1.1.0],
-		  [ dnl if OS_MINGW32, we look for libeay32.dll. We do not add -lz, as it is confusing the compiler.
-       	    	    dnl check for elliptic point support in libeay
-		    AC_CHECK_HEADERS([openssl/ec.h])
-		    AC_CHECK_LIB( [crypto], dnl let's try on Unix first
-		    		  [EC_POINT_new],
-				  [AC_MSG_RESULT([yes])],
-				  [ AC_CHECK_LIB( [eay], dnl then let's try on Windows
-				    [EC_POINT_new],
-				    [AC_MSG_RESULT([yes])],
-				    [AC_MSG_FAILURE([The crypto library is lacking EC support.])])])])
+dnl we need OpenSSL with elliptic curve support.
+dnl so, let's check for an ECC call.
 
-dnl on UNIX platforms, check for dynamic loader lib
 AM_COND_IF( [TARGET_OS_MINGW32],
-	    [],
-	    dnl UNIXish platforms
-	    [	dnl find dynamic linker library
+
+	    dnl if OS_MINGW32, we look for libeay32.dll. We do not add -lz, as it is confusing the compiler.
+	    [	dnl check for elliptic point support in libeay
+		AC_SEARCH_LIBS([EC_POINT_new], [eay32], [], [AC_MSG_FAILURE([can't find suitable OpenSSL crypto library.])])
+	     ],
+
+	    dnl else, UNIXish platforms
+	    [	dnl check for openssl with elliptic curve header
+		AC_CHECK_HEADERS([openssl/ec.h])
+		dnl find openssl library
+		AC_SEARCH_LIBS([EC_POINT_new], [crypto], [], [AC_MSG_FAILURE([can't find suitable OpenSSL crypto library.])])
+		dnl find dynamic linker library
 		AC_SEARCH_LIBS([dlopen], [dl dld], [], [AC_MSG_ERROR([unable to find the dlopen() function]) ])
 		] )
 
-AX_LIB_SOCKET_NSL		dnl needed on Solaris hosts, to add proper library nsl and socket
-AX_WITH_DMALLOC			dnl the project can be compiled with dmalloc for memory debugging
-
-dnl check if nCipher extensions can be compiled. If requested, specific file
+dnl check if nCipher extensions can be compiled. If requested, specific file 
 AC_ARG_WITH([ncipher],
 	[AS_HELP_STRING([--with-ncipher],
 	[enable support for Thales nCipher extensions (requires a separate ncipher.h header file to compile)])],
@@ -136,11 +135,9 @@ AX_CREATE_TARGET_H([include/target.h])
 AC_MSG_NOTICE([------------------------------------------------------------------------])
 AC_MSG_NOTICE([compiler      : $CC])
 AC_MSG_NOTICE([compiler flags: $CFLAGS])
-AC_MSG_NOTICE([                ${LIBCRYPTO_CFLAGS}])
 AC_MSG_NOTICE([linker        : $LD])
-AC_MSG_NOTICE([linker flags  : $LDFLAGS ])
+AC_MSG_NOTICE([linker flags  : $LDFLAGS])
 AC_MSG_NOTICE([libraries     : $LIBS])
-AC_MSG_NOTICE([                ${LIBCRYPTO_LIBS}])
 AC_MSG_NOTICE([lex           : $LEX])
 AC_MSG_NOTICE([yacc          : $YACC])
 AC_MSG_NOTICE([yacc flags    : $FLAGS])
