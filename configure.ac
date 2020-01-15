@@ -13,8 +13,8 @@ dnl See the License for the specific language governing permissions and
 dnl limitations under the License.
 
 
-AC_PREREQ([2.63])
-AC_INIT([pkcs11-tools], [1.0.3-devel], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
+AC_PREREQ(2.59)
+AC_INIT([pkcs11-tools], [1.0.3], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
 AC_CONFIG_MACRO_DIR([m4])
 
 dnl adding AM_MAINTAINER_MODE to address autotools issues with git
@@ -49,46 +49,52 @@ if test "x$YACC" != "xbison -y"; then
    AC_MSG_WARN([bison is required to regenerate parser. Generated source code is provided, so it should be OK, unless you change the parser source file.])
 fi
 
-gl_EARLY			dnl GNULIB early macro init
-AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
-m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+
+gl_EARLY
+AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
 AM_PROG_AR			dnl AM_PROG_AR is required on Solaris
 
-LT_INIT				dnl libtool init
-AC_PROG_LIBTOOL			dnl libtool init
+dnl libtool starts here
+LT_INIT
+AC_PROG_LIBTOOL
+AX_LIB_SOCKET_NSL		dnl needed on Solaris hosts, to add proper library nsl and socket
+AX_WITH_DMALLOC			dnl the project can be compiled with dmalloc for memory debugging
 gl_INIT				dnl GNULIB init
 
 dnl detect if we are cross-compiling for mingw32
-AS_IF([test "x$host_os" == "xmingw32"],[mingw32=1],[mingw32=0])
-AM_CONDITIONAL([TARGET_OS_MINGW32], [test "$mingw32" = "1"])
+MINGW32=0
+case "$host_os" in
+  mingw32)
+    MINGW32=1;
+  ;;
+esac
 
-PKG_PROG_PKG_CONFIG
-PKG_CHECK_MODULES([LIBCRYPTO],
-	          [libcrypto < 1.1.0],
-		  [ ac_save_CPPFLAGS=$CPPFLAGS
-		    CPPFLAGS="${CPPFLAGS} ${LIBCRYPTO_CFLAGS}"
-		    AC_CHECK_DECLS([OPENSSL_NO_RSA, OPENSSL_NO_DSA, OPENSSL_NO_DH, OPENSSL_NO_EC],
-		                  [AC_MSG_FAILURE([The OpenSSL crypto library is missing features/algorithm to allow compilation])],
-    				  [],
-				  [[#include <openssl/opensslconf.h>]])
-		    CPPFLAGS=${ac_save_CPPFLAGS} ])
+AM_CONDITIONAL([TARGET_OS_MINGW32], [test "$MINGW32" = "1"])
 
-dnl on UNIX platforms, check for dynamic loader lib
+dnl we need OpenSSL with elliptic curve support.
+dnl so, let's check for an ECC call.
+
 AM_COND_IF( [TARGET_OS_MINGW32],
-	    [],
-	    dnl UNIXish platforms
-	    [	dnl find dynamic linker library
+
+	    dnl if OS_MINGW32, we look for libeay32.dll. We do not add -lz, as it is confusing the compiler.
+	    [	dnl check for elliptic point support in libeay
+		AC_SEARCH_LIBS([EC_POINT_new], [eay32], [], [AC_MSG_FAILURE([can't find suitable OpenSSL crypto library.])])
+	     ],
+
+	    dnl else, UNIXish platforms
+	    [	dnl check for openssl with elliptic curve header
+		AC_CHECK_HEADERS([openssl/ec.h])
+		dnl find openssl library
+		AC_SEARCH_LIBS([EC_POINT_new], [crypto], [], [AC_MSG_FAILURE([can't find suitable OpenSSL crypto library.])])
+		dnl find dynamic linker library
 		AC_SEARCH_LIBS([dlopen], [dl dld], [], [AC_MSG_ERROR([unable to find the dlopen() function]) ])
 		] )
 
-AX_LIB_SOCKET_NSL		dnl needed on Solaris hosts, to add proper library nsl and socket
-AX_WITH_DMALLOC			dnl the project can be compiled with dmalloc for memory debugging
-
-dnl check if nCipher extensions can be compiled. If requested, specific file
+dnl check if nCipher extensions can be compiled. If requested, specific file 
 AC_ARG_WITH([ncipher],
 	[AS_HELP_STRING([--with-ncipher],
-	[enable support for the nCipher extensions (requires a separate ncipher.h header file to compile)])],
+	[enable support for Thales nCipher extensions (requires a separate ncipher.h header file to compile)])],
         [],
         [with_ncipher=check])
 
@@ -104,21 +110,13 @@ AS_IF([test "x$with_ncipher" != xno],
                fi
               ] )])
 
-dnl check if a specific rpath is provided when linking.
-dnl this option is needed when openssl is not deployed to a system-wide location
-AC_ARG_VAR([LIBCRYPTO_RPATH], 	[provide RPATH to LIBCRYPTO, e.g. LIBCRYPTO_RPATH=/usr/local/ssl/lib (useful when openssl is not deployed to a system-wide location)])
-AM_CONDITIONAL([HAS_LIBCRYPTO_RPATH], [test "x$LIBCRYPTO_RPATH" != "x"])
-
-
-#### TODO HERE
-AS_IF([test "x$with_libcrypto_rpath" != xno] && [test "x$with_libcrypto_rpath" != xyes],
-      [AC_DEFINE([LIBCRYPTO_RPATH], [$with_libcrypto_rpath], [RPATH to libcrypto]) ])
-
-
 dnl check endianness
 AC_C_BIGENDIAN
 dnl we need to know sizeof(long) for dealing with endianness conversion
 AC_CHECK_SIZEOF([unsigned long int])
+
+dnl try to find a proper bswap() function, defined in m4/local_fix_bswap.m4
+LOCAL_FIX_BSWAP
 
 
 dnl ========================================================================
@@ -135,15 +133,14 @@ AC_OUTPUT
 AX_CREATE_TARGET_H([include/target.h])
 
 AC_MSG_NOTICE([------------------------------------------------------------------------])
-AC_MSG_NOTICE([compiler       : $CC])
-AC_MSG_NOTICE([compiler flags : ${LIBCRYPTO_CFLAGS} $CFLAGS])
-AC_MSG_NOTICE([linker         : $LD])
-AC_MSG_NOTICE([linker flags   : $LDFLAGS])
-AC_MSG_NOTICE([libraries      : ${LIBCRYPTO_LIBS} $LIBS])
-AC_MSG_NOTICE([lex            : $LEX])
-AC_MSG_NOTICE([yacc           : $YACC])
-AC_MSG_NOTICE([yacc flags     : $FLAGS])
-AC_MSG_NOTICE([with_ncipher   : $hasncipher])
-AC_MSG_NOTICE([libcrypto rpath: $LIBCRYPTO_RPATH])
+AC_MSG_NOTICE([compiler      : $CC])
+AC_MSG_NOTICE([compiler flags: $CFLAGS])
+AC_MSG_NOTICE([linker        : $LD])
+AC_MSG_NOTICE([linker flags  : $LDFLAGS])
+AC_MSG_NOTICE([libraries     : $LIBS])
+AC_MSG_NOTICE([lex           : $LEX])
+AC_MSG_NOTICE([yacc          : $YACC])
+AC_MSG_NOTICE([yacc flags    : $FLAGS])
+AC_MSG_NOTICE([with_ncipher  : $hasncipher])
 AC_MSG_NOTICE([------------------------------------------------------------------------])
 

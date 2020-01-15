@@ -13,22 +13,20 @@
 # limitations under the License.
 
 EXTRA_DIST = \
-	m4/ax_create_target_h.m4 \
-	m4/ax_lib_socket_nsl.m4  \
-	m4/ax_with_dmalloc.m4	 \
-	include/cryptoki         \
-	include/pkcs11lib.h      \
-	with_nss                 \
-	with_nfast               \
-	with_beid	         \
-	with_softhsm             \
-	with_gemalto	         \
-	docs/INSTALL.md	         \
-	docs/CONTRIBUTING.md     \
-	docs/MANUAL.md           \
-	README.md                \
-	LICENSE.md               \
-	CHANGELOG.md             \
+	m4/gnulib-cache.m4   \
+	include/cryptoki     \
+	include/pkcs11lib.h  \
+	with_nss             \
+	with_nfast           \
+	with_beid	     \
+	with_softhsm         \
+	with_gemalto	     \
+	docs/INSTALL.md	     \
+	docs/CONTRIBUTING.md \
+	docs/MANUAL.md       \
+	README.md            \
+	LICENSE.md           \
+	CHANGELOG.md         \
 	COPYING
 
 
