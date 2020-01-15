@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.1.0] - 2020-01-15
+### Enhanced
+- the build process can leverage pkg-config, when available
+- the Git repository does not store generated source files anymore. It requires to execute `bootstrap.sh` before `configure`
+- `gnulib`is now a submodule of the project
+- PKCS11 version upgraded to v2.40, with the backport of EdDSA defines from v3.0
+- enhanced installation documentation
+
 ## [1.0.3] - 2019-08-14
 ### Fixed
 - Fix for token labels having maximum length (i.e. 32 characters) (Issue #7)
@@ -26,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release
 
+[1.1.0]: https://github.com/Mastercard/pkcs11-tools/tree/v1.1.0
 [1.0.3]: https://github.com/Mastercard/pkcs11-tools/tree/v1.0.3
 [1.0.2]: https://github.com/Mastercard/pkcs11-tools/tree/v1.0.2
 [1.0.1]: https://github.com/Mastercard/pkcs11-tools/tree/v1.0.1
