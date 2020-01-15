@@ -63,11 +63,11 @@ static int tokenlabelcmp(const char *label, const char *reflabel, size_t reflabe
     size_t label_len = strlen(label);
 
     if(label_len>reflabel_maxlen) {
-	fprintf(stderr, "Warning: string '%s' is longer than %zu characters\n", label, reflabel_maxlen);
+	fprintf(stderr, "Warning: string '%s' is longer than %d characters\n", label, reflabel_maxlen);
 	return 1;		/* return prematurely */
     }
 
-    /* tokenlabel may end with spaces (expected), and \0x0 (less expected), */
+    /* tokenlabel may end with spaces (expected), and \0x0 (less expected), /*
     /* let's try to find where the token label actually ends (first non-space character) */
     int reflabel_real_end=reflabel_maxlen;
     while( reflabel_real_end>0 && ( isspace(reflabel[reflabel_real_end-1]) || reflabel[reflabel_real_end-1]==0x00) ) {
@@ -157,7 +157,7 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
 		    }
 		} else {
 		    /* comparison routine for the tokenlabel */
-		    if(tokenlabelcmp(tokenlabel, (const char *)(tokenInfo.label), sizeof tokenInfo.label)==0) {
+		    if(tokenlabelcmp(tokenlabel, tokenInfo.label, sizeof tokenInfo.label)==0) {
 			slot=i;	/* remember the slot number */
 			break;	/* exit the loop */
 		    }
