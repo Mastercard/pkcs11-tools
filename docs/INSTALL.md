@@ -3,7 +3,7 @@
 ## Important Notes
  * While a prefix can be specified at configuration time, the toolkit utility make no use of any hardcoded path.  Using `--prefix=$PWD`will deploy the binaries into a `bin` subdir, inside the current directory.
  if that option is omitted, the default is to deploy in `/usr/local`, when invoking `make install`. In which case, you might need to use `su` or `sudo` when invoking `make install`.
- * Currently, **only OpenSSL 1.0 is supported**. Conversion to OpenSSL 1.1+ in ongoing. In the meantime, you will have to deploy OpenSSL 1.0.2, if you are using a recent/updated platform. Please refer to [OpenSSL 1.0](#openssl-10) for details how to deploy it on your system.
+ * Currently, **only OpenSSL 1.0 is supported**. Conversion to OpenSSL 1.1+ in ongoing. In the meantime, you will have to deploy OpenSSL 1.0.2, if you are using a recent/updated platform. Please refer to [OpenSSL 1.0](#openssl-1.0) for details how to deploy it on your system.
  * Windows 64 bits is currently not supported. See [Note on 64 bits executables](#note-on-64-bits-executables) for more information.
 
 ## Pre-requisites
@@ -13,62 +13,40 @@ In order to build the project from scratch, you will need
  - optionally, `lex`/`flex` and `yacc`/`bison`
  - a connection to Internet (to checkout `gnulib`)
 
-If the autotools suite is not available or obsolete on your platform, or if the build host has no connection to Internet, please check [this section](#when-autotools-utils-are-not-available-on-my-platform) for an alternative way to build.
+If the autotools suite is not available or obsolete on your platform, or if the build host has no connection to Internet, please check the section XXX for an alternative way to build.
 
 ### OpenSSL 1.0
 To install OpenSSL 1.0, proceed as follows:
 
  1. Clone OpenSSL [from GitHub](https://github.com/openssl/openssl.git), and checkout the latest OpenSSL 1.0.2 release. (To date, it is tagged `OpenSSL_1_0_2u`). Alternatively, you can directly download it from [here](https://github.com/openssl/openssl/archive/OpenSSL_1_0_2u.tar.gz)
- 2. Configure and build. In the examples below, we assume that OpenSSL will be deployed at `/opt/openssl@1.0.2`, change the location to match your preference.
- 
-    - A typical build on linux look as follows:
-      ```bash
-      $ ./config zlib shared --openssldir=/opt/openssl@1.0.2 linux-x86_64
-      $ make
-      $ sudo make install
-      ```
-      
-    - If you need static libraries instead of dynamic ones, use the following instructions instead:
-      ```bash
-      $ ./config zlib no-shared --openssldir=/opt/openssl@1.0.2 linux-x86_64
-      $ make
-      $ sudo make install
-      ```
-      
-    - for other platforms, change `linux-x86_x64` to the relevant value:
-    
-      | platform               	| value                 	|
-      | ------------------------	| -----------------------	|
-      | Linux/amd64            	| `linux-x86_64`          	|
-      | Freebsd/amd64           	| `BSD-x86_64`            	|
-      | MacOS                  	| `darwin64-x86_64-cc`    	|
-      | AIX with XLC           	| `aix64-cc`              	|
-      | Windows 32 bits        	| `mingw`                 	|
-      | Solaris/Intel, 32 bits 	| `solaris-x86-gcc`       	|
-      | Solaris/sparc, 32 bits 	| `solaris-sparcv9-gcc `  	|
-      | Solaris/sparc, 64 bits 	| `solaris64-sparcv9-gcc` 	|
+ 2. Configure and build. In the examples below, we assume that OpenSSL will be deployed at `/opt/openssl@1.0.2`, change the location to match your preference. 
+    a. A typical build on linux look as follows:
+    ```bash
+    $ ./config zlib shared --openssldir=/opt/openssl@1.0.2 linux-x86_64
+	$ make
+	$ sudo make install
+    ```
+    b. If you need static libraries instead of dynamic ones, use the following instructions instead:
+    ```bash
+    $ ./config zlib no-shared --openssldir=/opt/openssl@1.0.2 linux-x86_64
+	$ make
+	$ sudo make install
+    ```
+    c. for other platforms, change `linux-x86_x64` to the relevant value:
+    | platform               	| value                 	|
+    |------------------------	|-----------------------	|
+    | Linux/amd64            	| `linux-x86_64`          	|
+    | Freebsd/amd64           	| `BSD-x86_64`            	|
+    | MacOS                  	| `darwin64-x86_64-cc`    	|
+    | AIX with XLC           	| `aix64-cc`              	|
+    | Windows 32 bits        	| `mingw`                 	|
+    | Solaris/Intel, 32 bits 	| `solaris-x86-gcc`       	|
+    | Solaris/sparc, 32 bits 	| `solaris-sparcv9-gcc `  	|
+    | Solaris/sparc, 64 bits 	| `solaris64-sparcv9-gcc` 	|
     
 Note: building OpenSSL requires `zlib`development package to be present on your system. If you can't have it deployed on your platform, remove the `zlib` parameter from the command line, or change it to `no-zlib` 
 
 ## Installation
-### Bootstrapping the environment
-In order to create the autotools and libtool environment, and before being able to execute the `configure`script, you must execute these steps:
-```bash
-$ git clone https://github.com/Mastercard/pkcs11-tools.git
-$ cd pkcs11-tools
-$ ./bootstrap.sh
-```
-
-### When autotools utils are not available on my platform
-In this case, you will need to:
- 1. build the package on a platform where the tools are available (Linux, FreeBSD)
- 2. create a source distribution tarball:
-    ```bash
-    $ make dist
-    ```
-    This will create a `pkcs11-tools-X.Y.Z.tar.gz` file in your build directory.
- 3. Transfer the file to the target host
- 4. follow the build process. You can skip the ["Bootstrapping the environment"](#bootstrapping-the-environment) section.
 ### Linux, typical install
 To build the toolkit, use the following instructions:
 ```bash
@@ -86,7 +64,7 @@ $ sudo make install
 
 Alternatively, if you do not have [`pkg-config`](https://www.freedesktop.org/wiki/Software/pkg-config/) installed on your system, you can use `LIBCRYPTO_CFLAGS` and `LIBCRYPTO_LIBS` variables to point to libraries and includes:
 ```bash
-$ ./configure LIBCRYPTO_CFLAGS='-I/opt/openssl@1.0.2/include' LIBCRYPTO_LIBS='-L/opt/openssl@1.0.2/lib -lcrypto'
+$ ../configure LIBCRYPTO_CFLAGS='-I/opt/openssl@1.0.2/include' LIBCRYPTO_LIBS='-L/opt/openssl@1.0.2/lib -lcrypto'
 $ make
 $ sudo make install
 ```
@@ -115,7 +93,7 @@ $ sudo make install
 
 ### Solaris
 #### Pre-requisites
-You need to have GCC deployed on your computer. You can obtain and deploy GCC on your Solaris plarform from [OpenCSW](https://www.opencsw.org/).
+You need to have GCC deployed on your computer. You can obtain and deploy GCC on your solaris plarform from [OpenCSW](https://www.opencsw.org/).
 
 #### static build
  * To buill 32 bits binaries (both sparc and intel):
@@ -170,12 +148,13 @@ $ make install
 ```
 
 ### MacOS
-This expects that brew is installed on MacOS. check out https://brew.sh for more information.
+This expects that brew is installed on MacOS. checkout https://brew.sh/ for more information.
 ```bash
 $ ./configure PKG_CONFIG_PATH=/opt/openssl@1.0.2/lib/pkginfo
 $ make
 $ sudo make install
 ```
+
 ## Packaging
 ### all platforms
 To build a generic binary distribution tarball (all platforms):
