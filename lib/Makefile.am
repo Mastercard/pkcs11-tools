@@ -95,11 +95,11 @@ BUILT_SOURCES = _mechinfo.h _attrinfo.h
 pkcs11_mechanism.$(OBJEXT): _mechinfo.h
 
 _mechinfo.h: Makefile gen_mechinfo_h.pl
-	$(AM_V_GEN) $(PERL) $(srcdir)/gen_mechinfo_h.pl $(top_srcdir)/include/cryptoki/*.h >$@
+	$(PERL) $(srcdir)/gen_mechinfo_h.pl $(top_srcdir)/include/cryptoki/*.h >$@
 
 pkcs11_attrdesc.$(OBJEXT): _attrinfo.h
 
 _attrinfo.h: Makefile gen_attrinfo_h.pl
-	$(AM_V_GEN) $(PERL) $(srcdir)/gen_attrinfo_h.pl $(top_srcdir)/include/cryptoki/*.h >$@
+	$(PERL) $(srcdir)/gen_attrinfo_h.pl $(top_srcdir)/include/cryptoki/*.h >$@
 
 

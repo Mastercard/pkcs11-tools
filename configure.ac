@@ -51,8 +51,6 @@ fi
 
 gl_EARLY			dnl GNULIB early macro init
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
-m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
-
 AM_PROG_AR			dnl AM_PROG_AR is required on Solaris
 
 LT_INIT				dnl libtool init
