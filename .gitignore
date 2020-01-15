@@ -9,15 +9,35 @@
 .libs/
 
 ## autotools
+/aclocal.m4
+/ar-lib
+/autom4te.cache/
+/compile
 Makefile
-config.log
-config.status
-config.cache
-libtool
-autom4te.cache/
-.dirstamp
-/bin/
+Makefile.in
+/config.log
+/config.status
+/config.cache
+/config.guess
+/config.sub
+/configure
+/depcomp
+/gl/
+/include/config.h.in
 /include/stamp-h1
+/install-sh
+/libtool
+/ltmain.sh
+.dirstamp
+/missing
+/ylwrap
+/m4
+!m4/ax_create_target_h.m4
+!m4/ax_lib_socket_nsl.m4
+!m4/ax_with_dmalloc.m4
+
+# Ignoring generated /bin directory
+/bin/
 
 # Directories ending with .ign will be ignored
 *.ign/

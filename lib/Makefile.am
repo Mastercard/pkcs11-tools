@@ -26,6 +26,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/include/cryptoki
 
 noinst_LTLIBRARIES = libp11.la
+libp11_la_CFLAGS = $(LIBCRYPTO_CFLAGS)
+libp11_la_LIBADD = $(LIBCRYPTO_LIBS)
 
 # pick appropriate low-level routines file
 
@@ -93,11 +95,11 @@ BUILT_SOURCES = _mechinfo.h _attrinfo.h
 pkcs11_mechanism.$(OBJEXT): _mechinfo.h
 
 _mechinfo.h: Makefile gen_mechinfo_h.pl
-	$(PERL) $(srcdir)/gen_mechinfo_h.pl $(top_srcdir)/include/cryptoki/*.h >$@
+	$(AM_V_GEN) $(PERL) $(srcdir)/gen_mechinfo_h.pl $(top_srcdir)/include/cryptoki/*.h >$@
 
 pkcs11_attrdesc.$(OBJEXT): _attrinfo.h
 
 _attrinfo.h: Makefile gen_attrinfo_h.pl
-	$(PERL) $(srcdir)/gen_attrinfo_h.pl $(top_srcdir)/include/cryptoki/*.h >$@
+	$(AM_V_GEN) $(PERL) $(srcdir)/gen_attrinfo_h.pl $(top_srcdir)/include/cryptoki/*.h >$@
 
 

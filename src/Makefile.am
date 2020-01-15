@@ -18,7 +18,9 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/cryptoki
 
-#AM_LDFLAGS = -L$(top_srcdir)/lib -L$(top_srcdir)/gl/lib
+if HAS_LIBCRYPTO_RPATH
+AM_LDFLAGS = -rpath $(LIBCRYPTO_RPATH)
+endif
 
 ################################################################################
 # libcommon
@@ -34,20 +36,18 @@ if TARGET_OS_MINGW32
 libcommon_la_SOURCES += win_applink.c
 endif
 
+libcommon_la_LDFLAGS = -static
 
 ################################################################################
 # p11 toolkit
 
 # the actual list of programs being compiled
-bin_PROGRAMS = p11wrap p11unwrap p11cp p11ls p11cat p11more p11od p11rm p11mv p11slotinfo p11req p11importcert p11importpubk p11importdata p11keycomp p11setattr masqreq p11keygen p11kcv 
+bin_PROGRAMS = p11wrap p11unwrap p11cp p11ls p11cat p11more p11od p11rm p11mv p11slotinfo p11req p11importcert p11importpubk p11importdata p11keycomp p11setattr masqreq p11keygen p11kcv
 
 
 SOURCES = $(bin_PROGRAMS:%=%.c)
 
-LDADD = $(builddir)/libcommon.la $(top_builddir)/lib/libp11.la $(top_builddir)/gl/libgnu.a $(GETHOSTNAME_LIB) $(LIBSOCKET) $(LIBINTL) $(LIBTHREAD)
+LDADD = libcommon.la $(top_builddir)/lib/libp11.la $(top_builddir)/gl/libgnu.a $(LIBCRYPTO_LIBS) $(GETHOSTNAME_LIB) $(LIBSOCKET) $(LIBINTL) $(LIBTHREAD)
 
-
-#%.c: $(top_srcdir)/include/libpkcs11.h
 $(SOURCES): $(top_srcdir)/include/pkcs11lib.h
 
-#LDFLAGS = -static

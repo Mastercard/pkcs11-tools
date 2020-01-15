@@ -1,5 +1,5 @@
 # ===========================================================================
-#      http://www.gnu.org/software/autoconf-archive/ax_with_dmalloc.html
+#     https://www.gnu.org/software/autoconf-archive/ax_with_dmalloc.html
 # ===========================================================================
 #
 # SYNOPSIS
@@ -32,7 +32,7 @@
 #   and this notice are preserved. This file is offered as-is, without any
 #   warranty.
 
-#serial 7
+#serial 8
 
 AC_DEFUN([AX_WITH_DMALLOC], [
 AC_MSG_CHECKING(whether to use the dmalloc library)
