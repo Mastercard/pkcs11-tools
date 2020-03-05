@@ -154,15 +154,21 @@ static CK_ULONG get_OPENSSL_bytes_for_BIGNUM(BIGNUM *b, CK_BYTE_PTR *buf)
 
 
 static inline CK_ULONG get_DSAparam_p(DSA *hndl, CK_BYTE_PTR *buf) {
-    return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(hndl->p, buf) : 0L;
+  const BIGNUM *dsa_p;
+  DSA_get0_pqg(hndl, &dsa_p, NULL, NULL);
+  return hndl != NULL ? get_OPENSSL_bytes_for_BIGNUM(dsa_p, buf) : 0L;
 }
 
 static inline CK_ULONG get_DSAparam_q(DSA *hndl, CK_BYTE_PTR *buf) {
-    return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(hndl->q, buf) : 0L;
+  const BIGNUM *dsa_q;
+  DSA_get0_pqg(hndl, NULL, &dsa_q, NULL);
+  return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(dsa_q, buf) : 0L;
 }
 
 static inline CK_ULONG get_DSAparam_g(DSA *hndl, CK_BYTE_PTR *buf) {
-    return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(hndl->g, buf) : 0L;
+  const BIGNUM *dsa_g;
+  DSA_get0_pqg(hndl, NULL, NULL, &dsa_g);
+  return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(dsa_g, buf) : 0L;
 }
 
 int pkcs11_genDSA (pkcs11Context * p11Context,

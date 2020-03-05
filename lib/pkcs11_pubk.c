@@ -84,70 +84,70 @@ static EVP_PKEY * new_pubk_from_file(char *filename)
 
 /* RSA */
 
-static CK_ULONG get_RSA_modulus(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_RSA_modulus(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_RSA  ) {
-	RSA * rsa = EVP_PKEY_get1_RSA(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_RSA) {
+    RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
+    const BIGNUM *rsa_n;
+    CK_BYTE_PTR p = NULL;
 
-	if(rsa==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(rsa->n) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(rsa->n, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (rsa == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    RSA_get0_key(rsa, &rsa_n, NULL, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(rsa_n));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(rsa_n, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
-static CK_ULONG get_RSA_public_exponent(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_RSA_public_exponent(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_RSA  ) {
-	RSA * rsa = EVP_PKEY_get1_RSA(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_RSA) {
+    RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
+    const BIGNUM *rsa_e;
+    CK_BYTE_PTR p = NULL;
 
-	if(rsa==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(rsa->e) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(rsa->e, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (rsa == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    RSA_get0_key(rsa, NULL, &rsa_e, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(rsa_e));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(rsa_e, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
 
@@ -155,238 +155,238 @@ error:
 
 /* DH */
 
-static CK_ULONG get_DH_prime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DH_prime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DH  ) {
-	DH * dh = EVP_PKEY_get1_DH(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DH) {
+    DH *dh = EVP_PKEY_get1_DH(pubkey);
+    const BIGNUM *dh_p;
+    CK_BYTE_PTR p = NULL;
 
-	if(dh==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dh->p) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dh->p, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dh == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DH_get0_pqg(dh, &dh_p, NULL, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dh_p));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dh_p, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
 
-static CK_ULONG get_DH_base(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DH_base(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DH  ) {
-	DH * dh = EVP_PKEY_get1_DH(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DH) {
+    DH *dh = EVP_PKEY_get1_DH(pubkey);
+    const BIGNUM *dh_g;
+    CK_BYTE_PTR p = NULL;
 
-	if(dh==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dh->g) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dh->g, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dh == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DH_get0_pqg(dh, NULL, NULL, &dh_g);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dh_g));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dh_g, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
-static CK_ULONG get_DH_pubkey(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DH_pubkey(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DH  ) {
-	DH * dh = EVP_PKEY_get1_DH(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DH) {
+    DH *dh = EVP_PKEY_get1_DH(pubkey);
+    const BIGNUM *dh_pub;
+    CK_BYTE_PTR p = NULL;
 
-	if(dh==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dh->pub_key) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dh->pub_key, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dh == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DH_get0_key(dh, &dh_pub, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dh_pub));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dh_pub, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
 /* DSA */
 
-static CK_ULONG get_DSA_prime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DSA_prime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DSA  ) {
-	DSA * dsa = EVP_PKEY_get1_DSA(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DSA) {
+    DSA *dsa = EVP_PKEY_get1_DSA(pubkey);
+    const BIGNUM *dsa_p;
+    CK_BYTE_PTR p = NULL;
 
-	if(dsa==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dsa->p) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dsa->p, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dsa == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DSA_get0_pqg(dsa, &dsa_p, NULL, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dsa_p));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dsa_p, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
-static CK_ULONG get_DSA_subprime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DSA_subprime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DSA  ) {
-	DSA * dsa = EVP_PKEY_get1_DSA(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DSA) {
+    DSA *dsa = EVP_PKEY_get1_DSA(pubkey);
+    const BIGNUM *dsa_q;
+    CK_BYTE_PTR p = NULL;
 
-	if(dsa==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dsa->q) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dsa->q, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dsa == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DSA_get0_pqg(dsa, NULL, &dsa_q, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dsa_q));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dsa_q, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
-static CK_ULONG get_DSA_base(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DSA_base(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DSA  ) {
-	DSA * dsa = EVP_PKEY_get1_DSA(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DSA) {
+    DSA *dsa = EVP_PKEY_get1_DSA(pubkey);
+    const BIGNUM *dsa_g;
+    CK_BYTE_PTR p = NULL;
 
-	if(dsa==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dsa->g) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dsa->g, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dsa == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DSA_get0_pqg(dsa, NULL, NULL, &dsa_g);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dsa_g));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dsa_g, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
-static CK_ULONG get_DSA_pubkey(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DSA_pubkey(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DSA  ) {
-	DSA * dsa = EVP_PKEY_get1_DSA(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DSA) {
+    DSA *dsa = EVP_PKEY_get1_DSA(pubkey);
+    const BIGNUM *dsa_pubkey;
+    CK_BYTE_PTR p = NULL;
 
-	if(dsa==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dsa->pub_key) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dsa->pub_key, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dsa == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DSA_get0_key(dsa, &dsa_pubkey, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dsa_pubkey));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dsa_pubkey, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
 
@@ -399,7 +399,7 @@ static CK_ULONG get_EC_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
     int i2dlen=0;
     unsigned char *octp = NULL, *octbuf = NULL;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_EC  ) {
+    if ( pubkey && EVP_PKEY_base_id(pubkey)==EVP_PKEY_EC  ) {
 
 	ec = EVP_PKEY_get1_EC_KEY(pubkey);
 
@@ -508,7 +508,7 @@ static CK_ULONG get_EC_params(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
     CK_LONG rv=0;
     EC_KEY* ec=NULL;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_EC  ) {
+    if ( pubkey && EVP_PKEY_base_id(pubkey)==EVP_PKEY_EC  ) {
 
 	ec = EVP_PKEY_get1_EC_KEY(pubkey);
 	CK_BYTE_PTR p = NULL;
@@ -554,236 +554,237 @@ error:
 */
 
 
-static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
+static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
 
-    CK_ULONG rv=0;
-    if(pubkey) {
-	switch(EVP_PKEY_type(pubkey->type)) {
+  CK_ULONG rv = 0;
+  if (pubkey) {
+    switch (EVP_PKEY_base_id(pubkey)) {
 
-	case EVP_PKEY_RSA:
-	{
-	    RSA *rsa;
+      case EVP_PKEY_RSA: {
+        RSA *rsa;
+        const BIGNUM *rsa_n;
 
-	    rsa = EVP_PKEY_get1_RSA(pubkey);
-	    if(rsa) {
-		CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(rsa->n)); /* we allocate before converting */
-		if(bn_buf) {
-		    int bn_buf_len = BN_bn2bin(rsa->n, bn_buf);
-		    {
-			/* SHA-1 block */
-			EVP_MD_CTX *mdctx;
-			const EVP_MD *md;
-			unsigned int md_len, i;
+        rsa = EVP_PKEY_get1_RSA(pubkey);
+        if (rsa) {
+          RSA_get0_key(rsa, &rsa_n, NULL, NULL);
+          CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(rsa_n)); /* we allocate before converting */
+          if (bn_buf) {
+            int bn_buf_len = BN_bn2bin(rsa_n, bn_buf);
+            {
+              /* SHA-1 block */
+              EVP_MD_CTX *mdctx;
+              const EVP_MD *md;
+              unsigned int md_len, i;
 
-			*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
+              *buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
 
-			if(*buf) {
-			    md = EVP_sha1();
-			    mdctx = EVP_MD_CTX_create();
-			    EVP_DigestInit_ex(mdctx, md, NULL);
-			    EVP_DigestUpdate(mdctx, bn_buf, bn_buf_len);
-			    EVP_DigestFinal_ex(mdctx, *buf, &md_len);
-			    EVP_MD_CTX_destroy(mdctx);
-			    rv = md_len;
-			}
-		    }
-		    OPENSSL_free(bn_buf);
-		}
-	    }
-	}
-	break;
-
-
-	case EVP_PKEY_DSA:
-	{
-	    DSA *dsa;
-
-	    dsa = EVP_PKEY_get1_DSA(pubkey);
-	    if(dsa) {
-		CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(dsa->pub_key)); /* we allocate before converting */
-		if(bn_buf) {
-		    int bn_buf_len = BN_bn2bin(dsa->pub_key, bn_buf);
-		    {
-			/* SHA-1 block */
-			EVP_MD_CTX *mdctx;
-			const EVP_MD *md;
-			unsigned int md_len, i;
-
-			*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
-
-			if(*buf) {
-			    md = EVP_sha1();
-			    mdctx = EVP_MD_CTX_create();
-			    EVP_DigestInit_ex(mdctx, md, NULL);
-			    EVP_DigestUpdate(mdctx, bn_buf, bn_buf_len);
-			    EVP_DigestFinal_ex(mdctx, *buf, &md_len);
-			    EVP_MD_CTX_destroy(mdctx);
-			    rv = md_len;
-			}
-		    }
-		    OPENSSL_free(bn_buf);
-		}
-	    }
-	}
-	break;
-
-	/* for EC, we need to retrieve the points (uncompressed), then encapsulate into an OCTETSTRING */
-	/* which corresponds to the encoding on PKCS#11 */
-	case EVP_PKEY_EC:
-	{
-	    EC_KEY *ec;
-
-	    ec = EVP_PKEY_get1_EC_KEY(pubkey);
-	    if(ec==NULL) {
-		P_ERR();
-	    } else {
-		const EC_POINT *ec_point = EC_KEY_get0_public_key(ec);
-		const EC_GROUP *ec_group = EC_KEY_get0_group(ec);
+              if (*buf) {
+                md = EVP_sha1();
+                mdctx = EVP_MD_CTX_create();
+                EVP_DigestInit_ex(mdctx, md, NULL);
+                EVP_DigestUpdate(mdctx, bn_buf, bn_buf_len);
+                EVP_DigestFinal_ex(mdctx, *buf, &md_len);
+                EVP_MD_CTX_destroy(mdctx);
+                rv = md_len;
+              }
+            }
+            OPENSSL_free(bn_buf);
+          }
+        }
+      }
+        break;
 
 
-		if(ec_point==NULL) {
-		    P_ERR();
-		}else if (ec_group==NULL) {
-		    P_ERR();
-		} else {
+      case EVP_PKEY_DSA: {
+        DSA *dsa;
+        const BIGNUM *dsa_pub_key;
 
-		    /* first call to assess length of target buffer */
-		    size_t ec_buflen = EC_POINT_point2oct(ec_group, ec_point,
-							  POINT_CONVERSION_UNCOMPRESSED,
-							  NULL, 0, NULL);
+        dsa = EVP_PKEY_get1_DSA(pubkey);
+        if (dsa) {
+          DSA_get0_key(dsa, &dsa_pub_key, NULL);
+          CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(dsa_pub_key)); /* we allocate before converting */
+          if (bn_buf) {
+            int bn_buf_len = BN_bn2bin(dsa_pub_key, bn_buf);
+            {
+              /* SHA-1 block */
+              EVP_MD_CTX *mdctx;
+              const EVP_MD *md;
+              unsigned int md_len, i;
 
-		    if(ec_buflen==0) {
-			P_ERR();
-		    } else {
+              *buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
 
-			unsigned char *p, *ec_buf;
+              if (*buf) {
+                md = EVP_sha1();
+                mdctx = EVP_MD_CTX_create();
+                EVP_DigestInit_ex(mdctx, md, NULL);
+                EVP_DigestUpdate(mdctx, bn_buf, bn_buf_len);
+                EVP_DigestFinal_ex(mdctx, *buf, &md_len);
+                EVP_MD_CTX_destroy(mdctx);
+                rv = md_len;
+              }
+            }
+            OPENSSL_free(bn_buf);
+          }
+        }
+      }
+        break;
 
-			p = ec_buf = OPENSSL_malloc( ec_buflen );
+        /* for EC, we need to retrieve the points (uncompressed), then encapsulate into an OCTETSTRING */
+        /* which corresponds to the encoding on PKCS#11 */
+      case EVP_PKEY_EC: {
+        EC_KEY *ec;
 
-			if(ec_buf==NULL) {
-			    P_ERR();
-			} else {
-			    /* second call to obtain DER-encoded point */
-			    rv = (CK_ULONG) EC_POINT_point2oct(ec_group, ec_point,
-							       POINT_CONVERSION_UNCOMPRESSED,
-							       p, ec_buflen, NULL);
-			    if(rv==0) {
-				P_ERR();
-			    } else {
-
-				/* now start the wrapping to OCTET STRING business */
-
-				ASN1_OCTET_STRING *wrapped = ASN1_OCTET_STRING_new();
-
-				if(wrapped==NULL) {
-				    P_ERR();
-				} else {
-				    if( ASN1_STRING_set(wrapped, ec_buf, ec_buflen) == 0 ) {
-					P_ERR();
-				    } else {
-					/* wrapped contains the data we need to set into buf */
-
-					/* determine length of buffer */
-					int i2dlen = i2d_ASN1_OCTET_STRING(wrapped, NULL);
-
-					if(i2dlen<0) {
-					    P_ERR();
-					} else {
-
-					    CK_BYTE_PTR p = NULL, wrapbuf = NULL;
-
-					    wrapbuf = OPENSSL_malloc(i2dlen);
-
-					    if(wrapbuf==NULL) {
-						P_ERR();
-					    } else {
-
-						p = wrapbuf;
-
-						i2dlen = i2d_ASN1_OCTET_STRING(wrapped, &p);
-
-						if(i2dlen<0) {
-						    P_ERR();
-						} else {
-
-						    /* SHA-1 block */
-						    EVP_MD_CTX *mdctx;
-						    const EVP_MD *md;
-						    unsigned int md_len, i;
-
-						    *buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
-
-						    if(*buf ==NULL) {
-							P_ERR();
-						    } else {
-							md = EVP_sha1();
-							mdctx = EVP_MD_CTX_create();
-							EVP_DigestInit_ex(mdctx, md, NULL);
-							EVP_DigestUpdate(mdctx, wrapbuf, i2dlen);
-							EVP_DigestFinal_ex(mdctx, *buf, &md_len);
-							EVP_MD_CTX_destroy(mdctx);
-							rv = md_len;
-						    }
-						}
-					    }
-					    OPENSSL_free(wrapbuf);
-					}
-				    }
-				    ASN1_OCTET_STRING_free(wrapped);
-				}
-
-			    }
-			    OPENSSL_free(ec_buf);
-			}
-		    }
-		    /* get0 on ec_point & ec_group, we can safely forget */
-		}
-		EC_KEY_free(ec);
-	    }
-	}
-	break;
+        ec = EVP_PKEY_get1_EC_KEY(pubkey);
+        if (ec == NULL) {
+          P_ERR();
+        } else {
+          const EC_POINT *ec_point = EC_KEY_get0_public_key(ec);
+          const EC_GROUP *ec_group = EC_KEY_get0_group(ec);
 
 
-	case EVP_PKEY_DH:
-	{
-	    DH *dh;
+          if (ec_point == NULL) {
+            P_ERR();
+          } else if (ec_group == NULL) {
+            P_ERR();
+          } else {
 
-	    dh = EVP_PKEY_get1_DH(pubkey);
-	    if(dh) {
-		CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(dh->pub_key)); /* we allocate before converting */
-		if(bn_buf) {
-		    int bn_buf_len = BN_bn2bin(dh->pub_key, bn_buf);
-		    {
-			/* SHA-1 block */
-			EVP_MD_CTX *mdctx;
-			const EVP_MD *md;
-			unsigned int md_len, i;
+            /* first call to assess length of target buffer */
+            size_t ec_buflen = EC_POINT_point2oct(ec_group, ec_point,
+                                                  POINT_CONVERSION_UNCOMPRESSED,
+                                                  NULL, 0, NULL);
 
-			*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
+            if (ec_buflen == 0) {
+              P_ERR();
+            } else {
 
-			if(*buf) {
-			    md = EVP_sha1();
-			    mdctx = EVP_MD_CTX_create();
-			    EVP_DigestInit_ex(mdctx, md, NULL);
-			    EVP_DigestUpdate(mdctx, bn_buf, bn_buf_len);
-			    EVP_DigestFinal_ex(mdctx, *buf, &md_len);
-			    EVP_MD_CTX_destroy(mdctx);
-			    rv = md_len;
-			}
-		    }
-		    OPENSSL_free(bn_buf);
-		}
-	    }
-	}
-	break;
+              unsigned char *p, *ec_buf;
 
-	default:
-	    break;
+              p = ec_buf = OPENSSL_malloc(ec_buflen);
 
-	}
+              if (ec_buf == NULL) {
+                P_ERR();
+              } else {
+                /* second call to obtain DER-encoded point */
+                rv = (CK_ULONG) EC_POINT_point2oct(ec_group, ec_point,
+                                                   POINT_CONVERSION_UNCOMPRESSED,
+                                                   p, ec_buflen, NULL);
+                if (rv == 0) {
+                  P_ERR();
+                } else {
+
+                  /* now start the wrapping to OCTET STRING business */
+
+                  ASN1_OCTET_STRING *wrapped = ASN1_OCTET_STRING_new();
+
+                  if (wrapped == NULL) {
+                    P_ERR();
+                  } else {
+                    if (ASN1_STRING_set(wrapped, ec_buf, ec_buflen) == 0) {
+                      P_ERR();
+                    } else {
+                      /* wrapped contains the data we need to set into buf */
+
+                      /* determine length of buffer */
+                      int i2dlen = i2d_ASN1_OCTET_STRING(wrapped, NULL);
+
+                      if (i2dlen < 0) {
+                        P_ERR();
+                      } else {
+
+                        CK_BYTE_PTR p = NULL, wrapbuf = NULL;
+
+                        wrapbuf = OPENSSL_malloc(i2dlen);
+
+                        if (wrapbuf == NULL) {
+                          P_ERR();
+                        } else {
+
+                          p = wrapbuf;
+
+                          i2dlen = i2d_ASN1_OCTET_STRING(wrapped, &p);
+
+                          if (i2dlen < 0) {
+                            P_ERR();
+                          } else {
+
+                            /* SHA-1 block */
+                            EVP_MD_CTX *mdctx;
+                            const EVP_MD *md;
+                            unsigned int md_len, i;
+
+                            *buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
+
+                            if (*buf == NULL) {
+                              P_ERR();
+                            } else {
+                              md = EVP_sha1();
+                              mdctx = EVP_MD_CTX_create();
+                              EVP_DigestInit_ex(mdctx, md, NULL);
+                              EVP_DigestUpdate(mdctx, wrapbuf, i2dlen);
+                              EVP_DigestFinal_ex(mdctx, *buf, &md_len);
+                              EVP_MD_CTX_destroy(mdctx);
+                              rv = md_len;
+                            }
+                          }
+                        }
+                        OPENSSL_free(wrapbuf);
+                      }
+                    }
+                    ASN1_OCTET_STRING_free(wrapped);
+                  }
+
+                }
+                OPENSSL_free(ec_buf);
+              }
+            }
+            /* get0 on ec_point & ec_group, we can safely forget */
+          }
+          EC_KEY_free(ec);
+        }
+      }
+        break;
+
+
+      case EVP_PKEY_DH: {
+        DH *dh;
+        const BIGNUM *dh_pub_key;
+
+        dh = EVP_PKEY_get1_DH(pubkey);
+        if (dh) {
+          DH_get0_key(dh, &dh_pub_key, NULL);
+          CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(dh_pub_key)); /* we allocate before converting */
+          if (bn_buf) {
+            int bn_buf_len = BN_bn2bin(dh_pub_key, bn_buf);
+            {
+              /* SHA-1 block */
+              EVP_MD_CTX *mdctx;
+              const EVP_MD *md;
+              unsigned int md_len, i;
+
+              *buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
+
+              if (*buf) {
+                md = EVP_sha1();
+                mdctx = EVP_MD_CTX_create();
+                EVP_DigestInit_ex(mdctx, md, NULL);
+                EVP_DigestUpdate(mdctx, bn_buf, bn_buf_len);
+                EVP_DigestFinal_ex(mdctx, *buf, &md_len);
+                EVP_MD_CTX_destroy(mdctx);
+                rv = md_len;
+              }
+            }
+            OPENSSL_free(bn_buf);
+          }
+        }
+      }
+        break;
+
+      default:
+        break;
+
     }
-    return rv;
+  }
+  return rv;
 }
 
 
@@ -814,7 +815,7 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
     if(pubk) {
 
-	switch( EVP_PKEY_type(pubk->type) ) {
+	switch( EVP_PKEY_base_id(pubk) ) {
 
 	case EVP_PKEY_RSA: {
 

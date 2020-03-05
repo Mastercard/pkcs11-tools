@@ -154,11 +154,15 @@ static CK_ULONG get_OPENSSL_bytes_for_BIGNUM(BIGNUM *b, CK_BYTE_PTR *buf)
 
 
 static inline CK_ULONG get_DHparam_p(DH *hndl, CK_BYTE_PTR *buf) {
-    return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(hndl->p, buf) : 0L;
+  const BIGNUM *dh_p;
+  DH_get0_pqg(hndl, &dh_p, NULL, NULL);
+  return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(dh_p, buf) : 0L;
 }
 
 static inline CK_ULONG get_DHparam_g(DH *hndl, CK_BYTE_PTR *buf) {
-    return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(hndl->g, buf) : 0L;
+  const BIGNUM *dh_g;
+  DH_get0_pqg(hndl, NULL, NULL, &dh_g);
+  return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(dh_g, buf) : 0L;
 }
 
 int pkcs11_genDH (pkcs11Context * p11Context,

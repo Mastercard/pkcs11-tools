@@ -99,25 +99,30 @@ static CK_BBOOL get_X509_REQ_pubk(X509_REQ *hndl,
 	
 	pubkey = X509_REQ_get_pubkey(hndl);
 	
-	if(pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_RSA) {
+	if(pubkey && EVP_PKEY_base_id(pubkey)==EVP_PKEY_RSA) {
 	  
 	    RSA *rsa;
+      const BIGNUM *rsa_n;
+      const BIGNUM *rsa_e;
 
 	    rsa = EVP_PKEY_get1_RSA(pubkey);
 	    if(rsa) {
-		CK_BYTE_PTR bn_n = OPENSSL_malloc(BN_num_bytes(rsa->n));
-		CK_BYTE_PTR bn_e = OPENSSL_malloc(BN_num_bytes(rsa->e));
+
+	      RSA_get0_key(rsa, &rsa_n, &rsa_e, NULL);
+
+		    CK_BYTE_PTR bn_n = OPENSSL_malloc(BN_num_bytes(rsa_n));
+		    CK_BYTE_PTR bn_e = OPENSSL_malloc(BN_num_bytes(rsa_e));
 
 		if(bn_n && bn_e) {
-		    int bn_n_len = BN_bn2bin(rsa->n, bn_n);
-		    int bn_e_len = BN_bn2bin(rsa->e, bn_e);
+		    int bn_n_len = BN_bn2bin(rsa_n, bn_n);
+		    int bn_e_len = BN_bn2bin(rsa_e, bn_e);
 		    
 		    modulus->type = CKA_MODULUS;
-		    modulus->ulValueLen = BN_num_bytes(rsa->n);
+		    modulus->ulValueLen = BN_num_bytes(rsa_n);
 		    modulus->pValue = bn_n;
 
 		    exponent->type = CKA_PUBLIC_EXPONENT;
-		    exponent->ulValueLen = BN_num_bytes(rsa->e);
+		    exponent->ulValueLen = BN_num_bytes(rsa_e);
 		    exponent->pValue = bn_e;
 		    
 		    rv = CK_TRUE;
@@ -172,6 +177,7 @@ int pkcs11_fakesign_X509_REQ(CK_VOID_PTR req, int pubkeybits, CK_MECHANISM_TYPE 
     CK_ULONG outlen;
 
     EVP_MD *type;
+    int pkey_type;
 
     switch( mechtype ) {
     case CKM_SHA1_RSA_PKCS:
@@ -195,11 +201,13 @@ int pkcs11_fakesign_X509_REQ(CK_VOID_PTR req, int pubkeybits, CK_MECHANISM_TYPE 
 	goto err;
     }
 
-    X509_ALGOR *a = ((X509_REQ*)req)->sig_alg;
-    ASN1_BIT_STRING *signature = ((X509_REQ*)req)->signature;
+    X509_ALGOR *a;
+    ASN1_BIT_STRING *signature;
+
+    X509_REQ_get0_signature((X509_REQ*)req, (const ASN1_BIT_STRING **)&signature, (const X509_ALGOR **) &a);
 
     /* first of all extract stuff to be signed */
-    if((inlen = i2d_X509_REQ_INFO( ((X509_REQ*)req)->req_info, &inbuf))==0) {
+    if((inlen = i2d_re_X509_REQ_tbs((X509_REQ*)req, &inbuf))==0) {
 	goto err;
     }
 
@@ -211,37 +219,38 @@ int pkcs11_fakesign_X509_REQ(CK_VOID_PTR req, int pubkeybits, CK_MECHANISM_TYPE 
 
     /* pretend we sign */
     {
-	int i;
-	unsigned char repeat[] = { '(', 0xc4, 0xbe };
+      int i;
+      unsigned char repeat[] = {'(', 0xc4, 0xbe};
+      pkey_type = EVP_MD_pkey_type(type);
 
-	for(i=0; i<outlen; i++) {
-	    outbuf[i]=repeat[i%sizeof repeat]; 
-	}
-    }  
+      for (i = 0; i < outlen; i++) {
+        outbuf[i] = repeat[i % sizeof repeat];
+      }
+    }
 
     /* fix req->sig_alg to make it match */
-    /* borrowed from openssl/crypto/asn/a_sign.c */
-    if (type->pkey_type == NID_dsaWithSHA1 ||
-	type->pkey_type == NID_ecdsa_with_SHA1) {
-	/* special case: RFC 3279 tells us to omit 'parameters'
-	 * with id-dsa-with-sha1 and ecdsa-with-SHA1 */
-	ASN1_TYPE_free(a->parameter);
-	a->parameter = NULL;
-    }  else if ((a->parameter == NULL) || 
-	   (a->parameter->type != V_ASN1_NULL)) {
-	ASN1_TYPE_free(a->parameter);
-	if ((a->parameter=ASN1_TYPE_new()) == NULL) goto err;
-	a->parameter->type=V_ASN1_NULL;
+    /* borrowed/inspired by openssl/crypto/asn1/a_sign.c */
+    if (pkey_type == NID_dsaWithSHA1 ||
+        pkey_type == NID_ecdsa_with_SHA1) {
+      /* special case: RFC 3279 tells us to omit 'parameters'
+       * with id-dsa-with-sha1 and ecdsa-with-SHA1 */
+      ASN1_TYPE_free(a->parameter);
+      a->parameter = NULL;
+    }  else if ((a->parameter == NULL) ||
+                (a->parameter->type != V_ASN1_NULL)) {
+      ASN1_TYPE_free(a->parameter);
+      if ((a->parameter=ASN1_TYPE_new()) == NULL) goto err;
+      a->parameter->type=V_ASN1_NULL;
     }
     ASN1_OBJECT_free(a->algorithm);
-    a->algorithm=OBJ_nid2obj(type->pkey_type);
+    a->algorithm=OBJ_nid2obj(pkey_type);
     if (a->algorithm == NULL)  {
-	ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_UNKNOWN_OBJECT_TYPE);
-	goto err;
+      ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_UNKNOWN_OBJECT_TYPE);
+      goto err;
     }
-    if (a->algorithm->length == 0)  {
-	ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
-	goto err;
+    if (OBJ_length(a->algorithm) == 0)  {
+      ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
+      goto err;
     }
     /* end of borrow */
 
