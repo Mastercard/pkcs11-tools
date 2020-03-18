@@ -723,6 +723,9 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 
 	    if(o_attr == NULL) {
 		fprintf(fp, "# %s attribute not found\n", alist[i].name);
+	    } else if (o_attr->type == CKA_EXTRACTABLE) {
+		/* security feature: unwrapped keys should not have CKA_EXTRACTABLE set to true */
+		fprintf(fp, "CKA_EXTRACTABLE: false\n");
 	    } else if (o_attr->ulValueLen == 0) {
 		fprintf(fp, "# %s attribute is empty\n", alist[i].name);
 	    } else {
