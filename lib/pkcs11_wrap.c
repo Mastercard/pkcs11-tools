@@ -51,15 +51,15 @@ static char const *get_str_for_wrapping_algorithm(enum wrappingmethod w)
     case w_pkcs1_15:
 	rc = "PKCS#1 1.5";
 	break;
-	
+
     case w_pkcs1_oaep:
 	rc = "PKCS#1 OAEP";
 	break;
-	
+
     case w_cbcpad:
 	rc = "PKCS#11 CKM_xxx_CBC_PAD, with PKCS#7 padding";
 	break;
-	
+
     default:
 	rc = "Unknown???";
     }
@@ -67,28 +67,28 @@ static char const *get_str_for_wrapping_algorithm(enum wrappingmethod w)
     return rc;
 }
 
-static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr)
+static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, CK_BBOOL unused2)
 {
 
     char *value;
     switch( *(CK_KEY_TYPE *)attr->pValue) {
-	
+
     case CKK_GENERIC_SECRET:
 	value = "CKK_GENERIC_SECRET";
 	break;
-	
+
     case CKK_DES:
 	value = "CKK_DES";
 	break;
-	
+
     case CKK_DES2:
 	value = "CKK_DES2";
 	break;
-	
+
     case CKK_DES3:
 	value = "CKK_DES3";
 	break;
-	
+
     case CKK_AES:
 	value = "CKK_AES";
 	break;
@@ -96,31 +96,31 @@ static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr)
     case CKK_MD5_HMAC:
         value = "CKK_MD5_HMAC";
 	break;
-	
+
     case CKK_SHA_1_HMAC:
 	value = "CKK_SHA_1_HMAC";
 	break;
-	
+
     case CKK_RIPEMD128_HMAC:
 	value = "CKK_RIPEMD128_HMAC";
 	break;
-	
+
     case CKK_RIPEMD160_HMAC:
 	value = "CKK_RIPEMD160_HMAC";
 	break;
-	
+
     case CKK_SHA256_HMAC:
 	value = "CKK_SHA256_HMAC";
 	break;
-	
+
     case CKK_SHA384_HMAC:
 	value = "CKK_SHA384_HMAC";
 	break;
-	
+
     case CKK_SHA512_HMAC:
 	value = "CKK_SHA512_HMAC";
 	break;
-	
+
     case CKK_SHA224_HMAC:
 	value = "CKK_SHA224_HMAC";
 	break;
@@ -140,7 +140,7 @@ static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr)
     case CKK_EC:
 	value = "CKK_EC";
 	break;
-	
+
     default:
 	value = "unsupported";
     }
@@ -150,68 +150,68 @@ static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr)
 }
 
 
-static void fprintf_object_class(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr)
+static void fprintf_object_class(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, CK_BBOOL unused2)
 {
 
     char *value;
-	
-    
+
+
     switch( *(CK_OBJECT_CLASS *)attr->pValue ) {
     case CKO_DATA:
 	value = "CKO_DATA";
 	break;
-	
+
     case CKO_CERTIFICATE:
 	value = "CKO_CERTIFICATE";
 	break;
-	
+
     case CKO_PUBLIC_KEY:
 	value = "CKO_PUBLIC_KEY";
 	break;
-	
+
     case CKO_PRIVATE_KEY:
 	value = "CKO_PRIVATE_KEY";
 	break;
-	
+
     case CKO_SECRET_KEY:
 	value = "CKO_SECRET_KEY";
 	break;
-	
+
     case CKO_HW_FEATURE:
 	value = "CKO_HW_FEATURE";
 	break;
-	
+
     case CKO_DOMAIN_PARAMETERS:
 	value = "CKO_DOMAIN_PARAMETERS";
 	break;
-	
+
     case CKO_MECHANISM:
 	value = "CKO_MECHANISM";
 	break;
-	
+
     case CKO_OTP_KEY:
 	value = "CKO_OTP_KEY";
 	break;
-	
+
     default:
 	value = (*(CK_OBJECT_CLASS *)attr->pValue) & CKO_VENDOR_DEFINED ? "CKO_VENDOR_DEFINED" : "??unknown object type??" ;
 	break;
     }
-    
+
     fprintf(fp, "CKA_CLASS: %s\n", value);
 }
 
 
-static void fprintf_boolean_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr)
+static void fprintf_boolean_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
 {
-    fprintf (fp, "%s: %s\n", name, *((CK_BBOOL *)(attr->pValue))== CK_TRUE ? "true" : "false");
+    fprintf (fp, "%s%s: %s\n", commented == CK_TRUE ? "# " : "", name, *((CK_BBOOL *)(attr->pValue))== CK_TRUE ? "true" : "false");
 }
 
-static void fprintf_hex_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr)
+static void fprintf_hex_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
 {
     int i;
 
-    fprintf(fp, "%s: 0x", name);
+    fprintf(fp, "%s%s: 0x", commented == CK_TRUE ? "# " : "", name);
     for(i=0; i<attr->ulValueLen; i++) {
 	fprintf(fp, "%02x", ((unsigned char* )(attr->pValue))[i] );
     }
@@ -221,39 +221,39 @@ static void fprintf_hex_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr)
 
 /* _fprintf_str_attr not meant to be used directly, as there is no check about printability */
 /* use fprintf_str_attr or fprintf_date_attr instead */
-static void _fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr)
+static void _fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
 {
-    fprintf(fp, "%s: \"%.*s\"\n", name, (int)(attr->ulValueLen), (unsigned char* )(attr->pValue));
+    fprintf(fp, "%s%s: \"%.*s\"\n", commented == CK_TRUE ? "# " : "", name, (int)(attr->ulValueLen), (unsigned char* )(attr->pValue));
 }
 
 
 /* check if we can print it as a string (i.e. no special character) */
 /* otherwise, print as hex. */
 
-static void fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr)
+static void fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
 {
     int seems_printable = 0;
     int i;
-    
+
     /* simple check: verify all can be printed */
     for(i=0; i<attr->ulValueLen; i++) {
 	if(!isprint(((unsigned char *)(attr->pValue))[i])) {
 	    goto not_printable; /* exit loop prematurely */
-	}	    
+	}
     }
     seems_printable = 1;
 
 not_printable:
-	/* do nothing, seems_printable worths 0 */    
+	/* do nothing, seems_printable worths 0 */
 
-    seems_printable ? _fprintf_str_attr(fp,name,attr) : fprintf_hex_attr(fp,name,attr);
+    seems_printable ? _fprintf_str_attr(fp,name,attr,commented) : fprintf_hex_attr(fp,name,attr,commented);
 
 }
 
 /* date is a special case. If it looks like a date, print it in plain characters */
 /* otherwise take no risk and print as hex value */
 
-static void fprintf_date_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr)
+static void fprintf_date_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
 {
     int looks_like_a_date = 0;
 
@@ -264,15 +264,15 @@ static void fprintf_date_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr)
 	for(i=0; i<8; i++) {
 	    if(!isdigit(((unsigned char *)(attr->pValue))[i])) {
 		goto not_a_digit; /* exit loop prematurely */
-	    }	    
+	    }
 	}
 	looks_like_a_date = 1;
     }
 
 not_a_digit:
-	/* do nothing, looks_like_a_date worths 0 */    
+	/* do nothing, looks_like_a_date worths 0 */
 
-    looks_like_a_date ? _fprintf_str_attr(fp,name,attr) : fprintf_hex_attr(fp,name,attr);
+    looks_like_a_date ? _fprintf_str_attr(fp,name,attr,commented) : fprintf_hex_attr(fp,name,attr,commented);
 }
 
 
@@ -287,7 +287,7 @@ static char * sprintf_hex_buffer(CK_BYTE_PTR buffer, CK_ULONG len)
     if(allocated==NULL) {
 	fprintf(stderr, "***Error: memory allocation\n");
     } else {
-	
+
 	int i;
 
 	allocated[0]='0';
@@ -328,12 +328,12 @@ static char * sprintf_str_buffer_safe(CK_BYTE_PTR buffer, CK_ULONG len)
     for(i=0; i<len; i++) {
 	if(!isprint(buffer[i])) {
 	    goto not_printable; /* exit loop prematurely */
-	}	    
+	}
     }
     seems_printable = 1;
 
 not_printable:
-	/* do nothing, seems_printable worths 0 */    
+	/* do nothing, seems_printable worths 0 */
 
     return seems_printable ? _sprintf_str_buffer(buffer,len) : sprintf_hex_buffer(buffer,len);
 
@@ -350,29 +350,29 @@ static void free_sprintf_str_buffer_safe_buf(char *ptr)
 static char * const _mgfstring(CK_RSA_PKCS_MGF_TYPE mgf)
 {
     char *retval = NULL;
-    
+
     switch(mgf) {
     case CKG_MGF1_SHA1:
 	retval =  "CKG_MGF1_SHA1";
 	break;
-	
+
     case CKG_MGF1_SHA256:
 	retval = "CKG_MGF1_SHA256";
 	break;
-	
+
     case CKG_MGF1_SHA384:
 	retval = "CKG_MGF1_SHA384";
 	break;
-	
+
     case CKG_MGF1_SHA512:
 	retval = "CKG_MGF1_SHA512";
 	break;
-	
+
     case CKG_MGF1_SHA224:
 	retval = "CKG_MGF1_SHA224";
 	break;
-	
-    }	
+
+    }
 
     return retval;
 }
@@ -385,35 +385,35 @@ static char * const _hashstring(CK_MECHANISM_TYPE hash)
     case CKM_MD2:
 	retval = "CKM_MD2";
 	break;
-	
+
     case CKM_MD5:
 	retval = "CKM_MD5";
 	break;
-	
+
     case CKM_SHA_1:
 	retval = "CKM_SHA_1";
 	break;
-	
+
     case CKM_RIPEMD128:
 	retval = "CKM_RIPEMD128";
 	break;
-	
+
     case CKM_RIPEMD160:
 	retval = "CKM_RIPEMD160";
 	break;
-	
+
     case CKM_SHA256:
 	retval = "CKM_SHA256";
 	break;
-	
+
     case CKM_SHA224:
 	retval = "CKM_SHA224";
 	break;
-	
+
     case CKM_SHA384:
 	retval = "CKM_SHA384";
 	break;
-	
+
     case CKM_SHA512:
 	retval = "CKM_SHA512";
 	break;
@@ -429,7 +429,7 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
     time_t now = time(NULL);
     char hostname[255];
     char *label;
-    
+
     gethostname(hostname, 255);
     hostname[254]=0;		/* just to be sure... */
 
@@ -452,7 +452,7 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	fprintf(stderr, "Error: unsupported wrapping algorithm.\n");
 	return rc_error_unknown_wrapping_alg;
     }
-	
+
     fprintf(fp, \
 	    "########################################################################\n"
 	    "#\n"
@@ -465,7 +465,7 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	    "#\n"
 	    "# grammar for this file:\n"
 	    "# ----------------------\n"
-	    "#\n"	    
+	    "#\n"
 	    "# - lines starting with '#' are ignored\n"
 	    "#\n"
 	    "# - [ATTRIBUTE] : [VALUE]\n"
@@ -516,12 +516,12 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
     case w_pkcs1_15:
 	fprintf(fp, "Wrapping-Algorithm: %s/1.0\n", "pkcs1");
 	break;
-	
+
     /* we have one additional parameter for oaep: the label (in PKCS#1), referred as source in PKCS#11 */
     case w_pkcs1_oaep: {
 
 	char *labelstring=sprintf_str_buffer_safe( wctx->oaep_params->pSourceData, wctx->oaep_params->ulSourceDataLen);
-	
+
 	fprintf(fp, "Wrapping-Algorithm: %s/1.0(hash=%s,mgf=%s,label=%s)\n",
 		"oaep",
 		_hashstring(wctx->oaep_params->hashAlg),
@@ -529,12 +529,12 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 		wctx->oaep_params->pSourceData==NULL ? "\"\"" : labelstring );
 
 	free_sprintf_str_buffer_safe_buf(labelstring);
-    }	
+    }
 	break;
 
     case w_cbcpad: {
 	char *labelstring=sprintf_str_buffer_safe( wctx->iv, wctx->iv_len );
-	
+
 	fprintf(fp, "Wrapping-Algorithm: %s/1.0(iv=%s)\n",
 		"cbcpad",
 		labelstring );
@@ -543,11 +543,11 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 
     }
 	break;
-	
+
     default:
 	break;
     }
-    
+
     return rc_ok;
 }
 
@@ -563,7 +563,7 @@ static func_rc _output_wrapped_key_b64(wrappedKeyCtx *wctx, FILE *fp)
 	rc = rc_error_openssl_api;
 	goto err;
     }
-    
+
     bio_stdout = BIO_new( BIO_s_file() );
     if(bio_stdout==NULL) {
 	P_ERR();
@@ -581,7 +581,7 @@ static func_rc _output_wrapped_key_b64(wrappedKeyCtx *wctx, FILE *fp)
     BIO_puts(bio_stdout, "-----END WRAPPED KEY-----\n");
     BIO_flush(bio_stdout);
 
- err:    
+ err:
     if(bio_stdout) BIO_free(bio_stdout);
     if(bio_b64) BIO_free(bio_b64);
 
@@ -599,60 +599,61 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 
     typedef struct {
 	CK_ATTRIBUTE_TYPE attr_type;
-	void (*func_ptr) (FILE *, char *, CK_ATTRIBUTE_PTR );
+	void (*func_ptr) (FILE *, char *, CK_ATTRIBUTE_PTR, CK_BBOOL );
 	char *name;
+	CK_BBOOL commented;
     } attr_printer ;
-    
+
     attr_printer seckalist[] = {
-	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL" },
-	{ CKA_ID, fprintf_str_attr, "CKA_ID" },
-	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS" },
-	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN" },
-	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE" },
-	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT" },
-	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT" },
-	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP" },
-	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP" },
-	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN" },
-	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY" },
-	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE" },
-	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE" },
-	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE" },
-	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE" },
-	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE" },
-	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE" },
-	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE" },	    
-	{ CKA_CHECK_VALUE, fprintf_hex_attr, "CKA_CHECK_VALUE" },	    
+	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", CK_FALSE },
+	{ CKA_ID, fprintf_str_attr, "CKA_ID", CK_FALSE },
+	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE  },
+	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", CK_FALSE  },
+	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", CK_FALSE  },
+	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", CK_FALSE },
+	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", CK_FALSE },
+	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", CK_FALSE },
+	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP", CK_FALSE },
+	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN", CK_FALSE },
+	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY", CK_FALSE },
+	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", CK_FALSE },
+	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", CK_FALSE },
+	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", CK_FALSE },
+	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", CK_FALSE },
+	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", CK_FALSE },
+	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", CK_FALSE },
+	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", CK_FALSE },
+	{ CKA_CHECK_VALUE, fprintf_hex_attr, "CKA_CHECK_VALUE", CK_FALSE },
     };
 
     attr_printer prvkalist[] = {
-	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL" },
-	{ CKA_ID, fprintf_str_attr, "CKA_ID" },
-	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS" },
-	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN" },
-	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE" },
-	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS" },
-	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT" },
-	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT" },
-	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP" },
-	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN" },
-	{ CKA_SIGN_RECOVER, fprintf_boolean_attr, "CKA_SIGN_RECOVER" },
-	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE" },
-	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE" },
-	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE" },
-	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE" },
-	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE" },
-	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE" },
-	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE" },	    
+	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", CK_FALSE },
+	{ CKA_ID, fprintf_str_attr, "CKA_ID", CK_FALSE },
+	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE },
+	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", CK_FALSE },
+	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", CK_FALSE },
+	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", CK_TRUE }, /* This must not appear in C_Unwrap() template */
+	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", CK_FALSE },
+	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", CK_FALSE },
+	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP", CK_FALSE },
+	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN", CK_FALSE },
+	{ CKA_SIGN_RECOVER, fprintf_boolean_attr, "CKA_SIGN_RECOVER", CK_FALSE },
+	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", CK_FALSE },
+	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", CK_FALSE },
+	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", CK_FALSE },
+	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", CK_FALSE },
+	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", CK_FALSE },
+	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", CK_FALSE },
+	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", CK_FALSE },
     };
 
     attr_printer *alist=NULL;
-    
+
     switch(wctx->wrappedkeyobjclass) {
     case CKO_SECRET_KEY:
 	alist = seckalist;
 	alist_len = sizeof(seckalist)/sizeof(attr_printer);
-	wrappedkey_attrs = pkcs11_new_attrlist(wctx->p11Context, 
+	wrappedkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
 					       _ATTR(CKA_LABEL),
 					       _ATTR(CKA_ID),
 					       _ATTR(CKA_CLASS),
@@ -677,8 +678,8 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 
     case CKO_PRIVATE_KEY:
 	alist = prvkalist;
-	alist_len = sizeof(prvkalist)/sizeof(attr_printer);	
-	wrappedkey_attrs = pkcs11_new_attrlist(wctx->p11Context, 
+	alist_len = sizeof(prvkalist)/sizeof(attr_printer);
+	wrappedkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
 					       _ATTR(CKA_LABEL),
 					       _ATTR(CKA_ID),
 					       _ATTR(CKA_CLASS),
@@ -705,13 +706,13 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	rc = rc_error_oops;
 	goto error;
     }
-	
-    
+
+
     if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wctx->wrappedkeyhandle) == CK_FALSE) {
 	fprintf(stderr,"Error: could not read attributes from key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
-    } 
+    }
 
     {
 
@@ -719,13 +720,13 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 
 	for(i=0;i<alist_len;i++) {
 	    o_attr = pkcs11_get_attr_in_attrlist(wrappedkey_attrs, alist[i].attr_type);
-	
+
 	    if(o_attr == NULL) {
 		fprintf(fp, "# %s attribute not found\n", alist[i].name);
 	    } else if (o_attr->ulValueLen == 0) {
 		fprintf(fp, "# %s attribute is empty\n", alist[i].name);
 	    } else {
-		alist[i].func_ptr(fp, alist[i].name, o_attr);
+		alist[i].func_ptr(fp, alist[i].name, o_attr, alist[i].commented );
 	    }
 	}
     }
@@ -736,13 +737,13 @@ error:
     pkcs11_delete_attrlist(wrappedkey_attrs);
 
     return rc;
-    
+
 }
 
 static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 {
     func_rc rc = rc_ok;
-    
+
     CK_OBJECT_HANDLE hWrappingKey=NULL_PTR;
     CK_OBJECT_HANDLE hWrappedKey=NULL_PTR;
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
@@ -752,7 +753,7 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
     int bytelen;
 
     /* retrieve keys  */
-    
+
     if (!pkcs11_findpublickey(wctx->p11Context, wctx->wrappingkeylabel, &hWrappingKey)) {
 	fprintf(stderr,"Error: could not find a public key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_object_not_found;
@@ -765,17 +766,17 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 	goto error;
     }
 
-    /* retrieve length of wrapping key */    
-    wrappingkey_attrs = pkcs11_new_attrlist(wctx->p11Context, 
+    /* retrieve length of wrapping key */
+    wrappingkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
 					    _ATTR(CKA_MODULUS),
 					    _ATTR_END );
-    
+
     if( pkcs11_read_attr_from_handle (wrappingkey_attrs, hWrappingKey) == CK_FALSE) {
 	fprintf(stderr,"Error: could not read CKA_MODULUS_BITS attribute from public key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
-    } 
-    
+    }
+
     o_modulus = pkcs11_get_attr_in_attrlist(wrappingkey_attrs, CKA_MODULUS);
 
     /* overwrite existing value */
@@ -789,18 +790,18 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 
     /* and adjust value */
     BN_set_word(bn_wrappingkey_bytes, (unsigned long)bytelen);
-    
+
     /* retrieve length of wrapped key */
-    wrappedkey_attrs = pkcs11_new_attrlist(wctx->p11Context, 
+    wrappedkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
 					    _ATTR(CKA_VALUE_LEN), /* caution: value in bytes */
 					    _ATTR_END );
-    
+
     if( pkcs11_read_attr_from_handle (wrappedkey_attrs, hWrappedKey) == CK_FALSE) {
 	fprintf(stderr,"Error: could not read CKA_VALUE_LEN attribute from secret key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
-    } 
-    
+    }
+
     o_wrappedkey_bytes = pkcs11_get_attr_in_attrlist(wrappedkey_attrs, CKA_VALUE_LEN);
 
     /* BN_bin2bn works only with big endian, so we must alter data */
@@ -812,10 +813,10 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 	P_ERR();
 	goto error;
     }
-    
+
     /* now check that len(wrapped_key) < len(wrapping_key) - 11 */
     /* !! lengths being expressed in bytes */
-    
+
     /* then add 11 to this value */
 
     if(! BN_add_word( bn_wrappedkey_bytes, 11L) ) {
@@ -842,7 +843,7 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 	rc = rc_error_memory;
 	goto error;
     }
-    
+
     wctx->wrapped_key_len = o_modulus->ulValueLen;
 
     /* now wrap */
@@ -850,14 +851,14 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
     {
 	CK_RV rv;
 	CK_MECHANISM mechanism = { CKM_RSA_PKCS, NULL_PTR, 0 };/* PKCS #1 1.5 wrap */
-	
+
 	rv = wctx->p11Context->FunctionList.C_WrapKey ( wctx->p11Context->Session,
 							&mechanism,
 							hWrappingKey,
 							hWrappedKey,
 							wctx->wrapped_key_buffer,
 							&(wctx->wrapped_key_len) );
-						 
+
 	if(rv!=CKR_OK) {
 	    pkcs11_error(rv, "C_WrapKey");
 	    rc = rc_error_pkcs11_api;
@@ -866,7 +867,7 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 	wctx->wrappedkeyhandle = hWrappedKey; /* keep a copy, for the output */
 	wctx->wrappedkeyobjclass = CKO_SECRET_KEY; /* same story */
     }
-   
+
 error:
     if(bn_wrappingkey_bytes != NULL) { BN_free(bn_wrappingkey_bytes); bn_wrappingkey_bytes=NULL; }
     if(bn_wrappedkey_bytes != NULL) { BN_free(bn_wrappedkey_bytes); bn_wrappedkey_bytes=NULL; }
@@ -881,7 +882,7 @@ error:
 static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 {
     func_rc rc = rc_ok;
-    
+
     CK_OBJECT_HANDLE hWrappingKey=NULL_PTR;
     CK_OBJECT_HANDLE hWrappedKey=NULL_PTR;
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
@@ -906,8 +907,8 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
     }
 
     /* determining block size of the block cipher. */
-    /* retrieve length of wrapping key */    
-    wrappingkey_attrs = pkcs11_new_attrlist(wctx->p11Context, 
+    /* retrieve length of wrapping key */
+    wrappingkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
 					    _ATTR(CKA_KEY_TYPE),
 					    _ATTR_END );
 
@@ -916,7 +917,7 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 	fprintf(stderr,"Error: could not read CKA_KEY_TYPE attribute from secret key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
-    } 
+    }
 
     o_keytype = pkcs11_get_attr_in_attrlist(wrappingkey_attrs, CKA_KEY_TYPE);
 
@@ -951,7 +952,7 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 
 	/* randomize it */
 	pkcs11_getrandombytes(wctx->p11Context, wctx->iv,blocklength);
-	
+
     } else {
 	if(wctx->iv_len != blocklength) {
 	    fprintf(stderr, "***Error: IV vector length(%d) mismatch - %d bytes are required\n", (int)(wctx->iv_len), (int)blocklength);
@@ -959,7 +960,7 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 	    goto error;
 	}
     }
-    
+
 /* now wrap */
 
     {
@@ -994,7 +995,7 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 							hWrappedKey,
 							NULL,
 							&wrappedkeybuffersize );
-	
+
 	if(rv!=CKR_OK) {
 	    pkcs11_error(rv, "C_WrapKey");
 	    rc = rc_error_pkcs11_api;
@@ -1027,7 +1028,7 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 	wctx->wrappedkeyobjclass = wrappedkeyobjclass;
 	wctx->wrappedkeyhandle = hWrappedKey;
     }
-   
+
 error:
     pkcs11_delete_attrlist(wrappingkey_attrs);
     pkcs11_delete_attrlist(wrappedkey_attrs);
@@ -1041,7 +1042,7 @@ error:
 static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 {
     func_rc rc = rc_ok;
-    
+
     CK_OBJECT_HANDLE hWrappingKey=NULL_PTR;
     CK_OBJECT_HANDLE hWrappedKey=NULL_PTR;
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
@@ -1053,7 +1054,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
     unsigned long keysizeinbytes;
 
     /* retrieve keys  */
-    
+
     if (!pkcs11_findpublickey(wctx->p11Context, wctx->wrappingkeylabel, &hWrappingKey)) {
 	fprintf(stderr,"Error: could not find a public key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_object_not_found;
@@ -1066,17 +1067,17 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 	goto error;
     }
 
-    /* retrieve length of wrapping key */    
-    wrappingkey_attrs = pkcs11_new_attrlist(wctx->p11Context, 
+    /* retrieve length of wrapping key */
+    wrappingkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
 					    _ATTR(CKA_MODULUS),
 					    _ATTR_END );
-    
+
     if( pkcs11_read_attr_from_handle (wrappingkey_attrs, hWrappingKey) == CK_FALSE) {
 	fprintf(stderr,"Error: could not read CKA_MODULUS_BITS attribute from public key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
-    } 
-    
+    }
+
     o_modulus = pkcs11_get_attr_in_attrlist(wrappingkey_attrs, CKA_MODULUS);
 
     /* overwrite existing value */
@@ -1090,29 +1091,29 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 
     /* and adjust value */
     BN_set_word(bn_wrappingkey_bytes, (unsigned long)bytelen);
-    
+
     /* retrieve length of wrapped key */
     wrappedkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
 					   _ATTR(CKA_KEY_TYPE), /* needed as CKA_VALUE_LEN might not always be present */
 					   _ATTR(CKA_VALUE_LEN), /* caution: value in bytes */
 					   _ATTR_END );
-    
+
     if( pkcs11_read_attr_from_handle (wrappedkey_attrs, hWrappedKey) == CK_FALSE) {
 	fprintf(stderr,"Error: could not read attributes from secret key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
-    } 
-    
+    }
+
     o_wrappedkey_bytes = pkcs11_get_attr_in_attrlist(wrappedkey_attrs, CKA_VALUE_LEN);
     /* pkcs11_get_attr_in_attrlist returns the attribute, but we need to check */
     /* if there is actually a value attached to it */
 
-    if(o_wrappedkey_bytes && o_wrappedkey_bytes->pValue) { 
-	
+    if(o_wrappedkey_bytes && o_wrappedkey_bytes->pValue) {
+
 
 	/* BN_bin2bn works only with big endian, so we must alter data */
 	/* if architecture is LE */
-	
+
 	*((CK_ULONG *)o_wrappedkey_bytes->pValue) = pkcs11_ll_bigendian_ul( *((CK_ULONG *)(o_wrappedkey_bytes->pValue))); /* transform if required */
 
 	if ( (bn_wrappedkey_bytes = BN_bin2bn( o_wrappedkey_bytes->pValue, o_wrappedkey_bytes->ulValueLen, NULL)  ) == NULL ) {
@@ -1123,16 +1124,16 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 	     /* as these keys have no CKA_VALUE_LEN attribute */
 
 	o_keytype = pkcs11_get_attr_in_attrlist(wrappedkey_attrs, CKA_KEY_TYPE);
-	
+
 	switch(*(CK_KEY_TYPE *)(o_keytype->pValue)) {
 	case CKK_DES:
 	    keysizeinbytes=8;
 	    break;
-	    
+
 	case CKK_DES2:
 	    keysizeinbytes=16;
 	    break;
-	    
+
 	case CKK_DES3:
 	    keysizeinbytes=24;
 	    break;
@@ -1184,8 +1185,8 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 	fprintf(stderr,"***Error: unsupported hashing algorithm for OAEP wrapping\n");
 	rc = rc_error_unsupported;
 	goto error;
-    }	
-	
+    }
+
 
     if(! BN_add_word( bn_wrappedkey_bytes, sizeoverhead) ) {
 	P_ERR();
@@ -1211,7 +1212,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 	rc = rc_error_memory;
 	goto error;
     }
-    
+
     wctx->wrapped_key_len = o_modulus->ulValueLen;
 
     /* now wrap */
@@ -1226,7 +1227,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 							hWrappedKey,
 							wctx->wrapped_key_buffer,
 							&(wctx->wrapped_key_len) );
-						 
+
 	if(rv!=CKR_OK) {
 	    pkcs11_error(rv, "C_WrapKey");
 	    rc = rc_error_pkcs11_api;
@@ -1236,7 +1237,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 	wctx->wrappedkeyhandle = hWrappedKey; /* keep a copy, for the output */
 	wctx->wrappedkeyobjclass = CKO_SECRET_KEY; /* same story */
     }
-   
+
 error:
     if(bn_wrappingkey_bytes != NULL) { BN_free(bn_wrappingkey_bytes); bn_wrappingkey_bytes=NULL; }
     if(bn_wrappedkey_bytes != NULL) { BN_free(bn_wrappedkey_bytes); bn_wrappedkey_bytes=NULL; }
@@ -1260,11 +1261,11 @@ func_rc pkcs11_parse_wrappingalgorithm(wrappedKeyCtx *wctx, char *algostring)
 
     if(wctx!=NULL && algostring!=NULL) {
 	int parserc;
-	
+
 	/* http://stackoverflow.com/questions/1907847/how-to-use-yy-scan-string-in-lex     */
 	/* copy string into new buffer and Switch buffers*/
 	YY_BUFFER_STATE yybufstate = yy_scan_string(algostring);
-	
+
 	/* parse string */
 	parserc = yyparse(wctx);
 
@@ -1272,14 +1273,14 @@ func_rc pkcs11_parse_wrappingalgorithm(wrappedKeyCtx *wctx, char *algostring)
 	    fprintf(stderr, "***Error scanning algorithm argument string '%s'\n", algostring);
 	    rc =rc_error_invalid_argument;
 	}
-	
+
 	/*Delete the new buffer*/
 	yy_delete_buffer(yybufstate);
     } else {
 	fprintf(stderr, "***Error: pkcs11_parse_wrappingalgoritm() called with wrong argument(s)\n");
 	rc = rc_error_invalid_parameter_for_method;
     }
-    
+
     return rc;
 }
 
@@ -1292,7 +1293,7 @@ func_rc pkcs11_wrap(wrappedKeyCtx *wctx, char *wrappingkeylabel, char *wrappedke
     /* wctx at this point should have its wrapping_meth properly populated */
     wctx->wrappingkeylabel = strdup(wrappingkeylabel);
     wctx->wrappedkeylabel = strdup(wrappedkeylabel);
-    
+
     switch(wctx->wrapping_meth) {
     case w_pkcs1_15:
 	rc = _wrap_pkcs1_15(wctx);
@@ -1327,13 +1328,13 @@ func_rc pkcs11_output_wrapped_key( wrappedKeyCtx *wctx, char *filename )
 	    fp=stdout;
 	}
     }
-    
+
     rc = _output_wrapped_key_header(wctx,fp);
     if(rc!=rc_ok) {
 	fprintf(stderr, "Error during wrapped key header creation \n");
-	goto error;		
+	goto error;
     }
-	    
+
     rc = _output_wrapped_key_attributes(wctx,fp);
     if(rc!=rc_ok) {
 	fprintf(stderr, "Error during wrapped key attributes determination \n");
