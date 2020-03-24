@@ -1,8 +1,9 @@
-/* A Bison parser, made by GNU Bison 3.0.4.  */
+/* A Bison parser, made by GNU Bison 3.5.3.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
+   Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +31,9 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
+/* Undocumented macros, especially those whose name start with YY_,
+   are private implementation details.  Do not rely on them.  */
+
 #ifndef YY_YY_WRAPPEDKEY_PARSER_H_INCLUDED
 # define YY_YY_WRAPPEDKEY_PARSER_H_INCLUDED
 /* Debug traces.  */
@@ -40,17 +44,17 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 13 "wrappedkey_parser.y" /* yacc.c:1909  */
+#line 29 "wrappedkey_parser.y"
 
 
 #include "pkcs11lib.h"
 #include "wrappedkey_helper.h"
-    
+
 extern void yyerror(wrappedKeyCtx *ctx, const char *s, ...);
 extern int yylex(void);
 
 
-#line 54 "wrappedkey_parser.h" /* yacc.c:1909  */
+#line 58 "wrappedkey_parser.h"
 
 /* Token type.  */
 #ifndef YYTOKENTYPE
@@ -66,57 +70,32 @@ extern int yylex(void);
     PKCS1ALGO = 264,
     OAEPALGO = 265,
     CBCPADALGO = 266,
-    PARAMHASH = 267,
-    HASHALG = 268,
-    PARAMMGF = 269,
-    MGFTYPE = 270,
-    PARAMLABEL = 271,
-    PARAMIV = 272,
-    CKATTR_BOOL = 273,
-    CKATTR_STR = 274,
-    CKATTR_DATE = 275,
-    CKATTR_KEY = 276,
-    CKATTR_CLASS = 277,
-    TOK_BOOLEAN = 278,
-    TOK_DATE = 279,
-    KEYTYPE = 280,
-    OCLASS = 281,
-    DOTTEDNUMBER = 282
+    RFC3394ALGO = 267,
+    RFC5649ALGO = 268,
+    PARAMHASH = 269,
+    HASHALG = 270,
+    PARAMMGF = 271,
+    MGFTYPE = 272,
+    PARAMLABEL = 273,
+    PARAMIV = 274,
+    CKATTR_BOOL = 275,
+    CKATTR_STR = 276,
+    CKATTR_DATE = 277,
+    CKATTR_KEY = 278,
+    CKATTR_CLASS = 279,
+    TOK_BOOLEAN = 280,
+    TOK_DATE = 281,
+    KEYTYPE = 282,
+    OCLASS = 283,
+    DOTTEDNUMBER = 284
   };
 #endif
-/* Tokens.  */
-#define PKCSBLOCK 258
-#define STRING 259
-#define CTYPE 260
-#define CTYPE_VAL 261
-#define WRAPPING_ALG 262
-#define WRAPPING_KEY 263
-#define PKCS1ALGO 264
-#define OAEPALGO 265
-#define CBCPADALGO 266
-#define PARAMHASH 267
-#define HASHALG 268
-#define PARAMMGF 269
-#define MGFTYPE 270
-#define PARAMLABEL 271
-#define PARAMIV 272
-#define CKATTR_BOOL 273
-#define CKATTR_STR 274
-#define CKATTR_DATE 275
-#define CKATTR_KEY 276
-#define CKATTR_CLASS 277
-#define TOK_BOOLEAN 278
-#define TOK_DATE 279
-#define KEYTYPE 280
-#define OCLASS 281
-#define DOTTEDNUMBER 282
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-
 union YYSTYPE
 {
-#line 26 "wrappedkey_parser.y" /* yacc.c:1909  */
+#line 42 "wrappedkey_parser.y"
 
     CK_ATTRIBUTE_TYPE ckattr;
     CK_KEY_TYPE val_key;
@@ -127,13 +106,13 @@ union YYSTYPE
 
     enum contenttype val_contenttype;
     enum wrappingmethod val_wrappingmethod;
-    
+
     struct {			/* HEX encoded - or real string */
 	char *val;
 	size_t len;
 	} val_str;
 
-    union {			
+    union {
 	struct {
 	    char year[4];
 	    char month[2];
@@ -142,12 +121,12 @@ union YYSTYPE
         char as_buffer[8];
     } val_date;
 
-    unsigned char *pkcs;			
+    unsigned char *pkcs;
     char *val_dottednumber;
 
-#line 149 "wrappedkey_parser.h" /* yacc.c:1909  */
-};
+#line 128 "wrappedkey_parser.h"
 
+};
 typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

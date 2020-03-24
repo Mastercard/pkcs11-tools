@@ -30,15 +30,15 @@
 
 #include "pkcs11lib.h"
 #include "wrappedkey_helper.h"
-    
+
 extern void yyerror(wrappedKeyCtx *ctx, const char *s, ...);
 extern int yylex(void);
 
 }
 
 %parse-param { wrappedKeyCtx *ctx }
-			
-			
+
+
 %union {
     CK_ATTRIBUTE_TYPE ckattr;
     CK_KEY_TYPE val_key;
@@ -49,13 +49,13 @@ extern int yylex(void);
 
     enum contenttype val_contenttype;
     enum wrappingmethod val_wrappingmethod;
-    
+
     struct {			/* HEX encoded - or real string */
 	char *val;
 	size_t len;
 	} val_str;
 
-    union {			
+    union {
 	struct {
 	    char year[4];
 	    char month[2];
@@ -64,26 +64,26 @@ extern int yylex(void);
         char as_buffer[8];
     } val_date;
 
-    unsigned char *pkcs;			
+    unsigned char *pkcs;
     char *val_dottednumber;
-}			
-			
+}
+
 /* declare tokens */
 %token <pkcs> PKCSBLOCK
-%token <val_str> STRING 
+%token <val_str> STRING
 %token CTYPE
 %token <val_contenttype> CTYPE_VAL
 %token WRAPPING_ALG
 %token WRAPPING_KEY
-%token <val_wrappingmethod> PKCS1ALGO OAEPALGO CBCPADALGO
-%type  <val_wrappingmethod> pkcs1algoid oaepalgoid cbcpadalgoid
+%token <val_wrappingmethod> PKCS1ALGO OAEPALGO CBCPADALGO RFC3394ALGO RFC5649ALGO
+%type  <val_wrappingmethod> pkcs1algoid oaepalgoid cbcpadalgoid rfc3394algoid rfc5649algoid
 %token PARAMHASH
 %token <val_hashalg> HASHALG
 %token PARAMMGF
-%token <val_mgf> MGFTYPE			
+%token <val_mgf> MGFTYPE
 %token PARAMLABEL
 %token PARAMIV
-			
+
 %token	<ckattr> CKATTR_BOOL CKATTR_STR CKATTR_DATE CKATTR_KEY CKATTR_CLASS
 %token	<val_bool> TOK_BOOLEAN
 %token	<val_date> TOK_DATE
@@ -103,7 +103,7 @@ wkey:		assignlist PKCSBLOCK
 		}
 	|       algo		/*TRICK: this is to parse command-line argument for p11wrap -a parameter */
 		;
-		
+
 
 assignlist: 			/*nothing, as assignlist can be empty*/
 		| assignlist assignblk
@@ -167,6 +167,8 @@ assignblk:	CTYPE ':' CTYPE_VAL
 algo:		pkcs1algo
 		| oaepalgo
 		| cbcpadalgo
+                | rfc3394algo
+                | rfc5649algo
 		;
 
 pkcs1algo:	pkcs1algoheader
@@ -225,7 +227,7 @@ oaepparam:	PARAMHASH '=' HASHALG
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
 			YYERROR;
 		    }
-		}		
+		}
 	|	PARAMLABEL '=' STRING
 		{
 		    if(_wrappedkey_parser_set_wrapping_param_label(ctx, $3.val, $3.len)!=rc_ok) {
@@ -266,13 +268,52 @@ cbcpadparam:	PARAMIV '=' STRING
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
 			YYERROR;
 		    }
-		}				
+		}
+	        ;
+
+/* RFC3394: using CKM_AES_KEY_WRAP */
+
+rfc3394algo:	rfc3394algoheader
+       |	rfc3394algoheader '(' ')'
+
+
+rfc3394algoheader: rfc3394algoid
+		{
+		    if(_wrappedkey_parser_set_wrapping_alg(ctx, $1)!=rc_ok) {
+			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
+			YYERROR;
+		    }
+		}
+		;
+
+/* two syntax are supported */
+/* TODO: check DOTTEDNUMBER to see if we agree with version     */
+/* there should be at least a warning if version is beyond supported one  */
+rfc3394algoid:	RFC3394ALGO
+	|	RFC3394ALGO '/' DOTTEDNUMBER
+	;
+
+/* RFC5649: using CKM_AES_KEY_WRAP_PAD */
+
+rfc5649algo:	rfc5649algoheader
+       |	rfc5649algoheader '(' ')'
+
+
+rfc5649algoheader: rfc5649algoid
+		{
+		    if(_wrappedkey_parser_set_wrapping_alg(ctx, $1)!=rc_ok) {
+			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
+			YYERROR;
+		    }
+		}
+		;
+
+/* two syntax are supported */
+/* TODO: check DOTTEDNUMBER to see if we agree with version     */
+/* there should be at least a warning if version is beyond supported one  */
+rfc5649algoid:	RFC5649ALGO
+	|	RFC5649ALGO '/' DOTTEDNUMBER
 	;
 
 
 %%
-
-
-
-
-

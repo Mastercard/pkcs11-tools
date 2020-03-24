@@ -50,7 +50,7 @@
 
 typedef enum e_func_rc {
     rc_ok,
-    rc_dlopen_error,        
+    rc_dlopen_error,
     rc_dlsym_error,
     rc_dlfunc_error,
     rc_error_memory,
@@ -77,6 +77,7 @@ typedef enum e_func_rc {
     rc_error_unsupported,
     rc_error_parsing,		/* issue when parsing a file  */
     rc_error_oops,		/* "assertion" like error. */
+    rc_error_wrong_key_type,	/* if the key type wanted doesn't match */
     rc_error_other_error
 } func_rc;
 
@@ -156,6 +157,8 @@ enum wrappingmethod { w_unknown,     /* unidentified alg */
 		      w_pkcs1_15,    /* PKCS#1 v1.5, uses an RSA key for un/wrapping */
 		      w_pkcs1_oaep,  /* PKCS#1 OAEP, uses an RSA key for un/wrapping */
 		      w_cbcpad,      /* wraps private key (PKCS#8), padding according to PKCS#7, then symmetric key in CBC mode */
+		      w_rfc3394,     /* wraps keys according to RFC3394 */
+		      w_rfc5649,     /* wraps keys according to RFC5649 */
 };
 
 /* pkcs11_unwrap / pkcs11_wrap / pkcs11_wctx */
@@ -172,9 +175,9 @@ typedef struct s_p11_wrappedkeyctx {
     CK_ULONG wrapped_key_len;
     enum wrappingmethod wrapping_meth;
     CK_RSA_PKCS_OAEP_PARAMS_PTR oaep_params; /* used for RSA OAEP unwrap */
-    CK_BYTE_PTR iv;			     /* used for symmetric CBC-PAD unwrap */
-    CK_ULONG iv_len;                         /* used for symmetric CBC-PAD unwrap */
-    
+    CK_BYTE_PTR iv;			     /* used for CKM_XXX_CBC_PAD and CKM_AES_KEY_WRAP_PAD */
+    CK_ULONG iv_len;                         /* used for CBC_XXX_CBC_PAD and CKM_AES_KEY_WRAP_PAD */
+
 } wrappedKeyCtx;
 
 
@@ -211,13 +214,13 @@ enum contenttype { ct_unknown,	/* unidentified app */
  #define CLASS_PUBK "CKA_CLASS/{00 00 00 00 00 00 00 02}"
  #define CLASS_PRVK "CKA_CLASS/{00 00 00 00 00 00 00 03}"
  #define CLASS_SECK "CKA_CLASS/{00 00 00 00 00 00 00 04}"
- #define CLASS_DATA "CKA_CLASS/{00 00 00 00 00 00 00 00}" 
+ #define CLASS_DATA "CKA_CLASS/{00 00 00 00 00 00 00 00}"
 #else
  #define CLASS_CERT "CKA_CLASS/{01 00 00 00 00 00 00 00}"
  #define CLASS_PUBK "CKA_CLASS/{02 00 00 00 00 00 00 00}"
  #define CLASS_PRVK "CKA_CLASS/{03 00 00 00 00 00 00 00}"
  #define CLASS_SECK "CKA_CLASS/{04 00 00 00 00 00 00 00}"
- #define CLASS_DATA "CKA_CLASS/{00 00 00 00 00 00 00 00}" 
+ #define CLASS_DATA "CKA_CLASS/{00 00 00 00 00 00 00 00}"
 #endif
 
 /* prototypes */

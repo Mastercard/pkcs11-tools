@@ -36,11 +36,11 @@ int main( int argc, char **argv);
 
 void print_usage(char *progname)
 {
-    fprintf( stderr, 
+    fprintf( stderr,
 	     "USAGE: %s OPTIONS\n"
 	     "\n"
 	     COMMAND_SUMMARY
-	     " OPTIONS:\n"	     
+	     " OPTIONS:\n"
 	     "* -l <pkcs#11 library path> : path to PKCS#11 library\n"
 	     "  -m <NSS config dir> ( e.g. '.' or 'sql:.' ) : NSS db directory \n"
 	     "  -s <slot number>\n"
@@ -49,19 +49,23 @@ void print_usage(char *progname)
 	     "* -i <key_alias>: label/alias of key to wrap\n"
 	     "* -w <key_alias>: label/alias of a wrapping key, must have CKA_WRAP=true attribute\n"
 	     "  -a <algorithm>: wrapping algorithm (default: pkcs1)\n"
-	     "                  - pkcs1           : PKCS#1 1.5\n"
-	     "                  - oaep(args...)   : PKCS#1 OAEP\n"
+	     "                  - pkcs1          : PKCS#1 1.5\n"
+	     "                  - oaep(args...)  : PKCS#1 OAEP\n"
 	     "                    args... can be one or several of the following parameters\n"
              "                    (separated by commas)\n"
 	     "                      label=\"label-value\" - OAEP label or source argument\n"
 	     "                      mgf=CKG_MGF1_SHA1|CKG_MGF1_SHA256|CKG_MGF_SHA384|CKG_MGF_SHA512 - MGF argument\n"
 	     "                      hash=CKM_SHA_1|CKM_SHA224|CKM_SHA256|CKM_SHA384|CKM_SHA512 - hashing alg. argument\n"
 	     "                      please refer to PKCS#1 standard, or RFC3447 for information on arguments\n"
-	     "                  - cbcpad(ags...) : private key wrapping (PKCS#8-formatted, PKCS#7-padded, CKM_xxx_CBC_PAD encrypted)\n"
+	     "                  - cbcpad(ags...) : private and secret key wrapping (using CKM_xxx_CBC_PAD wrapping mehanisms)\n"
 	     "                    args... can be one or several of the following parameters\n"
              "                    (separated by commas)\n"
 	     "                      iv=[HEX STRING prefixed with 0x] - Initialisation vector\n"
 	     "                      please refer to PKCS#11 CKM_AES_CBC_PAD description for more details.\n"
+	     "                  - rfc3394        : private and secret key wrapping, as documented in RFC5649\n"
+	     "                                     and NIST.SP.800-38F, using CKM_AES_KEY_WRAP mechanism\n"
+	     "                  - rfc5649        : private and secret key wrapping, as documented in RFC5649\n"
+	     "                                     and NIST.SP.800-38F, using CKM_AES_KEY_WRAP_PAD mechanism\n"
 	     "  -S : login with SO privilege\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
@@ -109,16 +113,16 @@ int main( int argc, char ** argv )
     CK_RV retcode = EXIT_FAILURE;
     char *algostring = "pkcs1";	/* is the default algorithm */
     wrappedKeyCtx *wctx = NULL;
-    
+
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
-    tokenlabel = getenv("PKCS11TOKENLABEL");    
+    tokenlabel = getenv("PKCS11TOKENLABEL");
     if(tokenlabel==NULL) {
 	slotenv = getenv("PKCS11SLOT");
 	if (slotenv!=NULL) {
 	    slot=atoi(slotenv);
 	}
-    }	
+    }
     password = getenv("PKCS11PASSWORD");
 
     /* if a slot or a token is given, interactive is null */
@@ -178,7 +182,7 @@ int main( int argc, char ** argv )
 	case 'o':
 	    filename=optarg;
 	    break;
-	    
+
 	case 'h':
 	    print_usage(argv[0]);
 	    break;
@@ -199,13 +203,13 @@ int main( int argc, char ** argv )
     }
 
     if ( library == NULL || wrappedkeylabel == NULL || wrappingkeylabel == NULL || algostring == NULL ) {
-	fprintf( stderr, "At least one required option or argument is wrong or missing.\n" 
+	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
 	goto err;
     }
 
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
-	retcode = rc_error_memory;	
+	retcode = rc_error_memory;
 	goto err;
     }
 
@@ -223,20 +227,20 @@ int main( int argc, char ** argv )
     if(( retcode = pkcs11_parse_wrappingalgorithm(wctx, algostring))!=rc_ok) {
 	goto err;
     }
-	
+
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
-    
+
     if ( retcode == rc_ok ) {
 	/* wrap */
 	retcode = pkcs11_wrap( wctx, wrappingkeylabel, wrappedkeylabel );
-	
+
 	if(retcode == rc_ok) {
 	    /* print result */
 	    retcode = pkcs11_output_wrapped_key( wctx, filename );
 	}
 
 	pkcs11_close_session( p11Context );
-	
+
     }
 
     pkcs11_finalize( p11Context );

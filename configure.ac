@@ -36,18 +36,15 @@ AC_PATH_PROG([PERL],[perl])	dnl needed to execute scripts in lib directory
 AC_PROG_MKDIR_P			dnl needed for dist/solaris build
 AC_CHECK_PROGS([TAR], [gtar tar]) dnl need to find tar (GNU tar preferred)
 
-dnl need FLEX, not LEX
-dnl in case it is not there,
+dnl we need FLEX, not LEX
 AC_PROG_LEX
-if test "x$LEX" != xflex; then
-   AC_MSG_WARN([flex 2.5.22+ is required to regenerate lexer. Generated source code is provided, so it should be OK, unless you change the lexer source file.])
-fi
+AX_PROG_FLEX([],[AC_MSG_WARN([flex 2.5.22+ is required to regenerate lexer. Generated source code is provided, so it should be OK, until you change the lexer source file.])])
+AX_PROG_FLEX_VERSION([2.5.22],[],[AC_MSG_WARN([flex 2.5.22+ is required to regenerate lexer. Generated source code is provided, so it should be OK, until you change the lexer source file.])])
 
-dnl need BISON, not YACC
+dnl we need BISON, not YACC
 AC_PROG_YACC
-if test "x$YACC" != "xbison -y"; then
-   AC_MSG_WARN([bison is required to regenerate parser. Generated source code is provided, so it should be OK, unless you change the parser source file.])
-fi
+AX_PROG_BISON([],[AC_MSG_WARN([bison 3.0.0+ is required to regenerate parser. Generated source code is provided, so it should be OK, until you change the parser source file.])])
+AX_PROG_BISON_VERSION([3.0.0],[],[AC_MSG_WARN([bison v3+ is required to regenerate parser. Generated source code is provided, so it should be OK, until you change the parser source file.])])
 
 gl_EARLY			dnl GNULIB early macro init
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])

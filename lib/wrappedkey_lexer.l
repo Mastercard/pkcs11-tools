@@ -55,6 +55,8 @@ Wrapping-Algorithm { return WRAPPING_ALG; }
 pkcs1              { yylval.val_wrappingmethod = w_pkcs1_15; return PKCS1ALGO; }
 oaep               { yylval.val_wrappingmethod = w_pkcs1_oaep; return OAEPALGO;  }
 cbcpad             { yylval.val_wrappingmethod = w_cbcpad; return CBCPADALGO;  }
+rfc3394            { yylval.val_wrappingmethod = w_rfc3394; return RFC3394ALGO;  }
+rfc5649            { yylval.val_wrappingmethod = w_rfc5649; return RFC5649ALGO;  }
 
 Wrapping-Key       { return WRAPPING_KEY; }
 

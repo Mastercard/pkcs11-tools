@@ -39,9 +39,21 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp);
 static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp);
 static func_rc _output_wrapped_key_b64(wrappedKeyCtx *wctx, FILE *fp);
 
+static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE mech);
+
 static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx);
 static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx);
 static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx);
+
+static inline func_rc _wrap_rfc3394(wrappedKeyCtx *wctx)
+{
+    return _wrap_aes_key_wrap_mech(wctx, CKM_AES_KEY_WRAP);
+}
+
+static inline func_rc _wrap_rfc5649(wrappedKeyCtx *wctx)
+{
+    return _wrap_aes_key_wrap_mech(wctx, CKM_AES_KEY_WRAP_PAD);
+}
 
 
 static char const *get_str_for_wrapping_algorithm(enum wrappingmethod w)
@@ -58,6 +70,14 @@ static char const *get_str_for_wrapping_algorithm(enum wrappingmethod w)
 
     case w_cbcpad:
 	rc = "PKCS#11 CKM_xxx_CBC_PAD, with PKCS#7 padding";
+	break;
+
+    case w_rfc3394:
+	rc = "PKCS#11 CKM_AES_KEY_WRAP (RFC3394)";
+	break;
+
+    case w_rfc5649:
+	rc = "PKCS#11 CKM_AES_KEY_WRAP_PAD (RFC5649)";
 	break;
 
     default:
@@ -448,6 +468,14 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	wrappingalgstr = "cbcpad";
 	break;
 
+    case w_rfc3394:
+	wrappingalgstr = "rfc3394";
+	break;
+
+    case w_rfc5649:
+	wrappingalgstr = "rfc5649";
+	break;
+
     default:
 	fprintf(stderr, "Error: unsupported wrapping algorithm.\n");
 	return rc_error_unknown_wrapping_alg;
@@ -471,7 +499,7 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	    "# - [ATTRIBUTE] : [VALUE]\n"
 	    "#   where [ATTRIBUTE] is any of the following:\n"
 	    "#     Content-Type ( value is application/pkcs11-tools)\n"
-	    "#     Wrapping-Algorithm: (value is pkcs1/1.0)\n"
+	    "#     Wrapping-Algorithm: execute p11wrap -h for syntax\n"
 	    "#     CKA_LABEL\n"
 	    "#     CKA_ID\n"
 	    "#     CKA_CLASS\n"
@@ -542,6 +570,14 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	free_sprintf_str_buffer_safe_buf(labelstring);
 
     }
+	break;
+
+    case w_rfc3394:
+	fprintf(fp, "Wrapping-Algorithm: %s/1.0\n", "rfc3394");
+	break;
+
+    case w_rfc5649:
+	fprintf(fp, "Wrapping-Algorithm: %s/1.0\n", "rfc5649");
 	break;
 
     default:
@@ -1042,6 +1078,114 @@ error:
 
 
 /*------------------------------------------------------------------------*/
+/* wrap a key using CKM_AES_KEY_WRAP or equivalent mechanism              */
+/*------------------------------------------------------------------------*/
+
+static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE mech)
+{
+    func_rc rc = rc_ok;
+
+    CK_OBJECT_HANDLE hWrappingKey=NULL_PTR;
+    CK_OBJECT_HANDLE hWrappedKey=NULL_PTR;
+    pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
+    CK_ATTRIBUTE_PTR o_keytype;
+    CK_OBJECT_CLASS wrappedkeyobjclass;
+
+    /* retrieve keys  */
+
+    /* wrapping key is a secret key */
+    if (!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappingkeylabel, &hWrappingKey)) {
+	fprintf(stderr,"***Error: could not find a secret key with label '%s'\n", wctx->wrappingkeylabel);
+	rc = rc_error_object_not_found;
+	goto error;
+    }
+
+    if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &hWrappedKey, &wrappedkeyobjclass)) {
+	fprintf(stderr,"***Error: key with label '%s' does not exists\n", wctx->wrappedkeylabel);
+	rc = rc_error_object_not_found;
+	goto error;
+    }
+
+    /* determining block size of the block cipher. */
+    /* retrieve length of wrapping key */
+    wrappingkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
+					    _ATTR(CKA_KEY_TYPE),
+					    _ATTR_END );
+
+
+    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, hWrappingKey) == CK_FALSE) {
+	fprintf(stderr,"Error: could not read CKA_KEY_TYPE attribute from secret key with label '%s'\n", wctx->wrappingkeylabel);
+	rc = rc_error_pkcs11_api;
+	goto error;
+    }
+
+    o_keytype = pkcs11_get_attr_in_attrlist(wrappingkey_attrs, CKA_KEY_TYPE);
+
+    if(*(CK_KEY_TYPE *)(o_keytype->pValue) != CKK_AES ) {
+	fprintf(stderr, "Error: secret key with label '%s' is not an AES key\n", wctx->wrappingkeylabel);
+	rc = rc_error_wrong_key_type;
+	goto error;
+
+    }
+
+/* now wrap */
+
+    {
+	CK_RV rv;
+	CK_MECHANISM mechanism = { mech, wctx->iv, wctx->iv_len };
+	CK_ULONG wrappedkeybuffersize;
+
+	/* first call to know what will be the size output buffer */
+	rv = wctx->p11Context->FunctionList.C_WrapKey ( wctx->p11Context->Session,
+							&mechanism,
+							hWrappingKey,
+							hWrappedKey,
+							NULL,
+							&wrappedkeybuffersize );
+
+	if(rv!=CKR_OK) {
+	    pkcs11_error(rv, "C_WrapKey");
+	    rc = rc_error_pkcs11_api;
+	    goto error;
+	}
+
+	wctx->wrapped_key_buffer = malloc( wrappedkeybuffersize );
+	if(wctx->wrapped_key_buffer==NULL) {
+	    fprintf(stderr,"***Error: memory allocation\n");
+	    rc = rc_error_memory;
+	    goto error;
+	}
+	wctx->wrapped_key_len = wrappedkeybuffersize;
+
+	/* now we can do the real call, with the real buffer */
+	rv = wctx->p11Context->FunctionList.C_WrapKey ( wctx->p11Context->Session,
+							&mechanism,
+							hWrappingKey,
+							hWrappedKey,
+							wctx->wrapped_key_buffer,
+							&(wctx->wrapped_key_len) );
+
+
+	if(rv!=CKR_OK) {
+	    pkcs11_error(rv, "C_WrapKey");
+	    rc = rc_error_pkcs11_api;
+	    goto error;
+	}
+
+	wctx->wrappedkeyobjclass = wrappedkeyobjclass;
+	wctx->wrappedkeyhandle = hWrappedKey;
+    }
+
+error:
+    pkcs11_delete_attrlist(wrappingkey_attrs);
+    pkcs11_delete_attrlist(wrappedkey_attrs);
+
+    return rc;
+}
+
+
+
+/*------------------------------------------------------------------------*/
 static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 {
     func_rc rc = rc_ok;
@@ -1308,6 +1452,14 @@ func_rc pkcs11_wrap(wrappedKeyCtx *wctx, char *wrappingkeylabel, char *wrappedke
 
     case w_cbcpad:
 	rc = _wrap_cbcpad(wctx);
+	break;
+
+    case w_rfc3394:
+	rc = _wrap_rfc3394(wctx);
+	break;
+
+    case w_rfc5649:
+	rc = _wrap_rfc5649(wctx);
 	break;
 
     default:
