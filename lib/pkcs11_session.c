@@ -25,10 +25,15 @@
 
 
 
-/* prototypes */
+/* prototypes and small/inline functions */
 static int tokenlabelcmp(const char *label, const char *reflabel, size_t reflabel_maxlen);
 static int min(const int a, const int b);
 static int max(const int a, const int b);
+
+static int compare_mech_type(const void *a, const void *b)
+{
+    return *(const CK_MECHANISM_TYPE *)b- *(const CK_MECHANISM_TYPE *)a;
+}
 
 
 static inline int min(const int a, const int b) {
@@ -83,11 +88,6 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
 {
     CK_RV rv;
     func_rc rc = rc_ok;
-    CK_C_GetSlotList pC_GetSlotList;
-    CK_C_GetSlotInfo pC_GetSlotInfo;
-    CK_C_GetTokenInfo pC_GetTokenInfo;
-    CK_C_OpenSession pC_OpenSession;
-    CK_C_Login pC_Login;
     CK_SLOT_ID hSlot;
     CK_SLOT_ID_PTR pSlotList = NULL;
     CK_SLOT_INFO slotInfo;
@@ -102,15 +102,8 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
     char * cbpass = NULL;
     char * pEnd = NULL;
 
-    /* Setup Function Pointers */
-    pC_GetSlotList = p11Context->FunctionList.C_GetSlotList;
-    pC_GetSlotInfo = p11Context->FunctionList.C_GetSlotInfo;
-    pC_GetTokenInfo = p11Context->FunctionList.C_GetTokenInfo;
-    pC_OpenSession = p11Context->FunctionList.C_OpenSession;
-    pC_Login = p11Context->FunctionList.C_Login;
-
     /* Get the number of slots */
-    if ( ( rv = pC_GetSlotList( CK_FALSE, NULL_PTR, &ulSlotCount ) ) != CKR_OK )
+    if ( ( rv = p11Context->FunctionList.C_GetSlotList( CK_FALSE, NULL_PTR, &ulSlotCount ) ) != CKR_OK )
     {
 	pkcs11_error( rv, "C_GetSlotList" );
 	rc = rc_error_pkcs11_api;
@@ -127,7 +120,7 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
 
     memset( pSlotList, 0x00, ( ulSlotCount * sizeof ( CK_SLOT_ID ) ) );
 
-    if ( ( rv = pC_GetSlotList( CK_FALSE, pSlotList, &ulSlotCount ) ) != CKR_OK )
+    if ( ( rv = p11Context->FunctionList.C_GetSlotList( CK_FALSE, pSlotList, &ulSlotCount ) ) != CKR_OK )
     {
 	pkcs11_error( rv, "C_GetSlotList" );
 	rc = rc_error_pkcs11_api;
@@ -148,10 +141,10 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
     if ( tokenlabel != NULL ) {
 	slot = -1;		/* ensure we forget slot */
 	for ( i = 0; i < ulSlotCount; i++ ) {
-	    if ( ( rv = pC_GetSlotInfo( pSlotList[i], &slotInfo ) ) != CKR_OK ) {
+	    if ( ( rv = p11Context->FunctionList.C_GetSlotInfo( pSlotList[i], &slotInfo ) ) != CKR_OK ) {
 		pkcs11_error( rv, "C_GetSlotInfo" );
 	    } else	{
-		if ( (rv = pC_GetTokenInfo( pSlotList[i], &tokenInfo )) != CKR_OK) {
+		if ( (rv = p11Context->FunctionList.C_GetTokenInfo( pSlotList[i], &tokenInfo )) != CKR_OK) {
 		    if(rv!=CKR_TOKEN_NOT_PRESENT) { /* in case there is no token, silently pass - this is not an error */
 			pkcs11_error( rv, "C_GetTokenInfo" );
 		    }
@@ -173,9 +166,9 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
 	    goto err;
 	}
     }
-    
+
     if ( slot < 0 || slot > ulSlotCount ) {
-	
+
 	/* if we are not interactive, exit directly */
 	if(!interactive) {
 	    fprintf(stderr, "*** Error: slot index value %d not within range [0,%lu]\n", slot, ulSlotCount-1);
@@ -185,25 +178,25 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
 
 	/* otherwise, list all slots and ask to pick one */
 	fprintf( stderr, "PKCS#11 module slot list:\n" );
-	
+
 	for ( i = 0; i < ulSlotCount; i++ ) {
-	    if ( ( rv = pC_GetSlotInfo( pSlotList[i], &slotInfo ) ) != CKR_OK ) {
+	    if ( ( rv = p11Context->FunctionList.C_GetSlotInfo( pSlotList[i], &slotInfo ) ) != CKR_OK ) {
 		pkcs11_error( rv, "C_GetSlotInfo" );
 	    } else	{
-		fprintf( stderr, 		     
-			 "Slot index: %d\n" 
+		fprintf( stderr,
+			 "Slot index: %d\n"
 			 "----------------\n"
 			 "Description : %.*s\n", /* Print the slot description */
 			 i,
 			 (int)sizeof(slotInfo.slotDescription), slotInfo.slotDescription
 		    );
-		
-		if ( ( rv = pC_GetTokenInfo( pSlotList[i], &tokenInfo ) ) != CKR_OK ) {
+
+		if ( ( rv = p11Context->FunctionList.C_GetTokenInfo( pSlotList[i], &tokenInfo ) ) != CKR_OK ) {
 		    if(rv!=CKR_TOKEN_NOT_PRESENT) { /* in case there is no token, silently pass - this is not an error */
 			pkcs11_error( rv, "C_GetTokenInfo" );
 		    }
 		} else {
-		    fprintf( stderr, 
+		    fprintf( stderr,
 			     "Token Label : %.*s\n"		/* Print the Token Label */
 			     "Manufacturer: %.*s\n\n",		/* Print the Token Manufacturer */
 			     (int)sizeof(tokenInfo.label), tokenInfo.label,
@@ -239,14 +232,76 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
 	p11Context->slotindex = slot;
     }
 
+    /* fetch AES wrapping mechanisms, if supported */
+    {
+	CK_MECHANISM_TYPE_PTR mechlist = NULL_PTR;
+	CK_ULONG mechlist_len = 0L;
 
-    rv = pC_OpenSession( hSlot, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &hSession );
-    
+	if (( rv = p11Context->FunctionList.C_GetMechanismList( p11Context->slot, NULL_PTR, &mechlist_len ) ) != CKR_OK ) {
+	    pkcs11_error( rv, "C_GetMechanismList" );
+	    rc = rc_error_pkcs11_api;
+	    goto err;
+	}
+
+	mechlist=calloc( mechlist_len, sizeof(CK_MECHANISM_TYPE) );
+
+	if(mechlist==NULL) {
+	    fprintf(stderr, "Ouch, memory error.\n");
+	    goto err;
+	}
+
+	if (( rv = p11Context->FunctionList.C_GetMechanismList( p11Context->slot, mechlist, &mechlist_len ) ) != CKR_OK ) {
+	    pkcs11_error( rv, "C_GetMechanismList" );
+	    rc = rc_error_pkcs11_api;
+	    free(mechlist);
+	    goto err;
+	}
+
+	/* now we have the full list, let's go through it, and add what we look for */
+	for(CK_ULONG i=0; i<mechlist_len && p11Context->rfc3394_mech_size<AES_WRAP_MECH_SIZE_MAX; i++) {
+	    switch(mechlist[i]) {
+	    case CKM_AES_KEY_WRAP:     /* nCipher v12.50+, SoftHSM v2 */
+	    case CKM_NSS_AES_KEY_WRAP: /* specific to NSS */
+#if defined(HAVE_LUNA)
+	    case CKM_LUNA_AES_KW:	/* on Safenet Gemalto Luna V7 */
+#endif
+		p11Context->rfc3394_mech[p11Context->rfc3394_mech_size++] = mechlist[i];
+	    default:
+		continue;
+	    }
+	}
+
+	/* we sort in ascending order. This way, if we have several mechanisms supported, the standard */
+	/* should be picked up first, assuming that vendor-specific mechanisms are higher in the list, */
+	/* thanks to CKM_VENDOR_DEFINED. */
+	qsort(p11Context->rfc3394_mech, p11Context->rfc3394_mech_size, sizeof(CK_MECHANISM_TYPE), compare_mech_type);
+
+	for(CK_ULONG i=0; i<mechlist_len && p11Context->rfc5649_mech_size<AES_WRAP_MECH_SIZE_MAX; i++) {
+	    switch(mechlist[i]) {
+	    case CKM_AES_KEY_WRAP_PAD:     /* nCipher v12.50+, SoftHSM v2 */
+	    case CKM_NSS_AES_KEY_WRAP_PAD: /* specific to NSS */
+#if defined(HAVE_LUNA)
+	    case CKM_LUNA_AES_KWP:	/* on Safenet Gemalto Luna V7 */
+#endif
+		p11Context->rfc5649_mech[p11Context->rfc5649_mech_size++] = mechlist[i];
+	    default:
+		continue;
+	    }
+	}
+
+	/* same comment as above */
+	qsort(p11Context->rfc5649_mech, p11Context->rfc5649_mech_size, sizeof(CK_MECHANISM_TYPE), compare_mech_type);
+
+	free(mechlist);
+    }
+
+    rv = p11Context->FunctionList.C_OpenSession( hSlot, CKF_SERIAL_SESSION | CKF_RW_SESSION, NULL, NULL, &hSession );
+
     if ( rv == CKR_TOKEN_WRITE_PROTECTED  ) {
 	/* try to open it read-only */
-	rv = pC_OpenSession( hSlot, CKF_SERIAL_SESSION, NULL, NULL, &hSession );
+	rv = p11Context->FunctionList.C_OpenSession( hSlot, CKF_SERIAL_SESSION, NULL, NULL, &hSession );
     }
-    
+
     if ( rv != CKR_OK ) {
 	pkcs11_error( rv, "C_OpenSession" );
 	rc = rc_error_pkcs11_api;
@@ -272,7 +327,7 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
     if(pass!=NULL) {
 	passLen = strlen( pass );
 
-	if ( ( rv = pC_Login( hSession, (so>0) ? CKU_SO : CKU_USER, ( CK_CHAR * ) pass, passLen ) ) != CKR_OK )
+	if ( ( rv = p11Context->FunctionList.C_Login( hSession, (so>0) ? CKU_SO : CKU_USER, ( CK_CHAR * ) pass, passLen ) ) != CKR_OK )
 	{
 	    pkcs11_error( rv, "C_Login" );
 	    rc = rc_error_pkcs11_api;

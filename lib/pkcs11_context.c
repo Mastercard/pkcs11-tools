@@ -47,7 +47,7 @@ pkcs11Context * pkcs11_newContext( char *libraryname, char *nssconfigdir )
 	}
     }
     
-    p11Context = malloc(sizeof(pkcs11Context));
+    p11Context = calloc(1,sizeof(pkcs11Context)); /* we want it be cleared */
     
     if(p11Context==NULL) {
 	fprintf(stderr, "Error: Cannot allocate memory\n");

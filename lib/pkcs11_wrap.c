@@ -39,7 +39,7 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp);
 static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp);
 static func_rc _output_wrapped_key_b64(wrappedKeyCtx *wctx, FILE *fp);
 
-static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE mech);
+static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE mech[], CK_ULONG mech_size);
 
 static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx);
 static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx);
@@ -47,16 +47,16 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx);
 
 static inline func_rc _wrap_rfc3394(wrappedKeyCtx *wctx)
 {
-    return _wrap_aes_key_wrap_mech(wctx, CKM_AES_KEY_WRAP);
+    return _wrap_aes_key_wrap_mech(wctx, wctx->p11Context->rfc3394_mech, wctx->p11Context->rfc3394_mech_size);
 }
 
 static inline func_rc _wrap_rfc5649(wrappedKeyCtx *wctx)
 {
-    return _wrap_aes_key_wrap_mech(wctx, CKM_AES_KEY_WRAP_PAD);
+    return _wrap_aes_key_wrap_mech(wctx, wctx->p11Context->rfc5649_mech, wctx->p11Context->rfc5649_mech_size);
 }
 
 
-static char const *get_str_for_wrapping_algorithm(enum wrappingmethod w)
+static char const *get_str_for_wrapping_algorithm(enum wrappingmethod w, CK_MECHANISM_TYPE m)
 {
     char *rc;
     switch(w) {
@@ -73,11 +73,45 @@ static char const *get_str_for_wrapping_algorithm(enum wrappingmethod w)
 	break;
 
     case w_rfc3394:
-	rc = "PKCS#11 CKM_AES_KEY_WRAP (RFC3394)";
+	switch(m) {
+	case CKM_AES_KEY_WRAP:
+	    rc = "PKCS#11 CKM_AES_KEY_WRAP (RFC3394)";
+	    break;
+
+	case CKM_NSS_AES_KEY_WRAP:
+	    rc = "NSS CKM_NSS_AES_KEY_WRAP (RFC3394)";
+	    break;
+
+#if defined(HAVE_LUNA)
+	case CKM_LUNA_AES_KW:
+	    rc = "Gemalto Safenet Luna CKM_AES_KW (RFC3394)";
+	    break;
+#endif
+
+	default:
+	    rc = "Unknown???";
+	}
 	break;
 
     case w_rfc5649:
-	rc = "PKCS#11 CKM_AES_KEY_WRAP_PAD (RFC5649)";
+	switch(m) {
+	case CKM_AES_KEY_WRAP_PAD:
+	    rc = "PKCS#11 v2.40 CKM_AES_KEY_WRAP_PAD (RFC5649)";
+	    break;
+
+	case CKM_NSS_AES_KEY_WRAP_PAD:
+	    rc = "NSS CKM_NSS_AES_KEY_WRAP_PAD (RFC5649)";
+	    break;
+
+#if defined(HAVE_LUNA)
+	case CKM_LUNA_AES_KWP:
+	    rc = "Gemalto Safenet Luna CKM_AES_KWP (RFC5649)";
+	    break;
+#endif
+
+	default:
+	    rc = "Unknown???";
+	}
 	break;
 
     default:
@@ -535,7 +569,7 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	    wctx->wrappingkeylabel,
 	    hostname,
 	    asctime(gmtime(&now)),
-	    get_str_for_wrapping_algorithm(wctx->wrapping_meth),
+	    get_str_for_wrapping_algorithm(wctx->wrapping_meth, wctx->aes_wrapping_mech),
 	    wctx->wrappingkeylabel );
 
 
@@ -659,7 +693,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", CK_FALSE },
 	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", CK_FALSE },
 	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", CK_FALSE },
-	{ CKA_CHECK_VALUE, fprintf_hex_attr, "CKA_CHECK_VALUE", CK_FALSE },
+	{ CKA_CHECK_VALUE, fprintf_hex_attr, "CKA_CHECK_VALUE", CK_TRUE }, /* Not valid in C_Unwrap() template */
     };
 
     attr_printer prvkalist[] = {
@@ -668,7 +702,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE },
 	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", CK_FALSE },
 	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", CK_FALSE },
-	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", CK_TRUE }, /* This must not appear in C_Unwrap() template */
+	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", CK_TRUE }, /* Not valid in C_Unwrap() template */
 	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", CK_FALSE },
 	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", CK_FALSE },
 	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP", CK_FALSE },
@@ -1081,7 +1115,7 @@ error:
 /* wrap a key using CKM_AES_KEY_WRAP or equivalent mechanism              */
 /*------------------------------------------------------------------------*/
 
-static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE mech)
+static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE mech[], CK_ULONG mech_size)
 {
     func_rc rc = rc_ok;
 
@@ -1090,6 +1124,19 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
     CK_ATTRIBUTE_PTR o_keytype;
     CK_OBJECT_CLASS wrappedkeyobjclass;
+
+    /* sanity check */
+    if(wctx==NULL) {
+	fprintf(stderr, "***Error: invalid argument to _wrap_aes_key_wrap_mech()\n");
+	rc =rc_error_invalid_parameter_for_method;
+	goto error;
+    }
+
+    if(mech_size==0 || mech_size>AES_WRAP_MECH_SIZE_MAX) {
+	fprintf(stderr, "***Error: invalid wrapping mechanism table size\n");
+	rc = rc_error_invalid_parameter_for_method;
+	goto error;
+    }
 
     /* retrieve keys  */
 
@@ -1132,19 +1179,31 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 
     {
 	CK_RV rv;
-	CK_MECHANISM mechanism = { mech, wctx->iv, wctx->iv_len };
+	CK_MECHANISM mechanism = { 0L, wctx->iv, wctx->iv_len };
 	CK_ULONG wrappedkeybuffersize;
+	CK_ULONG i;
 
 	/* first call to know what will be the size output buffer */
-	rv = wctx->p11Context->FunctionList.C_WrapKey ( wctx->p11Context->Session,
-							&mechanism,
-							hWrappingKey,
-							hWrappedKey,
-							NULL,
-							&wrappedkeybuffersize );
+	for(i=0;i< mech_size; i++) { /* let's try mechanisms one by one */
+	    mechanism.mechanism = mech[i];
+	    rv = wctx->p11Context->FunctionList.C_WrapKey ( wctx->p11Context->Session,
+							    &mechanism,
+							    hWrappingKey,
+							    hWrappedKey,
+							    NULL,
+							    &wrappedkeybuffersize );
+	    if(rv!=CKR_OK) {
+		pkcs11_error(rv, "C_WrapKey");
+		fprintf(stderr, "***Warning: It didn't work with %s\n", get_mechanism_name(mech[i]));
+	    } else {
+		/* it worked, let's remember in wctx the actual mechanism used */
+		wctx->aes_wrapping_mech = mech[i];
+		break;
+	    }
+	}
 
-	if(rv!=CKR_OK) {
-	    pkcs11_error(rv, "C_WrapKey");
+	if(i==mech_size) {	/* we couldn't find a suitable mech */
+	    fprintf(stderr, "***Error: tried all mechanisms, no one worked\n");
 	    rc = rc_error_pkcs11_api;
 	    goto error;
 	}

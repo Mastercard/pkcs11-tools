@@ -82,6 +82,7 @@ dist_libp11_la_SOURCES = gen_attrinfo_h.pl gen_mechinfo_h.pl wrappedkey_parser.y
 CLEANFILES = _mechinfo.h _attrinfo.h
 BUILT_SOURCES = _mechinfo.h _attrinfo.h wrappedkey_parser.h wrappedkey_lexer.h
 
+wrappedkey_lexer.h: wrappedkey_lexer.l
 
 pkcs11_mechanism.$(OBJEXT): _mechinfo.h
 

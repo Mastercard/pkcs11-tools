@@ -26,4 +26,8 @@
 #include "ncipher.h"
 #endif
 
+#if defined(HAVE_LUNA)
+#include "luna.h"
+#endif
+
 #endif /* PKCS11_EXTRA_H */

@@ -39,15 +39,15 @@
 static func_rc _unwrap_pkcs1_15(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs);
 static func_rc _unwrap_pkcs1_oaep(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs);
 static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs);
-static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs, CK_MECHANISM_TYPE mech);
+static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs, CK_MECHANISM_TYPE mech[], CK_ULONG mech_size);
 
 /* INLINE FUNCS */
 static inline func_rc _unwrap_rfc3394(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs) {
-    return _unwrap_aes_key_wrap_mech(p11Context, ctx, wrappedkeylabel, attrs, numattrs, CKM_AES_KEY_WRAP);
+    return _unwrap_aes_key_wrap_mech(p11Context, ctx, wrappedkeylabel, attrs, numattrs, ctx->p11Context->rfc3394_mech, ctx->p11Context->rfc3394_mech_size);
 }
 
 static inline func_rc _unwrap_rfc5649(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs) {
-    return _unwrap_aes_key_wrap_mech(p11Context, ctx, wrappedkeylabel, attrs, numattrs, CKM_AES_KEY_WRAP_PAD);
+    return _unwrap_aes_key_wrap_mech(p11Context, ctx, wrappedkeylabel, attrs, numattrs, ctx->p11Context->rfc5649_mech, ctx->p11Context->rfc5649_mech_size);
 }
 
 /*--------------------------------------------------------------------------------*/
@@ -787,15 +787,15 @@ error:
 /**********************************************************************
   NIST SP 800-38F wrapping mechanisms
 
-  There are two wrapping mechanisms available:
-  - CKM_AES_KEY_WRAP corresponds to AE-KW and AD-KW from NIST 800-38F, and
+  There are two wrapping mechanism families available:
+  - CKM_AES_KEY_WRAP and equivalents corresponds to AE-KW and AD-KW from NIST 800-38F, and
     is documented in RFC3394
-  - CKM_AES_KEY_WRAP_PAD corresponds to AE-KWP and AD-KWP from the same NIST document,
+  - CKM_AES_KEY_WRAP_PAD and equivalents corresponds to AE-KWP and AD-KWP from the same NIST document,
     and is documented in RFC5649
 
 ************************************************************************/
 
-static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs, CK_MECHANISM_TYPE mech)
+static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs, CK_MECHANISM_TYPE mech[], CK_ULONG mech_size)
 {
     func_rc rc = rc_ok;
     int i;
@@ -808,13 +808,20 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
     BIGNUM *bn_wrappingkey_bits = NULL;
     BIGNUM *bn_wrappedkey_bits = NULL;
     pkcs11AttrList *alist = NULL;
-    pkcs11AttrList *wklist = NULL;
 
+    /* sanity check */
     if(p11Context==NULL || wctx==NULL) {
 	fprintf(stderr, "***Error: invalid argument to pkcs11_unwrap()\n");
 	rc =rc_error_usage;
 	goto error;
     }
+
+    if(mech_size==0 || mech_size>AES_WRAP_MECH_SIZE_MAX) {
+	fprintf(stderr, "***Error: invalid unwrapping mechanism table size\n");
+	rc = rc_error_invalid_parameter_for_method;
+	goto error;
+    }
+
     /* retrieve keys  */
 
     if (!pkcs11_findsecretkey(p11Context, wctx->wrappingkeylabel, &hWrappingKey)) {
@@ -969,33 +976,33 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 
     {
 	CK_RV rv;
-	CK_MECHANISM mechanism = { mech, NULL, 0L };
+	CK_MECHANISM mechanism = { 0L, NULL, 0L };
+	CK_ULONG i;
 
-	/* we need to determine the mechanism, based on the wrapping key type */
-
-	wklist = pkcs11_new_attrlist(p11Context, CKA_KEY_TYPE, _ATTR_END);
-	if(!wklist) {
-	    fprintf(stderr, "Memory allocation error\n");
-	    rc = rc_error_memory;
-	    goto error;
+	/* first call to know what will be the size output buffer */
+	for(i=0;i< mech_size; i++) { /* let's try mechanisms one by one */
+	    mechanism.mechanism = mech[i];
+	    rv = p11Context->FunctionList.C_UnwrapKey ( p11Context->Session,
+							&mechanism,
+							hWrappingKey,
+							wctx->wrapped_key_buffer,
+							wctx->wrapped_key_len,
+							wctx->attrlist,
+							wctx->attrlen,
+							&hWrappedKey );
+	    
+	    if(rv!=CKR_OK) {
+		pkcs11_error(rv, "C_UnwrapKey");
+		fprintf(stderr, "***Warning: It didn't work with %s\n", get_mechanism_name(mech[i]));
+	    } else {
+		/* it worked, let's remember in wctx the actual mechanism used */
+		wctx->aes_wrapping_mech = mech[i];
+		break;
+	    }
 	}
 
-	if( pkcs11_read_attr_from_handle (wklist, hWrappingKey) == CK_FALSE) {
-	    fprintf(stderr, "***Error: cannot read attributes from wrapping key\n");
-	    goto error;
-	}
-
-	rv = p11Context->FunctionList.C_UnwrapKey ( p11Context->Session,
-						    &mechanism,
-						    hWrappingKey,
-						    wctx->wrapped_key_buffer,
-						    wctx->wrapped_key_len,
-						    wctx->attrlist,
-						    wctx->attrlen,
-						    &hWrappedKey );
-
-	if(rv!=CKR_OK) {
-	    pkcs11_error(rv, "C_UnwrapKey");
+	if(i==mech_size) {	/* we couldn't find a suitable mech */
+	    fprintf(stderr, "***Error: tried all mechanisms, no one worked\n");
 	    rc = rc_error_pkcs11_api;
 	    goto error;
 	}
@@ -1006,6 +1013,5 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 error:
     if(label) { free(label); label=NULL; }
     if(alist) { pkcs11_delete_attrlist(alist); alist=NULL; }
-    if(wklist) { pkcs11_delete_attrlist(wklist); wklist=NULL; }
     return rc;
 }

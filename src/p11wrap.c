@@ -62,10 +62,12 @@ void print_usage(char *progname)
              "                    (separated by commas)\n"
 	     "                      iv=[HEX STRING prefixed with 0x] - Initialisation vector\n"
 	     "                      please refer to PKCS#11 CKM_AES_CBC_PAD description for more details.\n"
-	     "                  - rfc3394        : private and secret key wrapping, as documented in RFC5649\n"
-	     "                                     and NIST.SP.800-38F, using CKM_AES_KEY_WRAP mechanism\n"
+	     "                  - rfc3394        : private and secret key wrapping, as documented in RFC3394\n"
+	     "                                     and NIST.SP.800-38F, using CKM_AES_KEY_WRAP mechanism or\n"
+	     "                                     equivalent vendor-specific\n"
 	     "                  - rfc5649        : private and secret key wrapping, as documented in RFC5649\n"
 	     "                                     and NIST.SP.800-38F, using CKM_AES_KEY_WRAP_PAD mechanism\n"
+	     "                                     or equivalent vendor-specific\n"
 	     "  -S : login with SO privilege\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
@@ -77,7 +79,7 @@ void print_usage(char *progname)
              " ENVIRONMENT VARIABLES:\n"
 	     "    PKCS11LIB         : path to PKCS#11 library,\n"
              "                        overriden by option -l\n"
-	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n" 
+	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n"
              "                        overriden by option -m\n"
 	     "    PKCS11SLOT        : token slot (integer)\n"
 	     "                        overriden by PKCS11TOKENLABEL,\n"
@@ -251,10 +253,10 @@ err:
     } else {
 	fprintf(stderr, "key wrapping succeeded\n");
     }
-    
+
     pkcs11_free_wrappedkeycontext(wctx);
 
     pkcs11_freeContext(p11Context);
-    
+
     return ( retcode );
 }
