@@ -128,6 +128,8 @@ CKM_SHA512           { yylval.val_hashalg = CKM_SHA512; return HASHALG; }
 
 label              { return PARAMLABEL; }
 iv                 { return PARAMIV; }
+flavo[u]?r         { return PARAMFLAVOUR; }
+nss                { yylval.val_wrapalg = CKM_NSS_AES_KEY_WRAP_PAD; return WRAPALG; }
 
 true|CK_TRUE|yes   { yylval.val_bool = 1; return TOK_BOOLEAN; }
 false|CK_FALSE|no  { yylval.val_bool = 0; return TOK_BOOLEAN; }

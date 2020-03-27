@@ -100,7 +100,7 @@ static char const *get_str_for_wrapping_algorithm(enum wrappingmethod w, CK_MECH
 	    break;
 
 	case CKM_NSS_AES_KEY_WRAP_PAD:
-	    rc = "NSS CKM_NSS_AES_KEY_WRAP_PAD (RFC5649)";
+	    rc = "NSS CKM_NSS_AES_KEY_WRAP_PAD (!!<>RFC5649)";
 	    break;
 
 #if defined(HAVE_LUNA)
@@ -487,34 +487,6 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
     gethostname(hostname, 255);
     hostname[254]=0;		/* just to be sure... */
 
-    char *wrappingalgstr;
-
-    switch(wctx->wrapping_meth) {
-    case w_pkcs1_15:
-	wrappingalgstr = "pkcs1";
-	break;
-
-    case w_pkcs1_oaep:
-	wrappingalgstr = "oaep";
-	break;
-
-    case w_cbcpad:
-	wrappingalgstr = "cbcpad";
-	break;
-
-    case w_rfc3394:
-	wrappingalgstr = "rfc3394";
-	break;
-
-    case w_rfc5649:
-	wrappingalgstr = "rfc5649";
-	break;
-
-    default:
-	fprintf(stderr, "Error: unsupported wrapping algorithm.\n");
-	return rc_error_unknown_wrapping_alg;
-    }
-
     fprintf(fp, \
 	    "########################################################################\n"
 	    "#\n"
@@ -611,11 +583,18 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	break;
 
     case w_rfc5649:
-	fprintf(fp, "Wrapping-Algorithm: %s/1.0\n", "rfc5649");
+	    /* Because CKM_NSS_AES_KEY_WRAP_PAD is NOT fully compliant with RFC5649, */
+	    /* we want to flag it as is, to prevent hairy cases when someone */
+	    /* wants to unwrap it on a true RFC5649 compliant token */
+	fprintf(fp,
+		"Wrapping-Algorithm: %s/1.0%s\n",
+		"rfc5649",
+		wctx->aes_wrapping_mech==CKM_NSS_AES_KEY_WRAP_PAD ? "(flavour=nss)" : "");
 	break;
 
     default:
-	break;
+	fprintf(stderr, "Error: unsupported wrapping algorithm.\n");
+	return rc_error_unknown_wrapping_alg;
     }
 
     return rc_ok;
@@ -1184,8 +1163,10 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 	CK_ULONG i;
 
 	/* first call to know what will be the size output buffer */
-	for(i=0;i< mech_size; i++) { /* let's try mechanisms one by one */
-	    mechanism.mechanism = mech[i];
+	for(i=0;i< mech_size; i++) {
+            /* let's try mechanisms one by one, unless the mechanism is already supplied  */
+	    /* i.e. if wctx->aes_wrapping_mech != 0 */
+	    mechanism.mechanism = wctx->aes_wrapping_mech != 0 ? wctx->aes_wrapping_mech : mech[i];
 	    rv = wctx->p11Context->FunctionList.C_WrapKey ( wctx->p11Context->Session,
 							    &mechanism,
 							    hWrappingKey,
@@ -1194,15 +1175,26 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 							    &wrappedkeybuffersize );
 	    if(rv!=CKR_OK) {
 		pkcs11_error(rv, "C_WrapKey");
-		fprintf(stderr, "***Warning: It didn't work with %s\n", get_mechanism_name(mech[i]));
+		fprintf(stderr, "***Warning: It didn't work with %s\n", get_mechanism_name(mechanism.mechanism));
 	    } else {
 		/* it worked, let's remember in wctx the actual mechanism used */
-		wctx->aes_wrapping_mech = mech[i];
+		/* unless it was already supplied */
+		if(wctx->aes_wrapping_mech==0) {
+		    wctx->aes_wrapping_mech = mech[i];
+		}
+		/* and escape loop */
+		break;
+	    }
+
+	    if(wctx->aes_wrapping_mech != 0) {
+		/* special case: if the wrapping mechanism was set by the parser */
+		/* through option field, we will not try other mechanisms than the one  */
+		/* specified. */
 		break;
 	    }
 	}
 
-	if(i==mech_size) {	/* we couldn't find a suitable mech */
+	if(rv!=CKR_OK) {	/* we couldn't find a suitable mech */
 	    fprintf(stderr, "***Error: tried all mechanisms, no one worked\n");
 	    rc = rc_error_pkcs11_api;
 	    goto error;

@@ -78,16 +78,18 @@ extern int yylex(void);
     MGFTYPE = 272,
     PARAMLABEL = 273,
     PARAMIV = 274,
-    CKATTR_BOOL = 275,
-    CKATTR_STR = 276,
-    CKATTR_DATE = 277,
-    CKATTR_KEY = 278,
-    CKATTR_CLASS = 279,
-    TOK_BOOLEAN = 280,
-    TOK_DATE = 281,
-    KEYTYPE = 282,
-    OCLASS = 283,
-    DOTTEDNUMBER = 284
+    PARAMFLAVOUR = 275,
+    WRAPALG = 276,
+    CKATTR_BOOL = 277,
+    CKATTR_STR = 278,
+    CKATTR_DATE = 279,
+    CKATTR_KEY = 280,
+    CKATTR_CLASS = 281,
+    TOK_BOOLEAN = 282,
+    TOK_DATE = 283,
+    KEYTYPE = 284,
+    OCLASS = 285,
+    DOTTEDNUMBER = 286
   };
 #endif
 
@@ -106,6 +108,7 @@ union YYSTYPE
 
     enum contenttype val_contenttype;
     enum wrappingmethod val_wrappingmethod;
+    CK_MECHANISM_TYPE val_wrapalg;
 
     struct {			/* HEX encoded - or real string */
 	char *val;
@@ -124,7 +127,7 @@ union YYSTYPE
     unsigned char *pkcs;
     char *val_dottednumber;
 
-#line 128 "wrappedkey_parser.h"
+#line 131 "wrappedkey_parser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

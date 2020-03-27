@@ -980,8 +980,10 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 	CK_ULONG i;
 
 	/* first call to know what will be the size output buffer */
-	for(i=0;i< mech_size; i++) { /* let's try mechanisms one by one */
-	    mechanism.mechanism = mech[i];
+	for(i=0;i< mech_size; i++) {
+            /* let's try mechanisms one by one, unless the mechanism is already supplied  */
+	    /* i.e. if wctx->aes_wrapping_mech != 0 */
+	    mechanism.mechanism = wctx->aes_wrapping_mech != 0 ? wctx->aes_wrapping_mech : mech[i];
 	    rv = p11Context->FunctionList.C_UnwrapKey ( p11Context->Session,
 							&mechanism,
 							hWrappingKey,
@@ -990,24 +992,34 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 							wctx->attrlist,
 							wctx->attrlen,
 							&hWrappedKey );
-	    
+
 	    if(rv!=CKR_OK) {
 		pkcs11_error(rv, "C_UnwrapKey");
-		fprintf(stderr, "***Warning: It didn't work with %s\n", get_mechanism_name(mech[i]));
+		fprintf(stderr, "***Warning: It didn't work with %s\n", get_mechanism_name(mechanism.mechanism));
 	    } else {
 		/* it worked, let's remember in wctx the actual mechanism used */
-		wctx->aes_wrapping_mech = mech[i];
+		/* unless it was already supplied */
+		if(wctx->aes_wrapping_mech==0) {
+		    wctx->aes_wrapping_mech = mech[i];
+		}
+		/* and escape loop */
+		break;
+	    }
+
+	    if(wctx->aes_wrapping_mech != 0) {
+		/* special case: if the wrapping mechanism was set by the parser */
+		/* through option field, we will not try other mechanisms than the one  */
+		/* specified. */
 		break;
 	    }
 	}
 
-	if(i==mech_size) {	/* we couldn't find a suitable mech */
+	if(rv!=CKR_OK) {	/* we couldn't find a suitable mech */
 	    fprintf(stderr, "***Error: tried all mechanisms, no one worked\n");
 	    rc = rc_error_pkcs11_api;
 	    goto error;
 	}
     }
-
 
 
 error:

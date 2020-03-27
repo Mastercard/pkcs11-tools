@@ -66,15 +66,11 @@ func_rc _wrappedkey_parser_set_wrapping_alg(wrappedKeyCtx *wctx, enum wrappingme
 	wctx->oaep_params->mgf = CKG_MGF1_SHA1;
 	wctx->oaep_params->source = CKZ_DATA_SPECIFIED;
 	break;
-	
-    case w_cbcpad:
-    case w_pkcs1_15:
+
     default:
 	break;
     }
 
-    
-    
     return rc;
 }
 
@@ -106,20 +102,20 @@ func_rc _wrappedkey_parser_set_wrapping_param_label(wrappedKeyCtx *wctx, void *b
 	/* as specified in PKCS#11 v2.2 documentation */
 	wctx->oaep_params->pSourceData=NULL;
 	wctx->oaep_params->ulSourceDataLen = 0;
-	wctx->oaep_params->source = CKZ_DATA_SPECIFIED;	
+	wctx->oaep_params->source = CKZ_DATA_SPECIFIED;
     } else {
 	wctx->oaep_params->pSourceData = malloc(len);
-    
+
 	if(wctx->oaep_params->pSourceData == NULL) {
 	    fprintf(stderr, "Memory error\n");
 	    rc = rc_error_memory;
 	} else {
-	    memcpy(wctx->oaep_params->pSourceData, buffer, len); /* copy the value */    
+	    memcpy(wctx->oaep_params->pSourceData, buffer, len); /* copy the value */
 	    wctx->oaep_params->ulSourceDataLen = len;
 	    wctx->oaep_params->source = CKZ_DATA_SPECIFIED;
 	}
     }
-    return rc;    
+    return rc;
 }
 
 /* dealing with iv=xxxx parameter */
@@ -134,13 +130,20 @@ func_rc _wrappedkey_parser_set_wrapping_param_iv(wrappedKeyCtx *wctx, void *buff
 	fprintf(stderr, "Memory error\n");
 	rc = rc_error_memory;
     } else {
-	memcpy(wctx->iv, buffer, len); /* copy the value */    
+	memcpy(wctx->iv, buffer, len); /* copy the value */
 	wctx->iv_len = len;
     }
 
-    return rc;    
+    return rc;
 }
 
+/* dealing with flavour=xxx parameter */
+/* parser/lexer guarantee we are with oaep */
+func_rc _wrappedkey_parser_set_wrapping_param_flavour(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE wrapalg)
+{
+    wctx->aes_wrapping_mech = wrapalg;
+    return rc_ok;
+}
 
 func_rc _wrappedkey_parser_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len )
 {

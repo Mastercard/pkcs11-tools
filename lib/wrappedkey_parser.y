@@ -49,6 +49,7 @@ extern int yylex(void);
 
     enum contenttype val_contenttype;
     enum wrappingmethod val_wrappingmethod;
+    CK_MECHANISM_TYPE val_wrapalg;
 
     struct {			/* HEX encoded - or real string */
 	char *val;
@@ -83,6 +84,8 @@ extern int yylex(void);
 %token <val_mgf> MGFTYPE
 %token PARAMLABEL
 %token PARAMIV
+%token PARAMFLAVOUR
+%token <val_wrapalg> WRAPALG
 
 %token	<ckattr> CKATTR_BOOL CKATTR_STR CKATTR_DATE CKATTR_KEY CKATTR_CLASS
 %token	<val_bool> TOK_BOOLEAN
@@ -296,7 +299,7 @@ rfc3394algoid:	RFC3394ALGO
 /* RFC5649: using CKM_AES_KEY_WRAP_PAD */
 
 rfc5649algo:	rfc5649algoheader
-       |	rfc5649algoheader '(' ')'
+       |	rfc5649algoheader '(' rfc5649paramlist ')'
 
 
 rfc5649algoheader: rfc5649algoid
@@ -315,5 +318,17 @@ rfc5649algoid:	RFC5649ALGO
 	|	RFC5649ALGO '/' DOTTEDNUMBER
 	;
 
+rfc5649paramlist: rfc5649param
+	|	  rfc5649paramlist ',' rfc5649param
+	;
+
+rfc5649param:   PARAMFLAVOUR '=' WRAPALG
+		{
+		    if(_wrappedkey_parser_set_wrapping_param_flavour(ctx, $3)!=rc_ok) {
+			yyerror(ctx,"Parsing error with specified wrapping algorithm flavour.");
+			YYERROR;
+		    }
+		}
+	        ;
 
 %%
