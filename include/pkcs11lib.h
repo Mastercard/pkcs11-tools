@@ -258,7 +258,7 @@ CK_ATTRIBUTE_TYPE get_attribute_type(char *arg);
 void release_attribute( CK_ATTRIBUTE_PTR arg );
 void release_attributes(CK_ATTRIBUTE attrs[], size_t cnt);
 
-char * hex2bin_new(char *label, int size, size_t *outsize);
+char * hex2bin_new(char *label, size_t size, size_t *outsize);
 void hex2bin_free(char *ptr);
 
 CK_ATTRIBUTE_PTR get_attribute_for_type_and_value(CK_ATTRIBUTE_TYPE argattrtype, char *arg );

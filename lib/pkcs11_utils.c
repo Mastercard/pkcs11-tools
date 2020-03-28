@@ -328,14 +328,14 @@ CK_ATTRIBUTE_PTR new_attribute_for_hex_string(CK_ATTRIBUTE_TYPE argattrtype, cha
 }
 
 
-char * hex2bin_new(char *label, int size, size_t *outsize)
+char * hex2bin_new(char *label, size_t size, size_t *outsize)
 {
 
     char *pos, *initpos;
     char *tmpbuf=NULL, *tmpbuf_s=NULL;
     char *target;
     size_t len;
-    int ws_cnt, i;
+    size_t ws_cnt, i;
 
 
     /* since there can be decoration characters in the input string, */
