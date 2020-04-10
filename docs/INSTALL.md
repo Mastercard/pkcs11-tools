@@ -159,13 +159,7 @@ $ ln -s $HOME/.wine/drive_c/OpenSSL-Win32 openssl-win32
 
 ##### compilation:
 ```bash
-$ CFLAGS="-I$(pwd)/openssl-win32/include" LDFLAGS="-L$(pwd)/openssl-win32" ./configure --host=i686-w64-mingw32 --prefix=$PWD
-$ make install
-```
-
-##### To compile:
-```bash
-$ CFLAGS="-I$(pwd)/openssl-win64/include" LDFLAGS=-L$(pwd)/openssl-win64 ./configure --host=x86_64-w64-mingw32 --prefix=$PWD
+$ ./configure --host=i686-w64-mingw32 --prefix=$PWD LIBCRYPTO_LIBS="-L$(pwd)/openssl-win32 -leay32" LIBCRYPTO_CFLAGS="-I$(pwd)/openssl-win32/include"
 $ make install
 ```
 
