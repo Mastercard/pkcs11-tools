@@ -13,6 +13,7 @@ func_rc _wrappedkey_parser_set_wrapping_param_hash(wrappedKeyCtx *ctx, CK_MECHAN
 func_rc _wrappedkey_parser_set_wrapping_param_mgf(wrappedKeyCtx *ctx, CK_MECHANISM_TYPE mgf);
 func_rc _wrappedkey_parser_set_wrapping_param_label(wrappedKeyCtx *ctx, void *buffer, size_t len);
 func_rc _wrappedkey_parser_set_wrapping_param_iv(wrappedKeyCtx *ctx, void *buffer, size_t len);
+func_rc _wrappedkey_parser_set_wrapping_param_flavour(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE wrapalg);
 
 
 #endif

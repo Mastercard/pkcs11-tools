@@ -50,7 +50,7 @@
 
 typedef enum e_func_rc {
     rc_ok,
-    rc_dlopen_error,        
+    rc_dlopen_error,
     rc_dlsym_error,
     rc_dlfunc_error,
     rc_error_memory,
@@ -77,8 +77,12 @@ typedef enum e_func_rc {
     rc_error_unsupported,
     rc_error_parsing,		/* issue when parsing a file  */
     rc_error_oops,		/* "assertion" like error. */
+    rc_error_wrong_key_type,	/* if the key type wanted doesn't match */
     rc_error_other_error
 } func_rc;
+
+#define AES_WRAP_MECH_SIZE_MAX 8 /* for both rfc3394 and rfc5496, remember the compatible */
+                                 /* mechanisms. We don't anticipate that list to be large */
 
 typedef struct s_p11_ctx {
     char *library;
@@ -89,6 +93,20 @@ typedef struct s_p11_ctx {
     int slotindex;
     CK_SESSION_HANDLE Session;
     CK_BBOOL logged_in;
+    /* in support to rfc3394: */
+    /* the following table will contain a list of AES wrapping mechanisms */
+    /* supported by the selected token. On PKCS#11 v2.40, the standard is */
+    /* called CKM_AES_KEY_WRAP, but many vendors have their own vendor-   */
+    /* specific implementation. These will be tried.                      */
+    CK_MECHANISM_TYPE rfc3394_mech[AES_WRAP_MECH_SIZE_MAX];
+    size_t rfc3394_mech_size;
+    /* in support to rfc5649: */
+    /* the following table will contain a list of AES wrapping mechanisms */
+    /* supported by the selected token. On PKCS#11 v2.40, the standard is */
+    /* called CKM_AES_KEY_WRAP_PAD, but many vendors have their own       */
+    /* vendor-specific implementation.                                    */
+    CK_MECHANISM_TYPE rfc5649_mech[AES_WRAP_MECH_SIZE_MAX];
+    size_t rfc5649_mech_size;
 } pkcs11Context;
 
 typedef struct CK_NSS_C_INITIALIZE_ARGS {
@@ -109,7 +127,7 @@ typedef struct CK_NSS_C_INITIALIZE_ARGS {
 typedef struct s_p11_idtmpl {
     CK_ATTRIBUTE     template[2];
     CK_ULONG         template_len;
-    CK_OBJECT_CLASS  oclass;    
+    CK_OBJECT_CLASS  oclass;
     CK_BBOOL         has_resource; /* resource is either a CKA_ID, CKA_LABEL, CKA_SERIAL_NUMBER */
     CK_BBOOL         has_class;
 } pkcs11IdTemplate;
@@ -144,8 +162,8 @@ typedef struct s_p11_attrlist {
 
 
 /* supported key types */
-enum keytype { unknown, aes, des, rsa, ec, dsa, dh, generic, 
-	       hmacsha1, 
+enum keytype { unknown, aes, des, rsa, ec, dsa, dh, generic,
+	       hmacsha1,
 	       hmacsha224,
 	       hmacsha256,
 	       hmacsha384,
@@ -156,6 +174,8 @@ enum wrappingmethod { w_unknown,     /* unidentified alg */
 		      w_pkcs1_15,    /* PKCS#1 v1.5, uses an RSA key for un/wrapping */
 		      w_pkcs1_oaep,  /* PKCS#1 OAEP, uses an RSA key for un/wrapping */
 		      w_cbcpad,      /* wraps private key (PKCS#8), padding according to PKCS#7, then symmetric key in CBC mode */
+		      w_rfc3394,     /* wraps keys according to RFC3394 */
+		      w_rfc5649,     /* wraps keys according to RFC5649 */
 };
 
 /* pkcs11_unwrap / pkcs11_wrap / pkcs11_wctx */
@@ -171,10 +191,11 @@ typedef struct s_p11_wrappedkeyctx {
     CK_BYTE_PTR wrapped_key_buffer;
     CK_ULONG wrapped_key_len;
     enum wrappingmethod wrapping_meth;
+    CK_MECHANISM_TYPE aes_wrapping_mech;     /* used when wrapping_meth is w_rfc3394 or w_rfc5649 */
     CK_RSA_PKCS_OAEP_PARAMS_PTR oaep_params; /* used for RSA OAEP unwrap */
-    CK_BYTE_PTR iv;			     /* used for symmetric CBC-PAD unwrap */
-    CK_ULONG iv_len;                         /* used for symmetric CBC-PAD unwrap */
-    
+    CK_BYTE_PTR iv;			     /* used for CKM_XXX_CBC_PAD and CKM_AES_KEY_WRAP_PAD */
+    CK_ULONG iv_len;                         /* used for CBC_XXX_CBC_PAD and CKM_AES_KEY_WRAP_PAD */
+
 } wrappedKeyCtx;
 
 
@@ -211,13 +232,13 @@ enum contenttype { ct_unknown,	/* unidentified app */
  #define CLASS_PUBK "CKA_CLASS/{00 00 00 00 00 00 00 02}"
  #define CLASS_PRVK "CKA_CLASS/{00 00 00 00 00 00 00 03}"
  #define CLASS_SECK "CKA_CLASS/{00 00 00 00 00 00 00 04}"
- #define CLASS_DATA "CKA_CLASS/{00 00 00 00 00 00 00 00}" 
+ #define CLASS_DATA "CKA_CLASS/{00 00 00 00 00 00 00 00}"
 #else
  #define CLASS_CERT "CKA_CLASS/{01 00 00 00 00 00 00 00}"
  #define CLASS_PUBK "CKA_CLASS/{02 00 00 00 00 00 00 00}"
  #define CLASS_PRVK "CKA_CLASS/{03 00 00 00 00 00 00 00}"
  #define CLASS_SECK "CKA_CLASS/{04 00 00 00 00 00 00 00}"
- #define CLASS_DATA "CKA_CLASS/{00 00 00 00 00 00 00 00}" 
+ #define CLASS_DATA "CKA_CLASS/{00 00 00 00 00 00 00 00}"
 #endif
 
 /* prototypes */
@@ -237,7 +258,7 @@ CK_ATTRIBUTE_TYPE get_attribute_type(char *arg);
 void release_attribute( CK_ATTRIBUTE_PTR arg );
 void release_attributes(CK_ATTRIBUTE attrs[], size_t cnt);
 
-char * hex2bin_new(char *label, int size, size_t *outsize);
+char * hex2bin_new(char *label, size_t size, size_t *outsize);
 void hex2bin_free(char *ptr);
 
 CK_ATTRIBUTE_PTR get_attribute_for_type_and_value(CK_ATTRIBUTE_TYPE argattrtype, char *arg );
@@ -303,23 +324,23 @@ int pkcs11_get_dsa_pubkey_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 /* pkcs11_x509.c */
 
-CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, 
-				    char *filename, 
-				    char *label, 
+CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context,
+				    char *filename,
+				    char *label,
 				    int trusted);
 
 /* pkcs11_pubk.c */
-CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context, 
-				    char *filename, 
-				    char *label, 
+CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
+				    char *filename,
+				    char *label,
 				    int trusted,
 				    CK_ATTRIBUTE attrs[],
 				    CK_ULONG numattrs );
 
 
 /* pkcs11_data.c */
-CK_OBJECT_HANDLE pkcs11_importdata( pkcs11Context * p11Context, 
-				    char *filename, 
+CK_OBJECT_HANDLE pkcs11_importdata( pkcs11Context * p11Context,
+				    char *filename,
 				    char *label);
 
 /* pkcs11_ec.c */
@@ -330,62 +351,62 @@ void pkcs11_ec_freeoid(CK_BYTE_PTR buf);
 
 /* pkcs11_keygen.c */
 int pkcs11_genkeypair( pkcs11Context * p11Context, char *label, CK_ULONG bits, CK_OBJECT_HANDLE_PTR hPublicKey, CK_OBJECT_HANDLE_PTR hPrivateKey);
-int pkcs11_genAES( pkcs11Context * p11Context, 
-		   char *label, 
+int pkcs11_genAES( pkcs11Context * p11Context,
+		   char *label,
 		   CK_ULONG bits,
 		   CK_ATTRIBUTE attrs[],
 		   CK_ULONG numattrs,
 		   CK_OBJECT_HANDLE_PTR hSecretKey);
 
-int pkcs11_genDESX( pkcs11Context * p11Context, 
-		    char *label, 
+int pkcs11_genDESX( pkcs11Context * p11Context,
+		    char *label,
 		    CK_ULONG bits,
 		    CK_ATTRIBUTE attrs[],
 		    CK_ULONG numattrs,
 		    CK_OBJECT_HANDLE_PTR hSecretKey);
 
 /* HMAC keys */
-int pkcs11_genGeneric( pkcs11Context * p11Context, 
-		       char *label, 
+int pkcs11_genGeneric( pkcs11Context * p11Context,
+		       char *label,
 		       enum keytype kt,
 		       CK_ULONG bits,
 		       CK_ATTRIBUTE attrs[],
 		       CK_ULONG numattrs,
 		       CK_OBJECT_HANDLE_PTR hSecretKey);
 
-int pkcs11_genRSA( pkcs11Context * p11Context, 
-		   char *label, 
-		   CK_ULONG bits, 
+int pkcs11_genRSA( pkcs11Context * p11Context,
+		   char *label,
+		   CK_ULONG bits,
 		   CK_ATTRIBUTE attrs[],
 		   CK_ULONG numattrs,
-		   CK_OBJECT_HANDLE_PTR hPublicKey, 
+		   CK_OBJECT_HANDLE_PTR hPublicKey,
 		   CK_OBJECT_HANDLE_PTR hPrivateKey);
 
 
-int pkcs11_genECDSA( pkcs11Context * p11Context, 
-		     char *label, 
-		     char *param, 
+int pkcs11_genECDSA( pkcs11Context * p11Context,
+		     char *label,
+		     char *param,
 		     CK_ATTRIBUTE attrs[],
 		     CK_ULONG numattrs,
-		     CK_OBJECT_HANDLE_PTR hPublicKey, 
+		     CK_OBJECT_HANDLE_PTR hPublicKey,
 		     CK_OBJECT_HANDLE_PTR hPrivateKey);
 
 int pkcs11_testgenECDSA_support( pkcs11Context * p11Context, const char *param );
 
-int pkcs11_genDSA(pkcs11Context * p11Context, 
-		  char *label, 
-		  char *param, 
+int pkcs11_genDSA(pkcs11Context * p11Context,
+		  char *label,
+		  char *param,
 		  CK_ATTRIBUTE attrs[],
 		  CK_ULONG numattrs,
-		  CK_OBJECT_HANDLE_PTR hPublicKey, 
+		  CK_OBJECT_HANDLE_PTR hPublicKey,
 		  CK_OBJECT_HANDLE_PTR hPrivateKey);
 
-int pkcs11_genDH(pkcs11Context * p11Context, 
-		 char *label, 
-		 char *param, 
+int pkcs11_genDH(pkcs11Context * p11Context,
+		 char *label,
+		 char *param,
 		 CK_ATTRIBUTE attrs[],
 		 CK_ULONG numattrs,
-		 CK_OBJECT_HANDLE_PTR hPublicKey, 
+		 CK_OBJECT_HANDLE_PTR hPublicKey,
 		 CK_OBJECT_HANDLE_PTR hPrivateKey);
 
 
@@ -437,11 +458,11 @@ pkcs11AttrList *pkcs11_cast_to_attrlist(pkcs11Context *p11Context, CK_ATTRIBUTE_
 
 void pkcs11_attrlist_assign_context(pkcs11AttrList *attrlist, pkcs11Context *p11Context);
 
-CK_BBOOL pkcs11_set_attr_in_attrlist ( pkcs11AttrList *attrlist, 
+CK_BBOOL pkcs11_set_attr_in_attrlist ( pkcs11AttrList *attrlist,
 				       CK_ATTRIBUTE_TYPE attrib,
 				       CK_VOID_PTR pvalue,
 				       CK_ULONG len );
-CK_ATTRIBUTE_PTR pkcs11_get_attr_in_attrlist ( pkcs11AttrList *attrlist, 
+CK_ATTRIBUTE_PTR pkcs11_get_attr_in_attrlist ( pkcs11AttrList *attrlist,
 					       CK_ATTRIBUTE_TYPE attrib );
 
 CK_BBOOL pkcs11_read_attr_from_handle ( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle);

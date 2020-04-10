@@ -38,8 +38,8 @@ libp11_la_SOURCES = pkcs11_ll_unix.c
 endif
 
 libp11_la_SOURCES += pkcs11_attr.c \
-	wrappedkey_parser.c wrappedkey_parser.h \
-	wrappedkey_lexer.c wrappedkey_lexer.h \
+	wrappedkey_parser.y \
+	wrappedkey_lexer.l \
 	wrappedkey_helper.c wrappedkey_helper.h \
 	pkcs11_wctx.c \
 	pkcs11_wrap.c \
@@ -77,20 +77,14 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_dh.c
 
 
-
 dist_libp11_la_SOURCES = gen_attrinfo_h.pl gen_mechinfo_h.pl wrappedkey_parser.y wrappedkey_lexer.l
 
-# because it may be tricky to use bison and flex on the target environment,
-# we ship the generated lexer and parser.
-# in case they are modified, the rules below should cover
-wrappedkey_parser.c wrappedkey_parser.h: wrappedkey_parser.y wrappedkey_lexer.h
-wrappedkey_lexer.c wrappedkey_lexer.h: wrappedkey_lexer.l
-wrappedkey_helper.c wrappedkey_helper.h: wrappedkey_lexer.c wrappedkey_lexer.h wrappedkey_parser.c wrappedkey_parser.h
-wrappedkey_helper.c: wrappedkey_helper.h
+CLEANFILES = _mechinfo.h _attrinfo.h
+BUILT_SOURCES = _mechinfo.h _attrinfo.h wrappedkey_parser.h wrappedkey_lexer.h
 
-CLEANFILES = _mechinfo.h _attrinfo.h 
-BUILT_SOURCES = _mechinfo.h _attrinfo.h
-
+# The following files depends upon lexer and parser source files
+wrappedkey_lexer.h: wrappedkey_lexer.l
+wrappedkey_helper.c pkcs11_wrap.c pkcs11_unwrap.c: wrappedkey_lexer.l wrappedkey_parser.y
 
 pkcs11_mechanism.$(OBJEXT): _mechinfo.h
 

@@ -38,21 +38,21 @@ wrappedKeyCtx *pkcs11_new_wrappedkeycontext(pkcs11Context *p11Context)
 
     if(p11Context) {
 	ctx = calloc(1, sizeof (wrappedKeyCtx));
-    
+
 	if(ctx==NULL) {
-	    fprintf(stderr, "Error: not enough memory when allocating memory for wrappedKeyCtx\n");	    
+	    fprintf(stderr, "Error: not enough memory when allocating memory for wrappedKeyCtx\n");
 	    goto error;
 	}
 
 	ctx->p11Context = p11Context;
 	ctx->attrlist = calloc( PARSING_MAX_ATTRS, sizeof(CK_ATTRIBUTE) );
-	
+
 	if(ctx->attrlist == NULL) {
 	    fprintf(stderr, "Error: not enough memory when allocating memory for attribute array of wrappedKeyCtx\n");
 	    goto error;
 	}
 	ctx->attrlen = 0;
-	
+
 	ctx->oaep_params = calloc( 1, sizeof(CK_RSA_PKCS_OAEP_PARAMS) );
 	if(ctx->oaep_params == NULL) {
 	    fprintf(stderr, "Error: not enough memory when allocating memory for CK_RSA_PKCS_OAEP_PARAMS of wrappedKeyCtx\n");
@@ -95,13 +95,13 @@ void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx)
 	    free(wctx->wrappingkeylabel);
 	    wctx->wrappingkeylabel= NULL ;
 	}
-		 
+
 	/* free up wrappedkeylabel */
 	if(wctx->wrappedkeylabel) {
 	    free(wctx->wrappedkeylabel);
 	    wctx->wrappedkeylabel = NULL ;
 	}
-	
+
 	/* free up buffer */
 	if(wctx->wrapped_key_buffer) {
 	    free(wctx->wrapped_key_buffer);
