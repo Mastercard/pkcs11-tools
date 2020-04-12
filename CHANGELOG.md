@@ -3,6 +3,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+# [1.2.0] - 2020-04-10
+### Enhanced
+- implemented CKA_AES_KEY_WRAP (rfc3394) and CKA_AES_KEY_WRAP_PAD (rfc5649)
+- added support for Gemalto Safenet Luna HSM
+- added flavour=nss parameter to rfc5649 algorithm, to identify non compliant RFC5649 implementation of NSS
+
+### Fixed
+- fixed compilation warning on linux/debian 10 with gcc
+- fixed issue that prevented cross-compilation to work, for mingw32
 
 ## [1.1.0] - 2020-01-15
 ### Enhanced
