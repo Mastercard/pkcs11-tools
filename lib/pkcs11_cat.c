@@ -265,11 +265,12 @@ func_rc pkcs11_cat_object_with_label(pkcs11Context *p11Context, char *label, int
 				    goto key_dsa_error;
 				}
 
-        DSA_set0_pqg(dsa, bn_prime, bn_subprime, bn_base);
+				DSA_set0_pqg(dsa, bn_prime, bn_subprime, bn_base);
+				DSA_set0_key(dsa, bn_pubkey, NULL);
 				bn_prime = NULL;    /* forget, moved to dsa */
 				bn_subprime = NULL; /* forget, moved to dsa */
 				bn_base = NULL;     /* forget, moved to dsa */
-				DSA_set0_key(dsa, bn_pubkey, NULL);
+				bn_pubkey = NULL;   /* forget, moved to dsa */
 
 				if (!EVP_PKEY_assign_DSA(pk,dsa)) {
 				    P_ERR();
@@ -329,8 +330,8 @@ func_rc pkcs11_cat_object_with_label(pkcs11Context *p11Context, char *label, int
 				    goto key_dh_error;
 				}
 
-        DH_set0_pqg(dh, bn_prime, NULL, bn_base);
-        DH_set0_key(dh, bn_pubkey, NULL);
+				DH_set0_pqg(dh, bn_prime, NULL, bn_base);
+				DH_set0_key(dh, bn_pubkey, NULL);
 				bn_prime = NULL;    /* forget, moved to dh */
 				bn_base = NULL;     /* forget, moved to dh */
 				bn_pubkey = NULL;   /* forget, moved to dh */
