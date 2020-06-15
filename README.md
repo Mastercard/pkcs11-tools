@@ -14,7 +14,7 @@ $ ./configure
 $ make install
 ```
 
-To list the methods available on a PKCS#11 token, use `p11slotinfo`, that will return the list of available echanisms, together with allowed APIs.
+To list the methods available on a PKCS#11 token, use `p11slotinfo`, that will return the list of available mechanisms, together with allowed APIs.
 
 ```bash
 $ p11slotinfo -l /usr/local/opt/softhsm/lib/softhsm/libsofthsm2.so
@@ -215,7 +215,7 @@ If you need to wrap or unwrap a key, you can use the command `p11wrap`:
 $ p11wrap -w aes-wrapping -i rootca -a cbcpad >wrapped-key.wrap
 key wrapping succeeded
 ```
-The key can be uwrapped later, reusing the `wrapped-key.wrap` file created earlier:
+The key can be unwrapped later, reusing the `wrapped-key.wrap` file created earlier:
 ```bash
 $ p11unwrap -f wrapped-key.wrap
 key unwrapping succeeded
