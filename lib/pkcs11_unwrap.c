@@ -126,30 +126,37 @@ func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrapp
 
     if(ctx!=NULL) {
 
-	switch(ctx->wrapping_meth) {
-	case w_pkcs1_15:
-	    rc = _unwrap_pkcs1_15(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
-	    break;
+	if(ctx->is_envelope==CK_TRUE) {
+	    /* Do envelope unwrapping */
+	    fprintf(stderr,"***NOT YET IMPLEMENTED\n");
+	    rc = rc_error_unsupported;
+	    return rc;
+	} else { /* do regular unwrap */
+	    switch(ctx->key[WRAPPEDKEYCTX_LONE_KEY_INDEX].wrapping_meth) {
+	    case w_pkcs1_15:
+		rc = _unwrap_pkcs1_15(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
+		break;
 
-	case w_pkcs1_oaep:
-	    rc = _unwrap_pkcs1_oaep(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
-	    break;
+	    case w_pkcs1_oaep:
+		rc = _unwrap_pkcs1_oaep(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
+		break;
 
-	case w_cbcpad:
-	    rc = _unwrap_cbcpad(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
-	    break;
+	    case w_cbcpad:
+		rc = _unwrap_cbcpad(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
+		break;
 
-	case w_rfc3394:
-	    rc = _unwrap_rfc3394(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
-	    break;
+	    case w_rfc3394:
+		rc = _unwrap_rfc3394(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
+		break;
 
-	case w_rfc5649:
-	    rc = _unwrap_rfc5649(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
-	    break;
+	    case w_rfc5649:
+		rc = _unwrap_rfc5649(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
+		break;
 
-	case w_unknown:
-	default:
-	    rc = rc_error_unknown_wrapping_alg;
+	    case w_unknown:
+	    default:
+		rc = rc_error_unknown_wrapping_alg;
+	    }
 	}
     } else {
 	fprintf(stderr, "***Error: NULL wrapping context\n");

@@ -33,14 +33,13 @@ static int compare_CKA( const void *a, const void *b)
     return ((CK_ATTRIBUTE_PTR)a)->type == ((CK_ATTRIBUTE_PTR)b)->type ? 0 : -1;
 }
 
-int pkcs11_genAES( pkcs11Context * p11Context, 
-		   char *label, 
+int pkcs11_genAES( pkcs11Context * p11Context,
+		   char *label,
 		   CK_ULONG bits,
 		   CK_ATTRIBUTE attrs[],
 		   CK_ULONG numattrs,
 		   CK_OBJECT_HANDLE_PTR hSecretKey)
 {
-    
     CK_RV retCode;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
@@ -66,7 +65,6 @@ int pkcs11_genAES( pkcs11Context * p11Context,
 	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
 	    {CKA_PRIVATE, &ck_true, sizeof(ck_true)},
 	    {CKA_VALUE_LEN, &bytes, sizeof(bytes)},
-	    
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
 	    /* what can we do with this key */
@@ -95,15 +93,15 @@ int pkcs11_genAES( pkcs11Context * p11Context,
 	{
 	    /* lsearch will add the keys if not found in the template */
 
-	    CK_ATTRIBUTE_PTR match = lsearch( &attrs[i], 
-					      secretKeyTemplate, 
+	    CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+					      secretKeyTemplate,
 					      &num_elems,
 					      sizeof(CK_ATTRIBUTE),
 					      compare_CKA );
 
 	    /* if we have a match, take the value from the command line */
 	    /* we are basically stealing the pointer from attrs array   */
-	    if(match && match->ulValueLen == attrs[i].ulValueLen) { 
+	    if(match && match->ulValueLen == attrs[i].ulValueLen) {
 		match->pValue = attrs[i].pValue;
 	    }
 	}
@@ -114,13 +112,13 @@ int pkcs11_genAES( pkcs11Context * p11Context,
 				 &mechanism,
 				 secretKeyTemplate, num_elems,
 				 hSecretKey );
-	
+
 	if (retCode != CKR_OK ) {
 	    pkcs11_error( retCode, "C_GenerateKey" );
 	    return 0;
 	}
     }
-    
+
     return 1;
 }
 

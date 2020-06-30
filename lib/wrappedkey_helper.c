@@ -51,15 +51,25 @@ static int compare_CKA( const void *a, const void *b)
 
 /* ------------------------------------------------------------------------ */
 
-func_rc _wrappedkey_parser_set_wrapping_alg(wrappedKeyCtx *wctx, enum wrappingmethod meth)
+func_rc _wrappedkey_parser_set_wrapping_alg(wrappedKeyCtx *wctx, enum wrappingmethod meth, int keyindex)
 {
     func_rc rc = rc_ok;
 
-    wctx->wrapping_meth = meth;
-
     switch(meth) {
 
+    case w_envelope:
+	wctx->is_envelope = CK_TRUE;
+	/* the default with envelope, is to use OAEP/AES_CBC_PAD */
+	wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrapping_meth = w_pkcs1_oaep;
+	wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrapping_meth = w_cbcpad;
+	wctx->oaep_params->hashAlg = CKM_SHA_1;
+	wctx->oaep_params->mgf = CKG_MGF1_SHA1;
+	wctx->oaep_params->source = CKZ_DATA_SPECIFIED;
+	/* aes_params.iv and iv_len are set to 0/NULL, that's OK */
+	break;
+
     case w_pkcs1_oaep:
+	wctx->key[keyindex].wrapping_meth = meth;
 	/* adjust content with default valued */
 	/* default is: hash=sha1,mgf=mgf_sha1,source="" */
 	wctx->oaep_params->hashAlg = CKM_SHA_1;
@@ -68,6 +78,7 @@ func_rc _wrappedkey_parser_set_wrapping_alg(wrappedKeyCtx *wctx, enum wrappingme
 	break;
 
     default:
+	wctx->key[keyindex].wrapping_meth = meth;
 	break;
     }
 
@@ -124,14 +135,14 @@ func_rc _wrappedkey_parser_set_wrapping_param_iv(wrappedKeyCtx *wctx, void *buff
 {
     func_rc rc = rc_ok;
 
-    wctx->iv = malloc(len);
+    wctx->aes_params.iv = malloc(len);
 
-    if(wctx->iv == NULL) {
+    if(wctx->aes_params.iv == NULL) {
 	fprintf(stderr, "Memory error\n");
 	rc = rc_error_memory;
     } else {
-	memcpy(wctx->iv, buffer, len); /* copy the value */
-	wctx->iv_len = len;
+	memcpy(wctx->aes_params.iv, buffer, len); /* copy the value */
+	wctx->aes_params.iv_len = len;
     }
 
     return rc;
@@ -141,7 +152,7 @@ func_rc _wrappedkey_parser_set_wrapping_param_iv(wrappedKeyCtx *wctx, void *buff
 /* parser/lexer guarantee we are with oaep */
 func_rc _wrappedkey_parser_set_wrapping_param_flavour(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE wrapalg)
 {
-    wctx->aes_wrapping_mech = wrapalg;
+    wctx->aes_params.aes_wrapping_mech = wrapalg;
     return rc_ok;
 }
 
@@ -201,11 +212,10 @@ error:
 }
 
 
-func_rc _wrappedkey_parser_append_pkcs(wrappedKeyCtx *wctx, unsigned char *b64buffer)
+func_rc _wrappedkey_parser_append_cryptogram(wrappedKeyCtx *wctx, unsigned char *b64buffer, int keyindex)
 {
-
     func_rc rc = rc_ok;
-    
+
     BIO *bmem = NULL, *b64 = NULL;
     size_t inlen=0, totallen=0;
     unsigned char inbuf[64];
@@ -219,15 +229,14 @@ func_rc _wrappedkey_parser_append_pkcs(wrappedKeyCtx *wctx, unsigned char *b64bu
 	rc = rc_error_openssl_api;
 	goto err;
     }
-	
-	
+
     b64 = BIO_new( BIO_f_base64() );
     if(b64==NULL) {
 	P_ERR();
 	rc = rc_error_openssl_api;
 	goto err;
     }
-        
+
     bmem = BIO_push(b64, bmem);	/* append bmem to b64 and return bmem, never fails */
 
     while((inlen = BIO_read(bmem, inbuf, sizeof(inbuf))) > 0) {
@@ -235,18 +244,18 @@ func_rc _wrappedkey_parser_append_pkcs(wrappedKeyCtx *wctx, unsigned char *b64bu
     }
 
     /* allocate memory */
-    wctx->wrapped_key_buffer = calloc( totallen, sizeof(unsigned char));
-    if(wctx->wrapped_key_buffer==NULL) {
+    wctx->key[keyindex].wrapped_key_buffer = calloc( totallen, sizeof(unsigned char));
+    if(wctx->key[keyindex].wrapped_key_buffer==NULL) {
 	fprintf(stderr, "Memory error\n");
 	rc = rc_error_memory;
 	goto err;
     } else {
-	wctx->wrapped_key_len = totallen;
+	wctx->key[keyindex].wrapped_key_len = totallen;
     }
 
     /* reset BIO and start over */
     BIO_reset(bmem);
-    readlen = BIO_read(bmem, wctx->wrapped_key_buffer, wctx->wrapped_key_len);
+    readlen = BIO_read(bmem, wctx->key[keyindex].wrapped_key_buffer, wctx->key[keyindex].wrapped_key_len);
     if(readlen<0) {
 	P_ERR();
 	rc = rc_error_openssl_api;
@@ -256,15 +265,15 @@ func_rc _wrappedkey_parser_append_pkcs(wrappedKeyCtx *wctx, unsigned char *b64bu
 err:
 
     if(bmem) { BIO_free_all(bmem); bmem = NULL; }
-    
+
     if(rc!=rc_ok) {
-	if(wctx->wrapped_key_buffer != NULL) {
-	    free(wctx->wrapped_key_buffer);
-	    wctx->wrapped_key_buffer = NULL;
-	    wctx->wrapped_key_len = 0L;
+	if(wctx->key[keyindex].wrapped_key_buffer != NULL) {
+	    free(wctx->key[keyindex].wrapped_key_buffer);
+	    wctx->key[keyindex].wrapped_key_buffer = NULL;
+	    wctx->key[keyindex].wrapped_key_len = 0L;
 	}
     }
-    return rc;    
+    return rc;
 }
 
 
@@ -283,7 +292,7 @@ func_rc _wrappedkey_parser_set_wrapping_key(wrappedKeyCtx *wctx, void *buffer, s
 	    rc = rc_error_memory;
 	}
     }
-    return rc;    
+    return rc;
 }
 
 /*------------------------------------------------------------------------*/

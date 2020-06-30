@@ -32,6 +32,28 @@
 #include "wrappedkey_parser.h"
 
 
+/* wrappedKeyContext will hold information about wrapping/unwrapping keys
+
+   several wrapping methods are supported:
+   - the regular wrapping methods ( PKCS#1, OAEP, CBC_PAD, AES_KEY_WRAP, AES_KEY_WRAP_PAD )
+   - envelope wrapping, where a private key (RSA) wraps a symmetric key, that in turn wraps any kind of key
+
+   to support both models, the structure contains a small array where actual wrapped key info is maintained.
+
+   ...
+   struct {
+       CK_BYTE_PTR wrapped_key_buffer;
+       CK_ULONG wrapped_key_len;
+       enum wrappingmethod wrapping_meth;
+   } key[2];
+   ...
+
+   the first element is always for the outer key, which is used only for envelope wrapping.
+   the second element is either used as the inner key in envelope mode, or as the lone key for other wrapping algorithms.
+
+ */
+
+
 wrappedKeyCtx *pkcs11_new_wrappedkeycontext(pkcs11Context *p11Context)
 {
     wrappedKeyCtx *ctx = NULL;
@@ -59,6 +81,8 @@ wrappedKeyCtx *pkcs11_new_wrappedkeycontext(pkcs11Context *p11Context)
 	    goto error;
 	}
     }
+
+    ctx->is_envelope = CK_FALSE;
 
     return ctx;
 
@@ -102,11 +126,14 @@ void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx)
 	    wctx->wrappedkeylabel = NULL ;
 	}
 
-	/* free up buffer */
-	if(wctx->wrapped_key_buffer) {
-	    free(wctx->wrapped_key_buffer);
-	    wctx->wrapped_key_buffer = NULL;
-	    wctx->wrapped_key_len = 0;
+	/* free up buffers */
+	int i;
+	for(i=0; i<2; ++i) {
+	    if(wctx->key[i].wrapped_key_buffer) {
+		free(wctx->key[i].wrapped_key_buffer);
+		wctx->key[i].wrapped_key_buffer = NULL;
+		wctx->key[i].wrapped_key_len = 0;
+	    }
 	}
 
 	/* free up OAEP structure */
@@ -121,10 +148,10 @@ void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx)
 	}
 
 	/* free up iv member */
-	if(wctx->iv) {
-	    free(wctx->iv);
-	    wctx->iv = NULL;
-	    wctx->iv_len = 0L;
+	if(wctx->aes_params.iv) {
+	    free(wctx->aes_params.iv);
+	    wctx->aes_params.iv = NULL;
+	    wctx->aes_params.iv_len = 0L;
 	}
 
 	free(wctx);		/* eventually free up context mem */

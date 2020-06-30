@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 3.5.3.  */
+/* A Bison parser, made by GNU Bison 3.6.4.  */
 
 /* Bison interface for Yacc-like parsers in C
 
@@ -31,8 +31,9 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-/* Undocumented macros, especially those whose name start with YY_,
-   are private implementation details.  Do not rely on them.  */
+/* DO NOT RELY ON FEATURES THAT ARE NOT DOCUMENTED in the manual,
+   especially those whose name start with YY_ or yy_.  They are
+   private implementation details that can be changed or removed.  */
 
 #ifndef YY_YY_WRAPPEDKEY_PARSER_H_INCLUDED
 # define YY_YY_WRAPPEDKEY_PARSER_H_INCLUDED
@@ -44,7 +45,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 29 "wrappedkey_parser.y"
+#line 35 "wrappedkey_parser.y"
 
 
 #include "pkcs11lib.h"
@@ -54,50 +55,59 @@ extern void yyerror(wrappedKeyCtx *ctx, const char *s, ...);
 extern int yylex(void);
 
 
-#line 58 "wrappedkey_parser.h"
+#line 59 "wrappedkey_parser.h"
 
-/* Token type.  */
+/* Token kinds.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
   enum yytokentype
   {
-    PKCSBLOCK = 258,
-    STRING = 259,
-    CTYPE = 260,
-    CTYPE_VAL = 261,
-    WRAPPING_ALG = 262,
-    WRAPPING_KEY = 263,
-    PKCS1ALGO = 264,
-    OAEPALGO = 265,
-    CBCPADALGO = 266,
-    RFC3394ALGO = 267,
-    RFC5649ALGO = 268,
-    PARAMHASH = 269,
-    HASHALG = 270,
-    PARAMMGF = 271,
-    MGFTYPE = 272,
-    PARAMLABEL = 273,
-    PARAMIV = 274,
-    PARAMFLAVOUR = 275,
-    WRAPALG = 276,
-    CKATTR_BOOL = 277,
-    CKATTR_STR = 278,
-    CKATTR_DATE = 279,
-    CKATTR_KEY = 280,
-    CKATTR_CLASS = 281,
-    TOK_BOOLEAN = 282,
-    TOK_DATE = 283,
-    KEYTYPE = 284,
-    OCLASS = 285,
-    DOTTEDNUMBER = 286
+    YYEMPTY = -2,
+    YYEOF = 0,                     /* "end of file"  */
+    YYerror = 256,                 /* error  */
+    YYUNDEF = 257,                 /* "invalid token"  */
+    OUTER = 258,                   /* OUTER  */
+    INNER = 259,                   /* INNER  */
+    STRING = 260,                  /* STRING  */
+    CTYPE = 261,                   /* CTYPE  */
+    CTYPE_VAL = 262,               /* CTYPE_VAL  */
+    WRAPPING_ALG = 263,            /* WRAPPING_ALG  */
+    WRAPPING_KEY = 264,            /* WRAPPING_KEY  */
+    PKCS1ALGO = 265,               /* PKCS1ALGO  */
+    OAEPALGO = 266,                /* OAEPALGO  */
+    CBCPADALGO = 267,              /* CBCPADALGO  */
+    RFC3394ALGO = 268,             /* RFC3394ALGO  */
+    RFC5649ALGO = 269,             /* RFC5649ALGO  */
+    ENVELOPEALGO = 270,            /* ENVELOPEALGO  */
+    PARAMHASH = 271,               /* PARAMHASH  */
+    HASHALG = 272,                 /* HASHALG  */
+    PARAMMGF = 273,                /* PARAMMGF  */
+    MGFTYPE = 274,                 /* MGFTYPE  */
+    PARAMLABEL = 275,              /* PARAMLABEL  */
+    PARAMIV = 276,                 /* PARAMIV  */
+    PARAMFLAVOUR = 277,            /* PARAMFLAVOUR  */
+    WRAPALG = 278,                 /* WRAPALG  */
+    PARAMOUTER = 279,              /* PARAMOUTER  */
+    PARAMINNER = 280,              /* PARAMINNER  */
+    CKATTR_BOOL = 281,             /* CKATTR_BOOL  */
+    CKATTR_STR = 282,              /* CKATTR_STR  */
+    CKATTR_DATE = 283,             /* CKATTR_DATE  */
+    CKATTR_KEY = 284,              /* CKATTR_KEY  */
+    CKATTR_CLASS = 285,            /* CKATTR_CLASS  */
+    TOK_BOOLEAN = 286,             /* TOK_BOOLEAN  */
+    TOK_DATE = 287,                /* TOK_DATE  */
+    KEYTYPE = 288,                 /* KEYTYPE  */
+    OCLASS = 289,                  /* OCLASS  */
+    DOTTEDNUMBER = 290             /* DOTTEDNUMBER  */
   };
+  typedef enum yytokentype yytoken_kind_t;
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 42 "wrappedkey_parser.y"
+#line 48 "wrappedkey_parser.y"
 
     CK_ATTRIBUTE_TYPE ckattr;
     CK_KEY_TYPE val_key;
@@ -124,10 +134,10 @@ union YYSTYPE
         char as_buffer[8];
     } val_date;
 
-    unsigned char *pkcs;
+    unsigned char *val_wrapped_key;
     char *val_dottednumber;
 
-#line 131 "wrappedkey_parser.h"
+#line 141 "wrappedkey_parser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

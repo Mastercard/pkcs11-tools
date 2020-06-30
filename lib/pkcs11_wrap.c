@@ -32,18 +32,35 @@
 #include "wrappedkey_lexer.h"
 #include "wrappedkey_parser.h"
 
-
-
 /* private funcs prototypes */
+static char const *_get_str_for_wrapping_algorithm(enum wrappingmethod w, CK_MECHANISM_TYPE m);
+static char const *get_wrapping_algorithm_short(wrappedKeyCtx *wctx);
+static func_rc fprintf_wrapping_algorithm_full(FILE *fp, wrappedKeyCtx *wctx, char *buffer, size_t buffer_len, int keyindex);
+static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, CK_BBOOL unused2);
+static void fprintf_object_class(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, CK_BBOOL unused2);
+static void fprintf_boolean_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented);
+static void fprintf_hex_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented);
+static void _fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented);
+static void fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented);
+static void fprintf_date_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented);
+static char * sprintf_hex_buffer(CK_BYTE_PTR buffer, CK_ULONG len);
+static char * _sprintf_str_buffer(CK_BYTE_PTR buffer, CK_ULONG len);
+static char * sprintf_str_buffer_safe(CK_BYTE_PTR buffer, CK_ULONG len);
+static void free_sprintf_str_buffer_safe_buf(char *ptr);
+static char * const _mgfstring(CK_RSA_PKCS_MGF_TYPE mgf);
+static char * const _hashstring(CK_MECHANISM_TYPE hash);
+
 static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp);
 static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp);
-static func_rc _output_wrapped_key_b64(wrappedKeyCtx *wctx, FILE *fp);
+static func_rc _output_wrapped_keys_b64(wrappedKeyCtx *wctx, FILE *fp);
 
 static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE mech[], CK_ULONG mech_size);
-
+static func_rc _wrap_rfc3394(wrappedKeyCtx *wctx);
+static func_rc _wrap_rfc5649(wrappedKeyCtx *wctx);
 static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx);
 static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx);
 static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx);
+static func_rc _wrap_envelope(wrappedKeyCtx *wctx);
 
 static inline func_rc _wrap_rfc3394(wrappedKeyCtx *wctx)
 {
@@ -55,8 +72,7 @@ static inline func_rc _wrap_rfc5649(wrappedKeyCtx *wctx)
     return _wrap_aes_key_wrap_mech(wctx, wctx->p11Context->rfc5649_mech, wctx->p11Context->rfc5649_mech_size);
 }
 
-
-static char const *get_str_for_wrapping_algorithm(enum wrappingmethod w, CK_MECHANISM_TYPE m)
+static char const *_get_str_for_wrapping_algorithm(enum wrappingmethod w, CK_MECHANISM_TYPE m)
 {
     char *rc;
     switch(w) {
@@ -120,6 +136,111 @@ static char const *get_str_for_wrapping_algorithm(enum wrappingmethod w, CK_MECH
 
     return rc;
 }
+
+static char const *get_wrapping_algorithm_short(wrappedKeyCtx *wctx)
+{
+    if(wctx->is_envelope) {
+	return "Envelope";	/* TODO: recursive content */
+    } else {
+	return _get_str_for_wrapping_algorithm(wctx->key[WRAPPEDKEYCTX_LONE_KEY_INDEX].wrapping_meth, wctx->aes_params.aes_wrapping_mech);
+    }
+}
+
+static func_rc fprintf_wrapping_algorithm_full(FILE *fp, wrappedKeyCtx *wctx, char *buffer, size_t buffer_len, int keyindex)
+{
+
+    func_rc rc;
+    /* when fp is non null, we try to write to the file system. Otherwise, it means we are re-entered recursively */
+    /* in which case we fill the received buffer */
+
+    if(fp) {
+	if(wctx->is_envelope) {
+	    char inner[256];
+	    char outer[256];
+
+	    rc = fprintf_wrapping_algorithm_full(NULL, wctx, inner, sizeof inner, WRAPPEDKEYCTX_INNER_KEY_INDEX);
+	    if(rc!=rc_ok) { return rc;  }
+	    rc = fprintf_wrapping_algorithm_full(NULL, wctx, outer, sizeof outer, WRAPPEDKEYCTX_OUTER_KEY_INDEX);
+	    if(rc!=rc_ok) { return rc;  }
+	    fprintf(fp, "Wrapping-Algorithm: %s/1.0(inner=%s,outer=%s)\n", "envelope", inner, outer);
+	} else {		/* standalone */
+	    char alone[256];
+
+	    if( fprintf_wrapping_algorithm_full(NULL, wctx, alone, sizeof alone, WRAPPEDKEYCTX_LONE_KEY_INDEX ) != rc_ok ) {
+		return rc;
+	    } /* exit prematurely */
+	    fprintf(fp, "Wrapping-Algorithm: %s\n", alone );
+	}
+    } else {
+	/* we have re-entered the function and need to deal with actual algoritm. We use snprintf here */
+	switch(wctx->key[keyindex].wrapping_meth) {
+	case w_pkcs1_15:
+	    snprintf(buffer, buffer_len, "%s/1.0", "pkcs1");
+	    break;
+
+	    /* we have one additional parameter for oaep: the label (in PKCS#1), referred as source in PKCS#11 */
+	case w_pkcs1_oaep: {
+	    int nchar;
+	    char *labelstring=sprintf_str_buffer_safe( wctx->oaep_params->pSourceData, wctx->oaep_params->ulSourceDataLen);
+
+	    nchar = snprintf(buffer,
+			     buffer_len,
+			     "%s/1.0(hash=%s,mgf=%s,label=%s)",
+			     "oaep",
+			     _hashstring(wctx->oaep_params->hashAlg),
+			     _mgfstring(wctx->oaep_params->mgf),
+			     wctx->oaep_params->pSourceData==NULL ? "\"\"" : labelstring );
+
+	    free_sprintf_str_buffer_safe_buf(labelstring);
+
+	    if(nchar>=buffer_len) {
+		fprintf(stderr, "Error: algorithm string (%d) too long for buffer size (%zu)\n", nchar, buffer_len);
+		return rc_error_memory;
+	    }
+	}
+	    break;
+
+	case w_cbcpad:	{
+	    char *labelstring=sprintf_str_buffer_safe( wctx->aes_params.iv, wctx->aes_params.iv_len );
+
+	    snprintf(buffer,
+		     buffer_len,
+		     "%s/1.0(iv=%s)",
+		     "cbcpad",
+		     labelstring );
+
+	    free_sprintf_str_buffer_safe_buf(labelstring);
+	}
+	    break;
+
+	case w_rfc3394:
+	    snprintf(buffer,
+		     buffer_len,
+		     "%s/1.0",
+		     "rfc3394");
+	    break;
+
+	case w_rfc5649:
+	    /* Because CKM_NSS_AES_KEY_WRAP_PAD is NOT fully compliant with RFC5649, */
+	    /* we want to flag it as is, to prevent hairy cases when someone */
+	    /* wants to unwrap it on a true RFC5649 compliant token */
+	    snprintf(buffer,
+		     buffer_len,
+		     "%s/1.0%s",
+		     "rfc5649",
+		     wctx->aes_params.aes_wrapping_mech==CKM_NSS_AES_KEY_WRAP_PAD ? "(flavour=nss)" : "");
+	    break;
+
+	default:
+	    fprintf(stderr, "Error: unsupported wrapping algorithm.\n");
+	    return rc_error_unknown_wrapping_alg;
+	}
+    }
+    return rc_ok;
+}
+
+
+
 
 static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, CK_BBOOL unused2)
 {
@@ -541,58 +662,10 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	    wctx->wrappingkeylabel,
 	    hostname,
 	    asctime(gmtime(&now)),
-	    get_str_for_wrapping_algorithm(wctx->wrapping_meth, wctx->aes_wrapping_mech),
+	    get_wrapping_algorithm_short(wctx),
 	    wctx->wrappingkeylabel );
 
-
-    switch(wctx->wrapping_meth) {
-
-    case w_pkcs1_15:
-	fprintf(fp, "Wrapping-Algorithm: %s/1.0\n", "pkcs1");
-	break;
-
-    /* we have one additional parameter for oaep: the label (in PKCS#1), referred as source in PKCS#11 */
-    case w_pkcs1_oaep: {
-
-	char *labelstring=sprintf_str_buffer_safe( wctx->oaep_params->pSourceData, wctx->oaep_params->ulSourceDataLen);
-
-	fprintf(fp, "Wrapping-Algorithm: %s/1.0(hash=%s,mgf=%s,label=%s)\n",
-		"oaep",
-		_hashstring(wctx->oaep_params->hashAlg),
-		_mgfstring(wctx->oaep_params->mgf),
-		wctx->oaep_params->pSourceData==NULL ? "\"\"" : labelstring );
-
-	free_sprintf_str_buffer_safe_buf(labelstring);
-    }
-	break;
-
-    case w_cbcpad: {
-	char *labelstring=sprintf_str_buffer_safe( wctx->iv, wctx->iv_len );
-
-	fprintf(fp, "Wrapping-Algorithm: %s/1.0(iv=%s)\n",
-		"cbcpad",
-		labelstring );
-
-	free_sprintf_str_buffer_safe_buf(labelstring);
-
-    }
-	break;
-
-    case w_rfc3394:
-	fprintf(fp, "Wrapping-Algorithm: %s/1.0\n", "rfc3394");
-	break;
-
-    case w_rfc5649:
-	    /* Because CKM_NSS_AES_KEY_WRAP_PAD is NOT fully compliant with RFC5649, */
-	    /* we want to flag it as is, to prevent hairy cases when someone */
-	    /* wants to unwrap it on a true RFC5649 compliant token */
-	fprintf(fp,
-		"Wrapping-Algorithm: %s/1.0%s\n",
-		"rfc5649",
-		wctx->aes_wrapping_mech==CKM_NSS_AES_KEY_WRAP_PAD ? "(flavour=nss)" : "");
-	break;
-
-    default:
+    if(fprintf_wrapping_algorithm_full(fp, wctx, NULL, 0, WRAPPEDKEYCTX_NO_INDEX) != rc_ok) {
 	fprintf(stderr, "Error: unsupported wrapping algorithm.\n");
 	return rc_error_unknown_wrapping_alg;
     }
@@ -600,9 +673,8 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
     return rc_ok;
 }
 
-static func_rc _output_wrapped_key_b64(wrappedKeyCtx *wctx, FILE *fp)
+static func_rc _output_wrapped_keys_b64(wrappedKeyCtx *wctx, FILE *fp)
 {
-
     func_rc rc = rc_ok;
     BIO *bio_stdout = NULL, *bio_b64 = NULL;
 
@@ -622,12 +694,26 @@ static func_rc _output_wrapped_key_b64(wrappedKeyCtx *wctx, FILE *fp)
 
     BIO_set_fp(bio_stdout, fp, BIO_NOCLOSE);
 
-    BIO_puts(bio_stdout, "-----BEGIN WRAPPED KEY-----\n");
+    if(wctx->is_envelope) {
+	BIO_puts(bio_stdout, "-----BEGIN OUTER WRAPPED KEY-----\n");
+	BIO_flush(bio_stdout);
+	BIO_push(bio_b64, bio_stdout);
+	BIO_write(bio_b64,
+		  wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrapped_key_buffer,
+		  wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrapped_key_len);
+	BIO_flush(bio_b64);
+	BIO_puts(bio_stdout, "-----END OUTER WRAPPED KEY-----\n");
+	BIO_flush(bio_stdout);
+    }
+
+    BIO_puts(bio_stdout, wctx->is_envelope ? "-----BEGIN INNER WRAPPED KEY-----\n" : "-----BEGIN WRAPPED KEY-----\n");
     BIO_flush(bio_stdout);
     BIO_push(bio_b64, bio_stdout);
-    BIO_write(bio_b64, wctx->wrapped_key_buffer, wctx->wrapped_key_len);
+    BIO_write(bio_b64,
+	      wctx->key[WRAPPEDKEYCTX_INNER_OR_LONE_KEY_INDEX].wrapped_key_buffer,
+	      wctx->key[WRAPPEDKEYCTX_INNER_OR_LONE_KEY_INDEX].wrapped_key_len);
     BIO_flush(bio_b64);
-    BIO_puts(bio_stdout, "-----END WRAPPED KEY-----\n");
+    BIO_puts(bio_stdout, wctx->is_envelope ? "-----END INNER WRAPPED KEY-----\n" : "-----END WRAPPED KEY-----\n");
     BIO_flush(bio_stdout);
 
  err:
@@ -698,7 +784,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 
     attr_printer *alist=NULL;
 
-    switch(wctx->wrappedkeyobjclass) {
+    switch(wctx->key[WRAPPEDKEYCTX_INNER_OR_LONE_KEY_INDEX].wrappedkeyobjclass) {
     case CKO_SECRET_KEY:
 	alist = seckalist;
 	alist_len = sizeof(seckalist)/sizeof(attr_printer);
@@ -757,7 +843,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
     }
 
 
-    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wctx->wrappedkeyhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wctx->key[WRAPPEDKEYCTX_INNER_OR_LONE_KEY_INDEX].wrappedkeyhandle) == CK_FALSE) {
 	fprintf(stderr,"Error: could not read attributes from key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -796,26 +882,36 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 {
     func_rc rc = rc_ok;
 
-    CK_OBJECT_HANDLE hWrappingKey=NULL_PTR;
-    CK_OBJECT_HANDLE hWrappedKey=NULL_PTR;
+    CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
+    CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
     CK_ATTRIBUTE_PTR o_wrappingkey_bytes, o_wrappedkey_bytes, o_modulus;
     BIGNUM *bn_wrappingkey_bytes = NULL;
     BIGNUM *bn_wrappedkey_bytes = NULL;
     int bytelen;
 
+    /* keyindex: in case of envelope wrapping, the index shall always be the outer */
+    int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_OUTER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
+
     /* retrieve keys  */
 
-    if (!pkcs11_findpublickey(wctx->p11Context, wctx->wrappingkeylabel, &hWrappingKey)) {
-	fprintf(stderr,"Error: could not find a public key with label '%s'\n", wctx->wrappingkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
-    }
+    if(wctx->is_envelope) {
+	/* if envelope encryption, keys have been already found by _wrap_envelope() */
+	/* and wctx structure has been populated. */
+	wrappedkeyhandle = wctx->key[keyindex].wrappedkeyhandle;
+	wrappingkeyhandle = wctx->key[keyindex].wrappingkeyhandle;
+    } else {
+	if (!pkcs11_findpublickey(wctx->p11Context, wctx->wrappingkeylabel, &wrappingkeyhandle)) {
+	    fprintf(stderr,"Error: could not find a public key with label '%s'\n", wctx->wrappingkeylabel);
+	    rc = rc_error_object_not_found;
+	    goto error;
+	}
 
-    if(!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &hWrappedKey)) {
-	fprintf(stderr,"Error: secret key with label '%s' does not exists\n", wctx->wrappedkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
+	if(!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle)) {
+	    fprintf(stderr,"Error: secret key with label '%s' does not exists\n", wctx->wrappedkeylabel);
+	    rc = rc_error_object_not_found;
+	    goto error;
+	}
     }
 
     /* retrieve length of wrapping key */
@@ -823,7 +919,7 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 					    _ATTR(CKA_MODULUS),
 					    _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, hWrappingKey) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == CK_FALSE) {
 	fprintf(stderr,"Error: could not read CKA_MODULUS_BITS attribute from public key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -848,7 +944,7 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 					    _ATTR(CKA_VALUE_LEN), /* caution: value in bytes */
 					    _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, hWrappedKey) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wrappedkeyhandle) == CK_FALSE) {
 	fprintf(stderr,"Error: could not read CKA_VALUE_LEN attribute from secret key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -888,15 +984,15 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
     /* we are good, let's allocate the memory and wrap */
     /* trick: we use now the CKA_MODULUS attribute to size the target buffer */
 
-    wctx->wrapped_key_buffer = calloc ( o_modulus->ulValueLen, sizeof(unsigned char) );
+    wctx->key[keyindex].wrapped_key_buffer = calloc ( o_modulus->ulValueLen, sizeof(unsigned char) );
 
-    if(wctx->wrapped_key_buffer == NULL) {
+    if(wctx->key[keyindex].wrapped_key_buffer == NULL) {
 	fprintf(stderr,"Error: memory\n");
 	rc = rc_error_memory;
 	goto error;
     }
 
-    wctx->wrapped_key_len = o_modulus->ulValueLen;
+    wctx->key[keyindex].wrapped_key_len = o_modulus->ulValueLen;
 
     /* now wrap */
 
@@ -906,18 +1002,19 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 
 	rv = wctx->p11Context->FunctionList.C_WrapKey ( wctx->p11Context->Session,
 							&mechanism,
-							hWrappingKey,
-							hWrappedKey,
-							wctx->wrapped_key_buffer,
-							&(wctx->wrapped_key_len) );
+							wrappingkeyhandle,
+							wrappedkeyhandle,
+							wctx->key[keyindex].wrapped_key_buffer,
+							&(wctx->key[keyindex].wrapped_key_len) );
 
 	if(rv!=CKR_OK) {
 	    pkcs11_error(rv, "C_WrapKey");
 	    rc = rc_error_pkcs11_api;
 	    goto error;
 	}
-	wctx->wrappedkeyhandle = hWrappedKey; /* keep a copy, for the output */
-	wctx->wrappedkeyobjclass = CKO_SECRET_KEY; /* same story */
+	wctx->key[keyindex].wrappedkeyhandle = wrappedkeyhandle;
+	wctx->key[keyindex].wrappedkeyobjclass = CKO_SECRET_KEY;
+
     }
 
 error:
@@ -935,27 +1032,39 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 {
     func_rc rc = rc_ok;
 
-    CK_OBJECT_HANDLE hWrappingKey=NULL_PTR;
-    CK_OBJECT_HANDLE hWrappedKey=NULL_PTR;
+    CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
+    CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
     CK_ATTRIBUTE_PTR o_keytype;
     CK_OBJECT_CLASS wrappedkeyobjclass;
     int bytelen;
     int blocklength;
 
+    /* keyindex: in case of envelope wrapping, the index shall always be the outer */
+    int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_INNER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
+
     /* retrieve keys  */
 
     /* wrapping key is a secret key */
-    if (!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappingkeylabel, &hWrappingKey)) {
-	fprintf(stderr,"***Error: could not find a secret key with label '%s'\n", wctx->wrappingkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
-    }
 
-    if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &hWrappedKey, &wrappedkeyobjclass)) {
-	fprintf(stderr,"***Error: key with label '%s' does not exists\n", wctx->wrappedkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
+    if(wctx->is_envelope) {
+	/* if envelope encryption, keys have been already found by _wrap_envelope() */
+	/* and wctx structure has been populated. */
+	wrappedkeyhandle = wctx->key[keyindex].wrappedkeyhandle;
+	wrappedkeyobjclass = wctx->key[keyindex].wrappedkeyobjclass;
+	wrappingkeyhandle = wctx->key[keyindex].wrappingkeyhandle;
+    } else {
+	if (!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappingkeylabel, &wrappingkeyhandle)) {
+	    fprintf(stderr,"***Error: could not find a secret key with label '%s'\n", wctx->wrappingkeylabel);
+	    rc = rc_error_object_not_found;
+	    goto error;
+	}
+
+	if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle, &wrappedkeyobjclass)) {
+	    fprintf(stderr,"***Error: key with label '%s' does not exists\n", wctx->wrappedkeylabel);
+	    rc = rc_error_object_not_found;
+	    goto error;
+	}
     }
 
     /* determining block size of the block cipher. */
@@ -965,7 +1074,7 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 					    _ATTR_END );
 
 
-    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, hWrappingKey) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == CK_FALSE) {
 	fprintf(stderr,"Error: could not read CKA_KEY_TYPE attribute from secret key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -992,22 +1101,22 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 
     /* check length of iv */
 
-    if(wctx->iv_len==0) {
+    if(wctx->aes_params.iv_len==0) {
         /* special case: no IV was given - We do one of our own */
-	wctx->iv=malloc(blocklength);
-	if(wctx->iv==NULL) {
+	wctx->aes_params.iv=malloc(blocklength);
+	if(wctx->aes_params.iv==NULL) {
 	    fprintf(stderr,"***Error: memory allocation\n");
 	    rc = rc_error_memory;
 	    goto error;
 	}
-	wctx->iv_len = blocklength;
+	wctx->aes_params.iv_len = blocklength;
 
 	/* randomize it */
-	pkcs11_getrandombytes(wctx->p11Context, wctx->iv,blocklength);
+	pkcs11_getrandombytes(wctx->p11Context, wctx->aes_params.iv,blocklength);
 
     } else {
-	if(wctx->iv_len != blocklength) {
-	    fprintf(stderr, "***Error: IV vector length(%d) mismatch - %d bytes are required\n", (int)(wctx->iv_len), (int)blocklength);
+	if(wctx->aes_params.iv_len != blocklength) {
+	    fprintf(stderr, "***Error: IV vector length(%d) mismatch - %d bytes are required\n", (int)(wctx->aes_params.iv_len), (int)blocklength);
 	    rc = rc_error_invalid_parameter_for_method;
 	    goto error;
 	}
@@ -1017,7 +1126,7 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 
     {
 	CK_RV rv;
-	CK_MECHANISM mechanism = { 0L, wctx->iv, wctx->iv_len };
+	CK_MECHANISM mechanism = { 0L, wctx->aes_params.iv, wctx->aes_params.iv_len };
 	CK_ULONG wrappedkeybuffersize;
 
 	switch(*(CK_KEY_TYPE *)(o_keytype->pValue)) {
@@ -1043,8 +1152,8 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 	/* first call to know what will be the size output buffer */
 	rv = wctx->p11Context->FunctionList.C_WrapKey ( wctx->p11Context->Session,
 							&mechanism,
-							hWrappingKey,
-							hWrappedKey,
+							wrappingkeyhandle,
+							wrappedkeyhandle,
 							NULL,
 							&wrappedkeybuffersize );
 
@@ -1054,21 +1163,21 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 	    goto error;
 	}
 
-	wctx->wrapped_key_buffer = malloc( wrappedkeybuffersize );
-	if(wctx->wrapped_key_buffer==NULL) {
+	wctx->key[keyindex].wrapped_key_buffer = malloc( wrappedkeybuffersize );
+	if(wctx->key[keyindex].wrapped_key_buffer==NULL) {
 	    fprintf(stderr,"***Error: memory allocation\n");
 	    rc = rc_error_memory;
 	    goto error;
 	}
-	wctx->wrapped_key_len = wrappedkeybuffersize;
+	wctx->key[keyindex].wrapped_key_len = wrappedkeybuffersize;
 
 	/* now we can do the real call, with the real buffer */
 	rv = wctx->p11Context->FunctionList.C_WrapKey ( wctx->p11Context->Session,
 							&mechanism,
-							hWrappingKey,
-							hWrappedKey,
-							wctx->wrapped_key_buffer,
-							&(wctx->wrapped_key_len) );
+							wrappingkeyhandle,
+							wrappedkeyhandle,
+							wctx->key[keyindex].wrapped_key_buffer,
+							&(wctx->key[keyindex].wrapped_key_len) );
 
 
 	if(rv!=CKR_OK) {
@@ -1077,8 +1186,8 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 	    goto error;
 	}
 
-	wctx->wrappedkeyobjclass = wrappedkeyobjclass;
-	wctx->wrappedkeyhandle = hWrappedKey;
+	wctx->key[keyindex].wrappedkeyobjclass = wrappedkeyobjclass;
+	wctx->key[keyindex].wrappedkeyhandle = wrappedkeyhandle;
     }
 
 error:
@@ -1098,11 +1207,14 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 {
     func_rc rc = rc_ok;
 
-    CK_OBJECT_HANDLE hWrappingKey=NULL_PTR;
-    CK_OBJECT_HANDLE hWrappedKey=NULL_PTR;
+    CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
+    CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
     CK_ATTRIBUTE_PTR o_keytype;
     CK_OBJECT_CLASS wrappedkeyobjclass;
+
+    /* keyindex: in case of envelope wrapping, the index shall always be the outer */
+    int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_INNER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
 
     /* sanity check */
     if(wctx==NULL) {
@@ -1120,16 +1232,25 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
     /* retrieve keys  */
 
     /* wrapping key is a secret key */
-    if (!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappingkeylabel, &hWrappingKey)) {
-	fprintf(stderr,"***Error: could not find a secret key with label '%s'\n", wctx->wrappingkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
-    }
 
-    if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &hWrappedKey, &wrappedkeyobjclass)) {
-	fprintf(stderr,"***Error: key with label '%s' does not exists\n", wctx->wrappedkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
+    if(wctx->is_envelope) {
+	/* if envelope encryption, keys have been already found by _wrap_envelope() */
+	/* and wctx structure has been populated. */
+	wrappedkeyhandle = wctx->key[keyindex].wrappedkeyhandle;
+	wrappedkeyobjclass = wctx->key[keyindex].wrappedkeyobjclass;
+	wrappingkeyhandle = wctx->key[keyindex].wrappingkeyhandle;
+    } else {
+	if (!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappingkeylabel, &wrappingkeyhandle)) {
+	    fprintf(stderr,"***Error: could not find a secret key with label '%s'\n", wctx->wrappingkeylabel);
+	    rc = rc_error_object_not_found;
+	    goto error;
+	}
+
+	if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle, &wrappedkeyobjclass)) {
+	    fprintf(stderr,"***Error: key with label '%s' does not exists\n", wctx->wrappedkeylabel);
+	    rc = rc_error_object_not_found;
+	    goto error;
+	}
     }
 
     /* determining block size of the block cipher. */
@@ -1139,7 +1260,7 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 					    _ATTR_END );
 
 
-    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, hWrappingKey) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == CK_FALSE) {
 	fprintf(stderr,"Error: could not read CKA_KEY_TYPE attribute from secret key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -1158,7 +1279,7 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 
     {
 	CK_RV rv;
-	CK_MECHANISM mechanism = { 0L, wctx->iv, wctx->iv_len };
+	CK_MECHANISM mechanism = { 0L, wctx->aes_params.iv, wctx->aes_params.iv_len };
 	CK_ULONG wrappedkeybuffersize;
 	CK_ULONG i;
 
@@ -1166,11 +1287,11 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 	for(i=0;i< mech_size; i++) {
             /* let's try mechanisms one by one, unless the mechanism is already supplied  */
 	    /* i.e. if wctx->aes_wrapping_mech != 0 */
-	    mechanism.mechanism = wctx->aes_wrapping_mech != 0 ? wctx->aes_wrapping_mech : mech[i];
+	    mechanism.mechanism = wctx->aes_params.aes_wrapping_mech != 0 ? wctx->aes_params.aes_wrapping_mech : mech[i];
 	    rv = wctx->p11Context->FunctionList.C_WrapKey ( wctx->p11Context->Session,
 							    &mechanism,
-							    hWrappingKey,
-							    hWrappedKey,
+							    wrappingkeyhandle,
+							    wrappedkeyhandle,
 							    NULL,
 							    &wrappedkeybuffersize );
 	    if(rv!=CKR_OK) {
@@ -1179,14 +1300,14 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 	    } else {
 		/* it worked, let's remember in wctx the actual mechanism used */
 		/* unless it was already supplied */
-		if(wctx->aes_wrapping_mech==0) {
-		    wctx->aes_wrapping_mech = mech[i];
+		if(wctx->aes_params.aes_wrapping_mech==0) {
+		    wctx->aes_params.aes_wrapping_mech = mech[i];
 		}
 		/* and escape loop */
 		break;
 	    }
 
-	    if(wctx->aes_wrapping_mech != 0) {
+	    if(wctx->aes_params.aes_wrapping_mech != 0) {
 		/* special case: if the wrapping mechanism was set by the parser */
 		/* through option field, we will not try other mechanisms than the one  */
 		/* specified. */
@@ -1200,21 +1321,21 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 	    goto error;
 	}
 
-	wctx->wrapped_key_buffer = malloc( wrappedkeybuffersize );
-	if(wctx->wrapped_key_buffer==NULL) {
+	wctx->key[keyindex].wrapped_key_buffer = malloc( wrappedkeybuffersize );
+	if(wctx->key[keyindex].wrapped_key_buffer==NULL) {
 	    fprintf(stderr,"***Error: memory allocation\n");
 	    rc = rc_error_memory;
 	    goto error;
 	}
-	wctx->wrapped_key_len = wrappedkeybuffersize;
+	wctx->key[keyindex].wrapped_key_len = wrappedkeybuffersize;
 
 	/* now we can do the real call, with the real buffer */
 	rv = wctx->p11Context->FunctionList.C_WrapKey ( wctx->p11Context->Session,
 							&mechanism,
-							hWrappingKey,
-							hWrappedKey,
-							wctx->wrapped_key_buffer,
-							&(wctx->wrapped_key_len) );
+							wrappingkeyhandle,
+							wrappedkeyhandle,
+							wctx->key[keyindex].wrapped_key_buffer,
+							&(wctx->key[keyindex].wrapped_key_len) );
 
 
 	if(rv!=CKR_OK) {
@@ -1223,8 +1344,8 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 	    goto error;
 	}
 
-	wctx->wrappedkeyobjclass = wrappedkeyobjclass;
-	wctx->wrappedkeyhandle = hWrappedKey;
+	wctx->key[keyindex].wrappedkeyobjclass = wrappedkeyobjclass;
+	wctx->key[keyindex].wrappedkeyhandle = wrappedkeyhandle;
     }
 
 error:
@@ -1241,8 +1362,8 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 {
     func_rc rc = rc_ok;
 
-    CK_OBJECT_HANDLE hWrappingKey=NULL_PTR;
-    CK_OBJECT_HANDLE hWrappedKey=NULL_PTR;
+    CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
+    CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
     CK_ATTRIBUTE_PTR o_wrappingkey_bytes, o_wrappedkey_bytes, o_modulus, o_keytype;
     BIGNUM *bn_wrappingkey_bytes = NULL;
@@ -1251,18 +1372,28 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
     int sizeoverhead;
     unsigned long keysizeinbytes;
 
+    /* keyindex: in case of envelope wrapping, the index shall always be the outer */
+    int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_OUTER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
+
     /* retrieve keys  */
 
-    if (!pkcs11_findpublickey(wctx->p11Context, wctx->wrappingkeylabel, &hWrappingKey)) {
-	fprintf(stderr,"Error: could not find a public key with label '%s'\n", wctx->wrappingkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
-    }
+    if(wctx->is_envelope) {
+	/* if envelope encryption, keys have been already found by _wrap_envelope() */
+	/* and wctx structure has been populated. */
+	wrappedkeyhandle = wctx->key[keyindex].wrappedkeyhandle;
+	wrappingkeyhandle = wctx->key[keyindex].wrappingkeyhandle;
+    } else {
+	if (!pkcs11_findpublickey(wctx->p11Context, wctx->wrappingkeylabel, &wrappingkeyhandle)) {
+	    fprintf(stderr,"Error: could not find a public key with label '%s'\n", wctx->wrappingkeylabel);
+	    rc = rc_error_object_not_found;
+	    goto error;
+	}
 
-    if(!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &hWrappedKey)) {
-	fprintf(stderr,"Error: secret key with label '%s' does not exists\n", wctx->wrappedkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
+	if(!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle)) {
+	    fprintf(stderr,"Error: secret key with label '%s' does not exists\n", wctx->wrappedkeylabel);
+	    rc = rc_error_object_not_found;
+	    goto error;
+	}
     }
 
     /* retrieve length of wrapping key */
@@ -1270,7 +1401,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 					    _ATTR(CKA_MODULUS),
 					    _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, hWrappingKey) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == CK_FALSE) {
 	fprintf(stderr,"Error: could not read CKA_MODULUS_BITS attribute from public key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -1296,7 +1427,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 					   _ATTR(CKA_VALUE_LEN), /* caution: value in bytes */
 					   _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, hWrappedKey) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wrappedkeyhandle) == CK_FALSE) {
 	fprintf(stderr,"Error: could not read attributes from secret key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -1403,15 +1534,15 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
     /* we are good, let's allocate the memory and wrap */
     /* trick: we use now the CKA_MODULUS attribute to size the target buffer */
 
-    wctx->wrapped_key_buffer = calloc ( o_modulus->ulValueLen, sizeof(unsigned char) );
+    wctx->key[keyindex].wrapped_key_buffer = calloc ( o_modulus->ulValueLen, sizeof(unsigned char) );
 
-    if(wctx->wrapped_key_buffer == NULL) {
+    if(wctx->key[keyindex].wrapped_key_buffer == NULL) {
 	fprintf(stderr,"Error: memory\n");
 	rc = rc_error_memory;
 	goto error;
     }
 
-    wctx->wrapped_key_len = o_modulus->ulValueLen;
+    wctx->key[keyindex].wrapped_key_len = o_modulus->ulValueLen;
 
     /* now wrap */
 
@@ -1421,10 +1552,10 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 
 	rv = wctx->p11Context->FunctionList.C_WrapKey ( wctx->p11Context->Session,
 							&mechanism,
-							hWrappingKey,
-							hWrappedKey,
-							wctx->wrapped_key_buffer,
-							&(wctx->wrapped_key_len) );
+							wrappingkeyhandle,
+							wrappedkeyhandle,
+							wctx->key[keyindex].wrapped_key_buffer,
+							&(wctx->key[keyindex].wrapped_key_len) );
 
 	if(rv!=CKR_OK) {
 	    pkcs11_error(rv, "C_WrapKey");
@@ -1432,8 +1563,8 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 	    goto error;
 	}
 
-	wctx->wrappedkeyhandle = hWrappedKey; /* keep a copy, for the output */
-	wctx->wrappedkeyobjclass = CKO_SECRET_KEY; /* same story */
+	wctx->key[keyindex].wrappedkeyhandle = wrappedkeyhandle; /* keep a copy, for the output */
+	wctx->key[keyindex].wrappedkeyobjclass = CKO_SECRET_KEY; /* same story */
     }
 
 error:
@@ -1445,6 +1576,110 @@ error:
     return rc;
 }
 
+/*------------------------------------------------------------------------*/
+static func_rc _wrap_envelope(wrappedKeyCtx *wctx)
+{
+    func_rc rc = rc_ok;
+    CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
+    CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
+    CK_OBJECT_CLASS wrappedobjectclass;
+
+    if (!pkcs11_findpublickey(wctx->p11Context, wctx->wrappingkeylabel, &wrappingkeyhandle)) {
+	fprintf(stderr,"Error: could not find a public key with label '%s'\n", wctx->wrappingkeylabel);
+	rc = rc_error_object_not_found;
+	goto error;
+    }
+
+    /* if envelope encryption, the secret key is already populated when calling this function */
+    /* since that key was generated on the go */
+
+    if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle, &wrappedobjectclass)) {
+	fprintf(stderr,"Error: private or secret key with label '%s' does not exists\n", wctx->wrappedkeylabel);
+	rc = rc_error_object_not_found;
+	goto error;
+    }
+
+    /* step 1: setup wctx structure to remember the key handles */
+    wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrappingkeyhandle = wrappingkeyhandle;
+    wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrappedkeyhandle = wrappedkeyhandle;
+    wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrappedkeyobjclass = wrappedobjectclass;
+
+    /* step 2: generate the intermediate temporary key */
+    /* will be an AES for now */
+
+    CK_BBOOL ck_false = CK_FALSE;
+    CK_BBOOL ck_true = CK_TRUE;
+    CK_OBJECT_HANDLE tempaes_handle;
+
+    CK_ATTRIBUTE tempaes_attrs[] = {
+	{ CKA_TOKEN, &ck_false, sizeof(ck_false) },
+	{ CKA_WRAP, &ck_true, sizeof(ck_true) },
+	{ CKA_EXTRACTABLE, &ck_true, sizeof(ck_true) }
+    };
+
+    char tempaes_label[32];
+    snprintf((char *)tempaes_label, sizeof tempaes_label, "tempaes-%ld", time(NULL));
+
+    if(!pkcs11_genAES(wctx->p11Context, tempaes_label, 256, tempaes_attrs, sizeof tempaes_attrs / sizeof(CK_ATTRIBUTE), &tempaes_handle)) {
+	fprintf(stderr, "Unable to generate temporary wrapping key\n");
+	goto error;
+    }
+
+    /* step 3: remember our temporary key in wctx structure */
+    wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrappedkeyhandle = tempaes_handle;
+    wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrappedkeyobjclass = CKO_SECRET_KEY;
+    wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrappingkeyhandle = tempaes_handle;
+
+    /* step 4: wrap the inner key */
+    switch(wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrapping_meth) {
+    case w_cbcpad:
+	rc = _wrap_cbcpad(wctx);
+	break;
+
+    case w_rfc3394:
+	rc = _wrap_rfc3394(wctx);
+	break;
+
+    case w_rfc5649:
+	rc = _wrap_rfc5649(wctx);
+	break;
+
+    default:
+	rc = rc_error_oops;
+    }
+
+    if(rc!=rc_ok) {
+	goto error;
+    }
+
+    /* step 5: wrap the outer key */
+    switch(wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrapping_meth) {
+    case w_pkcs1_15:
+	rc = _wrap_pkcs1_15(wctx);
+	break;
+
+    case w_pkcs1_oaep:
+	rc = _wrap_pkcs1_oaep(wctx);
+	break;
+
+    default:
+	rc = rc_error_oops;
+    }
+
+    if(rc!=rc_ok) {
+	goto error;
+    }
+
+error:
+    if(tempaes_handle!=0) {
+	CK_RV rv = wctx->p11Context->FunctionList.C_DestroyObject(wctx->p11Context->Session, tempaes_handle);
+	if(rv != CKR_OK) {
+	    pkcs11_error( rv, "C_DestroyObject" );
+	}
+    }
+    return rc;
+
+}
 
 
 /*--------------------------------------------------------------------------------*/
@@ -1492,30 +1727,35 @@ func_rc pkcs11_wrap(wrappedKeyCtx *wctx, char *wrappingkeylabel, char *wrappedke
     wctx->wrappingkeylabel = strdup(wrappingkeylabel);
     wctx->wrappedkeylabel = strdup(wrappedkeylabel);
 
-    switch(wctx->wrapping_meth) {
-    case w_pkcs1_15:
-	rc = _wrap_pkcs1_15(wctx);
-	break;
+    if(wctx->is_envelope) {
+	/* envelope wrapping */
+	rc = _wrap_envelope(wctx);
+    } else {
+	switch(wctx->key[WRAPPEDKEYCTX_LONE_KEY_INDEX].wrapping_meth) {
+	case w_pkcs1_15:
+	    rc = _wrap_pkcs1_15(wctx);
+	    break;
 
-    case w_pkcs1_oaep:
-	rc = _wrap_pkcs1_oaep(wctx);
-	break;
+	case w_pkcs1_oaep:
+	    rc = _wrap_pkcs1_oaep(wctx);
+	    break;
 
-    case w_cbcpad:
-	rc = _wrap_cbcpad(wctx);
-	break;
+	case w_cbcpad:
+	    rc = _wrap_cbcpad(wctx);
+	    break;
 
-    case w_rfc3394:
-	rc = _wrap_rfc3394(wctx);
-	break;
+	case w_rfc3394:
+	    rc = _wrap_rfc3394(wctx);
+	    break;
 
-    case w_rfc5649:
-	rc = _wrap_rfc5649(wctx);
-	break;
+	case w_rfc5649:
+	    rc = _wrap_rfc5649(wctx);
+	    break;
 
-    default:
-	rc = rc_error_unknown_wrapping_alg;
-	fprintf(stderr, "Error: unsupported wrapping algorithm.\n");
+	default:
+	    rc = rc_error_unknown_wrapping_alg;
+	    fprintf(stderr, "Error: unsupported wrapping algorithm.\n");
+	}
     }
 
     return rc;
@@ -1547,7 +1787,7 @@ func_rc pkcs11_output_wrapped_key( wrappedKeyCtx *wctx, char *filename )
 	goto error;
     }
 
-    rc = _output_wrapped_key_b64(wctx,fp);
+    rc = _output_wrapped_keys_b64(wctx,fp);
     if(rc!=rc_ok) {
 	fprintf(stderr, "Error while outputing wrapped key\n");
 	goto error;

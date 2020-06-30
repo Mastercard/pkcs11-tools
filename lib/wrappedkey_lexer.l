@@ -29,17 +29,24 @@
 
 %}
 
-%x PEM STR
+%x OUTER INNER STR
 
 %%
 
 ^"#".*             { /* skipping comment */ }
 
-<INITIAL>"-----BEGIN WRAPPED KEY-----" { BEGIN(PEM); }
-<PEM><<EOF>> { yyerror(NULL, "Unterminated wrapped key block"); yyterminate(); }
-<PEM>"-----END WRAPPED KEY-----" { BEGIN(INITIAL);  }
-<PEM>[^\n\r][A-Za-z0-9+/=\n\r]+ { yylval.pkcs = (unsigned char *)strdup(yytext); return PKCSBLOCK; }
-<PEM>[\n\r] { /* ignore initial line feed */ }
+<INITIAL>"-----BEGIN OUTER WRAPPED KEY-----" { BEGIN(OUTER); }
+<OUTER><<EOF>> { yyerror(NULL, "Unterminated outer wrapped key block"); yyterminate(); }
+<OUTER>"-----END OUTER WRAPPED KEY-----" { BEGIN(INITIAL);  }
+<OUTER>[^\n\r][A-Za-z0-9+/=\n\r]+ { yylval.val_wrapped_key = (unsigned char *)strdup(yytext); return OUTER; }
+<OUTER>[\n\r] { /* ignore initial line feed */ }
+
+<INITIAL>"-----BEGIN (INNER)? WRAPPED KEY-----" { BEGIN(INNER); }
+<INNER><<EOF>> { yyerror(NULL, "Unterminated (inner) wrapped key block"); yyterminate(); }
+<INNER>"-----END (INNER)? WRAPPED KEY-----" { BEGIN(INITIAL);  }
+<INNER>[^\n\r][A-Za-z0-9+/=\n\r]+ { yylval.val_wrapped_key = (unsigned char *)strdup(yytext); return INNER; }
+<INNER>[\n\r] { /* ignore initial line feed */ }
+
 <INITIAL>[\"]   { yylval.val_str.len=0; BEGIN(STR); }
 <STR>[^\"]+     { yylval.val_str.val = strdup(yytext); yylval.val_str.len = strlen(yytext); }
 <STR><<EOF>>    { yyerror(NULL, "Unterminated quoted string"); yyterminate(); }
@@ -57,6 +64,7 @@ oaep               { yylval.val_wrappingmethod = w_pkcs1_oaep; return OAEPALGO; 
 cbcpad             { yylval.val_wrappingmethod = w_cbcpad; return CBCPADALGO;  }
 rfc3394            { yylval.val_wrappingmethod = w_rfc3394; return RFC3394ALGO;  }
 rfc5649            { yylval.val_wrappingmethod = w_rfc5649; return RFC5649ALGO;  }
+envelope           { yylval.val_wrappingmethod = w_envelope; return ENVELOPEALGO; }
 
 Wrapping-Key       { return WRAPPING_KEY; }
 
@@ -130,7 +138,8 @@ label              { return PARAMLABEL; }
 iv                 { return PARAMIV; }
 flavo[u]?r         { return PARAMFLAVOUR; }
 nss                { yylval.val_wrapalg = CKM_NSS_AES_KEY_WRAP_PAD; return WRAPALG; }
-
+outer              { return PARAMOUTER; }
+inner              { return PARAMINNER; }
 true|CK_TRUE|yes   { yylval.val_bool = 1; return TOK_BOOLEAN; }
 false|CK_FALSE|no  { yylval.val_bool = 0; return TOK_BOOLEAN; }
 

@@ -128,7 +128,7 @@ typedef struct s_p11_idtmpl {
     CK_ATTRIBUTE     template[2];
     CK_ULONG         template_len;
     CK_OBJECT_CLASS  oclass;
-    CK_BBOOL         has_resource; /* resource is either a CKA_ID, CKA_LABEL, CKA_SERIAL_NUMBER */
+    CK_BBOOL         has_resource; /* resource is one of CKA_ID, CKA_LABEL, CKA_SERIAL_NUMBER */
     CK_BBOOL         has_class;
 } pkcs11IdTemplate;
 
@@ -176,30 +176,42 @@ enum wrappingmethod { w_unknown,     /* unidentified alg */
 		      w_cbcpad,      /* wraps private key (PKCS#8), padding according to PKCS#7, then symmetric key in CBC mode */
 		      w_rfc3394,     /* wraps keys according to RFC3394 */
 		      w_rfc5649,     /* wraps keys according to RFC5649 */
+		      w_envelope,    /* envelope wrapping ( Private Key -> Symmetric Key -> Any Key) */
 };
 
 /* pkcs11_unwrap / pkcs11_wrap / pkcs11_wctx */
 
 typedef struct s_p11_wrappedkeyctx {
     pkcs11Context *p11Context;
-    CK_ATTRIBUTE *attrlist;
-    CK_ULONG attrlen;
+    CK_ATTRIBUTE *attrlist;	             /* inner key only */
+    CK_ULONG attrlen;			     /* inner key only */
     char *wrappingkeylabel;
-    char *wrappedkeylabel;
-    CK_OBJECT_HANDLE wrappedkeyhandle;
-    CK_OBJECT_CLASS wrappedkeyobjclass;
-    CK_BYTE_PTR wrapped_key_buffer;
-    CK_ULONG wrapped_key_len;
-    enum wrappingmethod wrapping_meth;
-    CK_MECHANISM_TYPE aes_wrapping_mech;     /* used when wrapping_meth is w_rfc3394 or w_rfc5649 */
-    CK_RSA_PKCS_OAEP_PARAMS_PTR oaep_params; /* used for RSA OAEP unwrap */
-    CK_BYTE_PTR iv;			     /* used for CKM_XXX_CBC_PAD and CKM_AES_KEY_WRAP_PAD */
-    CK_ULONG iv_len;                         /* used for CBC_XXX_CBC_PAD and CKM_AES_KEY_WRAP_PAD */
+    char *wrappedkeylabel;	             /* inner key only - outer key will have random name and ID */
+    struct {				     /* inner or outer but never both (by design) */
+	CK_MECHANISM_TYPE aes_wrapping_mech;     /* used when wrapping_meth is w_rfc3394 or w_rfc5649 */
+	CK_BYTE_PTR iv;			     /* used for CKM_XXX_CBC_PAD and CKM_AES_KEY_WRAP_PAD */
+	CK_ULONG iv_len;                         /* used for CBC_XXX_CBC_PAD and CKM_AES_KEY_WRAP_PAD */
+    } aes_params;
+    CK_RSA_PKCS_OAEP_PARAMS_PTR oaep_params; /* inner or outer but never both (by design) */
 
+    CK_BBOOL is_envelope;	/* in case of envelope encryption, remember it here */
+    /* outer key is stored in [0], inner key is stored in [1] */
+    struct {
+	CK_OBJECT_HANDLE wrappingkeyhandle;
+	CK_OBJECT_HANDLE wrappedkeyhandle;
+	CK_OBJECT_CLASS wrappedkeyobjclass;
+	CK_BYTE_PTR wrapped_key_buffer;
+	CK_ULONG wrapped_key_len;
+	enum wrappingmethod wrapping_meth;
+    } key[2];		/* [0] is outer, [1] is inner */
 } wrappedKeyCtx;
 
-
-
+/* key index, see pkcs11_wctx.c for a comment explaining how this works */
+#define WRAPPEDKEYCTX_OUTER_KEY_INDEX 0 /* when w_envelope */
+#define WRAPPEDKEYCTX_INNER_KEY_INDEX 1 /* when w_envelope */
+#define WRAPPEDKEYCTX_LONE_KEY_INDEX  1 /* for all other wrapping methods */
+#define WRAPPEDKEYCTX_INNER_OR_LONE_KEY_INDEX 1
+#define WRAPPEDKEYCTX_NO_INDEX        -1 /* when no index is needed */
 
 /* supported content types in .wrap files */
 enum contenttype { ct_unknown,	/* unidentified app */
