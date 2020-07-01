@@ -29,23 +29,20 @@
 
 %}
 
-%x OUTER INNER STR
-
+%x OUTERKEYPEM INNERKEYPEM STR
 %%
 
 ^"#".*             { /* skipping comment */ }
 
-<INITIAL>"-----BEGIN OUTER WRAPPED KEY-----" { BEGIN(OUTER); }
-<OUTER><<EOF>> { yyerror(NULL, "Unterminated outer wrapped key block"); yyterminate(); }
-<OUTER>"-----END OUTER WRAPPED KEY-----" { BEGIN(INITIAL);  }
-<OUTER>[^\n\r][A-Za-z0-9+/=\n\r]+ { yylval.val_wrapped_key = (unsigned char *)strdup(yytext); return OUTER; }
-<OUTER>[\n\r] { /* ignore initial line feed */ }
+<INITIAL>^"-----BEGIN OUTER WRAPPED KEY-----" { BEGIN(OUTERKEYPEM); }
+<INITIAL>^"-----BEGIN "("INNER ")?"WRAPPED KEY-----" { BEGIN(INNERKEYPEM); }
 
-<INITIAL>"-----BEGIN (INNER)? WRAPPED KEY-----" { BEGIN(INNER); }
-<INNER><<EOF>> { yyerror(NULL, "Unterminated (inner) wrapped key block"); yyterminate(); }
-<INNER>"-----END (INNER)? WRAPPED KEY-----" { BEGIN(INITIAL);  }
-<INNER>[^\n\r][A-Za-z0-9+/=\n\r]+ { yylval.val_wrapped_key = (unsigned char *)strdup(yytext); return INNER; }
-<INNER>[\n\r] { /* ignore initial line feed */ }
+<OUTERKEYPEM>^"-----END OUTER WRAPPED KEY-----" { BEGIN(INITIAL); return OUTER; }
+<INNERKEYPEM>^"-----END "("INNER ")?"WRAPPED KEY-----" { BEGIN(INITIAL); return INNER; }
+
+<OUTERKEYPEM,INNERKEYPEM><<EOF>> { yyerror(NULL, "Unterminated wrapped key block"); yyterminate(); }
+<OUTERKEYPEM,INNERKEYPEM>[^\n\r][A-Za-z0-9+/=\n\r]+ { yylval.val_wrapped_key = (unsigned char *)strdup(yytext); }
+<OUTERKEYPEM,INNERKEYPEM>[\n\r] { /* ignore initial line feed */ }
 
 <INITIAL>[\"]   { yylval.val_str.len=0; BEGIN(STR); }
 <STR>[^\"]+     { yylval.val_str.val = strdup(yytext); yylval.val_str.len = strlen(yytext); }

@@ -15,9 +15,8 @@
  */
 
 /* wrapped key parser */
-
 %define parse.error verbose
-%define parse.trace true
+%define parse.trace
 
 %{
 #include <stdio.h>
@@ -77,6 +76,7 @@ extern int yylex(void);
 
 /* declare tokens */
 %token <val_wrapped_key> OUTER INNER
+%type  <val_wrapped_key> outerblock innerblock
 %token <val_str> STRING
 %token CTYPE
 %token <val_contenttype> CTYPE_VAL
@@ -104,16 +104,14 @@ extern int yylex(void);
 
 %%
 
-wkey:		assignlist wrappedkeylist
+wkey:	|	assignlist blocks
 	|     	algo		/*TRICK: this is to parse command-line argument for p11wrap -a parameter */
 		;
 
-wrappedkeylist:
-		innerblock
-	| 	innerblock outerblock
+blocks:		innerblock
+	|	innerblock outerblock
 	|	outerblock innerblock
-		;
-
+	;
 innerblock:	INNER
 		{
 		    if(_wrappedkey_parser_append_cryptogram(ctx, $1, WRAPPEDKEYCTX_INNER_KEY_INDEX)!=rc_ok) {

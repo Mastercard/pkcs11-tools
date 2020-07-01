@@ -36,18 +36,26 @@
 /*--------------------------------------------------------------------------------*/
 /* PROTOTYPES */
 
-static func_rc _unwrap_pkcs1_15(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs);
-static func_rc _unwrap_pkcs1_oaep(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs);
-static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs);
-static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs, CK_MECHANISM_TYPE mech[], CK_ULONG mech_size);
+static func_rc _unwrap_rsa(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen, CK_MECHANISM_TYPE mech);
+static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen);
+static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen, CK_MECHANISM_TYPE mech[], CK_ULONG mech_size);
+static func_rc _unwrap_envelope(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen);
 
 /* INLINE FUNCS */
-static inline func_rc _unwrap_rfc3394(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs) {
-    return _unwrap_aes_key_wrap_mech(p11Context, ctx, wrappedkeylabel, attrs, numattrs, ctx->p11Context->rfc3394_mech, ctx->p11Context->rfc3394_mech_size);
+static inline func_rc _unwrap_rfc3394(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen) {
+    return _unwrap_aes_key_wrap_mech(p11Context, ctx, wrappedkeylabel, attrlist, attrlen, ctx->p11Context->rfc3394_mech, ctx->p11Context->rfc3394_mech_size);
 }
 
-static inline func_rc _unwrap_rfc5649(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs) {
-    return _unwrap_aes_key_wrap_mech(p11Context, ctx, wrappedkeylabel, attrs, numattrs, ctx->p11Context->rfc5649_mech, ctx->p11Context->rfc5649_mech_size);
+static inline func_rc _unwrap_rfc5649(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen) {
+    return _unwrap_aes_key_wrap_mech(p11Context, ctx, wrappedkeylabel, attrlist, attrlen, ctx->p11Context->rfc5649_mech, ctx->p11Context->rfc5649_mech_size);
+}
+
+static inline func_rc _unwrap_pkcs1_15(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen) {
+    return _unwrap_rsa(p11Context, ctx, wrappedkeylabel, attrlist, attrlen, CKM_RSA_PKCS);
+}
+
+static inline func_rc _unwrap_pkcs1_oaep(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen) {
+    return _unwrap_rsa(p11Context, ctx, wrappedkeylabel, attrlist, attrlen, CKM_RSA_PKCS_OAEP);
 }
 
 /*--------------------------------------------------------------------------------*/
@@ -102,7 +110,7 @@ error:
 
 
 
-func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappingkeylabel, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs)
+func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappingkeylabel, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen)
 {
     func_rc rc;
 
@@ -128,29 +136,27 @@ func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrapp
 
 	if(ctx->is_envelope==CK_TRUE) {
 	    /* Do envelope unwrapping */
-	    fprintf(stderr,"***NOT YET IMPLEMENTED\n");
-	    rc = rc_error_unsupported;
-	    return rc;
+	    rc = _unwrap_envelope(p11Context, ctx, wrappedkeylabel, attrlist, attrlen);
 	} else { /* do regular unwrap */
 	    switch(ctx->key[WRAPPEDKEYCTX_LONE_KEY_INDEX].wrapping_meth) {
 	    case w_pkcs1_15:
-		rc = _unwrap_pkcs1_15(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
+		rc = _unwrap_pkcs1_15(p11Context, ctx, wrappedkeylabel, attrlist, attrlen);
 		break;
 
 	    case w_pkcs1_oaep:
-		rc = _unwrap_pkcs1_oaep(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
+		rc = _unwrap_pkcs1_oaep(p11Context, ctx, wrappedkeylabel, attrlist, attrlen);
 		break;
 
 	    case w_cbcpad:
-		rc = _unwrap_cbcpad(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
+		rc = _unwrap_cbcpad(p11Context, ctx, wrappedkeylabel, attrlist, attrlen);
 		break;
 
 	    case w_rfc3394:
-		rc = _unwrap_rfc3394(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
+		rc = _unwrap_rfc3394(p11Context, ctx, wrappedkeylabel, attrlist, attrlen);
 		break;
 
 	    case w_rfc5649:
-		rc = _unwrap_rfc5649(p11Context, ctx, wrappedkeylabel, attrs, numattrs);
+		rc = _unwrap_rfc5649(p11Context, ctx, wrappedkeylabel, attrlist, attrlen);
 		break;
 
 	    case w_unknown:
@@ -165,341 +171,199 @@ func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrapp
     return rc;
 }
 
-/* PKCS#1 1.5 Unwrapping */
+/* PKCS#1 1.5 and OAEP Unwrapping */
 
-static func_rc _unwrap_pkcs1_15(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs)
+static func_rc _unwrap_rsa(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen, CK_MECHANISM_TYPE mech)
 {
     func_rc rc = rc_ok;
     int i;
     char *label = NULL;
-    
-    CK_OBJECT_HANDLE hWrappingKey=NULL_PTR;
-    CK_OBJECT_HANDLE hWrappedKey=NULL_PTR;
-    pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
-    CK_ATTRIBUTE_PTR o_wrappingkey_bits, o_wrappedkey_bits, o_modulus;
-    BIGNUM *bn_wrappingkey_bits = NULL;
-    BIGNUM *bn_wrappedkey_bits = NULL;
+
+    CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
+    CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
+    CK_ATTRIBUTE *wrappedkeyattrlist=NULL_PTR;
+    CK_ULONG wrappedkeyattrlen=0L;
+
+
+    /* keyindex: in case of envelope wrapping, the index shall always be the outer */
+    int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_OUTER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
 
     if(p11Context==NULL || wctx==NULL) {
 	fprintf(stderr, "***Error: invalid argument to pkcs11_unwrap()\n");
 	rc =rc_error_usage;
 	goto error;
     }
-    /* retrieve keys  */
-    
-    if (!pkcs11_findprivatekey(p11Context, wctx->wrappingkeylabel, &hWrappingKey)) {
-	fprintf(stderr,"***Error: could not find a private key with label '%s'\n", wctx->wrappingkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
-    }
 
-    /* adjust CKA_LABEL with value from command line */    
-    if(wrappedkeylabel !=NULL) {
-	CK_ATTRIBUTE nameattr;
-	CK_ULONG previouslen;
+    if(wctx->is_envelope) {
+	/* in which case, we have to unwrap a temporary AES key */
+	/* the template is passed as argument, we force its value */
+	wrappingkeyhandle = wctx->key[keyindex].wrappingkeyhandle;
+	wrappedkeyattrlist = attrlist;
+	wrappedkeyattrlen = attrlen;
+    } else {
 
-	nameattr.type = CKA_LABEL;
-	nameattr.pValue = strdup(wrappedkeylabel); /* we cheat, as we alloc one more byte for '\0' */
-	if(nameattr.pValue == NULL) {
-	    fprintf(stderr, "***Error: memory allocation\n");
-	    rc = rc_error_memory;
+	/* retrieve keys  */
+	if (!pkcs11_findprivatekey(p11Context, wctx->wrappingkeylabel, &wrappingkeyhandle)) {
+	    fprintf(stderr,"***Error: could not find a private key with label '%s'\n", wctx->wrappingkeylabel);
+	    rc = rc_error_object_not_found;
 	    goto error;
-	}	
-	nameattr.ulValueLen = strlen(wrappedkeylabel);
-
-	previouslen = wctx->attrlen;
-	size_t arglen = wctx->attrlen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
-	
-	CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lsearch( &nameattr,
-							     wctx->attrlist, 
-							     &arglen,
-							     sizeof(CK_ATTRIBUTE),
-							     compare_CKA );
-
-	wctx->attrlen = arglen;	/* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
-
-	/* lsearch() returns a pointer to a matching member of  the  array, */
-	/* or to the newly added member if no match is found.	*/
-
-	if(previouslen < wctx->attrlen) {
-	    /* in this case, the content of attrs[i] has been copied */
-	    /* nothing to do */
-	} else {
-	    /* specific case: we point to an pre-existing key, */
-	    /* it means we need to change the content */
-
-	    /* free up previous value */
-	    if(match->pValue) { free(match->pValue); match->ulValueLen = 0L; }
-	    
 	}
-	/* in all cases, we just want to copy over the value from the source */
-	match->pValue = nameattr.pValue;
-	match->ulValueLen = nameattr.ulValueLen;
-	nameattr.pValue = NULL; /* indicate that the value has been stolen */
-	
-    }
-    /* adjust context with attributes from argmunent list */
 
-    /* TODO: force CKA_TOKEN=true */
-    /* TODO: print up content */
-    for(i=0; i<numattrs && wctx->attrlen<PARSING_MAX_ATTRS; i++)
-    {
-	/* lsearch will add the keys if not found in the template */
+	/* adjust CKA_LABEL with value received from argument */
+	if(wrappedkeylabel !=NULL) {
+	    CK_ATTRIBUTE nameattr;
+	    CK_ULONG previouslen;
 
-	CK_ULONG previouslen = wctx->attrlen;
-	size_t arglen = wctx->attrlen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
-	
-	CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lsearch( &attrs[i], 
-							     wctx->attrlist, 
-							     &arglen,
-							     sizeof(CK_ATTRIBUTE),
-							     compare_CKA );
-	
-	wctx->attrlen = arglen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
-	
-	/* lsearch() returns a pointer to a matching member of  the  array, */
-	/* or to the newly added member if no match is found.	*/
-
-	if(previouslen < wctx->attrlen) {
-	    /* in this case, the content of attrs[i] has been copied */
-	    /* nothing to do */
-	} else {
-	    /* specific case: we point to an pre-existing key, */
-	    /* it means we need to change the content */
-
-	    /* free up previous value */
-	    if(match->pValue) { free(match->pValue); match->ulValueLen = 0L; }
-	    
-	}
-	/* in all cases, we just want to copy over the value from the source */
-	match->pValue = attrs[i].pValue;
-	match->ulValueLen = attrs[i].ulValueLen;
-	attrs[i].pValue = NULL; /* indicate that the value has been stolen */
-    }
-
-    /* check if we do not have a similar object on the token yet */
-    {
-	pkcs11AttrList * alist = pkcs11_cast_to_attrlist(p11Context, wctx->attrlist, wctx->attrlen);
-
-	if(alist) {
-	    /* let's find the CKA_LABEL from that list */
-	    CK_ATTRIBUTE_PTR alabel = pkcs11_get_attr_in_attrlist ( alist, CKA_LABEL );
-
-	    if ( alabel != NULL ) {
-		
-		label = memtostrdup( alabel->pValue, alabel->ulValueLen);
-		
-		if(label==NULL) {
-		    fprintf(stderr,"memory allocation error\n");
-		    rc = rc_error_memory;
-		    goto error;
-		}
-		
-		if(pkcs11_secretkey_exists(p11Context, label)) {
-		    fprintf(stderr,"***Error: secret key with label '%s' already exists\n", label);
-		    rc = rc_error_object_exists;
-		    goto error;
-		}
+	    nameattr.type = CKA_LABEL;
+	    nameattr.pValue = strdup(wrappedkeylabel); /* we cheat, as we alloc one more byte for '\0' */
+	    if(nameattr.pValue == NULL) {
+		fprintf(stderr, "***Error: memory allocation\n");
+		rc = rc_error_memory;
+		goto error;
 	    }
-	    pkcs11_delete_attrlist(alist);
+	    nameattr.ulValueLen = strlen(wrappedkeylabel);
+
+	    previouslen = wctx->attrlen;
+	    size_t arglen = wctx->attrlen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
+
+	    CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lsearch( &nameattr,
+								 wctx->attrlist,
+								 &arglen,
+								 sizeof(CK_ATTRIBUTE),
+								 compare_CKA );
+
+	    wctx->attrlen = arglen;	/* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
+
+	    /* lsearch() returns a pointer to a matching member of  the  array, */
+	    /* or to the newly added member if no match is found.	*/
+
+	    if(previouslen < wctx->attrlen) {
+		/* in this case, the content of attrlist[i] has been copied */
+		/* nothing to do */
+	    } else {
+		/* specific case: we point to an pre-existing key, */
+		/* it means we need to change the content */
+
+		/* free up previous value */
+		if(match->pValue) { free(match->pValue); match->ulValueLen = 0L; }
+	    }
+	/* in all cases, we just want to copy over the value from the source */
+	    match->pValue = nameattr.pValue;
+	    match->ulValueLen = nameattr.ulValueLen;
+	    nameattr.pValue = NULL; /* indicate that the value has been stolen */
+
 	}
+	/* adjust context with attributes from argmunent list */
+
+	/* TODO: print up content */
+	for(i=0; i<attrlen && wctx->attrlen<PARSING_MAX_ATTRS; i++)
+	{
+	    /* lsearch will add the keys if not found in the template */
+
+	    CK_ULONG previouslen = wctx->attrlen;
+	    size_t arglen = wctx->attrlen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
+
+	    CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lsearch( &attrlist[i],
+								 wctx->attrlist,
+								 &arglen,
+								 sizeof(CK_ATTRIBUTE),
+								 compare_CKA );
+
+	    wctx->attrlen = arglen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
+
+	    /* lsearch() returns a pointer to a matching member of  the  array, */
+	    /* or to the newly added member if no match is found.	*/
+
+	    if(previouslen < wctx->attrlen) {
+		/* in this case, the content of attrlist[i] has been copied */
+		/* nothing to do */
+	    } else {
+		/* specific case: we point to an pre-existing key, */
+		/* it means we need to change the content */
+
+		/* free up previous value */
+		if(match->pValue) { free(match->pValue); match->ulValueLen = 0L; }
+
+	    }
+	    /* in all cases, we just want to copy over the value from the source */
+	    match->pValue = attrlist[i].pValue;
+	    match->ulValueLen = attrlist[i].ulValueLen;
+	    attrlist[i].pValue = NULL; /* indicate that the value has been stolen */
+	}
+
+	/* check if we do not have a similar object on the token yet */
+	{
+	    pkcs11AttrList * alist = pkcs11_cast_to_attrlist(p11Context, wctx->attrlist, wctx->attrlen);
+
+	    if(alist) {
+		/* let's find the CKA_LABEL from that list */
+		CK_ATTRIBUTE_PTR alabel = pkcs11_get_attr_in_attrlist ( alist, CKA_LABEL );
+
+		if ( alabel != NULL ) {
+
+		    label = memtostrdup( alabel->pValue, alabel->ulValueLen);
+
+		    if(label==NULL) {
+			fprintf(stderr,"memory allocation error\n");
+			rc = rc_error_memory;
+			goto error;
+		    }
+
+		    if(pkcs11_secretkey_exists(p11Context, label)) {
+			fprintf(stderr,"***Error: secret key with label '%s' already exists\n", label);
+			rc = rc_error_object_exists;
+			goto error;
+		    }
+		}
+		pkcs11_delete_attrlist(alist);
+	    }
+	}
+	wrappedkeyattrlist = wctx->attrlist;
+	wrappedkeyattrlen = wctx->attrlen;
+
     }
 
     /* now unwrap */
-
     {
 	CK_RV rv;
-	CK_MECHANISM mechanism = { CKM_RSA_PKCS, NULL_PTR, 0 };/* PKCS #1 1.5 unwrap */
+	CK_MECHANISM mechanism = { CKM_RSA_PKCS, NULL_PTR, 0 };
 
-	
+	switch(mech) {
+	case CKM_RSA_PKCS:	/* PKCS#1 1.5 */
+	    break;
+
+	case CKM_RSA_PKCS_OAEP: /* PKCS#1 OAEP */
+	    mechanism.mechanism = CKM_RSA_PKCS_OAEP;
+	    mechanism.pParameter = wctx->oaep_params;
+	    mechanism.ulParameterLen = sizeof(CK_RSA_PKCS_OAEP_PARAMS);
+	    break;
+
+	default:
+	    rc = rc_error_oops;
+	    goto error;
+	}
+
 	rv = p11Context->FunctionList.C_UnwrapKey ( p11Context->Session,
 						    &mechanism,
-						    hWrappingKey,
-						    wctx->wrapped_key_buffer,
-						    wctx->wrapped_key_len,
-						    wctx->attrlist,
-						    wctx->attrlen,
-						    &hWrappedKey );
-	
+						    wrappingkeyhandle,
+						    wctx->key[keyindex].wrapped_key_buffer,
+						    wctx->key[keyindex].wrapped_key_len,
+						    wrappedkeyattrlist,
+						    wrappedkeyattrlen,
+						    &wrappedkeyhandle );
+
 	if(rv!=CKR_OK) {
 	    pkcs11_error(rv, "C_UnwrapKey");
 	    rc = rc_error_pkcs11_api;
 	    goto error;
 	}
-    }
 
-    
-
-error:
-    if(label) { free(label); label=NULL; }
-    
-    return rc;
-}
-
-
-/* PKCS#1 OAEP Unwrapping */
-
-static func_rc _unwrap_pkcs1_oaep(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs)
-{
-    func_rc rc = rc_ok;
-    int i;
-    char *label = NULL;
-    
-    CK_OBJECT_HANDLE hWrappingKey=NULL_PTR;
-    CK_OBJECT_HANDLE hWrappedKey=NULL_PTR;
-    pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
-    CK_ATTRIBUTE_PTR o_wrappingkey_bits, o_wrappedkey_bits, o_modulus;
-    BIGNUM *bn_wrappingkey_bits = NULL;
-    BIGNUM *bn_wrappedkey_bits = NULL;
-
-    if(p11Context==NULL || wctx==NULL) {
-	fprintf(stderr, "***Error: invalid argument to pkcs11_unwrap()\n");
-	rc =rc_error_usage;
-	goto error;
-    }
-    /* retrieve keys  */
-    
-    if (!pkcs11_findprivatekey(p11Context, wctx->wrappingkeylabel, &hWrappingKey)) {
-	fprintf(stderr,"***Error: could not find a private key with label '%s'\n", wctx->wrappingkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
-    }
-
-    /* adjust CKA_LABEL with value from command line */    
-    if(wrappedkeylabel !=NULL) {
-	CK_ATTRIBUTE nameattr;
-	CK_ULONG previouslen;
-
-	nameattr.type = CKA_LABEL;
-	nameattr.pValue = strdup(wrappedkeylabel); /* we cheat, as we alloc one more byte for '\0' */
-	if(nameattr.pValue == NULL) {
-	    fprintf(stderr, "***Error: memory allocation\n");
-	    rc = rc_error_memory;
-	    goto error;
-	}	
-	nameattr.ulValueLen = strlen(wrappedkeylabel);
-
-	previouslen = wctx->attrlen;	
-	size_t arglen = wctx->attrlen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
-	
-	CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lsearch( &nameattr,
-							     wctx->attrlist, 
-							     &arglen,
-							     sizeof(CK_ATTRIBUTE),
-							     compare_CKA );
-	
-	wctx->attrlen = arglen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
-
-	/* lsearch() returns a pointer to a matching member of  the  array, */
-	/* or to the newly added member if no match is found.	*/
-	
-	if(previouslen < wctx->attrlen) {
-	    /* in this case, the content of attrs[i] has been copied */
-	    /* nothing to do */
-	} else {
-	    /* specific case: we point to an pre-existing key, */
-	    /* it means we need to change the content */
-
-	    /* free up previous value */
-	    if(match->pValue) { free(match->pValue); match->ulValueLen = 0L; }
-	    
-	}
-	/* in all cases, we just want to copy over the value from the source */
-	match->pValue = nameattr.pValue;
-	match->ulValueLen = nameattr.ulValueLen;
-	nameattr.pValue = NULL; /* indicate that the value has been stolen */
-	
-    }
-    /* adjust context with attributes from argmunent list */
-
-
-    /* TODO: force CKA_TOKEN=true */
-    /* TODO: print up content */
-    for(i=0; i<numattrs && wctx->attrlen<PARSING_MAX_ATTRS; i++)
-    {
-	/* lsearch will add the keys if not found in the template */
-
-	CK_ULONG previouslen = wctx->attrlen;
-	size_t arglen = wctx->attrlen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
-	
-	CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lsearch( &attrs[i], 
-							     wctx->attrlist, 
-							     &arglen,
-							     sizeof(CK_ATTRIBUTE),
-							     compare_CKA );
-
-	wctx->attrlen = arglen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */	
-
-        /* lsearch() returns a pointer to a matching member of  the  array, */
-	/* or to the newly added member if no match is found.	*/
-
-	if(previouslen < wctx->attrlen) {
-	    /* in this case, the content of attrs[i] has been copied */
-	    /* nothing to do */
-	} else {
-	    /* specific case: we point to an pre-existing key, */
-	    /* it means we need to change the content */
-
-	    /* free up previous value */
-	    if(match->pValue) { free(match->pValue); match->ulValueLen = 0L; }
-	    
-	}
-	/* in all cases, we just want to copy over the value from the source */
-	match->pValue = attrs[i].pValue;
-	match->ulValueLen = attrs[i].ulValueLen;
-	attrs[i].pValue = NULL; /* indicate that the value has been stolen */
-    }
-
-    /* check if we do not have a similar object on the token yet */
-    {
-	pkcs11AttrList * alist = pkcs11_cast_to_attrlist(p11Context, wctx->attrlist, wctx->attrlen);
-
-	if(alist) {
-	    /* let's find the CKA_LABEL from that list */
-	    CK_ATTRIBUTE_PTR alabel = pkcs11_get_attr_in_attrlist ( alist, CKA_LABEL );
-	    
-	    if ( alabel != NULL ) {
-		
-		label = memtostrdup( alabel->pValue, alabel->ulValueLen);
-		
-		if(label==NULL) {
-		    fprintf(stderr,"memory allocation error\n");
-		    rc = rc_error_memory;
-		    goto error;
-		}
-		
-		if(pkcs11_secretkey_exists(p11Context, label)) {
-		    fprintf(stderr,"***Error: secret key with label '%s' already exists\n", label);
-		    rc = rc_error_object_exists;
-		    goto error;
-		}
-	    }
-	    pkcs11_delete_attrlist(alist);	    
-	}
-    }    
-    /* now unwrap */
-
-    {
-	CK_RV rv;
-	CK_MECHANISM mechanism = { CKM_RSA_PKCS_OAEP, wctx->oaep_params, sizeof(CK_RSA_PKCS_OAEP_PARAMS) };/* PKCS #1 OAEP unwrap */
-	
-	rv = p11Context->FunctionList.C_UnwrapKey ( p11Context->Session,
-						    &mechanism,
-						    hWrappingKey,
-						    wctx->wrapped_key_buffer,
-						    wctx->wrapped_key_len,
-						    wctx->attrlist,
-						    wctx->attrlen,
-						    &hWrappedKey );
-	
-	if(rv!=CKR_OK) {
-	    pkcs11_error(rv, "C_UnwrapKey");
-	    rc = rc_error_pkcs11_api;
-	    goto error;
+	/* in case of envelope, remember the temporary wrapping key handle */
+	if(wctx->is_envelope) {
+	    wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrappedkeyhandle = wrappedkeyhandle;
+	    wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrappingkeyhandle = wrappedkeyhandle;
 	}
     }
-
-    
 
 error:
     if(label) { free(label); label=NULL; }
@@ -512,32 +376,35 @@ error:
 /* CBC-PAD Unwrapping */
 /* documentation: check PKCS#11 specification, at CKM_AES_CBC_PAD for an overview with AES. */
 
-static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs)
+static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen)
 {
     func_rc rc = rc_ok;
     int i;
     char *label = NULL;
 
-    CK_OBJECT_HANDLE hWrappingKey=NULL_PTR;
-    CK_OBJECT_HANDLE hWrappedKey=NULL_PTR;
-    pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
-    CK_ATTRIBUTE_PTR o_wrappingkey_bits, o_wrappedkey_bits, o_modulus;
-    BIGNUM *bn_wrappingkey_bits = NULL;
-    BIGNUM *bn_wrappedkey_bits = NULL;
+    CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
+    CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
     pkcs11AttrList *alist = NULL;
     pkcs11AttrList *wklist = NULL;
+
+    /* keyindex: in case of envelope wrapping, the index shall always be the outer */
+    int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_INNER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
 
     if(p11Context==NULL || wctx==NULL) {
 	fprintf(stderr, "***Error: invalid argument to pkcs11_unwrap()\n");
 	rc =rc_error_usage;
 	goto error;
     }
-    /* retrieve keys  */
 
-    if (!pkcs11_findsecretkey(p11Context, wctx->wrappingkeylabel, &hWrappingKey)) {
-	fprintf(stderr,"***Error: could not find a secret key with label '%s'\n", wctx->wrappingkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
+    /* retrieve keys  */
+    if(wctx->is_envelope) {
+	wrappingkeyhandle = wctx->key[keyindex].wrappingkeyhandle;
+    } else {
+	if (!pkcs11_findsecretkey(p11Context, wctx->wrappingkeylabel, &wrappingkeyhandle)) {
+	    fprintf(stderr,"***Error: could not find a secret key with label '%s'\n", wctx->wrappingkeylabel);
+	    rc = rc_error_object_not_found;
+	    goto error;
+	}
     }
 
     /* adjust CKA_LABEL with value from command line */
@@ -570,7 +437,7 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 	/* or to the newly added member if no match is found.	*/
 
 	if(previouslen < wctx->attrlen) {
-	    /* in this case, the content of attrs[i] has been copied */
+	    /* in this case, the content of attrlist[i] has been copied */
 	    /* nothing to do */
 	} else {
 	    /* specific case: we point to an pre-existing key, */
@@ -589,15 +456,14 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
     /* adjust context with attributes from argmunent list */
 
 
-    /* TODO: force CKA_TOKEN=true */
     /* TODO: print up content */
-    for(i=0; i<numattrs && wctx->attrlen<PARSING_MAX_ATTRS; i++)
+    for(i=0; i<attrlen && wctx->attrlen<PARSING_MAX_ATTRS; i++)
     {
 	CK_ULONG previouslen = wctx->attrlen;
 	size_t arglen = wctx->attrlen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
 
 	/* lsearch will add the keys if not found in the template */
-	CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lsearch( &attrs[i],
+	CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lsearch( &attrlist[i],
 							     wctx->attrlist,
 							     &arglen,
 							     sizeof(CK_ATTRIBUTE),
@@ -609,7 +475,7 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 	/* or to the newly added member if no match is found.	*/
 
 	if(previouslen < wctx->attrlen) {
-	    /* in this case, the content of attrs[i] has been copied */
+	    /* in this case, the content of attrlist[i] has been copied */
 	    /* nothing to do */
 	} else {
 	    /* specific case: we point to an pre-existing key, */
@@ -620,9 +486,9 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 
 	}
 	/* in all cases, we just want to copy over the value from the source */
-	match->pValue = attrs[i].pValue;
-	match->ulValueLen = attrs[i].ulValueLen;
-	attrs[i].pValue = NULL; /* indicate that the value has been stolen */
+	match->pValue = attrlist[i].pValue;
+	match->ulValueLen = attrlist[i].ulValueLen;
+	attrlist[i].pValue = NULL; /* indicate that the value has been stolen */
     }
 
     /* check if we do not have a similar object on the token yet */
@@ -683,7 +549,6 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
     }
 
     /* now unwrap */
-
     {
 	CK_RV rv;
 	CK_MECHANISM mechanism;
@@ -699,7 +564,7 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 	    goto error;
 	}
 
-	if( pkcs11_read_attr_from_handle (wklist, hWrappingKey) == CK_FALSE) {
+	if( pkcs11_read_attr_from_handle (wklist, wrappingkeyhandle) == CK_FALSE) {
 	    fprintf(stderr, "***Error: cannot read attributes from wrapping key\n");
 	    goto error;
 	}
@@ -715,12 +580,12 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 	switch( *((CK_KEY_TYPE *)(wkkeytype->pValue)) ) {
 	case CKK_DES:
 	    mechanism.mechanism = CKM_DES_CBC_PAD;
-	    if(wctx->iv_len==0) { /* if no IV is given, that's fine. We assume the vector is filled with 0x00 */
+	    if(wctx->aes_params.iv_len==0) { /* if no IV is given, that's fine. We assume the vector is filled with 0x00 */
 		mechanism.pParameter = iv0;
 		mechanism.ulParameterLen = 8;
-	    } else if(wctx->iv_len==8) {
-		mechanism.pParameter = wctx->iv;
-		mechanism.ulParameterLen = wctx->iv_len;
+	    } else if(wctx->aes_params.iv_len==8) {
+		mechanism.pParameter = wctx->aes_params.iv;
+		mechanism.ulParameterLen = wctx->aes_params.iv_len;
 	    } else {
 		fprintf(stderr, "***Error: Invalid IV length for mechanism CKM_DES_CBC_PAD, this must be 8 bytes long\n");
 		rc = rc_error_invalid_parameter_for_method;
@@ -730,12 +595,12 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 
 	case CKK_DES3:
 	    mechanism.mechanism = CKM_DES3_CBC_PAD;
-	if(wctx->iv_len==0) { /* if no IV is given, that's fine. We assume the vector is filled with 0x00 */
+	if(wctx->aes_params.iv_len==0) { /* if no IV is given, that's fine. We assume the vector is filled with 0x00 */
 	    mechanism.pParameter = iv0;
 	    mechanism.ulParameterLen = 8;
-	} else if(wctx->iv_len==8) {
-	    mechanism.pParameter = wctx->iv;
-	    mechanism.ulParameterLen = wctx->iv_len;
+	} else if(wctx->aes_params.iv_len==8) {
+	    mechanism.pParameter = wctx->aes_params.iv;
+	    mechanism.ulParameterLen = wctx->aes_params.iv_len;
 	} else {
 	    fprintf(stderr, "***Error: Invalid IV length for mechanism CKM_DES3_CBC_PAD, this must be 8 bytes long\n");
 	    rc = rc_error_invalid_parameter_for_method;
@@ -745,12 +610,12 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 
 	case CKK_AES:
 	    mechanism.mechanism = CKM_AES_CBC_PAD;
-	    if(wctx->iv_len==0) { /* if no IV is given, that's fine. We assume the vector is filled with 0x00 */
+	    if(wctx->aes_params.iv_len==0) { /* if no IV is given, that's fine. We assume the vector is filled with 0x00 */
 		mechanism.pParameter = iv0;
 		mechanism.ulParameterLen = 16;
-	    } else if(wctx->iv_len==16) {
-		mechanism.pParameter = wctx->iv;
-		mechanism.ulParameterLen = wctx->iv_len;
+	    } else if(wctx->aes_params.iv_len==16) {
+		mechanism.pParameter = wctx->aes_params.iv;
+		mechanism.ulParameterLen = wctx->aes_params.iv_len;
 	    } else {
 		fprintf(stderr, "***Error: Invalid IV length for mechanism CKM_DES_AES_PAD, this must be 16 bytes long\n");
 		rc = rc_error_invalid_parameter_for_method;
@@ -768,21 +633,24 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 
 	rv = p11Context->FunctionList.C_UnwrapKey ( p11Context->Session,
 						    &mechanism,
-						    hWrappingKey,
-						    wctx->wrapped_key_buffer,
-						    wctx->wrapped_key_len,
+						    wrappingkeyhandle,
+						    wctx->key[keyindex].wrapped_key_buffer,
+						    wctx->key[keyindex].wrapped_key_len,
 						    wctx->attrlist,
 						    wctx->attrlen,
-						    &hWrappedKey );
+						    &wrappedkeyhandle );
 
 	if(rv!=CKR_OK) {
 	    pkcs11_error(rv, "C_UnwrapKey");
 	    rc = rc_error_pkcs11_api;
 	    goto error;
 	}
+
+	/* in case of envelope, remember the temporary wrapping key handle */
+	if(wctx->is_envelope) {
+	    wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrappedkeyhandle = wrappedkeyhandle;
+	}
     }
-
-
 
 error:
     if(label) { free(label); label=NULL; }
@@ -802,19 +670,18 @@ error:
 
 ************************************************************************/
 
-static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs, CK_MECHANISM_TYPE mech[], CK_ULONG mech_size)
+static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen, CK_MECHANISM_TYPE mech[], CK_ULONG mech_size)
 {
     func_rc rc = rc_ok;
     int i;
     char *label = NULL;
 
-    CK_OBJECT_HANDLE hWrappingKey=NULL_PTR;
-    CK_OBJECT_HANDLE hWrappedKey=NULL_PTR;
-    pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
-    CK_ATTRIBUTE_PTR o_wrappingkey_bits, o_wrappedkey_bits, o_modulus;
-    BIGNUM *bn_wrappingkey_bits = NULL;
-    BIGNUM *bn_wrappedkey_bits = NULL;
+    CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
+    CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
     pkcs11AttrList *alist = NULL;
+
+    /* keyindex: in case of envelope wrapping, the index shall always be the outer */
+    int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_INNER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
 
     /* sanity check */
     if(p11Context==NULL || wctx==NULL) {
@@ -831,10 +698,14 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 
     /* retrieve keys  */
 
-    if (!pkcs11_findsecretkey(p11Context, wctx->wrappingkeylabel, &hWrappingKey)) {
-	fprintf(stderr,"***Error: could not find a secret key with label '%s'\n", wctx->wrappingkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
+    if(wctx->is_envelope) {
+	wrappingkeyhandle = wctx->key[keyindex].wrappingkeyhandle;
+    } else {
+	if (!pkcs11_findsecretkey(p11Context, wctx->wrappingkeylabel, &wrappingkeyhandle)) {
+	    fprintf(stderr,"***Error: could not find a secret key with label '%s'\n", wctx->wrappingkeylabel);
+	    rc = rc_error_object_not_found;
+	    goto error;
+	}
     }
 
     /* adjust CKA_LABEL with value from command line */
@@ -867,7 +738,7 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 	/* or to the newly added member if no match is found.	*/
 
 	if(previouslen < wctx->attrlen) {
-	    /* in this case, the content of attrs[i] has been copied */
+	    /* in this case, the content of attrlist[i] has been copied */
 	    /* nothing to do */
 	} else {
 	    /* specific case: we point to an pre-existing key, */
@@ -885,16 +756,14 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
     }
     /* adjust context with attributes from argmunent list */
 
-
-    /* TODO: force CKA_TOKEN=true */
     /* TODO: print up content */
-    for(i=0; i<numattrs && wctx->attrlen<PARSING_MAX_ATTRS; i++)
+    for(i=0; i<attrlen && wctx->attrlen<PARSING_MAX_ATTRS; i++)
     {
 	CK_ULONG previouslen = wctx->attrlen;
 	size_t arglen = wctx->attrlen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
 
 	/* lsearch will add the keys if not found in the template */
-	CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lsearch( &attrs[i],
+	CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lsearch( &attrlist[i],
 							     wctx->attrlist,
 							     &arglen,
 							     sizeof(CK_ATTRIBUTE),
@@ -906,7 +775,7 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 	/* or to the newly added member if no match is found.	*/
 
 	if(previouslen < wctx->attrlen) {
-	    /* in this case, the content of attrs[i] has been copied */
+	    /* in this case, the content of attrlist[i] has been copied */
 	    /* nothing to do */
 	} else {
 	    /* specific case: we point to an pre-existing key, */
@@ -917,9 +786,9 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 
 	}
 	/* in all cases, we just want to copy over the value from the source */
-	match->pValue = attrs[i].pValue;
-	match->ulValueLen = attrs[i].ulValueLen;
-	attrs[i].pValue = NULL; /* indicate that the value has been stolen */
+	match->pValue = attrlist[i].pValue;
+	match->ulValueLen = attrlist[i].ulValueLen;
+	attrlist[i].pValue = NULL; /* indicate that the value has been stolen */
     }
 
     /* check if we do not have a similar object on the token yet */
@@ -990,15 +859,15 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 	for(i=0;i< mech_size; i++) {
             /* let's try mechanisms one by one, unless the mechanism is already supplied  */
 	    /* i.e. if wctx->aes_wrapping_mech != 0 */
-	    mechanism.mechanism = wctx->aes_wrapping_mech != 0 ? wctx->aes_wrapping_mech : mech[i];
+	    mechanism.mechanism = wctx->aes_params.aes_wrapping_mech != 0 ? wctx->aes_params.aes_wrapping_mech : mech[i];
 	    rv = p11Context->FunctionList.C_UnwrapKey ( p11Context->Session,
 							&mechanism,
-							hWrappingKey,
-							wctx->wrapped_key_buffer,
-							wctx->wrapped_key_len,
+							wrappingkeyhandle,
+							wctx->key[keyindex].wrapped_key_buffer,
+							wctx->key[keyindex].wrapped_key_len,
 							wctx->attrlist,
 							wctx->attrlen,
-							&hWrappedKey );
+							&wrappedkeyhandle );
 
 	    if(rv!=CKR_OK) {
 		pkcs11_error(rv, "C_UnwrapKey");
@@ -1006,14 +875,14 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 	    } else {
 		/* it worked, let's remember in wctx the actual mechanism used */
 		/* unless it was already supplied */
-		if(wctx->aes_wrapping_mech==0) {
-		    wctx->aes_wrapping_mech = mech[i];
+		if(wctx->aes_params.aes_wrapping_mech==0) {
+		    wctx->aes_params.aes_wrapping_mech = mech[i];
 		}
 		/* and escape loop */
 		break;
 	    }
 
-	    if(wctx->aes_wrapping_mech != 0) {
+	    if(wctx->aes_params.aes_wrapping_mech != 0) {
 		/* special case: if the wrapping mechanism was set by the parser */
 		/* through option field, we will not try other mechanisms than the one  */
 		/* specified. */
@@ -1034,3 +903,99 @@ error:
     if(alist) { pkcs11_delete_attrlist(alist); alist=NULL; }
     return rc;
 }
+
+/* envelope unwrapping */
+
+static func_rc _unwrap_envelope(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen)
+{
+    func_rc rc = rc_ok;
+    int i;
+    char *label = NULL;
+
+    CK_OBJECT_HANDLE wrappingkeyhandle=0, tempaes_handle=0;
+
+    if(p11Context==NULL || wctx==NULL || wctx->is_envelope==0 ) {
+	fprintf(stderr, "***Error: invalid argument to pkcs11_unwrap()\n");
+	rc =rc_error_usage;
+	goto error;
+    }
+
+    /* retrieve outer unwrapping key  */
+
+    if (!pkcs11_findprivatekey(p11Context, wctx->wrappingkeylabel, &wrappingkeyhandle)) {
+	fprintf(stderr,"***Error: could not find a private key with label '%s'\n", wctx->wrappingkeylabel);
+	rc = rc_error_object_not_found;
+	goto error;
+    }
+
+    wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrappingkeyhandle = wrappingkeyhandle;
+
+    /* prepare for unwrapping */
+    char tempaes_label[32];
+    snprintf((char *)tempaes_label, sizeof tempaes_label, "tempaes-%ld", time(NULL));
+
+    CK_BBOOL ck_false = CK_FALSE;
+    CK_BBOOL ck_true = CK_TRUE;
+    CK_OBJECT_CLASS cko_secret_key = CKO_SECRET_KEY;
+    CK_KEY_TYPE ckk_aes = CKK_AES;
+
+    CK_ATTRIBUTE tempaes_attrlist[] = {
+	{ CKA_CLASS, &cko_secret_key, sizeof(cko_secret_key) },
+	{ CKA_KEY_TYPE, &ckk_aes, sizeof(ckk_aes) },
+	{ CKA_TOKEN, &ck_false, sizeof(ck_false) },
+	{ CKA_UNWRAP, &ck_true, sizeof(ck_true) },
+	{ CKA_EXTRACTABLE, &ck_true, sizeof(ck_true) },
+	{ CKA_LABEL, &tempaes_label, strlen(tempaes_label) }
+    };
+
+    switch(wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrapping_meth) {
+    case w_pkcs1_15:
+	rc = _unwrap_pkcs1_15(p11Context, wctx, tempaes_label, tempaes_attrlist, sizeof tempaes_attrlist / sizeof(CK_ATTRIBUTE));
+	break;
+
+    case w_pkcs1_oaep:
+	rc = _unwrap_pkcs1_oaep(p11Context, wctx, tempaes_label, tempaes_attrlist, sizeof tempaes_attrlist / sizeof(CK_ATTRIBUTE));
+	break;
+
+    default:
+	rc = rc_error_oops;
+    }
+
+    if(rc!=rc_ok) { goto error; }
+
+    /* at this point, we have recovered a temporary unwrapping key */
+    /* let's use it to unwrap the final key */
+
+    switch(wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrapping_meth) {
+
+    case w_cbcpad:
+	rc = _unwrap_cbcpad(p11Context, wctx, wrappedkeylabel, attrlist, attrlen);
+	break;
+
+    case w_rfc3394:
+	rc = _unwrap_rfc3394(p11Context, wctx, wrappedkeylabel, attrlist, attrlen);
+	break;
+
+    case w_rfc5649:
+	rc = _unwrap_rfc5649(p11Context, wctx, wrappedkeylabel, attrlist, attrlen);
+	break;
+
+    default:
+	rc = rc_error_oops;
+    }
+
+    if(rc!=rc_ok) { goto error; }
+
+error:
+    if(tempaes_handle!=0) {
+	CK_RV rv = wctx->p11Context->FunctionList.C_DestroyObject(wctx->p11Context->Session, tempaes_handle);
+	if(rv != CKR_OK) {
+	    pkcs11_error( rv, "C_DestroyObject" );
+	}
+    }
+
+    if(label) { free(label); label=NULL; }
+
+    return rc;
+}
+
