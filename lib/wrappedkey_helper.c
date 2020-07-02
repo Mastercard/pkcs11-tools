@@ -33,6 +33,16 @@
 #include "pkcs11lib.h"
 #include "wrappedkey_helper.h"
 
+/* private prototypes */
+
+typedef enum e_parser_attr_target {
+    target_wkey,
+    target_pubk
+} parser_attr_target;
+
+static func_rc _wrappedkey_parser_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len, parser_attr_target target );
+static func_rc _wrappedkey_parser_append_from_b64(wrappedKeyCtx *wctx, unsigned char *b64buffer, int keyindex, parser_attr_target target);
+
 /* TODO: move these two utility functions to a commodities lib */
 
 /* memtostrdup: short func to duplicate a block of mem, and turn it into a null-terminated string. */
@@ -51,7 +61,7 @@ static int compare_CKA( const void *a, const void *b)
 
 /* ------------------------------------------------------------------------ */
 
-func_rc _wrappedkey_parser_set_wrapping_alg(wrappedKeyCtx *wctx, enum wrappingmethod meth, int keyindex)
+func_rc _wrappedkey_parser_wkey_set_wrapping_alg(wrappedKeyCtx *wctx, enum wrappingmethod meth, int keyindex)
 {
     func_rc rc = rc_ok;
 
@@ -87,7 +97,7 @@ func_rc _wrappedkey_parser_set_wrapping_alg(wrappedKeyCtx *wctx, enum wrappingme
 
 /* dealing with hash=xxxxx parameter */
 /* parser/lexer guarantee we are with oaep */
-func_rc _wrappedkey_parser_set_wrapping_param_hash(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE hash)
+func_rc _wrappedkey_parser_wkey_set_wrapping_param_hash(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE hash)
 {
     wctx->oaep_params->hashAlg = hash;
     return rc_ok;
@@ -95,7 +105,7 @@ func_rc _wrappedkey_parser_set_wrapping_param_hash(wrappedKeyCtx *wctx, CK_MECHA
 
 /* dealing with mgf=xxxxx parameter */
 /* parser/lexer guarantee we are with oaep */
-func_rc _wrappedkey_parser_set_wrapping_param_mgf(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE mgf)
+func_rc _wrappedkey_parser_wkey_set_wrapping_param_mgf(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE mgf)
 {
     wctx->oaep_params->mgf = mgf;
     return rc_ok;
@@ -103,7 +113,7 @@ func_rc _wrappedkey_parser_set_wrapping_param_mgf(wrappedKeyCtx *wctx, CK_MECHAN
 
 /* dealing with label=xxxxx parameter */
 /* parser/lexer guarantee we are with oaep */
-func_rc _wrappedkey_parser_set_wrapping_param_label(wrappedKeyCtx *wctx, void *buffer, size_t len)
+func_rc _wrappedkey_parser_wkey_set_wrapping_param_label(wrappedKeyCtx *wctx, void *buffer, size_t len)
 {
     func_rc rc = rc_ok;
 
@@ -131,7 +141,7 @@ func_rc _wrappedkey_parser_set_wrapping_param_label(wrappedKeyCtx *wctx, void *b
 
 /* dealing with iv=xxxx parameter */
 /* parser/lexer guarantee we are with pkcs7 */
-func_rc _wrappedkey_parser_set_wrapping_param_iv(wrappedKeyCtx *wctx, void *buffer, size_t len)
+func_rc _wrappedkey_parser_wkey_set_wrapping_param_iv(wrappedKeyCtx *wctx, void *buffer, size_t len)
 {
     func_rc rc = rc_ok;
 
@@ -150,18 +160,37 @@ func_rc _wrappedkey_parser_set_wrapping_param_iv(wrappedKeyCtx *wctx, void *buff
 
 /* dealing with flavour=xxx parameter */
 /* parser/lexer guarantee we are with oaep */
-func_rc _wrappedkey_parser_set_wrapping_param_flavour(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE wrapalg)
+func_rc _wrappedkey_parser_wkey_set_wrapping_param_flavour(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE wrapalg)
 {
     wctx->aes_params.aes_wrapping_mech = wrapalg;
     return rc_ok;
 }
 
-func_rc _wrappedkey_parser_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len )
+static func_rc _wrappedkey_parser_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len, parser_attr_target target )
 {
 
     func_rc rc = rc_ok;
     CK_ATTRIBUTE stuffing;
     CK_ATTRIBUTE_PTR match=NULL;
+
+    CK_ATTRIBUTE **attrlist=NULL;
+    CK_ULONG *attrlen;
+
+    switch(target) {
+    case target_wkey:
+	attrlist = &wctx->attrlist;
+	attrlen = &wctx->attrlen;
+	break;
+
+    case target_pubk:
+	attrlist = &wctx->pubkattrlist;
+	attrlen = &wctx->pubkattrlen;
+	break;
+
+    default:
+	rc = rc_error_oops;
+	goto error;
+    }
 
     /* we need to create the buffer and stuff it with what is passed as parameter */
     stuffing.type   = attrtyp;
@@ -173,25 +202,25 @@ func_rc _wrappedkey_parser_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE at
 	goto error;
     }
 
-    memcpy(stuffing.pValue, buffer, len); /* copy the value */    
+    memcpy(stuffing.pValue, buffer, len); /* copy the value */
     stuffing.ulValueLen = len;
 
-    if(wctx->attrlen==PARSING_MAX_ATTRS-1) {
+    if(*attrlen==PARSING_MAX_ATTRS-1) {
 	fprintf(stderr, "reached maximum number of attributes in parsing\n");
 	rc = rc_error_memory;
 	goto error;
-    }	
+    }
 
-    size_t arglen = wctx->attrlen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
-    
+    size_t arglen = *attrlen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
+
     match = (CK_ATTRIBUTE_PTR ) lsearch ( &stuffing,
-					  wctx->attrlist,
+					  *attrlist,
 					  &arglen,
 					  sizeof(CK_ATTRIBUTE),
 					  compare_CKA );
 
-    wctx->attrlen = arglen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */	
-    
+    *attrlen = arglen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
+
     if( match == &stuffing) { /* match, we may need to adjust the content */
 	if(match->pValue) { free(match->pValue); /* just in case */ }
 	match->ulValueLen = stuffing.ulValueLen;
@@ -203,16 +232,35 @@ func_rc _wrappedkey_parser_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE at
 	/* forget it  */
 	stuffing.pValue = NULL;
     }
-    
+
 error:
     /* clean up */
     if (stuffing.pValue != NULL) { free(stuffing.pValue); }
-    
+
     return rc;
 }
 
+inline func_rc _wrappedkey_parser_wkey_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len)
+{
+    return _wrappedkey_parser_append_attr(wctx, attrtyp, buffer, len, target_wkey);
+}
 
-func_rc _wrappedkey_parser_append_cryptogram(wrappedKeyCtx *wctx, unsigned char *b64buffer, int keyindex)
+inline func_rc _wrappedkey_parser_pubk_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len)
+{
+    return _wrappedkey_parser_append_attr(wctx, attrtyp, buffer, len, target_pubk);
+}
+
+inline func_rc _wrappedkey_parser_wkey_append_cryptogram(wrappedKeyCtx *wctx, unsigned char *b64buffer, int keyindex)
+{
+    return _wrappedkey_parser_append_from_b64(wctx, b64buffer, keyindex, target_wkey);
+}
+
+inline func_rc _wrappedkey_parser_pubk_append_pem(wrappedKeyCtx *wctx, unsigned char *b64buffer)
+{
+    return _wrappedkey_parser_append_from_b64(wctx, b64buffer, WRAPPEDKEYCTX_NO_INDEX, target_pubk);
+}
+
+static func_rc _wrappedkey_parser_append_from_b64(wrappedKeyCtx *wctx, unsigned char *b64buffer, int keyindex, parser_attr_target target)
 {
     func_rc rc = rc_ok;
 
@@ -222,6 +270,24 @@ func_rc _wrappedkey_parser_append_cryptogram(wrappedKeyCtx *wctx, unsigned char 
     FILE *fp = NULL;
     int readlen=0;
 
+    CK_BYTE_PTR *dest_buffer;
+    CK_ULONG *dest_len;
+
+    switch(target) {
+    case target_wkey:
+	dest_buffer = &wctx->key[keyindex].wrapped_key_buffer;
+	dest_len = &wctx->key[keyindex].wrapped_key_len;
+	break;
+
+    case target_pubk:
+	dest_buffer = &wctx->pubk_buffer;
+	dest_len = &wctx->pubk_len;
+	break;
+
+    default:
+	rc = rc_error_oops;
+	goto err;
+    }
 
     bmem = BIO_new_mem_buf( b64buffer, -1); /* NULL-terminated string */
     if(bmem==NULL) {
@@ -244,18 +310,18 @@ func_rc _wrappedkey_parser_append_cryptogram(wrappedKeyCtx *wctx, unsigned char 
     }
 
     /* allocate memory */
-    wctx->key[keyindex].wrapped_key_buffer = calloc( totallen, sizeof(unsigned char));
-    if(wctx->key[keyindex].wrapped_key_buffer==NULL) {
+    *dest_buffer = calloc( totallen, sizeof(unsigned char));
+    if(*dest_buffer==NULL) {
 	fprintf(stderr, "Memory error\n");
 	rc = rc_error_memory;
 	goto err;
     } else {
-	wctx->key[keyindex].wrapped_key_len = totallen;
+	*dest_len = totallen;
     }
 
     /* reset BIO and start over */
     BIO_reset(bmem);
-    readlen = BIO_read(bmem, wctx->key[keyindex].wrapped_key_buffer, wctx->key[keyindex].wrapped_key_len);
+    readlen = BIO_read(bmem, *dest_buffer, *dest_len);
     if(readlen<0) {
 	P_ERR();
 	rc = rc_error_openssl_api;
@@ -267,10 +333,10 @@ err:
     if(bmem) { BIO_free_all(bmem); bmem = NULL; }
 
     if(rc!=rc_ok) {
-	if(wctx->key[keyindex].wrapped_key_buffer != NULL) {
-	    free(wctx->key[keyindex].wrapped_key_buffer);
-	    wctx->key[keyindex].wrapped_key_buffer = NULL;
-	    wctx->key[keyindex].wrapped_key_len = 0L;
+	if(*dest_buffer != NULL) {
+	    free(*dest_buffer);
+	    *dest_buffer = NULL;
+	    *dest_len = 0L;
 	}
     }
     return rc;
@@ -278,7 +344,7 @@ err:
 
 
 /* parser/lexer guarantee we are with pkcs7 */
-func_rc _wrappedkey_parser_set_wrapping_key(wrappedKeyCtx *wctx, void *buffer, size_t len)
+func_rc _wrappedkey_parser_wkey_set_wrapping_key(wrappedKeyCtx *wctx, void *buffer, size_t len)
 {
     func_rc rc = rc_ok;
 
@@ -295,4 +361,3 @@ func_rc _wrappedkey_parser_set_wrapping_key(wrappedKeyCtx *wctx, void *buffer, s
     return rc;
 }
 
-/*------------------------------------------------------------------------*/

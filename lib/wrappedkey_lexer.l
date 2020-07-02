@@ -20,29 +20,32 @@
 %option noyywrap yylineno
 %option header-file="wrappedkey_lexer.h"
 
-
-
 %{
 #include "config.h"
 #include <stdarg.h>
 #include "wrappedkey_parser.h"
 
+#define PUBLIC_KEY_PROLOG "-----BEGIN PUBLIC KEY-----"
+#define PUBLIC_KEY_EPILOG "-----END PUBLIC KEY-----"
+
 %}
 
-%x OUTERKEYPEM INNERKEYPEM STR
+%x OUTERKEYPEM INNERKEYPEM PUBKPEM STR
 %%
 
 ^"#".*             { /* skipping comment */ }
 
 <INITIAL>^"-----BEGIN OUTER WRAPPED KEY-----" { BEGIN(OUTERKEYPEM); }
 <INITIAL>^"-----BEGIN "("INNER ")?"WRAPPED KEY-----" { BEGIN(INNERKEYPEM); }
+<INITIAL>^"-----BEGIN PUBLIC KEY-----" { BEGIN(PUBKPEM); }
 
 <OUTERKEYPEM>^"-----END OUTER WRAPPED KEY-----" { BEGIN(INITIAL); return OUTER; }
 <INNERKEYPEM>^"-----END "("INNER ")?"WRAPPED KEY-----" { BEGIN(INITIAL); return INNER; }
+<PUBKPEM>^"-----END PUBLIC KEY-----" { BEGIN(INITIAL); return PUBK; }
 
-<OUTERKEYPEM,INNERKEYPEM><<EOF>> { yyerror(NULL, "Unterminated wrapped key block"); yyterminate(); }
-<OUTERKEYPEM,INNERKEYPEM>[^\n\r][A-Za-z0-9+/=\n\r]+ { yylval.val_wrapped_key = (unsigned char *)strdup(yytext); }
-<OUTERKEYPEM,INNERKEYPEM>[\n\r] { /* ignore initial line feed */ }
+<OUTERKEYPEM,INNERKEYPEM,PUBKPEM><<EOF>> { yyerror(NULL, "Incomplete PEM block"); yyterminate(); }
+<OUTERKEYPEM,INNERKEYPEM,PUBKPEM>[^\n\r][A-Za-z0-9+/=\n\r]+ { yylval.val_pem = (unsigned char *)strdup(yytext); }
+<OUTERKEYPEM,INNERKEYPEM,PUBKPEM>[\n\r] { /* ignore initial line feed */ }
 
 <INITIAL>[\"]   { yylval.val_str.len=0; BEGIN(STR); }
 <STR>[^\"]+     { yylval.val_str.val = strdup(yytext); yylval.val_str.len = strlen(yytext); }
@@ -64,6 +67,7 @@ rfc5649            { yylval.val_wrappingmethod = w_rfc5649; return RFC5649ALGO; 
 envelope           { yylval.val_wrappingmethod = w_envelope; return ENVELOPEALGO; }
 
 Wrapping-Key       { return WRAPPING_KEY; }
+Grammar-Version    { return GRAMMAR_VERSION; }
 
 CKA_ID             { yylval.ckattr = CKA_ID; return CKATTR_STR; }
 CKA_LABEL          { yylval.ckattr = CKA_LABEL; return CKATTR_STR; }

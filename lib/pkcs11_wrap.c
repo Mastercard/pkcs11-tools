@@ -657,6 +657,7 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	    "#\n"
 	    "########################################################################\n"
 	    "Content-Type: application/pkcs11-tools\n"
+	    "Grammar-Version: " SUPPORTED_GRAMMAR_VERSION "\n"
 	    "Wrapping-Key: \"%s\"\n",
 	    wctx->wrappedkeylabel,
 	    wctx->wrappingkeylabel,

@@ -68,37 +68,39 @@ extern int yylex(void);
     YYUNDEF = 257,                 /* "invalid token"  */
     OUTER = 258,                   /* OUTER  */
     INNER = 259,                   /* INNER  */
-    STRING = 260,                  /* STRING  */
-    CTYPE = 261,                   /* CTYPE  */
-    CTYPE_VAL = 262,               /* CTYPE_VAL  */
-    WRAPPING_ALG = 263,            /* WRAPPING_ALG  */
-    WRAPPING_KEY = 264,            /* WRAPPING_KEY  */
-    PKCS1ALGO = 265,               /* PKCS1ALGO  */
-    OAEPALGO = 266,                /* OAEPALGO  */
-    CBCPADALGO = 267,              /* CBCPADALGO  */
-    RFC3394ALGO = 268,             /* RFC3394ALGO  */
-    RFC5649ALGO = 269,             /* RFC5649ALGO  */
-    ENVELOPEALGO = 270,            /* ENVELOPEALGO  */
-    PARAMHASH = 271,               /* PARAMHASH  */
-    HASHALG = 272,                 /* HASHALG  */
-    PARAMMGF = 273,                /* PARAMMGF  */
-    MGFTYPE = 274,                 /* MGFTYPE  */
-    PARAMLABEL = 275,              /* PARAMLABEL  */
-    PARAMIV = 276,                 /* PARAMIV  */
-    PARAMFLAVOUR = 277,            /* PARAMFLAVOUR  */
-    WRAPALG = 278,                 /* WRAPALG  */
-    PARAMOUTER = 279,              /* PARAMOUTER  */
-    PARAMINNER = 280,              /* PARAMINNER  */
-    CKATTR_BOOL = 281,             /* CKATTR_BOOL  */
-    CKATTR_STR = 282,              /* CKATTR_STR  */
-    CKATTR_DATE = 283,             /* CKATTR_DATE  */
-    CKATTR_KEY = 284,              /* CKATTR_KEY  */
-    CKATTR_CLASS = 285,            /* CKATTR_CLASS  */
-    TOK_BOOLEAN = 286,             /* TOK_BOOLEAN  */
-    TOK_DATE = 287,                /* TOK_DATE  */
-    KEYTYPE = 288,                 /* KEYTYPE  */
-    OCLASS = 289,                  /* OCLASS  */
-    DOTTEDNUMBER = 290             /* DOTTEDNUMBER  */
+    PUBK = 260,                    /* PUBK  */
+    STRING = 261,                  /* STRING  */
+    CTYPE = 262,                   /* CTYPE  */
+    GRAMMAR_VERSION = 263,         /* GRAMMAR_VERSION  */
+    CTYPE_VAL = 264,               /* CTYPE_VAL  */
+    WRAPPING_ALG = 265,            /* WRAPPING_ALG  */
+    WRAPPING_KEY = 266,            /* WRAPPING_KEY  */
+    PKCS1ALGO = 267,               /* PKCS1ALGO  */
+    OAEPALGO = 268,                /* OAEPALGO  */
+    CBCPADALGO = 269,              /* CBCPADALGO  */
+    RFC3394ALGO = 270,             /* RFC3394ALGO  */
+    RFC5649ALGO = 271,             /* RFC5649ALGO  */
+    ENVELOPEALGO = 272,            /* ENVELOPEALGO  */
+    PARAMHASH = 273,               /* PARAMHASH  */
+    HASHALG = 274,                 /* HASHALG  */
+    PARAMMGF = 275,                /* PARAMMGF  */
+    MGFTYPE = 276,                 /* MGFTYPE  */
+    PARAMLABEL = 277,              /* PARAMLABEL  */
+    PARAMIV = 278,                 /* PARAMIV  */
+    PARAMFLAVOUR = 279,            /* PARAMFLAVOUR  */
+    WRAPALG = 280,                 /* WRAPALG  */
+    PARAMOUTER = 281,              /* PARAMOUTER  */
+    PARAMINNER = 282,              /* PARAMINNER  */
+    CKATTR_BOOL = 283,             /* CKATTR_BOOL  */
+    CKATTR_STR = 284,              /* CKATTR_STR  */
+    CKATTR_DATE = 285,             /* CKATTR_DATE  */
+    CKATTR_KEY = 286,              /* CKATTR_KEY  */
+    CKATTR_CLASS = 287,            /* CKATTR_CLASS  */
+    TOK_BOOLEAN = 288,             /* TOK_BOOLEAN  */
+    TOK_DATE = 289,                /* TOK_DATE  */
+    KEYTYPE = 290,                 /* KEYTYPE  */
+    OCLASS = 291,                  /* OCLASS  */
+    DOTTEDNUMBER = 292             /* DOTTEDNUMBER  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -134,10 +136,10 @@ union YYSTYPE
         char as_buffer[8];
     } val_date;
 
-    unsigned char *val_wrapped_key;
+    unsigned char *val_pem;	/* used to hold PEM-encoded blocks */
     char *val_dottednumber;
 
-#line 141 "wrappedkey_parser.h"
+#line 143 "wrappedkey_parser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

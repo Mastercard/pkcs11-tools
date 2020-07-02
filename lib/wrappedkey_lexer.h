@@ -216,7 +216,8 @@ extern char *yytext;
 #define INITIAL 0
 #define OUTERKEYPEM 1
 #define INNERKEYPEM 2
-#define STR 3
+#define PUBKPEM 3
+#define STR 4
 
 #endif
 
@@ -470,9 +471,9 @@ extern int yylex (void);
 #undef yyTABLES_NAME
 #endif
 
-#line 181 "wrappedkey_lexer.l"
+#line 185 "wrappedkey_lexer.l"
 
 
-#line 476 "wrappedkey_lexer.h"
+#line 477 "wrappedkey_lexer.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */

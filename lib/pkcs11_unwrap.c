@@ -164,6 +164,24 @@ func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrapp
 		rc = rc_error_unknown_wrapping_alg;
 	    }
 	}
+
+	if(rc==rc_ok && ctx->pubk_len>0 && ctx->pubkattrlen>0) {
+	    /* we have a public key to recover */
+	    CK_OBJECT_HANDLE rv = pkcs11_importpubk_from_buffer(p11Context,
+								ctx->pubk_buffer,
+								ctx->pubk_len,
+								wrappedkeylabel,
+								0,
+								ctx->pubkattrlist,
+								ctx->pubkattrlen );
+
+
+	    if(!rv) {
+		fprintf(stderr, "***Warning: could not import public key\n");
+		rc = rc_warning_not_entirely_completed;
+	    }
+
+	}
     } else {
 	fprintf(stderr, "***Error: NULL wrapping context\n");
 	rc = rc_error_usage;

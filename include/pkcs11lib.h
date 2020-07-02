@@ -32,6 +32,10 @@
 
 #include "cryptoki.h"
 
+/* grammar version, for wrapped keys */
+#define  SUPPORTED_GRAMMAR_VERSION "2.0"
+#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "1.3.0"
+
 /* Program Error Codes */
 #define RC_OK                    0x00
 #define RC_DLOPEN_ERROR          0x01
@@ -78,7 +82,8 @@ typedef enum e_func_rc {
     rc_error_parsing,		/* issue when parsing a file  */
     rc_error_oops,		/* "assertion" like error. */
     rc_error_wrong_key_type,	/* if the key type wanted doesn't match */
-    rc_error_other_error
+    rc_warning_not_entirely_completed, /* when a command has only partially succeeded */
+    rc_error_other_error,
 } func_rc;
 
 #define AES_WRAP_MECH_SIZE_MAX 8 /* for both rfc3394 and rfc5496, remember the compatible */
@@ -204,6 +209,12 @@ typedef struct s_p11_wrappedkeyctx {
 	CK_ULONG wrapped_key_len;
 	enum wrappingmethod wrapping_meth;
     } key[2];		/* [0] is outer, [1] is inner */
+
+    CK_BYTE_PTR pubk_buffer;
+    CK_ULONG pubk_len;
+    /* in case there is a public key, attribute information is being stored here */
+    CK_ATTRIBUTE *pubkattrlist;
+    CK_ULONG pubkattrlen;
 } wrappedKeyCtx;
 
 /* key index, see pkcs11_wctx.c for a comment explaining how this works */
@@ -348,6 +359,14 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 				    int trusted,
 				    CK_ATTRIBUTE attrs[],
 				    CK_ULONG numattrs );
+
+CK_OBJECT_HANDLE pkcs11_importpubk_from_buffer( pkcs11Context * p11Context,
+						unsigned char *buffer,
+						size_t len,
+						char *label,
+						int trusted,
+						CK_ATTRIBUTE attrs[],
+						CK_ULONG numattrs );
 
 
 /* pkcs11_data.c */

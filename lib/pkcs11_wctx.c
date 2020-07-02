@@ -84,6 +84,14 @@ wrappedKeyCtx *pkcs11_new_wrappedkeycontext(pkcs11Context *p11Context)
 
     ctx->is_envelope = CK_FALSE;
 
+    ctx->pubkattrlist = calloc( PARSING_MAX_ATTRS, sizeof(CK_ATTRIBUTE) );
+
+    if(ctx->pubkattrlist == NULL) {
+	fprintf(stderr, "Error: not enough memory when allocating memory for pubkattrlist member\n");
+	goto error;
+    }
+    ctx->pubkattrlen = 0;
+
     return ctx;
 
 
@@ -112,6 +120,22 @@ void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx)
 	    free(wctx->attrlist);
 	    wctx->attrlist = NULL;
 	    wctx->attrlen = 0;
+	}
+
+	/* same with pubkattrlist */
+	if(wctx->pubkattrlist) {
+
+	    /* we need to walk through the attribute list and individually free up each member */
+	    int i;
+
+	    for(i=0; i<wctx->pubkattrlen; i++) {
+		if(wctx->pubkattrlist[i].pValue) { free(wctx->pubkattrlist[i].pValue); wctx->pubkattrlist[i].pValue=NULL; wctx->pubkattrlist[i].ulValueLen = 0L; }
+	    }
+
+	    /* free the list itself */
+	    free(wctx->pubkattrlist);
+	    wctx->pubkattrlist = NULL;
+	    wctx->pubkattrlen = 0;
 	}
 
 	/* free up wrappingkeylabel */
@@ -152,6 +176,13 @@ void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx)
 	    free(wctx->aes_params.iv);
 	    wctx->aes_params.iv = NULL;
 	    wctx->aes_params.iv_len = 0L;
+	}
+
+	/* free up pubk_pem_buffer */
+	if(wctx->pubk_buffer) {
+	    free(wctx->pubk_buffer);
+	    wctx->pubk_buffer = NULL;
+	    wctx->pubk_len=0;
 	}
 
 	free(wctx);		/* eventually free up context mem */
