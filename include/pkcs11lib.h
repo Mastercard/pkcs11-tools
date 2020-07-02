@@ -23,6 +23,7 @@
 
 #include <stddef.h>		/* needed for size_t */
 #include <stdio.h>		/* needed for FILE */
+#include <openssl/bio.h>	/* needed for BIO */
 
 /* add support for dmalloc */
 #ifdef DEBUG_DMALLOC
@@ -210,9 +211,10 @@ typedef struct s_p11_wrappedkeyctx {
 	enum wrappingmethod wrapping_meth;
     } key[2];		/* [0] is outer, [1] is inner */
 
+    /* in case there is a public key, the following attributes are used */
     CK_BYTE_PTR pubk_buffer;
     CK_ULONG pubk_len;
-    /* in case there is a public key, attribute information is being stored here */
+    CK_OBJECT_HANDLE pubkhandle;
     CK_ATTRIBUTE *pubkattrlist;
     CK_ULONG pubkattrlen;
 } wrappedKeyCtx;
@@ -529,7 +531,8 @@ int pkcs11_mv_objects(pkcs11Context *p11Context, char *source, char *dest, int i
 int pkcs11_cp_objects(pkcs11Context *p11Context, char *source, char *dest, int interactive, int verbose);
 
 /* cat functions */
-func_rc pkcs11_cat_object_with_label(pkcs11Context *p11Context, char *label, int openssl_native);
+func_rc pkcs11_cat_object_with_label(pkcs11Context *p11Context, char *label, int openssl_native, BIO *sink);
+func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl, int openssl_native, BIO *sink);
 
 /* more functions */
 func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label);

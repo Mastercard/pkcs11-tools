@@ -49,7 +49,7 @@ void print_usage(char *progname)
 	     "* -i <key_alias>: label/alias of key to wrap\n"
 	     "* -w <key_alias>: label/alias of a wrapping key, must have CKA_WRAP=true attribute\n"
 	     "  -o <file> : write wrapped key to <file> (default is standard output)\n"
-	     "  -a <algorithm>: wrapping algorithm (default: pkcs1)\n"
+	     "  -a <algorithm>: wrapping algorithm (default: oaep)\n"
 	     "                  - pkcs1          : PKCS#1 1.5\n"
 	     "                  - oaep(args...)  : PKCS#1 OAEP\n"
 	     "                    args... can be one or several of the following parameters\n"
@@ -69,6 +69,14 @@ void print_usage(char *progname)
 	     "                  - rfc5649(args...) : private and secret key wrapping, as documented in RFC5649\n"
 	     "                                       and NIST.SP.800-38F, using CKM_AES_KEY_WRAP_PAD mechanism\n"
 	     "                                       or equivalent vendor-specific\n"
+	     "                  - envelope(args...): envelope wrapping, i.e. a combination of an outer wrapping\n"
+	     "                                       and an inner wrapping\n"
+	     "                    args can be one or several of the following parameters\n"
+             "                    (separated by commas)\n"
+	     "                      inner=[ALGORITHM], where ALGORITHM can be cbcpad, rfc3394 or rfc5649\n"
+	     "                      outer=[ALGORITHM], where ALGORITHM can be pkcs1 or oaep\n"
+	     "                      note that algoritms can be specified with their parameters\n"
+	     "                      default: envelope(inner=cbcpad,outer=oaep)\n"
 	     "  -S : login with SO privilege\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
@@ -114,7 +122,7 @@ int main( int argc, char ** argv )
     char * wrappingkeylabel = NULL;
     pkcs11Context * p11Context = NULL;
     CK_RV retcode = EXIT_FAILURE;
-    char *algostring = "pkcs1";	/* is the default algorithm */
+    char *algostring = "oaep";	/* is the default algorithm */
     wrappedKeyCtx *wctx = NULL;
 
     library = getenv("PKCS11LIB");

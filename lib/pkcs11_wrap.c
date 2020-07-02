@@ -53,6 +53,8 @@ static char * const _hashstring(CK_MECHANISM_TYPE hash);
 static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp);
 static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp);
 static func_rc _output_wrapped_keys_b64(wrappedKeyCtx *wctx, FILE *fp);
+static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp);
+static func_rc _output_public_key_b64(wrappedKeyCtx *wctx, FILE *fp);
 
 static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE mech[], CK_ULONG mech_size);
 static func_rc _wrap_rfc3394(wrappedKeyCtx *wctx);
@@ -652,7 +654,7 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	    "#      20150630   (date)\n"
 	    "#      true/false/CK_TRUE/CK_FALSE/yes/no (boolean)\n"
 	    "#\n"
-	    "# - wrapped key is contained between -----BEGIN WRAPPED KEY----- \n"
+	    "# - wrapped key is contained between -----BEGIN WRAPPED KEY-----\n"
             "#   and -----END WRAPPED KEY----- marks and is Base64 encoded\n"
 	    "#\n"
 	    "########################################################################\n"
@@ -879,6 +881,112 @@ error:
 
 }
 
+static func_rc _output_public_key_b64(wrappedKeyCtx *wctx, FILE *fp)
+{
+    func_rc rc = rc_ok;
+    BIO *bio_stdout = NULL;
+
+    bio_stdout = BIO_new( BIO_s_file() );
+    if(bio_stdout==NULL) {
+	P_ERR();
+	rc = rc_error_openssl_api;
+	goto err;
+    }
+
+    BIO_set_fp(bio_stdout, fp, BIO_NOCLOSE);
+    rc = pkcs11_cat_object_with_handle(wctx->p11Context, wctx->pubkhandle, 0, bio_stdout);
+
+err:
+    if(bio_stdout) BIO_free(bio_stdout);
+
+    return rc;
+}
+
+static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
+{
+    func_rc rc = rc_ok;
+
+    pkcs11AttrList *wrappedkey_attrs = NULL;
+    CK_ATTRIBUTE_PTR o_attr = NULL;
+    size_t alist_len=0;
+
+    typedef struct {
+	CK_ATTRIBUTE_TYPE attr_type;
+	void (*func_ptr) (FILE *, char *, CK_ATTRIBUTE_PTR, CK_BBOOL );
+	char *name;
+	CK_BBOOL commented;
+    } attr_printer ;
+
+    attr_printer alist[] = {
+	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", CK_FALSE },
+	{ CKA_ID, fprintf_str_attr, "CKA_ID", CK_FALSE },
+	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE  },
+	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", CK_FALSE  },
+	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", CK_FALSE  },
+	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", CK_TRUE },
+	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", CK_FALSE },
+	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", CK_FALSE },
+	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", CK_FALSE },
+	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY", CK_FALSE },
+	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", CK_FALSE },
+	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", CK_FALSE },
+	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", CK_FALSE },
+	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", CK_FALSE },
+	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", CK_FALSE },
+	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", CK_FALSE },
+	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", CK_FALSE },
+    };
+
+    alist_len = sizeof(alist)/sizeof(attr_printer);
+    wrappedkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
+					   _ATTR(CKA_LABEL),
+					   _ATTR(CKA_ID),
+					   _ATTR(CKA_CLASS),
+					   _ATTR(CKA_TOKEN),
+					   _ATTR(CKA_KEY_TYPE),
+					   _ATTR(CKA_EC_PARAMS),
+					   _ATTR(CKA_SUBJECT),
+					   _ATTR(CKA_ENCRYPT),
+					   _ATTR(CKA_WRAP),
+					   _ATTR(CKA_VERIFY),
+					   _ATTR(CKA_VERIFY_RECOVER),
+					   _ATTR(CKA_DERIVE),
+					   _ATTR(CKA_PRIVATE),
+					   _ATTR(CKA_SENSITIVE),
+					   _ATTR(CKA_EXTRACTABLE),
+					   _ATTR(CKA_MODIFIABLE),
+					   _ATTR(CKA_START_DATE),
+					   _ATTR(CKA_END_DATE),
+					   _ATTR_END );
+
+    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wctx->pubkhandle) == CK_FALSE) {
+	fprintf(stderr,"Error: could not read attributes from key with label '%s'\n", wctx->wrappedkeylabel);
+	rc = rc_error_pkcs11_api;
+	goto error;
+    }
+
+    int i;
+
+    for(i=0;i<alist_len;i++) {
+	o_attr = pkcs11_get_attr_in_attrlist(wrappedkey_attrs, alist[i].attr_type);
+
+	if(o_attr == NULL) {
+	    fprintf(fp, "# %s attribute not found\n", alist[i].name);
+	} else if (o_attr->type == CKA_EXTRACTABLE) {
+	    /* security feature: unwrapped keys should not have CKA_EXTRACTABLE set to true */
+	    fprintf(fp, "CKA_EXTRACTABLE: false\n");
+	} else if (o_attr->ulValueLen == 0) {
+	    fprintf(fp, "# %s attribute is empty\n", alist[i].name);
+	} else {
+	    alist[i].func_ptr(fp, alist[i].name, o_attr, alist[i].commented );
+	}
+    }
+
+error:
+    pkcs11_delete_attrlist(wrappedkey_attrs);
+    return rc;
+}
+
 static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 {
     func_rc rc = rc_ok;
@@ -1056,15 +1164,22 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 	wrappingkeyhandle = wctx->key[keyindex].wrappingkeyhandle;
     } else {
 	if (!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappingkeylabel, &wrappingkeyhandle)) {
-	    fprintf(stderr,"***Error: could not find a secret key with label '%s'\n", wctx->wrappingkeylabel);
+	    fprintf(stderr, "***Error: could not find a secret key with label '%s'\n", wctx->wrappingkeylabel);
 	    rc = rc_error_object_not_found;
 	    goto error;
 	}
 
 	if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle, &wrappedkeyobjclass)) {
-	    fprintf(stderr,"***Error: key with label '%s' does not exists\n", wctx->wrappedkeylabel);
+	    fprintf(stderr, "***Error: key with label '%s' does not exists\n", wctx->wrappedkeylabel);
 	    rc = rc_error_object_not_found;
 	    goto error;
+	}
+    }
+
+    /* in case of private key, see if we have a match for a public key as well */
+    if(wrappedkeyobjclass==CKO_PRIVATE_KEY) {
+	if(!pkcs11_findpublickey(wctx->p11Context, wctx->wrappedkeylabel, &wctx->pubkhandle)) {
+	    fprintf(stderr, "***Warning: private key with label '%s' found, but there is no associated public key found with the same label\n", wctx->wrappedkeylabel);
 	}
     }
 
@@ -1076,7 +1191,7 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 
 
     if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == CK_FALSE) {
-	fprintf(stderr,"Error: could not read CKA_KEY_TYPE attribute from secret key with label '%s'\n", wctx->wrappingkeylabel);
+	fprintf(stderr, "***Error: could not read CKA_KEY_TYPE attribute from secret key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
     }
@@ -1254,6 +1369,13 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 	}
     }
 
+    /* in case of private key, see if we have a match for a public key as well */
+    if(wrappedkeyobjclass==CKO_PRIVATE_KEY) {
+	if(!pkcs11_findpublickey(wctx->p11Context, wctx->wrappedkeylabel, &wctx->pubkhandle)) {
+	    fprintf(stderr, "***Warning: private key with label '%s' found, but there is no associated public key found with the same label\n", wctx->wrappedkeylabel);
+	}
+    }
+
     /* determining block size of the block cipher. */
     /* retrieve length of wrapping key */
     wrappingkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
@@ -1395,6 +1517,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 	    rc = rc_error_object_not_found;
 	    goto error;
 	}
+
     }
 
     /* retrieve length of wrapping key */
@@ -1778,20 +1901,35 @@ func_rc pkcs11_output_wrapped_key( wrappedKeyCtx *wctx, char *filename )
 
     rc = _output_wrapped_key_header(wctx,fp);
     if(rc!=rc_ok) {
-	fprintf(stderr, "Error during wrapped key header creation \n");
+	fprintf(stderr, "***Error: during wrapped key header creation\n");
 	goto error;
     }
 
     rc = _output_wrapped_key_attributes(wctx,fp);
     if(rc!=rc_ok) {
-	fprintf(stderr, "Error during wrapped key attributes determination \n");
+	fprintf(stderr, "***Error: when outputing wrapped key attributes\n");
 	goto error;
     }
 
     rc = _output_wrapped_keys_b64(wctx,fp);
     if(rc!=rc_ok) {
-	fprintf(stderr, "Error while outputing wrapped key\n");
+	fprintf(stderr, "***Error: when outputing wrapped key\n");
 	goto error;
+    }
+
+    /* do we have a handle to a public key? if so, output it as well */
+    if(wctx->pubkhandle) {
+	rc = _output_public_key_attributes(wctx,fp);
+	if(rc!=rc_ok) {
+	    fprintf(stderr, "***Error: when outputing public key attributes\n");
+	    goto error;
+	}
+
+	rc = _output_public_key_b64(wctx,fp);
+	if(rc!=rc_ok) {
+	    fprintf(stderr, "***Error: when outputing public key\n");
+	    goto error;
+	}
     }
 
 error:
