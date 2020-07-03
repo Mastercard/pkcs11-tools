@@ -37,4 +37,6 @@ func_rc _wrappedkey_parser_wkey_set_wrapping_param_flavour(wrappedKeyCtx *wctx, 
 func_rc _wrappedkey_parser_pubk_append_attr(wrappedKeyCtx *ctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len );
 func_rc _wrappedkey_parser_pubk_append_pem(wrappedKeyCtx *wctx, unsigned char *pem);
 
+func_rc _wrappedkey_parser_wkey_set_filename(wrappedKeyCtx *wctx, char *filename);
+
 #endif

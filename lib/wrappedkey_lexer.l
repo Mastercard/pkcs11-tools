@@ -141,6 +141,12 @@ flavo[u]?r         { return PARAMFLAVOUR; }
 nss                { yylval.val_wrapalg = CKM_NSS_AES_KEY_WRAP_PAD; return WRAPALG; }
 outer              { return PARAMOUTER; }
 inner              { return PARAMINNER; }
+
+@                  { return WRAPPINGJOBHEADER; }
+wrappingkey        { return P_WRAPPINGKEY; }
+filename           { return P_FILENAME; }
+algo(rithm)?       { return P_ALGORITHM; }
+
 true|CK_TRUE|yes   { yylval.val_bool = 1; return TOK_BOOLEAN; }
 false|CK_FALSE|no  { yylval.val_bool = 0; return TOK_BOOLEAN; }
 

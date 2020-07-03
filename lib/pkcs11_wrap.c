@@ -1809,46 +1809,39 @@ error:
 /*--------------------------------------------------------------------------------*/
 /* PUBLIC INTERFACE                                                               */
 /*--------------------------------------------------------------------------------*/
-
-
-func_rc pkcs11_parse_wrappingalgorithm(wrappedKeyCtx *wctx, char *algostring)
+func_rc pkcs11_prepare_wrappingctx(wrappedKeyCtx *wctx, char *wrapjob)
 {
 
     func_rc rc=rc_ok;
 
-    if(wctx!=NULL && algostring!=NULL) {
+    if(wctx!=NULL && wrapjob!=NULL) {
 	int parserc;
 
 	/* http://stackoverflow.com/questions/1907847/how-to-use-yy-scan-string-in-lex     */
 	/* copy string into new buffer and Switch buffers*/
-	YY_BUFFER_STATE yybufstate = yy_scan_string(algostring);
+	YY_BUFFER_STATE yybufstate = yy_scan_string(wrapjob);
 
 	/* parse string */
 	parserc = yyparse(wctx);
 
 	if(parserc!=0) {
-	    fprintf(stderr, "***Error scanning algorithm argument string '%s'\n", algostring);
+	    fprintf(stderr, "***Error scanning wrapping job string '%s'\n", wrapjob);
 	    rc =rc_error_invalid_argument;
 	}
 
 	/*Delete the new buffer*/
 	yy_delete_buffer(yybufstate);
     } else {
-	fprintf(stderr, "***Error: pkcs11_parse_wrappingalgoritm() called with wrong argument(s)\n");
 	rc = rc_error_invalid_parameter_for_method;
     }
 
     return rc;
 }
 
-
-
-func_rc pkcs11_wrap(wrappedKeyCtx *wctx, char *wrappingkeylabel, char *wrappedkeylabel)
+func_rc pkcs11_wrap(wrappedKeyCtx *wctx, char *wrappedkeylabel)
 {
     func_rc rc = rc_ok;
 
-    /* wctx at this point should have its wrapping_meth properly populated */
-    wctx->wrappingkeylabel = strdup(wrappingkeylabel);
     wctx->wrappedkeylabel = strdup(wrappedkeylabel);
 
     if(wctx->is_envelope) {
@@ -1885,14 +1878,13 @@ func_rc pkcs11_wrap(wrappedKeyCtx *wctx, char *wrappingkeylabel, char *wrappedke
     return rc;
 }
 
-
-func_rc pkcs11_output_wrapped_key( wrappedKeyCtx *wctx, char *filename )
+func_rc pkcs11_output_wrapped_key(wrappedKeyCtx *wctx)
 {
     func_rc rc = rc_ok;
     FILE *fp=stdout;
 
-    if(filename) {
-	fp = fopen(filename, "w");
+    if(wctx->filename) {
+	fp = fopen(wctx->filename, "w");
 	if(fp==NULL) {
 	    perror("***Warning: cannot write to file - will output to standard output");
 	    fp=stdout;

@@ -361,3 +361,8 @@ func_rc _wrappedkey_parser_wkey_set_wrapping_key(wrappedKeyCtx *wctx, void *buff
     return rc;
 }
 
+func_rc _wrappedkey_parser_wkey_set_filename(wrappedKeyCtx *wctx, char *filename)
+{
+    wctx->filename = strdup(filename);
+    return rc_ok;
+}

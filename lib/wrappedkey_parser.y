@@ -95,18 +95,20 @@ extern int yylex(void);
 %token PARAMOUTER
 %token PARAMINNER
 
-%token	<ckattr> CKATTR_BOOL CKATTR_STR CKATTR_DATE CKATTR_KEY CKATTR_CLASS
-%token	<val_bool> TOK_BOOLEAN
-%token	<val_date> TOK_DATE
-%token	<val_key>  KEYTYPE
-%token	<val_cls>  OCLASS
-%token	<val_dottednumber> DOTTEDNUMBER
+%token <ckattr> CKATTR_BOOL CKATTR_STR CKATTR_DATE CKATTR_KEY CKATTR_CLASS
+%token <val_bool> TOK_BOOLEAN
+%token <val_date> TOK_DATE
+%token <val_key>  KEYTYPE
+%token <val_cls>  OCLASS
+%token <val_dottednumber> DOTTEDNUMBER
 
+%token WRAPPINGJOBHEADER
+%token P_WRAPPINGKEY P_FILENAME P_ALGORITHM
 %%
 
 wkeyset:	headers wkey
 	|	headers wkey pubk
-	|	algo		/*TRICK: this is to parse command-line argument for p11wrap -a parameter */
+	|	wrappingjob         /*TRICK: this is to parse command-line argument for p11wrap -W parameter */
 		;
 
 headers:	CTYPE ':' CTYPE_VAL
@@ -504,5 +506,33 @@ pubkstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 		    }
 		}
 		;
+
+/* wrappingjob is used only for -W parameter of p11wrap */
+/* we artifically expect to have a front "@" character */
+/* so we know we are in this parsing job */
+
+wrappingjob:	WRAPPINGJOBHEADER wrpjobstmts
+		;
+
+wrpjobstmts: 	wrpjobstmt
+	|	wrpjobstmts ',' wrpjobstmt
+		;
+
+wrpjobstmt:	P_WRAPPINGKEY '=' STRING
+		{
+		    if(_wrappedkey_parser_wkey_set_wrapping_key(ctx, $3.val, $3.len)!=rc_ok) {
+		        yyerror(ctx,"Parsing error with wrapping key identifier.");
+                        YYERROR;
+                    }
+		}
+	|	P_FILENAME '=' STRING
+		{
+		    if(_wrappedkey_parser_wkey_set_filename(ctx, $3.val)!=rc_ok) {
+		        yyerror(ctx,"Issue when saving filename");
+                        YYERROR;
+		    }
+                }
+	|	P_ALGORITHM '=' algo
+	;
 
 %%

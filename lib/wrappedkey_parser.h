@@ -100,7 +100,11 @@ extern int yylex(void);
     TOK_DATE = 289,                /* TOK_DATE  */
     KEYTYPE = 290,                 /* KEYTYPE  */
     OCLASS = 291,                  /* OCLASS  */
-    DOTTEDNUMBER = 292             /* DOTTEDNUMBER  */
+    DOTTEDNUMBER = 292,            /* DOTTEDNUMBER  */
+    WRAPPINGJOBHEADER = 293,       /* WRAPPINGJOBHEADER  */
+    P_WRAPPINGKEY = 294,           /* P_WRAPPINGKEY  */
+    P_FILENAME = 295,              /* P_FILENAME  */
+    P_ALGORITHM = 296              /* P_ALGORITHM  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -139,7 +143,7 @@ union YYSTYPE
     unsigned char *val_pem;	/* used to hold PEM-encoded blocks */
     char *val_dottednumber;
 
-#line 143 "wrappedkey_parser.h"
+#line 147 "wrappedkey_parser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

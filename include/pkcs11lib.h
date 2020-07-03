@@ -193,6 +193,7 @@ typedef struct s_p11_wrappedkeyctx {
     CK_ULONG attrlen;			     /* inner key only */
     char *wrappingkeylabel;
     char *wrappedkeylabel;	             /* inner key only - outer key will have random name and ID */
+    char *filename;			     /* filename used to write wrapping file */
     struct {				     /* inner or outer but never both (by design) */
 	CK_MECHANISM_TYPE aes_wrapping_mech;     /* used when wrapping_meth is w_rfc3394 or w_rfc5649 */
 	CK_BYTE_PTR iv;			     /* used for CKM_XXX_CBC_PAD and CKM_AES_KEY_WRAP_PAD */
@@ -560,10 +561,9 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
 void pkcs11_display_kcv( pkcs11Context *p11Context, char *label );
 
 /* wrap/unwrap functions */
-func_rc pkcs11_parse_wrappingalgorithm(wrappedKeyCtx *wctx, char *algostring);
-func_rc pkcs11_wrap(wrappedKeyCtx *wctx, char *wrappingkeylabel, char *wrappedkeylabel);
-
-func_rc pkcs11_output_wrapped_key( wrappedKeyCtx *wctx, char *filename);
+func_rc pkcs11_prepare_wrappingctx(wrappedKeyCtx *wctx, char *wrappingjob);
+func_rc pkcs11_wrap(wrappedKeyCtx *wctx, char *wrappedkeylabel);
+func_rc pkcs11_output_wrapped_key( wrappedKeyCtx *wctx);
 
 wrappedKeyCtx *pkcs11_new_wrapped_key_from_file(pkcs11Context *p11Context, char *filename);
 func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappingkeylabel, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs);

@@ -25,8 +25,20 @@
 
 
 #define COMMAND_SUMMARY \
-    "Wrap a key, using another key on a PKCS#11 token.\n\n"
+    "Wrap a key, using one or more wrapping key(s) on a PKCS#11 token.\n\n"
 
+typedef struct
+{
+    char *wrappingkeylabel;
+    char *algorithm;
+    char *filename;
+    char *fullstring;
+    int  fullstring_allocated;
+    func_rc retcode;
+} wrappingjob_t;
+
+#define MAX_WRAPPINGJOB 32
+#define DEFAULT_ALGORITHM "oaep"
 
 /* prototypes */
 void print_version_info(char *progname);
@@ -77,6 +89,8 @@ void print_usage(char *progname)
 	     "                      outer=[ALGORITHM], where ALGORITHM can be pkcs1 or oaep\n"
 	     "                      note that algoritms can be specified with their parameters\n"
 	     "                      default: envelope(inner=cbcpad,outer=oaep)\n"
+	     "+ -W wrappingkey=\"<label>\"[,algorithm=<algorithm>][,file=\"<file>\"]\n"
+	     "     combines -w, -a and -o altogether, mutually exclusive with -a,-o and -w\n"
 	     "  -S : login with SO privilege\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
@@ -103,6 +117,7 @@ void print_usage(char *progname)
     exit( RC_ERROR_USAGE );
 }
 
+
 int main( int argc, char ** argv )
 {
     extern char *optarg;
@@ -111,7 +126,6 @@ int main( int argc, char ** argv )
     int errflag = 0;
     char * library = NULL;
     char * nsscfgdir = NULL;
-    char * filename = NULL;
     char * password = NULL;
     int so=0;
     char * slotenv = NULL;
@@ -119,11 +133,31 @@ int main( int argc, char ** argv )
     int interactive = 1;
     char * tokenlabel = NULL;
     char * wrappedkeylabel = NULL;
-    char * wrappingkeylabel = NULL;
     pkcs11Context * p11Context = NULL;
-    CK_RV retcode = EXIT_FAILURE;
-    char *algostring = "oaep";	/* is the default algorithm */
+    func_rc retcode = rc_ok;
+    int p11wraprc = EXIT_SUCCESS;
     wrappedKeyCtx *wctx = NULL;
+
+    wrappingjob_t wrappingjob[MAX_WRAPPINGJOB];
+    int numjobs = 0;
+    int numfailed = 0;
+
+    int i;
+    for(i=0; i<MAX_WRAPPINGJOB;i++) {
+	wrappingjob[i].wrappingkeylabel = wrappingjob[i].filename = NULL;
+	wrappingjob[i].algorithm = DEFAULT_ALGORITHM;
+	wrappingjob[i].fullstring = NULL;
+	wrappingjob[i].fullstring_allocated = 0;
+    }
+
+    typedef enum
+    {
+	option_unknown,
+	option_separate,
+	option_combined
+    } option_t;
+
+    option_t option = option_unknown;
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
@@ -142,7 +176,7 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:w:a:o:ShV" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:w:a:o:ShVW:" ) ) != -1 )
     {
 	switch ( argnum )
 	{
@@ -179,19 +213,40 @@ int main( int argc, char ** argv )
 	    break;
 
 	case 'w':
-	    wrappingkeylabel = optarg;
+	    if(option==option_combined) {
+		fprintf(stderr, "***Error: you cannot use -W and -w, -a or -o together\n");
+		option = option_separate;
+		errflag++;
+	    } else {
+		wrappingjob[0].wrappingkeylabel = optarg;
+		numjobs = 1;
+	    }
 	    break;
 
 	case 'a':
-	    /* as we can, for some of the wrapping algoritms below, support parameters */
+	    /* as we can, for some of the wrapping algorithms below, support parameters */
 	    /* we just check for now the name. */
 	    /* the whole string is kept apart, and is parsed through the same parsing rules */
 	    /* than in wrappedkey_parser.y  */
-	    algostring = optarg;
+	    if(option==option_combined) {
+		fprintf(stderr, "***Error: you cannot use -W and -w, -a or -o together\n");
+		errflag++;
+	    } else {
+		wrappingjob[0].algorithm = optarg;
+		option = option_separate;
+		numjobs = 1;
+	    }
 	    break;
 
 	case 'o':
-	    filename=optarg;
+	    if(option==option_combined) {
+		fprintf(stderr, "***Error: you cannot use -W and -w, -a or -o together\n");
+		errflag++;
+	    } else {
+		wrappingjob[0].filename = optarg;
+		option = option_separate;
+		numjobs = 1;
+	    }
 	    break;
 
 	case 'h':
@@ -200,6 +255,22 @@ int main( int argc, char ** argv )
 
 	case 'V':
 	    print_version_info(argv[0]);
+	    break;
+
+	case 'W':
+	    if(option==option_separate) {
+		fprintf(stderr, "***Error: you cannot use -W and -w, -a or -o together\n");
+		errflag++;
+	    } else {
+		if(numjobs==MAX_WRAPPINGJOB) {
+		    fprintf(stderr, "***Error: too many wrapping jobs requested\n");
+		    errflag++;
+		} else {
+		    wrappingjob[numjobs].fullstring = optarg;
+		    option = option_combined;
+		    numjobs++;
+		}
+	    }
 	    break;
 
 	default:
@@ -213,10 +284,15 @@ int main( int argc, char ** argv )
 	goto err;
     }
 
-    if ( library == NULL || wrappedkeylabel == NULL || wrappingkeylabel == NULL || algostring == NULL ) {
+    if ( library == NULL || wrappedkeylabel == NULL ||
+	 option == option_unknown || (option == option_separate && wrappingjob[0].wrappingkeylabel==NULL) ) {
 	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
 	goto err;
+    }
+
+    if(numjobs>1) {
+	fprintf(stderr, "There are %d wrapping jobs to perform.\n", numjobs);
     }
 
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
@@ -229,43 +305,119 @@ int main( int argc, char ** argv )
 	goto err;
     }
 
-    if(( wctx = pkcs11_new_wrappedkeycontext(p11Context))==NULL) {
-	retcode = rc_error_memory;
-	goto err;
-    }
-
-    /* extract the algorithm from -a argument */
-    if(( retcode = pkcs11_parse_wrappingalgorithm(wctx, algostring))!=rc_ok) {
-	goto err;
-    }
 
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
 
     if ( retcode == rc_ok ) {
-	/* wrap */
-	retcode = pkcs11_wrap( wctx, wrappingkeylabel, wrappedkeylabel );
 
-	if(retcode == rc_ok) {
-	    /* print result */
-	    retcode = pkcs11_output_wrapped_key( wctx, filename );
+	for(i=0; i<numjobs; i++) {
+	    /* allocate wrapping context */
+	    if(( wctx = pkcs11_new_wrappedkeycontext(p11Context))==NULL) {
+		fprintf(stderr, "***Error: memory allocation error while processing wrapping job #%d\n", i+1);
+		retcode = rc_error_memory;
+		continue;
+	    }
+
+	    /* if we specified arguments separately, we are building a string to parse */
+	    /* as if we were using -W optional argument */
+	    if(option==option_separate) {
+		size_t stringsize = strlen(wrappingjob[i].wrappingkeylabel)
+		    + strlen(wrappingjob[i].algorithm)
+		    + (wrappingjob[i].filename ? strlen(wrappingjob[i].filename) : 0) /* filename is not mandatory */
+		    + 40; /* 39 is the length of "@wrappingkey=\"\",algorithm=,filename=\"\"\0"   */
+		          /*                      1234567890123 4 5678901234567890123456 7 8 9    */
+		          /* adding one extra byte                                                */
+
+		wrappingjob[i].fullstring = malloc(stringsize);
+		if(!wrappingjob[i].fullstring) {
+		    fprintf(stderr, "***Error: memory allocation error while processing wrapping job #%d\n", i+1);
+		    wrappingjob[i].retcode = rc_error_memory;
+		    pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
+		    continue;
+		}
+
+		wrappingjob[i].fullstring_allocated = 1;
+
+		if(wrappingjob[i].filename) { /* if we have a filename specified */
+		    snprintf( wrappingjob[i].fullstring,
+			      stringsize,
+			      "@wrappingkey=\"%s\",algorithm=%s,filename=\"%s\"",
+			      wrappingjob[i].wrappingkeylabel,
+			      wrappingjob[i].algorithm,
+			      wrappingjob[i].filename);
+		} else{		/* for stdout */
+		    snprintf( wrappingjob[i].fullstring,
+			      stringsize,
+			      "@wrappingkey=\"%s\",algorithm=%s",
+			      wrappingjob[i].wrappingkeylabel,
+			      wrappingjob[i].algorithm);
+		}
+	    } else {		/* option_combined */
+		/* we are good to go, but we must prefix the fullstring with a "@" character */
+		size_t stringsize = strlen(wrappingjob[i].fullstring) + 2; /* one for the '@' and one for the \0 */
+		char *tmp = wrappingjob[i].fullstring; /* remember it */
+
+		wrappingjob[i].fullstring = malloc(stringsize);
+		if(!wrappingjob[i].fullstring) {
+		    fprintf(stderr, "***Error: memory allocation error while processing wrapping job #%d\n", i+1);
+		    wrappingjob[i].retcode = rc_error_memory;
+		    pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
+		    continue;
+		}
+		wrappingjob[i].fullstring_allocated = 1;
+		snprintf( wrappingjob[i].fullstring, stringsize, "@%s", tmp);
+	    }
+
+	    /* parsing will recognize this as a wrappingjob, thanks to the leading "@" character */
+	    if(( wrappingjob[i].retcode = pkcs11_prepare_wrappingctx(wctx, wrappingjob[i].fullstring))!=rc_ok) {
+		fprintf(stderr, "***Error: parsing of '%s' failed.\nHint: wrapping key label and filename must be surrounded with double quotes\n", wrappingjob[i].fullstring);
+		pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
+		continue;
+	    }
+
+	    /* wrap */
+	    fprintf(stderr, ">>>Wrapping key '%s' with these parameters: '%s'\n",
+		    wrappedkeylabel,
+		    &wrappingjob[i].fullstring[1] );
+	    if(( wrappingjob[i].retcode = pkcs11_wrap(wctx, wrappedkeylabel)) != rc_ok) {
+		fprintf(stderr, "***Error: wrapping operation failed for wrapping job #%d\n", i);
+		pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
+		continue;
+	    }
+
+	    if(( wrappingjob[i].retcode = pkcs11_output_wrapped_key(wctx)) != rc_ok ) {
+		fprintf(stderr, "***Error: could not output/save wrapped key for wrapping job #%d\n", i);
+	    }
+	    pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
 	}
-
 	pkcs11_close_session( p11Context );
-
     }
-
     pkcs11_finalize( p11Context );
 
-err:
-    if(retcode != rc_ok ) {
-	fprintf(stderr, "key wrapping failed - returning code %d to calling process\n", (unsigned int)retcode);
-    } else {
-	fprintf(stderr, "key wrapping succeeded\n");
+    for(i=0; i<numjobs; i++) {
+	fprintf(stderr, "wrapping job #%d return code: %d\n", i+1, wrappingjob[i].retcode);
+	if(wrappingjob[i].retcode != rc_ok) { numfailed++; }
     }
 
-    pkcs11_free_wrappedkeycontext(wctx);
+err:
+    /* free wrappingjob built strings */
+    for(i=0; i<numjobs;i++) {
+	if(wrappingjob[i].fullstring_allocated==1) { free(wrappingjob[i].fullstring); }
+    }
 
-    pkcs11_freeContext(p11Context);
+    if(wctx) { pkcs11_free_wrappedkeycontext(wctx); wctx = NULL; }
+    if(p11Context) { pkcs11_freeContext(p11Context); p11Context = NULL; }
 
-    return ( retcode );
+    if(retcode != rc_ok ) {
+	p11wraprc = retcode;
+	fprintf(stderr, "Key wrapping operations failed - returning code %d (0x%04.4x) to calling process\n", p11wraprc, p11wraprc);
+    } else {
+	if(numfailed>0) {
+	    p11wraprc = 0x0010 + numfailed;
+	    fprintf(stderr, "Some (%d) wrapping jobs failed - returning code %d (0x%04.4x) to calling process\n", numfailed, p11wraprc, p11wraprc);
+	} else {
+	    fprintf(stderr, "Key wrapping operations succeeded\n");
+	}
+    }
+    return p11wraprc;
 }
