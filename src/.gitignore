@@ -18,3 +18,4 @@ p11setattr
 p11slotinfo
 p11unwrap
 p11wrap
+p11rewrap
