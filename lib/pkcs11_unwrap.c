@@ -113,26 +113,45 @@ error:
 func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappingkeylabel, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen)
 {
     func_rc rc;
+    pkcs11AttrList *extended_attrs;
 
-    /* first of all, see if we have a wrappingkeylabel passed as argument.  */
-    /* in which case, we override any label specified through the wrap file */
-    if(wrappingkeylabel!=NULL) {
-	if(ctx->wrappingkeylabel!=NULL) {
-	    fprintf(stderr,"***Info: Using <%s> passed as command line argument instead of <%s> from file to unwrap the key\n", wrappingkeylabel, ctx->wrappingkeylabel);
-	    free(ctx->wrappingkeylabel);
-	    ctx->wrappingkeylabel=NULL;
+    if(ctx && p11Context) {
+	CK_BBOOL ck_true = CK_TRUE;
+
+	CK_ATTRIBUTE token_attr[] = {
+	    { CKA_TOKEN, &ck_true, sizeof ck_true }
+	};
+
+	/* first of all, see if we have a wrappingkeylabel passed as argument.  */
+	/* in which case, we override any label specified through the wrap file */
+	if(wrappingkeylabel!=NULL) {
+	    if(ctx->wrappingkeylabel!=NULL) {
+		fprintf(stderr,"***Info: Using <%s> passed as command line argument instead of <%s> from file to unwrap the key\n", wrappingkeylabel, ctx->wrappingkeylabel);
+		free(ctx->wrappingkeylabel);
+		ctx->wrappingkeylabel=NULL;
+	    }
+	    ctx->wrappingkeylabel=strdup(wrappingkeylabel);
+	} else {
+	    if(ctx->wrappingkeylabel==NULL) {
+		fprintf(stderr,"***Error: no wrapping key label specified\n");
+		rc = rc_error_invalid_label;
+		return rc;
+	    }
 	}
-	ctx->wrappingkeylabel=strdup(wrappingkeylabel);
-    } else {
-	if(ctx->wrappingkeylabel==NULL) {
-	    fprintf(stderr,"***Error: no wrapping key label specified\n");
-	    rc = rc_error_invalid_label;
+
+	/* Now, fix the attribute list. We want to enforce CKA_TOKEN value */
+	/* if we unwrap, it must be set to CK_TRUE, regardless of the value found in file */
+
+	extended_attrs = pkcs11_new_attrlist_from_array(NULL, attrlist, attrlen);
+	if(extended_attrs == NULL) {
+	    rc = rc_error_memory;
 	    return rc;
 	}
-    }
 
+	extended_attrs = pkcs11_attrlist_extend(extended_attrs, token_attr, sizeof token_attr / sizeof(CK_ATTRIBUTE) );
 
-    if(ctx!=NULL) {
+	CK_ATTRIBUTE *extended_attrlist = pkcs11_attrlist_get_attributes_array(extended_attrs);
+	CK_ULONG extended_attrlen = pkcs11_attrlist_get_attributes_len(extended_attrs);
 
 	if(ctx->is_envelope==CK_TRUE) {
 	    /* Do envelope unwrapping */
@@ -166,6 +185,7 @@ func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrapp
 	}
 
 	if(rc==rc_ok && ctx->pubk_len>0 && ctx->pubkattrlen>0) {
+	    /* TODO extend also public key attributes to adjust CKA_TOKEN accordingly */
 	    /* we have a public key to recover */
 	    CK_OBJECT_HANDLE rv = pkcs11_importpubk_from_buffer(p11Context,
 								ctx->pubk_buffer,
@@ -183,9 +203,11 @@ func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrapp
 
 	}
     } else {
-	fprintf(stderr, "***Error: NULL wrapping context\n");
+	fprintf(stderr, "***Error: invalid arguments to pkcs11_unwrap()\n");
 	rc = rc_error_usage;
     }
+
+    if(extended_attrs) pkcs11_delete_attrlist(extended_attrs);
     return rc;
 }
 

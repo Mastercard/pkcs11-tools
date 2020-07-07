@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PKCS11LIB=/usr/lib/softhsm/libsofthsm.so
+PKCS11LIB=/usr/local/opt/softhsm/lib/softhsm/libsofthsm2.so
 PKCS11SLOT=0
 PKCS11PASSWORD=changeit
 # SO PKCS11PASSWORD=ch@nge1t

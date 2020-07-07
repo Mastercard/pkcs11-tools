@@ -137,7 +137,6 @@ int main( int argc, char ** argv )
     func_rc retcode = rc_ok;
     int p11wraprc = EXIT_SUCCESS;
     wrappedKeyCtx *wctx = NULL;
-
     wrappingjob_t wrappingjob[MAX_WRAPPINGJOB];
     int numjobs = 0;
     int numfailed = 0;
@@ -376,17 +375,18 @@ int main( int argc, char ** argv )
 	    }
 
 	    /* wrap */
-	    fprintf(stderr, ">>>Wrapping key '%s' with these parameters: '%s'\n",
+	    fprintf(stderr, ">>> job #%d: wrapping key '%s' with parameters '%s'\n",
+		    i+1,
 		    wrappedkeylabel,
 		    &wrappingjob[i].fullstring[1] );
-	    if(( wrappingjob[i].retcode = pkcs11_wrap(wctx, wrappedkeylabel)) != rc_ok) {
-		fprintf(stderr, "***Error: wrapping operation failed for wrapping job #%d\n", i);
+	    if(( wrappingjob[i].retcode = pkcs11_wrap_from_label(wctx, wrappedkeylabel)) != rc_ok) {
+		fprintf(stderr, "***Error: wrapping operation failed for wrapping job #%d\n", i+1);
 		pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
 		continue;
 	    }
 
 	    if(( wrappingjob[i].retcode = pkcs11_output_wrapped_key(wctx)) != rc_ok ) {
-		fprintf(stderr, "***Error: could not output/save wrapped key for wrapping job #%d\n", i);
+		fprintf(stderr, "***Error: could not output/save wrapped key for wrapping job #%d\n", i+1);
 	    }
 	    pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
 	}

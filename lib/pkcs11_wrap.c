@@ -32,6 +32,12 @@
 #include "wrappedkey_lexer.h"
 #include "wrappedkey_parser.h"
 
+typedef enum  {
+    meth_label,
+    meth_keyhandle
+} wrap_source_method_t;
+
+
 /* private funcs prototypes */
 static char const *_get_str_for_wrapping_algorithm(enum wrappingmethod w, CK_MECHANISM_TYPE m);
 static char const *get_wrapping_algorithm_short(wrappedKeyCtx *wctx);
@@ -73,6 +79,23 @@ static inline func_rc _wrap_rfc5649(wrappedKeyCtx *wctx)
 {
     return _wrap_aes_key_wrap_mech(wctx, wctx->p11Context->rfc5649_mech, wctx->p11Context->rfc5649_mech_size);
 }
+
+static func_rc _wrap(wrappedKeyCtx *wctx,
+		     wrap_source_method_t wrap_source_method,
+		     char *wrappedkeylabel,
+		     CK_OBJECT_HANDLE wrappedkeyhandle,
+		     CK_OBJECT_HANDLE pubkhandle);
+
+inline func_rc pkcs11_wrap_from_label(wrappedKeyCtx *wctx, char *wrappedkeylabel)
+{
+    return _wrap(wctx, meth_label, wrappedkeylabel, 0, 0);
+}
+
+inline func_rc pkcs11_wrap_from_handle(wrappedKeyCtx *wctx, CK_OBJECT_HANDLE wrappedkeyhandle, CK_OBJECT_HANDLE pubkhandle)
+{
+    return _wrap(wctx, meth_keyhandle, NULL, wrappedkeyhandle, pubkhandle);
+}
+
 
 static char const *_get_str_for_wrapping_algorithm(enum wrappingmethod w, CK_MECHANISM_TYPE m)
 {
@@ -864,6 +887,9 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	    } else if (o_attr->type == CKA_EXTRACTABLE) {
 		/* security feature: unwrapped keys should not have CKA_EXTRACTABLE set to true */
 		fprintf(fp, "CKA_EXTRACTABLE: false\n");
+	    } else if (o_attr->type == CKA_TOKEN) {
+		/* unwrapped keys always have CKA_TOKEN set to true */
+		fprintf(fp, "CKA_TOKEN: true\n");
 	    } else if (o_attr->ulValueLen == 0) {
 		fprintf(fp, "# %s attribute is empty\n", alist[i].name);
 	    } else {
@@ -975,6 +1001,9 @@ static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	} else if (o_attr->type == CKA_EXTRACTABLE) {
 	    /* security feature: unwrapped keys should not have CKA_EXTRACTABLE set to true */
 	    fprintf(fp, "CKA_EXTRACTABLE: false\n");
+	} else if (o_attr->type == CKA_TOKEN) {
+	    /* unwrapped keys always have CKA_TOKEN set to true */
+	    fprintf(fp, "CKA_TOKEN: true\n");
 	} else if (o_attr->ulValueLen == 0) {
 	    fprintf(fp, "# %s attribute is empty\n", alist[i].name);
 	} else {
@@ -993,6 +1022,7 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 
     CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
     CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
+    CK_OBJECT_CLASS wrappedkeyobjclass;
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
     CK_ATTRIBUTE_PTR o_wrappingkey_bytes, o_wrappedkey_bytes, o_modulus;
     BIGNUM *bn_wrappingkey_bytes = NULL;
@@ -1016,10 +1046,24 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 	    goto error;
 	}
 
-	if(!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle)) {
-	    fprintf(stderr,"Error: secret key with label '%s' does not exists\n", wctx->wrappedkeylabel);
-	    rc = rc_error_object_not_found;
-	    goto error;
+	/* if we called _wrap() with meth_keyhandle, then the wrappedkeylabel is NULL */
+	/* and we can directly use the value in wrappedkeyhabndle */
+	if(wctx->wrappedkeylabel==NULL) {
+	    wrappedkeyhandle = wctx->key[keyindex].wrappedkeyhandle;
+	    /* we need to retrieve the object class */
+	    wrappedkeyobjclass = pkcs11_get_object_class(wctx->p11Context, wrappedkeyhandle);
+
+	    if(wrappedkeyobjclass != CKO_SECRET_KEY) {
+		fprintf(stderr,"***Error: PKCS#1 1.5 wrapping algorithm can only wrap secret keys, not private keys\n");
+		rc = rc_error_wrong_object_class;
+		goto error;
+	    }
+	} else {
+	    if(!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle)) {
+		fprintf(stderr,"Error: secret key with label '%s' does not exists\n", wctx->wrappedkeylabel);
+		rc = rc_error_object_not_found;
+		goto error;
+	    }
 	}
     }
 
@@ -1143,8 +1187,7 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 
     CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
     CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
-    pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
-    CK_ATTRIBUTE_PTR o_keytype;
+    CK_KEY_TYPE keytype;
     CK_OBJECT_CLASS wrappedkeyobjclass;
     int bytelen;
     int blocklength;
@@ -1169,15 +1212,29 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 	    goto error;
 	}
 
-	if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle, &wrappedkeyobjclass)) {
-	    fprintf(stderr, "***Error: key with label '%s' does not exists\n", wctx->wrappedkeylabel);
-	    rc = rc_error_object_not_found;
-	    goto error;
+	/* if we called _wrap() with meth_keyhandle, then the wrappedkeylabel is NULL */
+	/* and we can directly use the value in wrappedkeyhabndle */
+	/* however we are still lacking the object class, so we retrieve it from the handle */
+	if(wctx->wrappedkeylabel==NULL) {
+	    wrappedkeyhandle = wctx->key[keyindex].wrappedkeyhandle;
+	    wrappedkeyobjclass = pkcs11_get_object_class(wctx->p11Context, wrappedkeyhandle);
+
+	    if(wrappedkeyobjclass != CKO_SECRET_KEY && wrappedkeyobjclass != CKO_PRIVATE_KEY) {
+		rc = rc_error_oops;
+		goto error;
+	    }
+	} else {
+	    /* we have a label, just retrieve handle and object class from label */
+	    if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle, &wrappedkeyobjclass)) {
+		fprintf(stderr, "***Error: key with label '%s' does not exists\n", wctx->wrappedkeylabel);
+		rc = rc_error_object_not_found;
+		goto error;
+	    }
 	}
     }
 
-    /* in case of private key, see if we have a match for a public key as well */
-    if(wrappedkeyobjclass==CKO_PRIVATE_KEY) {
+    /* in case of private key, see if we have a match for a public key as well (valid only for token keys) */
+    if(wrappedkeyobjclass==CKO_PRIVATE_KEY && wctx->wrappedkeylabel) {
 	if(!pkcs11_findpublickey(wctx->p11Context, wctx->wrappedkeylabel, &wctx->pubkhandle)) {
 	    fprintf(stderr, "***Warning: private key with label '%s' found, but there is no associated public key found with the same label\n", wctx->wrappedkeylabel);
 	}
@@ -1185,20 +1242,9 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 
     /* determining block size of the block cipher. */
     /* retrieve length of wrapping key */
-    wrappingkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
-					    _ATTR(CKA_KEY_TYPE),
-					    _ATTR_END );
+    keytype = pkcs11_get_key_type(wctx->p11Context, wrappingkeyhandle);
 
-
-    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == CK_FALSE) {
-	fprintf(stderr, "***Error: could not read CKA_KEY_TYPE attribute from secret key with label '%s'\n", wctx->wrappingkeylabel);
-	rc = rc_error_pkcs11_api;
-	goto error;
-    }
-
-    o_keytype = pkcs11_get_attr_in_attrlist(wrappingkey_attrs, CKA_KEY_TYPE);
-
-    switch(*(CK_KEY_TYPE *)(o_keytype->pValue)) {
+    switch(keytype) {
     case CKK_AES:
 	blocklength=16;
 	break;
@@ -1245,7 +1291,7 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 	CK_MECHANISM mechanism = { 0L, wctx->aes_params.iv, wctx->aes_params.iv_len };
 	CK_ULONG wrappedkeybuffersize;
 
-	switch(*(CK_KEY_TYPE *)(o_keytype->pValue)) {
+	switch(keytype) {
 	case CKK_AES:
 	    mechanism.mechanism = CKM_AES_CBC_PAD;
 	    break;
@@ -1307,8 +1353,6 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
     }
 
 error:
-    pkcs11_delete_attrlist(wrappingkey_attrs);
-    pkcs11_delete_attrlist(wrappedkey_attrs);
 
     return rc;
 }
@@ -1323,11 +1367,10 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 {
     func_rc rc = rc_ok;
 
-    CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
-    CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
-    pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
-    CK_ATTRIBUTE_PTR o_keytype;
+    CK_OBJECT_HANDLE wrappingkeyhandle=0;
+    CK_OBJECT_HANDLE wrappedkeyhandle=0;
     CK_OBJECT_CLASS wrappedkeyobjclass;
+    CK_KEY_TYPE keytype;
 
     /* keyindex: in case of envelope wrapping, the index shall always be the outer */
     int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_INNER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
@@ -1362,15 +1405,29 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 	    goto error;
 	}
 
-	if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle, &wrappedkeyobjclass)) {
-	    fprintf(stderr,"***Error: key with label '%s' does not exists\n", wctx->wrappedkeylabel);
-	    rc = rc_error_object_not_found;
-	    goto error;
+	/* if we called _wrap() with meth_keyhandle, then the wrappedkeylabel is NULL */
+	/* and we can directly use the value in wrappedkeyhabndle */
+	/* however we are still lacking the object class, so we retrieve it from the handle */
+	if(wctx->wrappedkeylabel==NULL) {
+	    wrappedkeyhandle = wctx->key[keyindex].wrappedkeyhandle;
+	    wrappedkeyobjclass = pkcs11_get_object_class(wctx->p11Context, wrappedkeyhandle);
+
+	    if(wrappedkeyobjclass != CKO_SECRET_KEY && wrappedkeyobjclass != CKO_PRIVATE_KEY) {
+		rc = rc_error_oops;
+		goto error;
+	    }
+	} else {
+	    /* we have a label, just retrieve handle and object class from label */
+	    if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle, &wrappedkeyobjclass)) {
+		fprintf(stderr, "***Error: key with label '%s' does not exists\n", wctx->wrappedkeylabel);
+		rc = rc_error_object_not_found;
+		goto error;
+	    }
 	}
     }
 
-    /* in case of private key, see if we have a match for a public key as well */
-    if(wrappedkeyobjclass==CKO_PRIVATE_KEY) {
+    /* in case of private key, see if we have a match for a public key as well (valid only for token keys) */
+    if(wrappedkeyobjclass==CKO_PRIVATE_KEY && wctx->wrappedkeylabel) {
 	if(!pkcs11_findpublickey(wctx->p11Context, wctx->wrappedkeylabel, &wctx->pubkhandle)) {
 	    fprintf(stderr, "***Warning: private key with label '%s' found, but there is no associated public key found with the same label\n", wctx->wrappedkeylabel);
 	}
@@ -1378,20 +1435,9 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 
     /* determining block size of the block cipher. */
     /* retrieve length of wrapping key */
-    wrappingkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
-					    _ATTR(CKA_KEY_TYPE),
-					    _ATTR_END );
+    keytype = pkcs11_get_key_type(wctx->p11Context, wrappingkeyhandle);
 
-
-    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == CK_FALSE) {
-	fprintf(stderr,"Error: could not read CKA_KEY_TYPE attribute from secret key with label '%s'\n", wctx->wrappingkeylabel);
-	rc = rc_error_pkcs11_api;
-	goto error;
-    }
-
-    o_keytype = pkcs11_get_attr_in_attrlist(wrappingkey_attrs, CKA_KEY_TYPE);
-
-    if(*(CK_KEY_TYPE *)(o_keytype->pValue) != CKK_AES ) {
+    if(keytype != CKK_AES ) {
 	fprintf(stderr, "Error: secret key with label '%s' is not an AES key\n", wctx->wrappingkeylabel);
 	rc = rc_error_wrong_key_type;
 	goto error;
@@ -1472,12 +1518,8 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
     }
 
 error:
-    pkcs11_delete_attrlist(wrappingkey_attrs);
-    pkcs11_delete_attrlist(wrappedkey_attrs);
-
     return rc;
 }
-
 
 
 /*------------------------------------------------------------------------*/
@@ -1487,6 +1529,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 
     CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
     CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
+    CK_OBJECT_CLASS wrappedkeyobjclass;
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
     CK_ATTRIBUTE_PTR o_wrappingkey_bytes, o_wrappedkey_bytes, o_modulus, o_keytype;
     BIGNUM *bn_wrappingkey_bytes = NULL;
@@ -1512,12 +1555,25 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 	    goto error;
 	}
 
-	if(!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle)) {
-	    fprintf(stderr,"Error: secret key with label '%s' does not exists\n", wctx->wrappedkeylabel);
-	    rc = rc_error_object_not_found;
-	    goto error;
-	}
+	/* if we called _wrap() with meth_keyhandle, then the wrappedkeylabel is NULL */
+	/* and we can directly use the value in wrappedkeyhabndle */
+	if(wctx->wrappedkeylabel==NULL) {
+	    wrappedkeyhandle = wctx->key[keyindex].wrappedkeyhandle;
+	    /* we need to retrieve the object class */
+	    wrappedkeyobjclass = pkcs11_get_object_class(wctx->p11Context, wrappedkeyhandle);
 
+	    if(wrappedkeyobjclass != CKO_SECRET_KEY) {
+		fprintf(stderr,"***Error: PKCS#1 OAEP wrapping algorithm can only wrap secret keys, not private keys\n");
+		rc = rc_error_wrong_object_class;
+		goto error;
+	    }
+	} else {
+	    if(!pkcs11_findsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle)) {
+		fprintf(stderr,"Error: secret key with label '%s' does not exists\n", wctx->wrappedkeylabel);
+		rc = rc_error_object_not_found;
+		goto error;
+	    }
+	}
     }
 
     /* retrieve length of wrapping key */
@@ -1700,13 +1756,14 @@ error:
     return rc;
 }
 
+
 /*------------------------------------------------------------------------*/
 static func_rc _wrap_envelope(wrappedKeyCtx *wctx)
 {
     func_rc rc = rc_ok;
     CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
     CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
-    CK_OBJECT_CLASS wrappedobjectclass;
+    CK_OBJECT_CLASS wrappedkeyobjclass;
 
     if (!pkcs11_findpublickey(wctx->p11Context, wctx->wrappingkeylabel, &wrappingkeyhandle)) {
 	fprintf(stderr,"Error: could not find a public key with label '%s'\n", wctx->wrappingkeylabel);
@@ -1714,29 +1771,41 @@ static func_rc _wrap_envelope(wrappedKeyCtx *wctx)
 	goto error;
     }
 
-    /* if envelope encryption, the secret key is already populated when calling this function */
-    /* since that key was generated on the go */
+    /* if we called _wrap() with meth_keyhandle, then the wrappedkeylabel is NULL */
+    /* and we can directly use the value in wrappedkeyhabndle */
+    /* however we are still lacking the object class, so we retrieve it from the handle */
+    if(wctx->wrappedkeylabel==NULL) {
+	wrappedkeyhandle = wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrappedkeyhandle;
 
-    if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle, &wrappedobjectclass)) {
-	fprintf(stderr,"Error: private or secret key with label '%s' does not exists\n", wctx->wrappedkeylabel);
-	rc = rc_error_object_not_found;
-	goto error;
+	/* extract object class from provided handle */
+	wrappedkeyobjclass = pkcs11_get_object_class(wctx->p11Context, wrappedkeyhandle);
+
+	if(wrappedkeyobjclass != CKO_SECRET_KEY && wrappedkeyobjclass != CKO_PRIVATE_KEY) {
+	    rc = rc_error_oops;
+	    goto error;
+	}
+    } else {
+	/* we have a label, just retrieve handle and object class from label */
+	if(!pkcs11_findprivateorsecretkey(wctx->p11Context, wctx->wrappedkeylabel, &wrappedkeyhandle, &wrappedkeyobjclass)) {
+	    fprintf(stderr, "***Error: key with label '%s' does not exists\n", wctx->wrappedkeylabel);
+	    rc = rc_error_object_not_found;
+	    goto error;
+	}
     }
 
     /* step 1: setup wctx structure to remember the key handles */
     wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrappingkeyhandle = wrappingkeyhandle;
     wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrappedkeyhandle = wrappedkeyhandle;
-    wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrappedkeyobjclass = wrappedobjectclass;
+    wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrappedkeyobjclass = wrappedkeyobjclass;
 
     /* step 2: generate the intermediate temporary key */
     /* will be an AES for now */
 
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
-    CK_OBJECT_HANDLE tempaes_handle;
+    CK_OBJECT_HANDLE tempaes_handle=0;
 
     CK_ATTRIBUTE tempaes_attrs[] = {
-	{ CKA_TOKEN, &ck_false, sizeof(ck_false) },
 	{ CKA_WRAP, &ck_true, sizeof(ck_true) },
 	{ CKA_EXTRACTABLE, &ck_true, sizeof(ck_true) }
     };
@@ -1744,7 +1813,14 @@ static func_rc _wrap_envelope(wrappedKeyCtx *wctx)
     char tempaes_label[32];
     snprintf((char *)tempaes_label, sizeof tempaes_label, "tempaes-%ld", time(NULL));
 
-    if(!pkcs11_genAES(wctx->p11Context, tempaes_label, 256, tempaes_attrs, sizeof tempaes_attrs / sizeof(CK_ATTRIBUTE), &tempaes_handle)) {
+    /* TODO - adapt to support other symmetric types - detect on wrapping alg */
+    if(!pkcs11_genAES(wctx->p11Context,
+		      tempaes_label,
+		      256,
+		      tempaes_attrs,
+		      sizeof tempaes_attrs / sizeof(CK_ATTRIBUTE),
+		      &tempaes_handle,
+		      kg_session_for_wrapping)) {
 	fprintf(stderr, "Unable to generate temporary wrapping key\n");
 	goto error;
     }
@@ -1838,22 +1914,42 @@ func_rc pkcs11_prepare_wrappingctx(wrappedKeyCtx *wctx, char *wrapjob)
     return rc;
 }
 
-func_rc pkcs11_wrap(wrappedKeyCtx *wctx, char *wrappedkeylabel)
+static func_rc _wrap(wrappedKeyCtx *wctx,
+		     wrap_source_method_t wrap_source_method,
+		     char *wrappedkeylabel,
+		     CK_OBJECT_HANDLE wrappedkeyhandle,
+		     CK_OBJECT_HANDLE pubkhandle )
 {
     func_rc rc = rc_ok;
 
-    wctx->wrappedkeylabel = strdup(wrappedkeylabel);
+    /* keyindex: in case of envelope wrapping, the index shall always be the outer */
+    int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_INNER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
+
+    switch(wrap_source_method) {
+    case meth_label:
+	wctx->wrappedkeylabel = strdup(wrappedkeylabel);
+	wctx->key[keyindex].wrappedkeyhandle = 0;
+	break;
+
+    case meth_keyhandle:
+	wctx->wrappedkeylabel = NULL;
+	wctx->key[keyindex].wrappedkeyhandle = wrappedkeyhandle;
+	wctx->pubkhandle = pubkhandle;
+	break;
+    }
 
     if(wctx->is_envelope) {
 	/* envelope wrapping */
 	rc = _wrap_envelope(wctx);
     } else {
-	switch(wctx->key[WRAPPEDKEYCTX_LONE_KEY_INDEX].wrapping_meth) {
+	switch(wctx->key[keyindex].wrapping_meth) {
 	case w_pkcs1_15:
+	    /* TODO: check if I can wrap */
 	    rc = _wrap_pkcs1_15(wctx);
 	    break;
 
 	case w_pkcs1_oaep:
+	    /* TODO: check if I can wrap */
 	    rc = _wrap_pkcs1_oaep(wctx);
 	    break;
 
@@ -1877,6 +1973,7 @@ func_rc pkcs11_wrap(wrappedKeyCtx *wctx, char *wrappedkeylabel)
 
     return rc;
 }
+
 
 func_rc pkcs11_output_wrapped_key(wrappedKeyCtx *wctx)
 {

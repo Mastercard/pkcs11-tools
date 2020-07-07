@@ -27,6 +27,18 @@
 #define COMMAND_SUMMARY \
     "Generate key on a PKCS#11 token.\n\n"
 
+typedef struct
+{
+    char *wrappingkeylabel;
+    char *algorithm;
+    char *filename;
+    char *fullstring;
+    int  fullstring_allocated;
+    func_rc retcode;
+} wrappingjob_t;
+
+#define MAX_WRAPPINGJOB 32
+#define DEFAULT_ALGORITHM "oaep"
 
 /* prototypes */
 void print_version_info(char *progname);
@@ -36,7 +48,7 @@ int main( int argc, char **argv);
 
 void print_usage(char *progname)
 {
-    fprintf( stderr, 
+    fprintf( stderr,
 	     "USAGE: %s OPTIONS ARGUMENTS\n"
 	     "\n"
 	     COMMAND_SUMMARY
@@ -75,7 +87,7 @@ void print_usage(char *progname)
 	     " ARGUMENTS: ATTRIBUTE=VALUE pairs\n"
 	     "   supported attributes:\n"
 	     "                 CKA_LABEL, CKA_ID,\n"
-             "                 CKA_WRAP, CKA_UNWRAP,\n" 
+             "                 CKA_WRAP, CKA_UNWRAP,\n"
              "                 CKA_DECRYPT, CKA_ENCRYPT,\n"
 	     "                 CKA_SIGN, CKA_VERIFY,\n"
 	     "                 CKA_SIGN_RECOVER, CKA_VERIFY_RECOVER,\n"
@@ -89,7 +101,7 @@ void print_usage(char *progname)
              " ENVIRONMENT VARIABLES:\n"
 	     "    PKCS11LIB         : path to PKCS#11 library,\n"
              "                        overriden by option -l\n"
-	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n" 
+	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n"
              "                        overriden by option -m\n"
 	     "    PKCS11SLOT        : token slot (integer)\n"
 	     "                        overriden by PKCS11TOKENLABEL,\n"
@@ -121,9 +133,9 @@ int main( int argc, char ** argv )
 
     pkcs11Context * p11Context = NULL;
     func_rc retcode;
+    int p11keygenrc = EXIT_SUCCESS;
 
 //    enum keytype { unknown, aes, des, rsa, ec, dsa, dh, generic };
-
     enum keytype kt = unknown;
     CK_ULONG kb=0;
     char *param=NULL;
@@ -131,24 +143,37 @@ int main( int argc, char ** argv )
     CK_ATTRIBUTE *attrs=NULL;
     size_t attrs_cnt=0;
 
+    wrappedKeyCtx *wctx = NULL;
+    wrappingjob_t wrappingjob[MAX_WRAPPINGJOB];
+    int numjobs = 0;
+    int numfailed = 0;
+
+    int i;
+    for(i=0; i<MAX_WRAPPINGJOB;i++) {
+	wrappingjob[i].wrappingkeylabel = wrappingjob[i].filename = NULL;
+	wrappingjob[i].algorithm = DEFAULT_ALGORITHM;
+	wrappingjob[i].fullstring = NULL;
+	wrappingjob[i].fullstring_allocated = 0;
+    }
+
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
-    tokenlabel = getenv("PKCS11TOKENLABEL");    
+    tokenlabel = getenv("PKCS11TOKENLABEL");
     if(tokenlabel==NULL) {
 	slotenv = getenv("PKCS11SLOT");
 	if (slotenv!=NULL) {
 	    slot=atoi(slotenv);
 	}
-    }	
+    }
     password = getenv("PKCS11PASSWORD");
 
     /* if a slot or a token is given, interactive is null */
     if(slotenv!=NULL || tokenlabel!=NULL) {
 	interactive=0;
     }
-    
+
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:k:b:q:d:hV" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:k:b:q:d:hVW:" ) ) != -1 )
     {
 	switch ( argnum )
 	{
@@ -243,6 +268,16 @@ int main( int argc, char ** argv )
 	    print_version_info(argv[0]);
 	    break;
 
+	case 'W':
+	    if(numjobs==MAX_WRAPPINGJOB) {
+		fprintf(stderr, "***Error: too many wrapping jobs requested\n");
+		errflag++;
+	    } else {
+		wrappingjob[numjobs].fullstring = optarg;
+		numjobs++;
+	    }
+	    break;
+
 	default:
 	    errflag++;
 	    break;
@@ -255,18 +290,17 @@ int main( int argc, char ** argv )
 	    goto err;
 	}
     }
-    
+
     if ( errflag ) {
 	fprintf(stderr, "Try `%s -h' for more information.\n", argv[0]);
 	goto err;
     }
 
     if ( library == NULL || label == NULL || kt == unknown || (kb == 0 && param == NULL) ) {
-	fprintf( stderr, "At least one required option or argument is wrong or missing.\n" 
+	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
 	goto err;
     }
-
 
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
       goto err;
@@ -278,14 +312,13 @@ int main( int argc, char ** argv )
     }
 
     {
-
 	retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, 0, interactive);
-	
+
 	if ( retcode == rc_ok )
 	{
-	    
+
 	    int rc=0;
-	    CK_OBJECT_HANDLE hSecretKey, hPublicKey, hPrivateKey;
+	    CK_OBJECT_HANDLE keyhandle=0, pubkhandle=0; /* keyhandle will receive either private or secret key handle */
 	    CK_BBOOL ck_true = CK_TRUE;
 	    CK_BBOOL ck_false = CK_FALSE;
 
@@ -299,17 +332,20 @@ int main( int argc, char ** argv )
 
 	    switch(kt) {
 	    case aes:
-		rc = pkcs11_genAES( p11Context, label, kb, 
+		rc = pkcs11_genAES( p11Context, label, kb,
 				    attrs,
 				    attrs_cnt,
-				    &hSecretKey);
+				    &keyhandle,
+				    numjobs>0 ? kg_session_for_wrapping : kg_token
+		    );
 		break;
-		
+
 	    case des:
-		rc = pkcs11_genDESX( p11Context, label, kb, 
+		rc = pkcs11_genDESX( p11Context, label, kb,
 				     attrs,
 				     attrs_cnt,
-				     &hSecretKey);
+				     &keyhandle,
+				     numjobs>0 ? kg_session_for_wrapping : kg_token);
 		break;
 
 	    case generic:	/* HMAC */
@@ -319,34 +355,37 @@ int main( int argc, char ** argv )
 	    case hmacsha384:
 	    case hmacsha512:
 
-		rc = pkcs11_genGeneric( p11Context, label, kt, kb, 
+		rc = pkcs11_genGeneric( p11Context, label, kt, kb,
 					attrs,
 					attrs_cnt,
-					&hSecretKey);
+					&keyhandle,
+					numjobs>0 ? kg_session_for_wrapping : kg_token);
 		break;
 
 	    case rsa:
-		rc = pkcs11_genRSA( p11Context, label, kb, 
+		rc = pkcs11_genRSA( p11Context, label, kb,
 				    attrs,
 				    attrs_cnt,
-				    &hPublicKey,
-				    &hPrivateKey);
-		
+				    &pubkhandle,
+				    &keyhandle,
+				    numjobs>0 ? kg_session_for_wrapping : kg_token);
+
 		if(rc) {
-		    rc = pkcs11_adjust_keypair_id(p11Context, hPublicKey, hPrivateKey);
+		    rc = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
 		}
 
 		break;
 
 	    case ec:
-		rc = pkcs11_genECDSA( p11Context, label, param, 
+		rc = pkcs11_genECDSA( p11Context, label, param,
 				      attrs,
 				      attrs_cnt,
-				      &hPublicKey,
-				      &hPrivateKey);
+				      &pubkhandle,
+				      &keyhandle,
+				      numjobs > 0 ? kg_session_for_wrapping : kg_token);
 
 		if(rc) {
-		    rc = pkcs11_adjust_keypair_id(p11Context, hPublicKey, hPrivateKey);
+		    rc = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
 		}
 		break;
 
@@ -354,11 +393,12 @@ int main( int argc, char ** argv )
 		rc = pkcs11_genDSA( p11Context, label, param,
 				    attrs,
 				    attrs_cnt,
-				    &hPublicKey,
-				    &hPrivateKey);
+				    &pubkhandle,
+				    &keyhandle,
+				    numjobs > 0 ? kg_session_for_wrapping : kg_token);
 
 		if(rc) {
-		    rc = pkcs11_adjust_keypair_id(p11Context, hPublicKey, hPrivateKey);
+		    rc = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
 		}
 		break;
 
@@ -366,32 +406,100 @@ int main( int argc, char ** argv )
 		rc = pkcs11_genDH( p11Context, label, param,
 				   attrs,
 				   attrs_cnt,
-				   &hPublicKey,
-				   &hPrivateKey);
+				   &pubkhandle,
+				   &keyhandle,
+				   numjobs > 0 ? kg_session_for_wrapping : kg_token);
 
 		if(rc) {
-		    rc = pkcs11_adjust_keypair_id(p11Context, hPublicKey, hPrivateKey);
+		    rc = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
 		}
 		break;
 
 
 	    default:
 		break;
-		
 	    }
-	    
-	    printf("key generation %s\n", rc ? "succeeded" : "failed" );
+
+	    fprintf(stderr, ">>> key %sgenerated\n", rc ? "" : "not " );
+
+	    if(numjobs>0) { 	/* we've got to wrap things */
+		int i;
+
+		for(i=0; i<numjobs; i++) {
+		    /* allocate wrapping context */
+		    if(( wctx = pkcs11_new_wrappedkeycontext(p11Context))==NULL) {
+			fprintf(stderr, "***Error: memory allocation error while processing wrapping job #%d\n", i+1);
+			retcode = rc_error_memory;
+			continue;
+		    }
+
+		    /* we are good to go, but we must prefix the fullstring with a "@" character */
+		    size_t stringsize = strlen(wrappingjob[i].fullstring) + 2; /* one for the '@' and one for the \0 */
+		    char *tmp = wrappingjob[i].fullstring; /* remember it */
+
+		    wrappingjob[i].fullstring = malloc(stringsize);
+		    if(!wrappingjob[i].fullstring) {
+			fprintf(stderr, "***Error: memory allocation error while processing wrapping job #%d\n", i+1);
+			wrappingjob[i].retcode = rc_error_memory;
+			pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
+			continue;
+		    }
+		    wrappingjob[i].fullstring_allocated = 1;
+		    snprintf( wrappingjob[i].fullstring, stringsize, "@%s", tmp);
+
+		    /* parsing will recognize this as a wrappingjob, thanks to the leading "@" character */
+		    if(( wrappingjob[i].retcode = pkcs11_prepare_wrappingctx(wctx, wrappingjob[i].fullstring))!=rc_ok) {
+			fprintf(stderr, "***Error: parsing of '%s' failed.\nHint: wrapping key label and filename must be surrounded with double quotes\n", wrappingjob[i].fullstring);
+			pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
+			continue;
+		    }
+
+		    /* wrap */
+		    fprintf(stderr, ">>> job #%d: wrapping key '%s' with parameters '%s'\n",
+			    i+1,
+			    label,
+			    &wrappingjob[i].fullstring[1] );
+		    if(( wrappingjob[i].retcode = pkcs11_wrap_from_handle(wctx, keyhandle, pubkhandle)) != rc_ok) {
+			fprintf(stderr, "***Error: wrapping operation failed for wrapping job #%d\n", i+1);
+			pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
+			numfailed++;
+			continue;
+		    }
+
+		    if(( wrappingjob[i].retcode = pkcs11_output_wrapped_key(wctx)) != rc_ok ) {
+			fprintf(stderr, "***Error: could not output/save wrapped key for wrapping job #%d\n", i+1);
+			numfailed++;
+		    }
+		    pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
+		}
+	    }
 
 	err_object_exists:
 	    pkcs11_close_session( p11Context );
 	}
     }
     pkcs11_finalize( p11Context );
-    
+
     /* free allocated memory */
 err:
+    /* free wrappingjob built strings */
+    for(i=0; i<numjobs;i++) {
+	if(wrappingjob[i].fullstring_allocated==1) { free(wrappingjob[i].fullstring); }
+    }
+    if(wctx) { pkcs11_free_wrappedkeycontext(wctx); wctx = NULL; }
     release_attributes( attrs, attrs_cnt );
     pkcs11_freeContext(p11Context);
-    
-    return retcode ;
+
+    if(retcode != rc_ok ) {
+	p11keygenrc = retcode;
+	fprintf(stderr, "key generation failed - returning code %d (0x%04.4x) to calling process\n", p11keygenrc, p11keygenrc);
+    } else {
+	if(numfailed>0) {
+	    p11keygenrc = 0x0010 + numfailed;
+	    fprintf(stderr, "some (%d) wrapping jobs failed - returning code %d (0x%04.4x) to calling process\n", numfailed, p11keygenrc, p11keygenrc);
+	} else {
+	    fprintf(stderr, "key generation succeeded\n");
+	}
+    }
+    return p11keygenrc;
 }
