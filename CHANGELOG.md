@@ -3,6 +3,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+# [2.0.0] - 2020-07-07
+### Added
+- implemented envelope wrapping (combining a symmetric key and a private key to wrap anything)
+- `p11keygen`: implemented wrapping under one or more keys
+- `p11wrap` : implemented wrapping underone or more keys
+- added `p11rewrap` command, allowing to rewrap wrapped keys under other keys
+
+### Fixed
+- fixed `p11kcv` to work on SoftHSM
+- fixed packaging for Solaris
+
+
 # [1.2.0] - 2020-04-10
 ### Enhanced
 - implemented CKA_AES_KEY_WRAP (rfc3394) and CKA_AES_KEY_WRAP_PAD (rfc5649)

@@ -35,7 +35,7 @@
 
 /* grammar version, for wrapped keys */
 #define  SUPPORTED_GRAMMAR_VERSION "2.0"
-#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "1.3.0"
+#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "2.0.0"
 
 /* Program Error Codes */
 #define RC_OK                    0x00
