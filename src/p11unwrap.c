@@ -36,11 +36,11 @@ int main( int argc, char **argv);
 
 void print_usage(char *progname)
 {
-    fprintf( stderr, 
+    fprintf( stderr,
 	     "USAGE: %s OPTIONS ARGUMENTS\n"
 	     "\n"
 	     COMMAND_SUMMARY
-	     " OPTIONS:\n"	     
+	     " OPTIONS:\n"
 	     "* -l <pkcs#11 library path> : path to PKCS#11 library\n"
 	     "  -m <NSS config dir> ( e.g. '.' or 'sql:.' ) : NSS db directory \n"
 	     "  -s <slot number>\n"
@@ -229,7 +229,7 @@ int main( int argc, char ** argv )
 	wrappedKeyCtx *wctx = pkcs11_new_wrapped_key_from_file(p11Context, filename);
 
 	if(wctx) {
-	    retcode = pkcs11_unwrap(p11Context, wctx, wrappingkeylabel, wrappedkeylabel, attrs, attrs_cnt);
+	    retcode = pkcs11_unwrap(p11Context, wctx, wrappingkeylabel, wrappedkeylabel, attrs, attrs_cnt, kg_token);
 
 	    pkcs11_free_wrappedkeycontext( wctx );
 	} else {

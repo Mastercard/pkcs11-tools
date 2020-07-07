@@ -58,6 +58,16 @@ static inline func_rc _unwrap_pkcs1_oaep(pkcs11Context *p11Context, wrappedKeyCt
     return _unwrap_rsa(p11Context, ctx, wrappedkeylabel, attrlist, attrlen, CKM_RSA_PKCS_OAEP);
 }
 
+inline const CK_OBJECT_HANDLE pkcs11_get_wrappedkeyhandle(wrappedKeyCtx *ctx)
+{
+    return ctx->is_envelope ? ctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrappedkeyhandle : ctx->key[WRAPPEDKEYCTX_LONE_KEY_INDEX].wrappedkeyhandle;
+}
+
+inline const CK_OBJECT_HANDLE pkcs11_get_publickeyhandle(wrappedKeyCtx *ctx)
+{
+    return ctx->pubkhandle;
+}
+
 /*--------------------------------------------------------------------------------*/
 
 /* memtostrdup: short func to duplicate a block of mem, and turn it into a null-terminated string. */
@@ -108,18 +118,15 @@ error:
     return NULL;
 }
 
-
-
-func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappingkeylabel, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen)
+func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappingkeylabel, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen, key_generation_t keygentype)
 {
     func_rc rc;
     pkcs11AttrList *extended_attrs;
 
     if(ctx && p11Context) {
-	CK_BBOOL ck_true = CK_TRUE;
-
+	CK_BBOOL cka_token = keygentype == kg_token ? CK_TRUE : CK_FALSE;
 	CK_ATTRIBUTE token_attr[] = {
-	    { CKA_TOKEN, &ck_true, sizeof ck_true }
+	    { CKA_TOKEN, &cka_token, sizeof cka_token },
 	};
 
 	/* first of all, see if we have a wrappingkeylabel passed as argument.  */
@@ -148,34 +155,45 @@ func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrapp
 	    return rc;
 	}
 
-	extended_attrs = pkcs11_attrlist_extend(extended_attrs, token_attr, sizeof token_attr / sizeof(CK_ATTRIBUTE) );
+	pkcs11_attrlist_extend(extended_attrs, token_attr, sizeof token_attr / sizeof(CK_ATTRIBUTE) );
+
+	/* in the very specific business where we want to unwrap as a session key, */
+	/* we must also override any CKA_EXTRACTABLE attribute to CK_TRUE */
+	if(keygentype==kg_session_for_wrapping) {
+	    CK_BBOOL cka_extractable = CK_TRUE;
+	    CK_ATTRIBUTE extractable_attr[] = {
+		{ CKA_EXTRACTABLE, &cka_extractable, sizeof cka_extractable },
+	    };
+
+	    pkcs11_attrlist_extend(extended_attrs, extractable_attr, sizeof extractable_attr / sizeof(CK_ATTRIBUTE));
+	}
 
 	CK_ATTRIBUTE *extended_attrlist = pkcs11_attrlist_get_attributes_array(extended_attrs);
 	CK_ULONG extended_attrlen = pkcs11_attrlist_get_attributes_len(extended_attrs);
 
 	if(ctx->is_envelope==CK_TRUE) {
 	    /* Do envelope unwrapping */
-	    rc = _unwrap_envelope(p11Context, ctx, wrappedkeylabel, attrlist, attrlen);
+	    rc = _unwrap_envelope(p11Context, ctx, wrappedkeylabel, extended_attrlist, extended_attrlen);
 	} else { /* do regular unwrap */
 	    switch(ctx->key[WRAPPEDKEYCTX_LONE_KEY_INDEX].wrapping_meth) {
 	    case w_pkcs1_15:
-		rc = _unwrap_pkcs1_15(p11Context, ctx, wrappedkeylabel, attrlist, attrlen);
+		rc = _unwrap_pkcs1_15(p11Context, ctx, wrappedkeylabel, extended_attrlist, extended_attrlen);
 		break;
 
 	    case w_pkcs1_oaep:
-		rc = _unwrap_pkcs1_oaep(p11Context, ctx, wrappedkeylabel, attrlist, attrlen);
+		rc = _unwrap_pkcs1_oaep(p11Context, ctx, wrappedkeylabel, extended_attrlist, extended_attrlen);
 		break;
 
 	    case w_cbcpad:
-		rc = _unwrap_cbcpad(p11Context, ctx, wrappedkeylabel, attrlist, attrlen);
+		rc = _unwrap_cbcpad(p11Context, ctx, wrappedkeylabel, extended_attrlist, extended_attrlen);
 		break;
 
 	    case w_rfc3394:
-		rc = _unwrap_rfc3394(p11Context, ctx, wrappedkeylabel, attrlist, attrlen);
+		rc = _unwrap_rfc3394(p11Context, ctx, wrappedkeylabel, extended_attrlist, extended_attrlen);
 		break;
 
 	    case w_rfc5649:
-		rc = _unwrap_rfc5649(p11Context, ctx, wrappedkeylabel, attrlist, attrlen);
+		rc = _unwrap_rfc5649(p11Context, ctx, wrappedkeylabel, extended_attrlist, extended_attrlen);
 		break;
 
 	    case w_unknown:
@@ -185,22 +203,33 @@ func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrapp
 	}
 
 	if(rc==rc_ok && ctx->pubk_len>0 && ctx->pubkattrlen>0) {
-	    /* TODO extend also public key attributes to adjust CKA_TOKEN accordingly */
-	    /* we have a public key to recover */
-	    CK_OBJECT_HANDLE rv = pkcs11_importpubk_from_buffer(p11Context,
+
+	    pkcs11AttrList *pubk_extended_attrs = NULL;
+
+	    pubk_extended_attrs = pkcs11_new_attrlist_from_array(NULL, ctx->pubkattrlist, ctx->pubkattrlen);
+	    if(pubk_extended_attrs == NULL) {
+		rc = rc_error_memory;
+	    } else {
+		/* force token behaviour, based on keygentype argument */
+		pkcs11_attrlist_extend(pubk_extended_attrs, token_attr, sizeof token_attr / sizeof(CK_ATTRIBUTE) );
+
+		CK_ATTRIBUTE *pubk_extended_attrlist = pkcs11_attrlist_get_attributes_array(pubk_extended_attrs);
+		CK_ULONG pubk_extended_attrlen = pkcs11_attrlist_get_attributes_len(pubk_extended_attrs);
+
+		ctx->pubkhandle = pkcs11_importpubk_from_buffer(p11Context,
 								ctx->pubk_buffer,
 								ctx->pubk_len,
 								wrappedkeylabel,
 								0,
-								ctx->pubkattrlist,
-								ctx->pubkattrlen );
+								pubk_extended_attrlist,
+								pubk_extended_attrlen );
 
-
-	    if(!rv) {
-		fprintf(stderr, "***Warning: could not import public key\n");
-		rc = rc_warning_not_entirely_completed;
+		if(!ctx->pubkhandle) {
+		    fprintf(stderr, "***Warning: could not import public key\n");
+		    rc = rc_warning_not_entirely_completed;
+		}
 	    }
-
+	    if(pubk_extended_attrs) pkcs11_delete_attrlist(pubk_extended_attrs);
 	}
     } else {
 	fprintf(stderr, "***Error: invalid arguments to pkcs11_unwrap()\n");
@@ -398,10 +427,12 @@ static func_rc _unwrap_rsa(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char 
 	    goto error;
 	}
 
-	/* in case of envelope, remember the temporary wrapping key handle */
+	/* in case of envelope, save the middle key handle as the next wrappingkey handle */
 	if(wctx->is_envelope) {
 	    wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrappedkeyhandle = wrappedkeyhandle;
 	    wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrappingkeyhandle = wrappedkeyhandle;
+	} else {
+	    wctx->key[WRAPPEDKEYCTX_LONE_KEY_INDEX].wrappedkeyhandle = wrappedkeyhandle;
 	}
     }
 
@@ -685,11 +716,7 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 	    rc = rc_error_pkcs11_api;
 	    goto error;
 	}
-
-	/* in case of envelope, remember the temporary wrapping key handle */
-	if(wctx->is_envelope) {
-	    wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrappedkeyhandle = wrappedkeyhandle;
-	}
+	wctx->key[keyindex].wrappedkeyhandle = wrappedkeyhandle; /* remember the recovered key */
     }
 
 error:
@@ -935,6 +962,7 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 	    rc = rc_error_pkcs11_api;
 	    goto error;
 	}
+	wctx->key[keyindex].wrappedkeyhandle = wrappedkeyhandle; /* remember the recovered key */
     }
 
 

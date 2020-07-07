@@ -396,6 +396,30 @@ CK_KEY_TYPE pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl
     return rv;
 }
 
+/* this function returns an allocated buffer to CKA_LABEL if found  */
+char *pkcs11_alloclabelforhandle(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
+{
+    pkcs11AttrList *attrs = NULL;
+    char *label = NULL;
+
+    attrs = pkcs11_new_attrlist(p11Context, _ATTR(CKA_LABEL), _ATTR_END );
+
+    if(attrs) {
+	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	    CK_ATTRIBUTE_PTR attr_ptr = pkcs11_get_attr_in_attrlist(attrs, CKA_LABEL);
+	    if(attr_ptr) {
+		label = malloc( attr_ptr->ulValueLen+1 );
+		if(label) {
+		    memcpy( label, attr_ptr->pValue, attr_ptr->ulValueLen);
+		    label[attr_ptr->ulValueLen]=0; /* end the string */
+		}
+	    }
+	}
+    }
+
+    return label;
+}
+
 
 /**************************************************************************/
 

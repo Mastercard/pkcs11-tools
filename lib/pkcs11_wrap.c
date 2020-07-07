@@ -628,7 +628,13 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 
     time_t now = time(NULL);
     char hostname[255];
-    char *label;
+
+    /* keyindex: in case of envelope wrapping, the index shall always be the outer */
+    int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_OUTER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
+
+    char *wctxlabel = wctx->wrappedkeylabel;
+    char *handlelabel = pkcs11_alloclabelforhandle(wctx->p11Context, wctx->key[keyindex].wrappedkeyhandle);
+    char *wrappedkeylabel = wctxlabel ? wctxlabel : handlelabel ? handlelabel : "-no label found-";
 
     gethostname(hostname, 255);
     hostname[254]=0;		/* just to be sure... */
@@ -684,12 +690,14 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	    "Content-Type: application/pkcs11-tools\n"
 	    "Grammar-Version: " SUPPORTED_GRAMMAR_VERSION "\n"
 	    "Wrapping-Key: \"%s\"\n",
-	    wctx->wrappedkeylabel,
+	    wrappedkeylabel,
 	    wctx->wrappingkeylabel,
 	    hostname,
 	    asctime(gmtime(&now)),
 	    get_wrapping_algorithm_short(wctx),
 	    wctx->wrappingkeylabel );
+
+    free(handlelabel);		/* we must free this structure */
 
     if(fprintf_wrapping_algorithm_full(fp, wctx, NULL, 0, WRAPPEDKEYCTX_NO_INDEX) != rc_ok) {
 	fprintf(stderr, "Error: unsupported wrapping algorithm.\n");
