@@ -350,6 +350,7 @@ int pkcs11_get_rsa_modulus_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE obj)
 int pkcs11_get_dsa_pubkey_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
 CK_OBJECT_CLASS pkcs11_get_object_class(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
 CK_KEY_TYPE pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
+char *pkcs11_alloclabelforhandle(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
 
 /* pkcs11_x509.c */
 
@@ -586,7 +587,9 @@ func_rc pkcs11_wrap_from_handle(wrappedKeyCtx *wctx, CK_OBJECT_HANDLE wrappedkey
 func_rc pkcs11_output_wrapped_key( wrappedKeyCtx *wctx);
 
 wrappedKeyCtx *pkcs11_new_wrapped_key_from_file(pkcs11Context *p11Context, char *filename);
-func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappingkeylabel, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs);
+func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappingkeylabel, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs, key_generation_t keygentype );
+const CK_OBJECT_HANDLE pkcs11_get_wrappedkeyhandle(wrappedKeyCtx *ctx);
+const CK_OBJECT_HANDLE pkcs11_get_publickeyhandle(wrappedKeyCtx *ctx);
 
 wrappedKeyCtx *pkcs11_new_wrappedkeycontext(pkcs11Context *p11Context);
 void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx);

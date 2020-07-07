@@ -247,7 +247,8 @@ inline int pkcs11_data_exists(pkcs11Context *p11Context, char *label)
 {
     return pkcs11_object_with_class_exists(p11Context, label, CKO_DATA);
 }
-    
+
+
 int pkcs11_findkeypair(pkcs11Context *p11Context, char *label, CK_OBJECT_HANDLE_PTR hPublicKey, CK_OBJECT_HANDLE_PTR hPrivateKey)
 {
 
