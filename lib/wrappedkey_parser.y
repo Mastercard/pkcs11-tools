@@ -15,7 +15,6 @@
  */
 
 /* wrapped key parser */
-
 %define parse.error verbose
 %define parse.trace
 
@@ -23,6 +22,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* parsing_envelope will remember if we are parsing inside envelope(...) */
+int parsing_envelope= 0;
+
+/* envelope_keyindex will remember, when parsing inside envelope, if we care about inner or outer alg */
+int envelope_keyindex=0;
 
 %}
 
@@ -65,19 +70,20 @@ extern int yylex(void);
         char as_buffer[8];
     } val_date;
 
-    unsigned char *pkcs;
+    unsigned char *val_pem;	/* used to hold PEM-encoded blocks */
     char *val_dottednumber;
 }
 
 /* declare tokens */
-%token <pkcs> PKCSBLOCK
+%token <val_pem> OUTER INNER PUBK
 %token <val_str> STRING
 %token CTYPE
+%token GRAMMAR_VERSION
 %token <val_contenttype> CTYPE_VAL
 %token WRAPPING_ALG
 %token WRAPPING_KEY
-%token <val_wrappingmethod> PKCS1ALGO OAEPALGO CBCPADALGO RFC3394ALGO RFC5649ALGO
-%type  <val_wrappingmethod> pkcs1algoid oaepalgoid cbcpadalgoid rfc3394algoid rfc5649algoid
+%token <val_wrappingmethod> PKCS1ALGO OAEPALGO CBCPADALGO RFC3394ALGO RFC5649ALGO ENVELOPEALGO
+%type  <val_wrappingmethod> pkcs1algoid oaepalgoid cbcpadalgoid rfc3394algoid rfc5649algoid envelopealgoid
 %token PARAMHASH
 %token <val_hashalg> HASHALG
 %token PARAMMGF
@@ -86,79 +92,124 @@ extern int yylex(void);
 %token PARAMIV
 %token PARAMFLAVOUR
 %token <val_wrapalg> WRAPALG
+%token PARAMOUTER
+%token PARAMINNER
 
-%token	<ckattr> CKATTR_BOOL CKATTR_STR CKATTR_DATE CKATTR_KEY CKATTR_CLASS
-%token	<val_bool> TOK_BOOLEAN
-%token	<val_date> TOK_DATE
-%token	<val_key>  KEYTYPE
-%token	<val_cls>  OCLASS
-%token	<val_dottednumber> DOTTEDNUMBER
+%token <ckattr> CKATTR_BOOL CKATTR_STR CKATTR_DATE CKATTR_KEY CKATTR_CLASS
+%token <val_bool> TOK_BOOLEAN
+%token <val_date> TOK_DATE
+%token <val_key>  KEYTYPE
+%token <val_cls>  OCLASS
+%token <val_dottednumber> DOTTEDNUMBER
 
+%token WRAPPINGJOBHEADER
+%token P_WRAPPINGKEY P_FILENAME P_ALGORITHM
 %%
 
-wkey:		assignlist PKCSBLOCK
+wkeyset:	headers wkey
+	|	headers wkey pubk
+	|	wrappingjob         /*TRICK: this is to parse command-line argument for p11wrap -W parameter */
+		;
+
+headers:	CTYPE ':' CTYPE_VAL
+	|	GRAMMAR_VERSION ':' DOTTEDNUMBER
 		{
-		    if(_wrappedkey_parser_append_pkcs(ctx,$2)!=rc_ok) {
-			yyerror(ctx,"Error when assigning PKCS block, during parsing.");
+		    if(strcmp($3,SUPPORTED_GRAMMAR_VERSION)>0) {
+			yyerror(ctx,"Grammar version (%s) not supported, max supported is %s please update pkcs11-tools\n", $3, SUPPORTED_GRAMMAR_VERSION);
 			YYERROR;
 		    }
-                    free($2);	/* free up mem */
 		}
-	|       algo		/*TRICK: this is to parse command-line argument for p11wrap -a parameter */
+	;
+
+wkey:		wkeymeta wkeyblocks
 		;
 
-
-assignlist: 			/*nothing, as assignlist can be empty*/
-		| assignlist assignblk
+wkeyblocks:	innerblock
+	|	innerblock outerblock
+	|	outerblock innerblock
 		;
 
-assignblk:	CTYPE ':' CTYPE_VAL
-		| WRAPPING_ALG ':' algo /*algo or algo with param, see below */
-		| WRAPPING_KEY ':' STRING /* for the time being, we capture just a key label */
+innerblock:	INNER
 		{
-		    if(_wrappedkey_parser_set_wrapping_key(ctx, $3.val, $3.len)!=rc_ok) {
+		    if(_wrappedkey_parser_wkey_append_cryptogram(ctx, $1, WRAPPEDKEYCTX_INNER_KEY_INDEX)!=rc_ok) {
+			yyerror(ctx,"Error when parsing encrypted key cryptogram (inner)");
+			YYERROR;
+		    }
+                    free($1);	/* free up mem */
+		}
+                ;
+
+outerblock:	OUTER
+		{
+		    if(_wrappedkey_parser_wkey_append_cryptogram(ctx, $1, WRAPPEDKEYCTX_OUTER_KEY_INDEX)!=rc_ok) {
+			yyerror(ctx,"Error when parsing encrypted key cryptogram (outer)");
+			YYERROR;
+		    }
+                    free($1);	/* free up mem */
+		}
+                ;
+
+wkeymeta:	wkeystmt
+	|	wkeymeta wkeystmt
+		;
+
+wkeystmt:	CTYPE ':' CTYPE_VAL
+	|	GRAMMAR_VERSION ':' DOTTEDNUMBER
+		{
+		    if(strcmp($3,SUPPORTED_GRAMMAR_VERSION)>0) {
+			yyerror(ctx,
+				"Grammar version %s not supported (highest supported version is %s)\n"
+				"Please update pkcs11-tools\n",
+				$3, SUPPORTED_GRAMMAR_VERSION);
+			YYERROR;
+		    }
+		}
+	|	WRAPPING_ALG ':' algo /*algo or algo with param, see below */
+	|	WRAPPING_KEY ':' STRING /* for the time being, we capture just a key label */
+		{
+		    if(_wrappedkey_parser_wkey_set_wrapping_key(ctx, $3.val, $3.len)!=rc_ok) {
 		        yyerror(ctx,"Parsing error with wrapping key identifier.");
                         YYERROR;
                     }
 		}
-		| CKATTR_BOOL  ':' TOK_BOOLEAN
+	|	CKATTR_BOOL  ':' TOK_BOOLEAN
                 {
-		    if(_wrappedkey_parser_append_attr(ctx, $1, &$3, sizeof(CK_BBOOL) )!=rc_ok) {
+		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, &$3, sizeof(CK_BBOOL) )!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
 		}
-		| CKATTR_STR ':' STRING
+	|	CKATTR_STR ':' STRING
                 {
-		    if(_wrappedkey_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
+		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign bytes value.");
 			YYERROR;
 		    }
 		}
-		| CKATTR_DATE ':' TOK_DATE
+	|	CKATTR_DATE ':' TOK_DATE
                 {
-		    if(_wrappedkey_parser_append_attr(ctx, $1, $3.as_buffer, sizeof(CK_DATE))!=rc_ok) {
+		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, $3.as_buffer, sizeof(CK_DATE))!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign date value.");
 			YYERROR;
 		    }
 		}
-		| CKATTR_DATE  ':' STRING /* if the date comes as 0x... format (not preferred but accepted) */
+	|	CKATTR_DATE  ':' STRING /* if the date comes as 0x... format (not preferred but accepted) */
                 {
-		    if(_wrappedkey_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
+		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign date value.");
 			YYERROR;
 		    }
 		}
-		| CKATTR_KEY   ':' KEYTYPE
+	|	CKATTR_KEY   ':' KEYTYPE
                 {
-		    if(_wrappedkey_parser_append_attr(ctx, $1, &$3, sizeof(CK_KEY_TYPE))!=rc_ok) {
+		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, &$3, sizeof(CK_KEY_TYPE))!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign key type value.");
 			YYERROR;
 		    }
 		}
-		| CKATTR_CLASS ':' OCLASS
+	|	CKATTR_CLASS ':' OCLASS
                 {
-		    if(_wrappedkey_parser_append_attr(ctx, $1, &$3, sizeof(CK_OBJECT_CLASS))!=rc_ok) {
+		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, &$3, sizeof(CK_OBJECT_CLASS))!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign object class value.");
 			YYERROR;
 		    }
@@ -172,6 +223,7 @@ algo:		pkcs1algo
 		| cbcpadalgo
                 | rfc3394algo
                 | rfc5649algo
+                | envelopealgo
 		;
 
 pkcs1algo:	pkcs1algoheader
@@ -179,7 +231,8 @@ pkcs1algo:	pkcs1algoheader
 
 pkcs1algoheader: pkcs1algoid
 		{
-		    if(_wrappedkey_parser_set_wrapping_alg(ctx, $1)!=rc_ok) {
+		    int keyidx = parsing_envelope ? envelope_keyindex : WRAPPEDKEYCTX_LONE_KEY_INDEX;
+		    if(_wrappedkey_parser_wkey_set_wrapping_alg(ctx, $1, keyidx)!=rc_ok) {
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
 			YYERROR;
 		    }
@@ -191,7 +244,7 @@ pkcs1algoheader: pkcs1algoid
 /* there should be at least a warning if version is beyond supported one  */
 pkcs1algoid:	PKCS1ALGO
 	|	PKCS1ALGO '/' DOTTEDNUMBER
-	;
+		;
 
 oaepalgo:	oaepalgoheader	/*take default parameters: all SHA1, label="" */
 	|	oaepalgoheader '(' oaepparamlist ')'
@@ -199,7 +252,8 @@ oaepalgo:	oaepalgoheader	/*take default parameters: all SHA1, label="" */
 
 oaepalgoheader:	oaepalgoid
 		{
-		    if(_wrappedkey_parser_set_wrapping_alg(ctx, $1)!=rc_ok) {
+		    int keyidx = parsing_envelope ? envelope_keyindex : WRAPPEDKEYCTX_LONE_KEY_INDEX;
+		    if(_wrappedkey_parser_wkey_set_wrapping_alg(ctx, $1, keyidx)!=rc_ok) {
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
 			YYERROR;
 		    }
@@ -211,29 +265,29 @@ oaepalgoheader:	oaepalgoid
 /* there should be at least a warning if version is beyond supported one  */
 oaepalgoid:	OAEPALGO
 	|	OAEPALGO '/' DOTTEDNUMBER
-	;
+		;
 
 oaepparamlist:	oaepparam
 	|	oaepparamlist ',' oaepparam
-	;
+		;
 
 oaepparam:	PARAMHASH '=' HASHALG
 		{
-		    if(_wrappedkey_parser_set_wrapping_param_hash(ctx, $3)!=rc_ok) {
+		    if(_wrappedkey_parser_wkey_set_wrapping_param_hash(ctx, $3)!=rc_ok) {
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
 			YYERROR;
 		    }
 		}
 	|	PARAMMGF '=' MGFTYPE
 		{
-		    if(_wrappedkey_parser_set_wrapping_param_mgf(ctx, $3)!=rc_ok) {
+		    if(_wrappedkey_parser_wkey_set_wrapping_param_mgf(ctx, $3)!=rc_ok) {
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
 			YYERROR;
 		    }
 		}
 	|	PARAMLABEL '=' STRING
 		{
-		    if(_wrappedkey_parser_set_wrapping_param_label(ctx, $3.val, $3.len)!=rc_ok) {
+		    if(_wrappedkey_parser_wkey_set_wrapping_param_label(ctx, $3.val, $3.len)!=rc_ok) {
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
 			YYERROR;
 		    }
@@ -242,11 +296,13 @@ oaepparam:	PARAMHASH '=' HASHALG
 
 cbcpadalgo:	cbcpadalgoheader
        |	cbcpadalgoheader '(' cbcpadparamlist ')'
+		;
 
 
 cbcpadalgoheader: cbcpadalgoid
 		{
-		    if(_wrappedkey_parser_set_wrapping_alg(ctx, $1)!=rc_ok) {
+		    int keyidx = parsing_envelope ? envelope_keyindex : WRAPPEDKEYCTX_LONE_KEY_INDEX;
+		    if(_wrappedkey_parser_wkey_set_wrapping_alg(ctx, $1, keyidx)!=rc_ok) {
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
 			YYERROR;
 		    }
@@ -258,16 +314,16 @@ cbcpadalgoheader: cbcpadalgoid
 /* there should be at least a warning if version is beyond supported one  */
 cbcpadalgoid:	CBCPADALGO
 	|	CBCPADALGO '/' DOTTEDNUMBER
-	;
+		;
 
 
 cbcpadparamlist: cbcpadparam
 	|	 cbcpadparamlist ',' cbcpadparam
-	;
+		;
 
 cbcpadparam:	PARAMIV '=' STRING
 		{
-		    if(_wrappedkey_parser_set_wrapping_param_iv(ctx, $3.val, $3.len)!=rc_ok) {
+		    if(_wrappedkey_parser_wkey_set_wrapping_param_iv(ctx, $3.val, $3.len)!=rc_ok) {
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
 			YYERROR;
 		    }
@@ -278,11 +334,13 @@ cbcpadparam:	PARAMIV '=' STRING
 
 rfc3394algo:	rfc3394algoheader
        |	rfc3394algoheader '(' ')'
+		;
 
 
 rfc3394algoheader: rfc3394algoid
 		{
-		    if(_wrappedkey_parser_set_wrapping_alg(ctx, $1)!=rc_ok) {
+		    int keyidx = parsing_envelope ? envelope_keyindex : WRAPPEDKEYCTX_LONE_KEY_INDEX;
+		    if(_wrappedkey_parser_wkey_set_wrapping_alg(ctx, $1, keyidx)!=rc_ok) {
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
 			YYERROR;
 		    }
@@ -294,17 +352,18 @@ rfc3394algoheader: rfc3394algoid
 /* there should be at least a warning if version is beyond supported one  */
 rfc3394algoid:	RFC3394ALGO
 	|	RFC3394ALGO '/' DOTTEDNUMBER
-	;
+		;
 
 /* RFC5649: using CKM_AES_KEY_WRAP_PAD */
 
 rfc5649algo:	rfc5649algoheader
        |	rfc5649algoheader '(' rfc5649paramlist ')'
-
+		;
 
 rfc5649algoheader: rfc5649algoid
 		{
-		    if(_wrappedkey_parser_set_wrapping_alg(ctx, $1)!=rc_ok) {
+		    int keyidx = parsing_envelope ? envelope_keyindex : WRAPPEDKEYCTX_LONE_KEY_INDEX;
+		    if(_wrappedkey_parser_wkey_set_wrapping_alg(ctx, $1, keyidx)!=rc_ok) {
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
 			YYERROR;
 		    }
@@ -316,19 +375,164 @@ rfc5649algoheader: rfc5649algoid
 /* there should be at least a warning if version is beyond supported one  */
 rfc5649algoid:	RFC5649ALGO
 	|	RFC5649ALGO '/' DOTTEDNUMBER
-	;
+		;
 
 rfc5649paramlist: rfc5649param
 	|	  rfc5649paramlist ',' rfc5649param
-	;
+		;
 
 rfc5649param:   PARAMFLAVOUR '=' WRAPALG
 		{
-		    if(_wrappedkey_parser_set_wrapping_param_flavour(ctx, $3)!=rc_ok) {
+		    if(_wrappedkey_parser_wkey_set_wrapping_param_flavour(ctx, $3)!=rc_ok) {
 			yyerror(ctx,"Parsing error with specified wrapping algorithm flavour.");
 			YYERROR;
 		    }
 		}
 	        ;
+/* envelope(): to support double wrapping */
+envelopealgo:	envelopealgoheader	/*take default parameters: all SHA1, label="" */
+	|	envelopealgoheader '('
+                {
+		    if(++parsing_envelope>1) {
+			yyerror(ctx, "Nested envelope() algorithm not allowed.");
+			YYERROR;
+		    }
+		}
+		envelopeparamlist
+		')' { --parsing_envelope; }
+		;
+
+envelopealgoheader:	envelopealgoid
+		{
+		    int keyidx = parsing_envelope ? envelope_keyindex : WRAPPEDKEYCTX_LONE_KEY_INDEX;
+		    if(_wrappedkey_parser_wkey_set_wrapping_alg(ctx, $1, keyidx)!=rc_ok) {
+			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
+			YYERROR;
+		    }
+		}
+		;
+
+/* two syntax are supported */
+/* TODO: check DOTTEDNUMBER to see if we agree with version     */
+/* there should be at least a warning if version is beyond supported one  */
+envelopealgoid:	ENVELOPEALGO
+	|	ENVELOPEALGO '/' DOTTEDNUMBER
+		;
+
+envelopeparamlist:	envelopeparam
+	|	envelopeparamlist ',' envelopeparam
+		;
+
+envelopeparam:	PARAMOUTER '='
+		{
+		    envelope_keyindex = WRAPPEDKEYCTX_OUTER_KEY_INDEX;
+		}
+		outeralgo
+	|	PARAMINNER '='
+		{
+		    envelope_keyindex = WRAPPEDKEYCTX_INNER_KEY_INDEX;
+		}
+		inneralgo
+        	;
+
+outeralgo:      pkcs1algo
+	|     	oaepalgo
+		;
+
+inneralgo: 	cbcpadalgo
+	|       rfc3394algo
+        |       rfc5649algo
+		;
+
+
+/* public key information */
+pubk:		pubkmeta pubkblock
+		;
+
+pubkblock:	PUBK
+		{
+		    if(_wrappedkey_parser_pubk_append_pem(ctx, $1)!=rc_ok) {
+			yyerror(ctx,"Error when parsing public key information");
+			YYERROR;
+		    }
+                    free($1);	/* free up mem */
+		}
+                ;
+
+pubkmeta: 	pubkstmt
+	|	pubkmeta pubkstmt
+		;
+
+pubkstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
+                {
+		    if(_wrappedkey_parser_pubk_append_attr(ctx, $1, &$3, sizeof(CK_BBOOL) )!=rc_ok) {
+			yyerror(ctx,"Error during parsing, cannot assign boolean value.");
+			YYERROR;
+		    }
+		}
+	|	CKATTR_STR ':' STRING
+                {
+		    if(_wrappedkey_parser_pubk_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
+			yyerror(ctx,"Error during parsing, cannot assign bytes value.");
+			YYERROR;
+		    }
+		}
+	|	CKATTR_DATE ':' TOK_DATE
+                {
+		    if(_wrappedkey_parser_pubk_append_attr(ctx, $1, $3.as_buffer, sizeof(CK_DATE))!=rc_ok) {
+			yyerror(ctx,"Error during parsing, cannot assign date value.");
+			YYERROR;
+		    }
+		}
+	|	CKATTR_DATE  ':' STRING /* if the date comes as 0x... format (not preferred but accepted) */
+                {
+		    if(_wrappedkey_parser_pubk_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
+			yyerror(ctx,"Error during parsing, cannot assign date value.");
+			YYERROR;
+		    }
+		}
+	|	CKATTR_KEY   ':' KEYTYPE
+                {
+		    if(_wrappedkey_parser_pubk_append_attr(ctx, $1, &$3, sizeof(CK_KEY_TYPE))!=rc_ok) {
+			yyerror(ctx,"Error during parsing, cannot assign key type value.");
+			YYERROR;
+		    }
+		}
+	|	CKATTR_CLASS ':' OCLASS
+                {
+		    if(_wrappedkey_parser_pubk_append_attr(ctx, $1, &$3, sizeof(CK_OBJECT_CLASS))!=rc_ok) {
+			yyerror(ctx,"Error during parsing, cannot assign object class value.");
+			YYERROR;
+		    }
+		}
+		;
+
+/* wrappingjob is used only for -W parameter of p11wrap */
+/* we artifically expect to have a front "@" character */
+/* so we know we are in this parsing job */
+
+wrappingjob:	WRAPPINGJOBHEADER wrpjobstmts
+		;
+
+wrpjobstmts: 	wrpjobstmt
+	|	wrpjobstmts ',' wrpjobstmt
+		;
+
+wrpjobstmt:	P_WRAPPINGKEY '=' STRING
+		{
+		    if(_wrappedkey_parser_wkey_set_wrapping_key(ctx, $3.val, $3.len)!=rc_ok) {
+		        yyerror(ctx,"Parsing error with wrapping key identifier.");
+                        YYERROR;
+                    }
+		}
+	|	P_FILENAME '=' STRING
+		{
+		    if(_wrappedkey_parser_wkey_set_filename(ctx, $3.val)!=rc_ok) {
+		        yyerror(ctx,"Issue when saving filename");
+                        YYERROR;
+		    }
+                }
+	|	P_ALGORITHM '=' algo
+	;
 
 %%

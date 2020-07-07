@@ -31,7 +31,7 @@
 pkcs11Search * pkcs11_new_search( pkcs11Context *p11Context, CK_ATTRIBUTE_PTR search, CK_ULONG length)
 {
     pkcs11Search *p11s = NULL;
-    CK_RV retCode;    
+    CK_RV retCode;
 
     p11s = calloc(1, sizeof(pkcs11Search));
 
@@ -55,7 +55,7 @@ pkcs11Search * pkcs11_new_search( pkcs11Context *p11Context, CK_ATTRIBUTE_PTR se
     p11s->allocated = P11SEARCH_NUM_HANDLES;
     p11s->count = p11s->index = 0;
 
-        
+
     if ( ( retCode = p11s->FindObjectsInit( p11Context->Session, search, length ) ) != CKR_OK )
     {
 	pkcs11_error( retCode, "C_FindObjectsInit" );
@@ -63,7 +63,7 @@ pkcs11Search * pkcs11_new_search( pkcs11Context *p11Context, CK_ATTRIBUTE_PTR se
     }
 
     return p11s;
-    
+
 error:
     if(p11s) {
 	if(p11s->handle_array) {

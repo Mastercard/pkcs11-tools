@@ -214,8 +214,10 @@ extern char *yytext;
 
 #ifdef YY_HEADER_EXPORT_START_CONDITIONS
 #define INITIAL 0
-#define PEM 1
-#define STR 2
+#define OUTERKEYPEM 1
+#define INNERKEYPEM 2
+#define PUBKPEM 3
+#define STR 4
 
 #endif
 
@@ -469,9 +471,9 @@ extern int yylex (void);
 #undef yyTABLES_NAME
 #endif
 
-#line 175 "wrappedkey_lexer.l"
+#line 191 "wrappedkey_lexer.l"
 
 
-#line 475 "wrappedkey_lexer.h"
+#line 477 "wrappedkey_lexer.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */

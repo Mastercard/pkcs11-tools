@@ -34,18 +34,48 @@
 
 #include "pkcs11lib.h"
 
+/* prototypes */
+
+typedef enum e_pubk_source_type {
+    source_file,
+    source_buffer
+} pubk_source_type;
+
+static int compare_CKA( const void *a, const void *b);
+static EVP_PKEY * new_pubk_from_file(char *filename);
+static EVP_PKEY * new_pubk_from_buffer(unsigned char *buffer, size_t len);
+static CK_ULONG get_RSA_modulus(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_RSA_public_exponent(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DH_prime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DH_base(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DH_pubkey(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DSA_prime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DSA_subprime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DSA_base(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DSA_pubkey(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_EC_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_EC_params(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
+				     char *filename,
+				     unsigned char *buffer,
+				     size_t len,
+				     char *label,
+				     int trusted,
+				     CK_ATTRIBUTE attrs[],
+				     CK_ULONG numattrs,
+				     pubk_source_type source);
+
+
 /* comparison function for attributes */
 static int compare_CKA( const void *a, const void *b)
 {
     return ((CK_ATTRIBUTE_PTR)a)->type == ((CK_ATTRIBUTE_PTR)b)->type ? 0 : -1;
 }
 
-
 static EVP_PKEY * new_pubk_from_file(char *filename)
 {
-
     EVP_PKEY * rv = NULL;
-
     FILE *fp = NULL;
 
     fp = fopen(filename,"rb"); /* open in binary mode */
@@ -80,6 +110,23 @@ static EVP_PKEY * new_pubk_from_file(char *filename)
     }
 
     return rv;
+}
+
+static EVP_PKEY * new_pubk_from_buffer(unsigned char *buffer, size_t len)
+{
+    EVP_PKEY * pubk = NULL;
+
+    BIO *mem = BIO_new_mem_buf(buffer, len);
+
+    pubk = d2i_PUBKEY_bio(mem, NULL);
+
+    if(!pubk) {
+	perror("Error when parsing public key");
+    }
+
+    BIO_free(mem);
+
+    return pubk;
 }
 
 /* RSA */
@@ -786,15 +833,16 @@ static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
     return rv;
 }
 
-
-
-
-CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
-				    char *filename,
-				    char *label,
-				    int trusted,
-				    CK_ATTRIBUTE attrs[],
-				    CK_ULONG numattrs )
+static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
+				     char *filename,
+				     unsigned char *buffer,
+				     size_t len,
+				     char *label,
+				     int trusted,
+				     CK_ATTRIBUTE attrs[],
+				     CK_ULONG numattrs,
+				     pubk_source_type source
+    )
 {
 
     CK_OBJECT_HANDLE hPubk = NULL_PTR;
@@ -808,17 +856,30 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
     EVP_PKEY *pubk = NULL;
 
-    /* now let's create the attributes from file and alias */
+    switch(source) {
+    case source_file:
+	if(!filename) {
+	    fprintf(stderr, "***Filename not specified for public key\n");
+	    break;
+	}
+	pubk = new_pubk_from_file(filename);
+	break;
 
-    pubk = new_pubk_from_file(filename);
+    case source_buffer:
+	if(!buffer) {
+	    fprintf(stderr, "***no buffer provided for public key\n");
+	    break;
+	}
+	pubk = new_pubk_from_buffer(buffer, len);
+	break;
+
+    default:
+	fprintf(stderr, "***internal error\n");
+    };
 
     if(pubk) {
-
 	switch( EVP_PKEY_type(pubk->type) ) {
-
 	case EVP_PKEY_RSA: {
-
-
 	    CK_BYTE_PTR pubkey_hash = NULL;
 	    CK_ULONG pubkey_hash_len = 0;
 
@@ -829,19 +890,19 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	    CK_ULONG rsa_public_exponent_len =0;
 
 	    CK_ATTRIBUTE pubkTemplate[] = {
-		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},          /* 0  */
-		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},	     /* 1  */
-		{CKA_ID, NULL, 0},				     /* 2  */
-		{CKA_LABEL, label, strlen(label) },		     /* 3  */
-		{CKA_ENCRYPT, &true, sizeof(true) },		     /* 4  */
-		{CKA_WRAP, &true, sizeof(true) },		     /* 5  */
-		{CKA_VERIFY, &true, sizeof(true) },		     /* 6  */
-		{CKA_VERIFY_RECOVER, &true, sizeof(true) },	     /* 7  */
-		{CKA_TOKEN, &true, sizeof(true)},		     /* 8  */
-		{CKA_MODULUS, NULL, 0 },                             /* 9  */
-		{CKA_PUBLIC_EXPONENT, NULL, 0 },                     /* 10 */
-		{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	     /* 11 */
-		{CKA_TRUSTED, &true, sizeof(CK_BBOOL) },	     /* 12 */
+		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},      /* 0  */
+		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},     /* 1  */
+		{CKA_ID, NULL, 0},				 /* 2  */
+		{CKA_LABEL, label, label ? strlen(label) : 0 },	 /* 3  */
+		{CKA_ENCRYPT, &true, sizeof(true) },	         /* 4  */
+		{CKA_WRAP, &true, sizeof(true) },		 /* 5  */
+		{CKA_VERIFY, &true, sizeof(true) },		 /* 6  */
+		{CKA_VERIFY_RECOVER, &true, sizeof(true) },	 /* 7  */
+		{CKA_TOKEN, &true, sizeof(true)},		 /* 8  */
+		{CKA_MODULUS, NULL, 0 },                         /* 9  */
+		{CKA_PUBLIC_EXPONENT, NULL, 0 },                 /* 10 */
+		{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	 /* 11 */
+		{CKA_TRUSTED, &true, sizeof(CK_BBOOL) },	 /* 12 */
 		/* CKA_TRUSTED set at last position   */
 		/* this flag is FALSE by default      */
 		/* So we don't present it in case     */
@@ -852,11 +913,14 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 	    pubkType = CKK_RSA;
 
-	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    if(source == source_file) {
+		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    }
+
 	    rsa_modulus_len = get_RSA_modulus( pubk, &rsa_modulus);
 	    rsa_public_exponent_len = get_RSA_public_exponent( pubk, &rsa_public_exponent);
 
-	    if( pubkey_hash_len >0 && rsa_modulus_len>0 && rsa_public_exponent_len>0) {
+	    if( (source == source_buffer || pubkey_hash_len >0) && rsa_modulus_len>0 && rsa_public_exponent_len>0) {
 
 		/* we have everything, let's fill in the template */
 
@@ -893,18 +957,24 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 		    /* do we have a match in the template list? */
 		    if(match) {
-			switch(match->type) {
-			case CKA_ENCRYPT:
-			case CKA_WRAP:
-			case CKA_VERIFY:
-			case CKA_VERIFY_RECOVER:
-			case CKA_MODIFIABLE:
+			if(source==source_buffer) { /* if source_buffer, we apply ALL matches */
 			    match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-			    break;
+			    match->ulValueLen = attrs[i].ulValueLen;
+			} else {
+			    switch(match->type) {
+			    case CKA_ENCRYPT:
+			    case CKA_WRAP:
+			    case CKA_VERIFY:
+			    case CKA_VERIFY_RECOVER:
+			    case CKA_MODIFIABLE:
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+				break;
 
-			default:
-			    break;
-			    /* we do nothing */
+			    default:
+				break;
+				/* we do nothing */
+			    }
 			}
 		    }
 		}
@@ -914,6 +984,8 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &false; /* then CKA_MODIFIABLE must be false */
 		}
 
+		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
+		/* and as such we are not messing up with the template, we take it as it is */
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
 								  pubkTemplate,
 								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
@@ -927,12 +999,10 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	    if(pubkey_hash) { OPENSSL_free(pubkey_hash); }
 	    if(rsa_modulus) { OPENSSL_free(rsa_modulus); }
 	    if(rsa_public_exponent) { OPENSSL_free(rsa_public_exponent); }
-
 	}
 	    break;
 
 	case EVP_PKEY_DSA: {
-
 	    CK_BYTE_PTR pubkey_hash = NULL;
 	    CK_ULONG pubkey_hash_len = 0;
 
@@ -953,7 +1023,7 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},          /* 0  */
 		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
-		{CKA_LABEL, label, strlen(label) },		     /* 3  */
+		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
 		{CKA_VERIFY, &true, sizeof(true) },		     /* 4  */
 		{CKA_TOKEN, &true, sizeof(true)},		     /* 5  */
 		{CKA_PRIME, NULL, 0 },                               /* 6  */
@@ -972,15 +1042,16 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 	    pubkType = CKK_DSA;
 
-
-	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    if(source == source_file) {
+		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    }
 
 	    dsa_prime_len = get_DSA_prime( pubk, &dsa_prime);          /* p */
 	    dsa_subprime_len = get_DSA_subprime( pubk, &dsa_subprime); /* q */
 	    dsa_base_len = get_DSA_base( pubk, &dsa_base);             /* g */
 	    dsa_pubkey_len = get_DSA_pubkey( pubk, &dsa_pubkey);       /* public key */
 
-	    if( pubkey_hash_len >0 &&
+	    if( (source == source_buffer || pubkey_hash_len >0) &&
 		dsa_prime_len > 0 &&
 		dsa_subprime_len > 0 &&
 		dsa_base_len > 0 &&
@@ -1024,25 +1095,32 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 		    /* do we have a match in the template list? */
 		    if(match) {
-			switch(match->type) {
-			case CKA_VERIFY:
-			case CKA_MODIFIABLE:
+			if(source==source_buffer) { /* if source_buffer, we apply ALL matches */
 			    match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-			    break;
+			    match->ulValueLen = attrs[i].ulValueLen;
+			} else {
+			    switch(match->type) {
+			    case CKA_VERIFY:
+			    case CKA_MODIFIABLE:
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+				break;
 
-			default:
-			    break;
-			    /* we do nothing */
+			    default:
+				break;
+				/* we do nothing */
+			    }
 			}
 		    }
 		}
-
 
 		/* if -T is set: we want trusted */
 		if(trusted) {
 		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &false; /* then CKA_MODIFIABLE must be false */
 		}
 
+		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
+		/* and as such we are not messing up with the template, we take it as it is */
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
 								  pubkTemplate,
 								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
@@ -1063,7 +1141,6 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	    break;
 
 	case EVP_PKEY_DH: {
-
 	    CK_BYTE_PTR pubkey_hash = NULL;
 	    CK_ULONG pubkey_hash_len = 0;
 
@@ -1076,12 +1153,11 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	    CK_BYTE_PTR dh_pubkey = NULL;
 	    CK_ULONG dh_pubkey_len = 0;
 
-
 	    CK_ATTRIBUTE pubkTemplate[] = {
 		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},          /* 0  */
 		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
-		{CKA_LABEL, label, strlen(label) },		     /* 3  */
+		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
 		{CKA_DERIVE, &true, sizeof(true) },		     /* 4  */
 		{CKA_TOKEN, &true, sizeof(true)},		     /* 5  */
 		{CKA_PRIME, NULL, 0 },                               /* 6  */
@@ -1099,12 +1175,13 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 	    pubkType = CKK_DH;
 
-
-	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    if( source == source_file) {
+		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    }
 
 	    dh_prime_len = get_DH_prime( pubk, &dh_prime);          /* p */
-	    dh_base_len = get_DH_base( pubk, &dh_base);              /* g */
-	    dh_pubkey_len = get_DH_pubkey( pubk, &dh_pubkey);        /* public key */
+	    dh_base_len = get_DH_base( pubk, &dh_base);             /* g */
+	    dh_pubkey_len = get_DH_pubkey( pubk, &dh_pubkey);       /* public key */
 
 	    if( pubkey_hash_len >0 &&
 		dh_prime_len > 0 &&
@@ -1146,15 +1223,21 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 		    /* do we have a match in the template list? */
 		    if(match) {
-			switch(match->type) {
-			case CKA_DERIVE:
-			case CKA_MODIFIABLE:
+			if(source==source_buffer) { /* if source_buffer, we apply ALL matches */
 			    match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-			    break;
+			    match->ulValueLen = attrs[i].ulValueLen;
+			} else {
+			    switch(match->type) {
+			    case CKA_DERIVE:
+			    case CKA_MODIFIABLE:
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+				break;
 
-			default:
-			    break;
-			    /* we do nothing */
+			    default:
+				break;
+				/* we do nothing */
+			    }
 			}
 		    }
 		}
@@ -1164,6 +1247,8 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &false; /* then CKA_MODIFIABLE must be false */
 		}
 
+		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
+		/* and as such we are not messing up with the template, we take it as it is */
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
 								  pubkTemplate,
 								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
@@ -1178,13 +1263,10 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	    if(dh_prime)    { OPENSSL_free(dh_prime); }
 	    if(dh_base)     { OPENSSL_free(dh_base); }
 	    if(dh_pubkey)   { OPENSSL_free(dh_pubkey); }
-
 	}
 	    break;
 
-
 	case EVP_PKEY_EC: {
-
 	    CK_BYTE_PTR pubkey_hash = NULL;
 	    CK_ULONG pubkey_hash_len = 0;
 
@@ -1198,7 +1280,7 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},          /* 0  */
 		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
-		{CKA_LABEL, label, strlen(label) },		     /* 3  */
+		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
 		{CKA_VERIFY, &true, sizeof(true) },		     /* 4  */
 		{CKA_DERIVE, &false, sizeof(false)},                 /* 5  */
 		{CKA_TOKEN, &true, sizeof(true)},		     /* 6  */
@@ -1216,13 +1298,14 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 	    pubkType = CKK_EC;
 
-
-	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    if(source == source_file) {
+		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    }
 
 	    ec_params_len = get_EC_params( pubk, &ec_params);           /* curve parameters */
 	    ec_point_len  = get_EC_point( pubk, &ec_point);             /* curve point */
 
-	    if( pubkey_hash_len >0 &&
+	    if( (source == source_buffer || pubkey_hash_len >0) &&
 		ec_params_len > 0 &&
 		ec_point_len > 0 ) {
 
@@ -1259,16 +1342,22 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 		    /* do we have a match in the template list? */
 		    if(match) {
-			switch(match->type) {
-			case CKA_VERIFY:
-			case CKA_DERIVE:
-			case CKA_MODIFIABLE:
+			if(source==source_buffer) { /* if source_buffer, we apply ALL matches */
 			    match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-			    break;
+			    match->ulValueLen = attrs[i].ulValueLen;
+			} else {
+			    switch(match->type) {
+			    case CKA_VERIFY:
+			    case CKA_DERIVE:
+			    case CKA_MODIFIABLE:
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+				break;
 
-			default:
-			    break;
-			    /* we do nothing */
+			    default:
+				break;
+				/* we do nothing */
+			    }
 			}
 		    }
 		}
@@ -1278,6 +1367,8 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &false; /* then CKA_MODIFIABLE must be false */
 		}
 
+		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
+		/* and as such we are not messing up with the template, we take it as it is */
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
 								  pubkTemplate,
 								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
@@ -1294,7 +1385,6 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	}
 	    break;
 
-
 	default:
 	    fprintf(stderr, "***ERROR - public key type not supported\n");
 	    break;
@@ -1305,3 +1395,25 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
     }
     return hPubk;
 }
+
+/* public interface */
+
+inline CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
+					   char *filename,
+					   char *label,
+					   int trusted,
+					   CK_ATTRIBUTE attrs[],
+					   CK_ULONG numattrs ) {
+    return _importpubk(p11Context, filename, NULL, 0, label, trusted, attrs, numattrs, source_file);
+}
+
+inline CK_OBJECT_HANDLE pkcs11_importpubk_from_buffer( pkcs11Context * p11Context,
+						       unsigned char *buffer,
+						       size_t len,
+						       char *label,
+						       int trusted,
+						       CK_ATTRIBUTE attrs[],
+						       CK_ULONG numattrs ) {
+    return _importpubk(p11Context, NULL, buffer, len, label, trusted, attrs, numattrs, source_buffer);
+}
+

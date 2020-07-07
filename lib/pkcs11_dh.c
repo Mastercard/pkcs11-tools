@@ -162,12 +162,13 @@ static inline CK_ULONG get_DHparam_g(DH *hndl, CK_BYTE_PTR *buf) {
 }
 
 int pkcs11_genDH (pkcs11Context * p11Context,
-		      char *label,
-		      char *param,
-		      CK_ATTRIBUTE attrs[],
-		      CK_ULONG numattrs,
-		      CK_OBJECT_HANDLE_PTR hPublicKey,
-		      CK_OBJECT_HANDLE_PTR hPrivateKey)
+		  char *label,
+		  char *param,
+		  CK_ATTRIBUTE attrs[],
+		  CK_ULONG numattrs,
+		  CK_OBJECT_HANDLE_PTR hPublicKey,
+		  CK_OBJECT_HANDLE_PTR hPrivateKey,
+		  key_generation_t gentype )
 {
     int rc=0;
     CK_RV retCode;
@@ -206,7 +207,7 @@ int pkcs11_genDH (pkcs11Context * p11Context,
 	};
 
 	CK_ATTRIBUTE publicKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof ck_true},
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
 
@@ -219,10 +220,10 @@ int pkcs11_genDH (pkcs11Context * p11Context,
 	};
 
 	CK_ATTRIBUTE privateKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof ck_true},
 	    {CKA_PRIVATE, &ck_true, sizeof(ck_true)},
 	    {CKA_SENSITIVE, &ck_true, sizeof(ck_true)},
-	    {CKA_EXTRACTABLE, &ck_false, sizeof(ck_false)},
+	    {CKA_EXTRACTABLE, gentype == kg_session_for_wrapping ? &ck_true : &ck_false, sizeof(ck_false)},
 
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },

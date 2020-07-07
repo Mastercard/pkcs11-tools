@@ -117,13 +117,13 @@ int main( int argc, char ** argv )
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
-    tokenlabel = getenv("PKCS11TOKENLABEL");    
+    tokenlabel = getenv("PKCS11TOKENLABEL");
     if(tokenlabel==NULL) {
 	slotenv = getenv("PKCS11SLOT");
 	if (slotenv!=NULL) {
 	    slot=atoi(slotenv);
 	}
-    }	
+    }
     password = getenv("PKCS11PASSWORD");
 
     /* if a slot or a token is given, interactive is null */
@@ -171,7 +171,7 @@ int main( int argc, char ** argv )
 		filename = optarg;
 	    }
 	    break;
-	    
+
 	case 'i':
 	    wrappedkeylabel= optarg;
 	    break;
@@ -201,14 +201,14 @@ int main( int argc, char ** argv )
 	    goto err;
 	}
     }
-    
+
     if ( errflag ) {
 	fprintf(stderr, "Try `%s -h' for more information.\n", argv[0]);
 	goto err;
     }
 
     if ( library == NULL || filename == NULL ) {
-	fprintf( stderr, "At least one required option or argument is wrong or missing.\n" 
+	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
 	goto err;
     }
@@ -221,7 +221,7 @@ int main( int argc, char ** argv )
     if (( retcode = pkcs11_initialize( p11Context ) ) != CKR_OK ) {
 	goto err;
     }
-    
+
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
 
     if ( retcode == rc_ok ) {
@@ -236,7 +236,7 @@ int main( int argc, char ** argv )
 	    retcode = rc_error_parsing; /* set proper retcode, as not returned by pkcs11_new_wrapped_key_from_file() */
 	}
     }
-	
+
     pkcs11_close_session( p11Context );
     pkcs11_finalize( p11Context );
 
@@ -245,6 +245,6 @@ err:
     pkcs11_freeContext(p11Context);
 
     fprintf(stderr, "key unwrapping %s\n", retcode==rc_ok ? "succeeded" : "failed" );
-    
+
     return ( retcode );
 }

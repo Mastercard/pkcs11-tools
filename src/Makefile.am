@@ -18,6 +18,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/cryptoki
 
+AM_CFLAGS = $(LIBCRYPTO_CFLAGS)
+
 if HAS_LIBCRYPTO_RPATH
 AM_LDFLAGS = -rpath $(LIBCRYPTO_RPATH)
 endif

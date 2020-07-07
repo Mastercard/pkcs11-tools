@@ -104,7 +104,7 @@ void pkcs11_adjust_des_key_parity(CK_BYTE* pucKey, int nKeyLen)
 	if(!cPar)
 	    pucKey[i] ^= 001;
     }
-} 
+}
 
 
 
@@ -193,8 +193,8 @@ int pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPubli
     int rv=0;
 
     pkcs11AttrList *attrs;
-    
-    attrs = pkcs11_new_attrlist(p11Context, 
+
+    attrs = pkcs11_new_attrlist(p11Context,
 				_ATTR(CKA_KEY_TYPE),
 				_ATTR(CKA_MODULUS),
 				_ATTR(CKA_EC_POINT),
@@ -276,11 +276,11 @@ CK_BBOOL pkcs11_is_mech_supported(pkcs11Context *p11Context, CK_MECHANISM_TYPE m
     CK_ULONG mechlist_len = 0L, i;
 
     if(p11Context!=NULL) {
-	
+
 	if (( rv = p11Context->FunctionList.C_GetMechanismList( p11Context->slot, NULL_PTR, &mechlist_len ) ) != CKR_OK ) {
 	    pkcs11_error( rv, "C_GetMechanismList" );
 	    goto error;
-	} 
+	}
 
 	mechlist=calloc( mechlist_len, sizeof(CK_MECHANISM_TYPE) );
 
@@ -288,7 +288,7 @@ CK_BBOOL pkcs11_is_mech_supported(pkcs11Context *p11Context, CK_MECHANISM_TYPE m
 	    fprintf(stderr, "Ouch, memory error.\n");
 	    goto error;
 	}
-	
+
 	if (( rv = p11Context->FunctionList.C_GetMechanismList( p11Context->slot, mechlist, &mechlist_len ) ) != CKR_OK ) {
 	    pkcs11_error( rv, "C_GetMechanismList" );
 	    goto error;
@@ -303,7 +303,7 @@ CK_BBOOL pkcs11_is_mech_supported(pkcs11Context *p11Context, CK_MECHANISM_TYPE m
     }
 
 error:
-    if(mechlist!=NULL) free(mechlist);		
+    if(mechlist!=NULL) free(mechlist);
 
     return rv;
 }
@@ -316,14 +316,14 @@ int pkcs11_get_rsa_modulus_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl
     pkcs11AttrList *attrs = NULL;
 
     attrs = pkcs11_new_attrlist(p11Context, _ATTR(CKA_MODULUS),	_ATTR_END );
-    
+
     if(attrs) {
-	    
+
 	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
 	    CK_ATTRIBUTE_PTR modulus = pkcs11_get_attr_in_attrlist ( attrs, CKA_MODULUS );
 	    rv = (modulus->ulValueLen)<<3; /* this could be wrong, not bit-accurate */
 	}
-	
+
 	pkcs11_delete_attrlist(attrs);
     }
 
@@ -337,19 +337,65 @@ int pkcs11_get_dsa_pubkey_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
     pkcs11AttrList *attrs = NULL;
 
     attrs = pkcs11_new_attrlist(p11Context, _ATTR(CKA_VALUE), _ATTR_END );
-    
+
     if(attrs) {
-	    
+
 	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
 	    CK_ATTRIBUTE_PTR pubkey = pkcs11_get_attr_in_attrlist ( attrs, CKA_VALUE );
 	    rv = (pubkey->ulValueLen)<<3; /* this could be wrong, not bit-accurate */
 	}
-	
+
 	pkcs11_delete_attrlist(attrs);
     }
 
     return rv;
 }
+
+
+CK_OBJECT_CLASS pkcs11_get_object_class(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
+{
+    CK_OBJECT_CLASS rv = 0xFFFFFFFFUL; /* synthetic value, means "error" */
+
+    pkcs11AttrList *attrs = NULL;
+
+    /* extract object class from provided handle */
+    attrs = pkcs11_new_attrlist(p11Context, _ATTR(CKA_CLASS), _ATTR_END );
+
+    if(attrs) {
+
+	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	    CK_ATTRIBUTE_PTR attr_ptr = pkcs11_get_attr_in_attrlist(attrs, CKA_CLASS);
+	    rv = *(CK_OBJECT_CLASS *)(attr_ptr->pValue);
+	}
+
+    pkcs11_delete_attrlist(attrs);
+    }
+
+    return rv;
+}
+
+CK_KEY_TYPE pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
+{
+    CK_KEY_TYPE rv = 0xFFFFFFFFUL; /* synthetic value, means "error" */
+
+    pkcs11AttrList *attrs = NULL;
+
+    /* extract object class from provided handle */
+    attrs = pkcs11_new_attrlist(p11Context, _ATTR(CKA_KEY_TYPE), _ATTR_END );
+
+    if(attrs) {
+
+	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	    CK_ATTRIBUTE_PTR attr_ptr = pkcs11_get_attr_in_attrlist(attrs, CKA_KEY_TYPE);
+	    rv = *(CK_KEY_TYPE *)(attr_ptr->pValue);
+	}
+
+    pkcs11_delete_attrlist(attrs);
+    }
+
+    return rv;
+}
+
 
 /**************************************************************************/
 
