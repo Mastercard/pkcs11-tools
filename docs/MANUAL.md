@@ -42,29 +42,30 @@ The following commands are supported:
 |----------------|----------------------------------------------------------------------------------|
 |`p11cat`        |prints out in PEM format the content of a certificate or public key               |
 |`p11more`       |prints out, in human-readable format, the content of a certificate or public key  |
-|`p11keygen`     |generates key                                                                     |
-|`p11kcv`        |Computes a key check value                                                        |
+|`p11keygen`     |generates a key, and optionally wrap it under one or several wrapping key(s)      |
+|`p11kcv`        |computes a key check value                                                        |
 |`p11od`         |object dumper, dumps all attributes of an object                                  |
-|`p11setattr`    |set attribute of an object                                                        |
-|`p11importcert` |import certificate and binds it accordingly with key pair if any                  |
-|`p11importpubk` |import of a standalone public key                                                 |
-|`p11importdata` |import a data file                                                                |
-|`p11ls`         |list content of a token                                                           |
+|`p11setattr`    |sets attribute of an object                                                       |
+|`p11importcert` |imports a certificate and binds it accordingly with key pair if any               |
+|`p11importpubk` |imports a public key                                                              |
+|`p11importdata` |imports a data file                                                               |
+|`p11ls`         |lists token contents                                                              |
 |`p11req`        |generate CSR                                                                      |
-|`p11slotinfo`   |print slot information, including mechanisms                                      |
-|`p11mv`         |"move" (i.e. rename) object                                                       |
-|`p11rm`         |delete object                                                                     |
-|`p11wrap`       |Wrap a key using another key                                                      |
-|`p11unwrap`     |Unwrap a key using another key                                                    |
-|`masqreq`       |tune a CSR to adjust DN and other fields (without re-signing)                     |
+|`p11slotinfo`   |prints slot information, including mechanisms                                     |
+|`p11mv`         |"moves" (i.e. renames) object                                                     |
+|`p11rm`         |deletes  an object                                                                |
+|`p11wrap`       |wraps a key using one or several wrapping key(s)                                  |
+|`p11unwrap`     |unwraps a key using another key                                                   |
+|`p11rewrap`     |unwraps a key, and wrap it again under one or several wrapping key(s)             |
+|`masqreq`       |tunes a CSR to adjust DN and other fields (without re-signing)                    |
 
 ## common arguments
 The following arguments are common to almost every command:
-* `-l <pkcs#11 library path>` allows to specify a path to the PKCS#11 library to use
+* `-l <pkcs#11 library path>` allows to specify a path to the PKCS\#11 library to use
 * `-m <NSS config dir>` ( e.g. `'.'` or `'sql:.'` ) is used to locate the NSS db directory, for NSS keystores, see [below](#working-with-nss-library) for more details.
-*  `-s <slot number>` specifies the slot index number, starting from `0`. Caution: this is NOT the slot number itself!
-*  `-t <token label>` speficies the token label. If both a slot index and a token label are specified, the token label takes precedence.
-*  `-p <token PIN | :::exec:<command> | :::nologin >` specified the password used to access the token, see [below](#fetching-password-from-a-subprocess) for more details. Optionally, a command to execute can be specified when prefixed with `:::exec:`; to use token public objects only, (i.e. without invoking `C_Login()`) use `:::nologin` value. See [below](#accessing-public-objects) for 
+* `-s <slot number>` specifies the slot index number, starting from `0`. Caution: this is NOT the slot number itself!
+* `-t <token label>` speficies the token label. If both a slot index and a token label are specified, the token label takes precedence.
+* `-p <token PIN | :::exec:<command> | :::nologin >` specified the password used to access the token, see [below](#fetching-password-from-a-subprocess) for more details. Optionally, a command to execute can be specified when prefixed with `:::exec:`; to use token public objects only, (i.e. without invoking `C_Login()`) use `:::nologin` value. See [below](#accessing-public-objects) for
 * `-S` will login to the token with Security Officer privilege
 * `-h` will print usage information
 * `-V` will print version information
@@ -75,7 +76,7 @@ In order to use NSS library, there are two ways to specify where to find the key
 -   either set the `PKCS11NSSDIR` environment variable
 -   or use the `-m` argument.
 
-The argument value contains the path to the directory where the NSS database is located (where you will find `key3.db`, `cert8.db` and `secmod.db`); It can be prefixed with `sql:` if you are using SQLite-style NSS database (`key4.db`, `cert9.db` and `pkcs11.txt`) 
+The argument value contains the path to the directory where the NSS database is located (where you will find `key3.db`, `cert8.db` and `secmod.db`); It can be prefixed with `sql:` if you are using SQLite-style NSS database (`key4.db`, `cert9.db` and `pkcs11.txt`)
 
 ## Interactive mode
 If not token label or slot index number is specified, then the utility will present a list of slots with token information and ask to choose one. Then password entry will happen interactively.
@@ -113,9 +114,16 @@ When an object does not have a label value, then the `CKA_ID` attribute is used,
 
 e.g.: `prvk/id/{39363231313338383739}`
 
+## Commands accepting PKCS\#11 attributes
+Some commands accept attributes. These attributes can be entered in different ways:
+- using the formal name; e.g. `CKA_LABEL`
+- this name is not case-sensitive, `cka_label` is also valid
+- the prefix `CKA_` can be removed, for convenience. `label` is therefore a valid token.
+- for attributes accepting a boolean value, the following tokens are accepted: `CK_TRUE`, `CK_FALSE`, `true`, `false`, `yes`, `no`
+
 # Commands details
 ## p11slotinfo
-This command provides basic information about slots and tokens connected to a library. 
+This command provides basic information about slots and tokens connected to a library.
 SLot and token features and flags are described, and all lechanisms are listed, together with their allowed mechanism family.
 
 The following table lists the meaning of abbreviations:
@@ -146,7 +154,7 @@ Finally, for mechanisms supporting elliptic curve cryptography, there are additi
  |`nam`       |Supports well-known named curves                |
  |`unc`       |Supports compressed points representation       |
  |`cmp`       |Supports compressed points representation       |
- 
+
 Here is an example of `p11slotinfo` executed with SoftHSMv2:
 ```
 $ p11slotinfo -l /usr/local/opt/softhsm/lib/softhsm/libsofthsm2.so -s 0
@@ -283,7 +291,7 @@ pubk/rsa-overarching-wrapping-key     tok,pub,r/w,imp,enc,vfy,vre,wra,rsa(4096)
 In the example above, three objects are found on the token:
  - a 256 bits AES secret key called `aes-wrapping-key` which is extractable - it can be wrapped - (`XTR`), and that can wrap (`wra`) and unwrap (`unw`) other keys. That key has been created locally (`loc`), and is a private object, i.e. requiring to login against the token, (`prv`).
  - an RSA 2048 bits private key called `rsa-2048`, which is also extractable (`XTR`), that can sign (`sig`) and decrypt (`dec`). the key has been imported to the token (`imp`); consequently, the historical attribute "was extractable" (`WXT`) is set.  Although the key is sensitive i.e. operated within the boundaries of the cryptographic token (`sen`), and since it has been imported, the token is setting the other historical attribute "not always sensitive" (`NAS`).
- - an RSA 4096 bits public key called `rsa-overarching-wrapping-key`, which is a public object, i.e. not requiring to login (`pub`). It is also imported (`imp`) and has the capability to wrap other keys (`wra`). 
+ - an RSA 4096 bits public key called `rsa-overarching-wrapping-key`, which is a public object, i.e. not requiring to login (`pub`). It is also imported (`imp`) and has the capability to wrap other keys (`wra`).
  ## p11cat
 Given an object identifier, exctract the content in DER, base64 encoded format ( aka PEM format). The output of the command can be used to pipe in another command. Additionally, when used in conjuction with `-x` parameter on public keys, the output is tuned either to yield native format for RSA keys, and parameter files for DH, DSA, and EC keys.
 -   if the object is a certificate, then the certificate value is exported
@@ -466,31 +474,32 @@ seck/aes-wrapping-key:
 ```
 
 ## p11keygen
-Generate a key or a key pair. There are multiple options, but the more important are:
+Generate a key or a key pair on a PKCS\#11 token, or generate and wrap under one or several key(s). There are multiple options, but the more important are:
 -   `-i`: the label of the key
 -   `-k`: the key algorithm: `rsa`, `ec`, `des`, `aes`, `generic`, `hmac` (`hmac` and `generic` are synonyms), `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512` (these are nCipher-specific, and only available when the toolkit is compiled with nCipher extentions)
--   `-b`: the key length in bits / `-q`: curve parameter name for elliptic curve
+-   `-b`: the key length in bits / `-q`: curve parameter name for elliptic curve. Please check out `openssl ecparam -list_curves` for a list of supported curves (obviously, the PKCS\#11 token must support it).
 
 Moreover, it is possible to specify attributes to set at key inception. This is very important as usually attributes cannot be enabled on a key once it has been disabled, so make sure to specify any required attribute here.
 
--   For key pairs, the tool will dispatch attributes pertaining to the relevant key (public or private).
--   For RSA key pairs, `CKA_ID` is adjusted to match IBM PKCS#11 JCE algorithm (the value is the SHA-1 of the key modulus).
+For key pairs, the tool will dispatch attributes pertaining to the relevant key (public or private).
+For RSA key pairs, `CKA_ID` is adjusted to match IBM PKCS\#11 JCE algorithm (the value is the SHA-1 of the key modulus).
 
 ```
 $ p11keygen -k rsa -b 2048 -i test-rsa-2048 CKA_ENCRYPT=true CKA_DECRYPT=true CKA_SIGN=true CKA_VERIFY=true
 Generating, please wait... Key Generation succeeded
 ```
 
- - For HMAC key (excepting on nCipher HSMs), you need to specify `CKA_DERIVE=true`.
- - `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
+For HMAC key (excepting on nCipher HSMs), you need to specify `CKA_DERIVE=true`. The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
 
 ```
 $ p11keygen -k generic -b 256 -i test-hmac-32-bytes CKA_DERIVE=true
 Generating, please wait... Key Generation succeeded
 ```
 
- - For generating HMAC key on nCipher, you need to use one of the following key types: `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512`; In addition, specify `CKA_SIGN=true` and `CKA_VERIFY=true`.
- - `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
+For generating HMAC key on nCipher, you need to use one of the following key types: `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512`; In addition, specify `CKA_SIGN=true` and `CKA_VERIFY=true`. The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
+
+### creating wrapped keys
+using `p11keygen`, it is possible to generate a session key and wrap it immediately under one or several wrapping keys. To achieve this, you simply need to add the `-W` optional parameter, followed by the wrapping parameters string, as explained in `p11wrap`. Note that the key will not be stored on the token.
 
 ## p11kcv
 Computes the key check value of a symmetric key and prints it. This will work only on symmetric keys (`des` and `aes` keys).
@@ -536,7 +545,6 @@ If needed, the trust bit can be set ( using the `-T` option, in combination with
 ```
 $ p11importcert -f test.crt -i test-rsa-2048
 PEM format detected
-*** PKCS\#11 Info : CreateObject() returned CKR_OK ( 0x00000000 )
 p11importcert: importing certificate succeeded.
 ```
 
@@ -547,7 +555,6 @@ will be adjusted according to IBM rules.
 ```
 $ p11importpubk -f test-public-rsa-key.rsa -i test-public-rsa-key
 PEM format detected
-*** PKCS#11 Info : CreateObject() returned CKR_OK ( 0x00000000 )
 p11importpubk: import of public key succeeded.
 ```
 
@@ -556,7 +563,6 @@ Similarily to p11importcert, this utility will load an arbitrary file and import
 
 ```
 $ p11importdata -f hello.txt -i dummy_data
-*** PKCS#11 Info : CreateObject() returned CKR_OK ( 0x00000000 )
 p11importdata: import of data succeeded.
 ```
 
@@ -594,6 +600,9 @@ the commands `p11wrap` and `p11unwrap` can be used to respectively wrap and unwr
 |               |                               | `CKM_DES_CBC_PAD`     | DES          | any key type                     |                               |
 | `rfc3394`     | RFC3394, NIST SP.800.38F      | `CKM_AES_KEY_WRAP`    | AES          | any key type, aligned on 8 bytes | useful for symmetric keys     |
 | `rfc5649`     | RFC5649, NIST SP.800.38F      | `CKM_AES_KEY_WRAP_PAD`| AES          | any key type                     |                               |
+| `envelope`    | combines `pkcs1` or `oaep`    |                       | RSA/AES      | any key type                     | allows to wrap any key using  |
+|               | with `cbcpad`, `rfc3394` or   |                       |              |                                  | a top level RSA key           |
+|               | `rfc5649`                     |                       |              |                                  |                               |
 
 To wrap a key, you will need:
  - a wrapping key, that must have `CKA_WRAP` attribute set
@@ -604,7 +613,7 @@ you must at least provide:
  - `-w`, the label of the wrapping key
  - `-i`, the label of the key to wrap
 
-By default, the wrapping algorithm is set to `pkcs1`. You can change this with the `-a` argument:
+By default, the wrapping algorithm is set to `oaep`. You can change this with the `-a` argument:
  - `-a pkcs1` will choose PKCS#1 1.5 wrapping algorithm. It is considered insecure and should be avoided.
  - `-a oaep` or `-a oaep(args...)` will choose PKCS#1 OAEP (RFC3447).
    `args...` can be one or several of the following parameters, separated by commas:
@@ -612,11 +621,23 @@ By default, the wrapping algorithm is set to `pkcs1`. You can change this with t
    * `mgf=CKG_MGF1_SHA1|CKG_MGF1_SHA256|CKG_MGF_SHA384|CKG_MGF_SHA512` - MGF parameter, default is `CKG_MGF1_SHA1`
    * `hash=CKM_SHA_1|CKM_SHA224|CKM_SHA256|CKM_SHA384|CKM_SHA512` - hashing alg. argument, default is `CKM_SHA_1`
 
- - `-a cbcpad` or `-a cbcpad(ags...)` : private and secret key wrapping (using CKM_xxx_CBC_PAD wrapping mehanisms)
+ - `-a cbcpad` or `-a cbcpad(args...)` : private and secret key wrapping (using CKM_xxx_CBC_PAD wrapping mehanisms)
     `args...` can be one or several of the following parameters (separated by commas)
     * `iv=[HEX STRING prefixed with 0x]` - Initialisation vector, please refer to PKCS#11 `CKM_AES_CBC_PAD` description for more details.
  - `-a rfc3394`: private and secret key wrapping, as documented in RFC3394 and NIST.SP.800-38F, using `CKM_AES_KEY_WRAP` mechanism or equivalent vendor-specific
  - `-a rfc5649`: private and secret key wrapping, as documented in RFC5649 and NIST.SP.800-38F, using `CKM_AES_KEY_WRAP_PAD` mechanism or equivalent vendor-specific
+ - `-a envelope`: private an secret key wrapping, using the envelope wrapping technique (see envelope wrapping below)
+
+Alternatively, it is possible to specify one or more key/wrapping algorithm/output filename using `-W` optional and repeatable parameter.
+The syntax is `-W 'wrappingkey="<wrappingkeylabel>"[,algorithm=<algorithm>[,filename="<path>"]]'`, with:
+ - `"<wrappingkeylabel>"` is the name of a valid wrapping key on the token (i.e. that has `CKA_WRAP`). Caution: it must be surrounded with double quotes.
+ - `<algorithm>` is a valid wrapping algorithm, as specified above
+ - `"<path>"` is a valid path to a filename; when specified, the wrapped key is written to that file, instead of standard output. Caution: it must be surrounded with double quotes.
+
+#### envelope wrapping
+It is possible to combine private key and symmetric key wrapping together, to allow wrapping any key material, given a single private key. To do this, use `-a envelope` or `-a envelope(args...)`; `args...` can be one or several of the following parameters (separated by commas)
+    * `inner=<algorithm>`: specifies the algorithm that wraps the target key. It must be one of `cbcpad`, `rfc3394` or `rfc5649`. In turn, algorithms can be specified with their own set of parameters. If not specified, default is `cbcpad`.
+	* `outer=<algorithm>`: specifies the algoritom that wraps the inner key, using the specified wrapping key. It must be one of `pkcs1` or `oaep`. If not speficied, default is `oaep`.
 
 ### p11unwrap syntax
 you must at least provide:
@@ -624,10 +645,14 @@ you must at least provide:
 
 In addition, PKCS#11 attributes can be specified, that will override attributes from the wrapping key file.
 
----
-## exchanging a secret key between tokens
+## p11rewrap
+This command is actually a combination of `p11unwrap` and `p11wrap`, but is not storing the unwrapped key permanently. This way keys can be rewrapped to one or several public key(s).
+The syntax of this command is similar to `p11unwrap`; in addition, rewrapping jobs can be specified using the `-W` repeatable parameter (see `p11wrap` syntax for more details).
 
-In order to exchange all kinds of keys between tokens, you must first exchange a symmetric key (typically AES), which implies this symmetric key to be itself exchanged, typically using an assymetric key. 
+---
+## exchanging a keys between tokens - the long way
+
+In order to exchange all kinds of keys between tokens, you must first exchange a symmetric key (typically AES), which implies this symmetric key to be itself exchanged, typically using an assymetric key.
 
 The following diagram depicts the different steps to execute to establish a key exchange channel between two tokens:
 
@@ -653,25 +678,80 @@ The following diagram depicts the different steps to execute to establish a key 
 |                                |     |       on AES key             |
 |                                |     |       (p11setattr)           |
 |                                |     |                              |
+|                                |     |    8. generate key to share  |
+|                                |     |       (extractable)          |
+|                                |     |                              |
+|  10. unwrap generated key <------------+  9. wrap generated key     |
+|      using AES key             |     |       under AES key          |
+|      (p11unwrap)               |     |                              |
+|                                |     |   11. remove extractable     |
+|                                |     |       on generated key       |
+|                                |     |                              |
+|                                |     |                              |
+|                                |     |                              |
 +--------------------------------+     +------------------------------+
 ```
 
 Steps from the figure are explained here below:
 
-1. On the source token, an RSA key pair can be generated e.g. using the following command:
+1. On the destination token, an RSA key pair can be generated e.g. using the following command:
 `p11keygen -k rsa -b 4096 -i rsa-wrapping-key CKA_WRAP=true CKA_UNWRAP=true`
-2. On the source token, the freshly created public key can be extracted as follows:
+2. On the destination token, the freshly created public key can be extracted as follows:
 `p11cat pubk/rsa-wrapping-key >rsa-wrapping-key.pubk`
-3. On the destination token, the public key can be imported using:
+3. On the source token, the public key can be imported using:
 `p11importpubk -f rsa-wrapping-key.pubk -i rsa-wrapping-key`
-4. On the destination token, generate an AES key that will be used to wrap keys from source token:
+4. On the source token, generate an AES key that will be used to wrap keys from source token:
 `p11keygen -k aes -b 256 -i aes-wrapping-key CKA_WRAP=true CKA_UNWRAP=true CKA_EXTRACTABLE=true`
-5. On the destination token, wrap that AES key:
+5. On the source token, wrap that AES key:
 `p11wrap -a oaep -i aes-wrapping-key -w rsa-wrapping-key -o aes-wrapping-key.wrap`
-6. On the source token, unwrap that AES key:
+6. On the destination token, unwrap that AES key:
 `p11unwrap -f aes-wrapping-key.wrap`
-7. On the destination token, flip the extractable attribute back to false:
+7. On the source token, flip the extractable attribute back to false:
 `p11setattr seck/aes-wrapping-key CKA_EXTRACTABLE=false`
 
-Once the AES key has been established on both tokens, it can be used to wrap and exchange any other extractable key (irrespective of key type) from both tokens, using `-a cbcpad`, `-a rfc3394` and `-a rfc5649` argument to specify algorithm (see remarks in table [above](#p11wrap-and-p11unwrap) for each algorithm).
+Once the AES key has been established on both tokens, it can be used to wrap and exchange any other extractable key (irrespective of key type) from both tokens, using `-a cbcpad`, `-a rfc3394` and `-a rfc5649` argument to specify algorithm (see remarks in table [above](#p11wrap-and-p11unwrap) for each algorithm):
+8. On the source token, generate a key (using `p11keygen`)
+9. On the source token, wrap that key under the AES key
+10. On the destination token, unwrap that key
+11. On the source token, remove the extractable bit.
 
+While this procedure works, it is cumbersome and insecure to some degrees, as keys created on the token are extractable for a while.
+
+## exchanging keys between tokens - the accelerated way
+All the steps above can be executed in a simpler and more secure fashion, that leverages the PKCS\#11 capability to create session keys, accessible only to the calling process.
+
+1. On the destination token, generate an RSA key pair e.g. using the following command:
+`p11keygen -k rsa -b 4096 -i rsa-dest-wrapping-key CKA_WRAP=true CKA_UNWRAP=true`
+2. Similarly, On the source token, generate an RSA key pair e.g. using the following command:
+`p11keygen -k rsa -b 4096 -i rsa-source-wrapping-key CKA_WRAP=true CKA_UNWRAP=true`
+3. On the destination token, the freshly created public key can be extracted as follows:
+`p11cat pubk/rsa-dest-wrapping-key >rsa-dest-wrapping-key.pubk`
+4. On the source token, the public key can be imported using:
+`p11importpubk -f rsa-wrapping-dest-key.pubk -i rsa-dest-wrapping-key`
+5. On the source token, generate and wrap to both wrapping keys (using `p11keygen` with `-W` parameter)
+`p11keygen -k aes -b 128 -i business-key -W 'algorithm=envelope,wrappingkey="rsa-dest-wrapping-key",filename="business-key-for-dest-token.wrap" -W 'algorithm=envelope,wrappingkey="rsa-source-wrapping-key",filename="business-key-for-source-token.wrap"' encrypt=yes decrypt=yes`
+6. On the destination token, unwrap the key
+`p11unwrap -f business-key-for-dest-token.wrap`
+7. On the source token, unwrap the key
+`p11unwrap -f business-key-for-source-token.wrap`
+
+```
++--+ DEST TOKEN +--------------+      +---+ SOURCE TOKEN +---------------+
+|                              |      |                                  |
+|  1. generate RSA key pair    |      |     2. generate RSA key pair     |
+|     that can wrap            |      |        that can wrap             |
+|     (p11keygen)              |      |        (p11keygen)               |
+|                              |      |                                  |
+|  3. export public key  +--------------->  4. import public key         |
+|     (p11cat)                 |      |        (p11importpubk)           |
+|                              |      |                                  |
+|  6. unwrap key               |      |     5. generate key to share     |
+|     (p11unwrap)        <----------------+    and wrap it under         |
+|                              |      |        RSA key pair, using       |
+|                              |      |        envelope algorithm        |
+|                              |      |                                  |
+|                              |      |     7. unwrap key                |
+|                              |      |        (p11unwrap)               |
+|                              |      |                                  |
++------------------------------+      +----------------------------------+
+```

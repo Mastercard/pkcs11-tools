@@ -144,7 +144,7 @@ inner              { return PARAMINNER; }
 
 @                  { return WRAPPINGJOBHEADER; }
 wrappingkey        { return P_WRAPPINGKEY; }
-filename           { return P_FILENAME; }
+file(name)?        { return P_FILENAME; }
 algo(rithm)?       { return P_ALGORITHM; }
 
 true|CK_TRUE|yes   { yylval.val_bool = 1; return TOK_BOOLEAN; }
