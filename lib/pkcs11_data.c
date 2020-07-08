@@ -137,8 +137,10 @@ CK_OBJECT_HANDLE pkcs11_importdata( pkcs11Context * p11Context, char *filename, 
 							  dataTemplate, 
 							  sizeof(dataTemplate) / sizeof(CK_ATTRIBUTE), 
 							  &hDATA);
-	
-	pkcs11_error( retCode, "CreateObject" );
+
+	if(retCode != CKR_OK) {
+	    pkcs11_error( retCode, "CreateObject" );
+	}
 	
 	free(data);
     }

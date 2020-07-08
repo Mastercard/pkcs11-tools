@@ -957,9 +957,12 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 
 		    /* do we have a match in the template list? */
 		    if(match) {
-			if(source==source_buffer) { /* if source_buffer, we apply ALL matches */
-			    match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-			    match->ulValueLen = attrs[i].ulValueLen;
+			/* if source_buffer, we apply ALL matches except label, if it is non-null */
+			if(source==source_buffer) {
+			    if(match->type!=CKA_LABEL || label==NULL) {
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+			    }
 			} else {
 			    switch(match->type) {
 			    case CKA_ENCRYPT:
@@ -1095,12 +1098,16 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 
 		    /* do we have a match in the template list? */
 		    if(match) {
-			if(source==source_buffer) { /* if source_buffer, we apply ALL matches */
-			    match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-			    match->ulValueLen = attrs[i].ulValueLen;
+			/* if source_buffer, we apply ALL matches except label, if it is non-null */
+			if(source==source_buffer) {
+			    if(match->type!=CKA_LABEL || label==NULL) {
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+			    }
 			} else {
 			    switch(match->type) {
 			    case CKA_VERIFY:
+			    case CKA_VERIFY_RECOVER:
 			    case CKA_MODIFIABLE:
 				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
 				match->ulValueLen = attrs[i].ulValueLen;
@@ -1223,9 +1230,12 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 
 		    /* do we have a match in the template list? */
 		    if(match) {
-			if(source==source_buffer) { /* if source_buffer, we apply ALL matches */
-			    match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-			    match->ulValueLen = attrs[i].ulValueLen;
+			/* if source_buffer, we apply ALL matches except label, if it is non-null */
+			if(source==source_buffer) {
+			    if(match->type!=CKA_LABEL || label==NULL) {
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+			    }
 			} else {
 			    switch(match->type) {
 			    case CKA_DERIVE:
@@ -1342,12 +1352,16 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 
 		    /* do we have a match in the template list? */
 		    if(match) {
-			if(source==source_buffer) { /* if source_buffer, we apply ALL matches */
-			    match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-			    match->ulValueLen = attrs[i].ulValueLen;
+			/* if source_buffer, we apply ALL matches except label, if it is non-null */
+			if(source==source_buffer) {
+			    if(match->type!=CKA_LABEL || label==NULL) {
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+			    }
 			} else {
 			    switch(match->type) {
 			    case CKA_VERIFY:
+			    case CKA_VERIFY_RECOVER:
 			    case CKA_DERIVE:
 			    case CKA_MODIFIABLE:
 				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
@@ -1374,7 +1388,9 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
 								  &hPubk);
 
-		pkcs11_error( retCode, "CreateObject" );
+		if(retCode != CKR_OK) {
+		    pkcs11_error( retCode, "CreateObject" );
+		}
 
 		/* if we are here, we have to free up memory anyway */
 	    }

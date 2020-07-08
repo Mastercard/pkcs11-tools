@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sysexits.h>
 #include "pkcs11lib.h"
 
 
@@ -76,6 +77,8 @@ void print_usage(char *progname)
 	     "                   - ignored for DH/DSA (taken out from parameter file)\n"
 	     "  -q <curve param>: curve parameter\n"
 	     "                    if unspecified, default is prime256v1\n"
+	     "                    check out `openssl ecparam -list_curves` for a list of supported values\n"
+	     "                    PKCS#11 libraries typically support prime256v1, secp384r1 and secp521r1\n"
 	     "  -d <dh/dsa param>  : DH or DSA parameter file\n"
 	     "  -W wrappingkey=\"<label>\"[,algorithm=<algorithm>][,filename=\"<path>\"]\n"
 	     "     a specifier for wrapping the key, with the following parameters:\n"
@@ -165,7 +168,7 @@ int main( int argc, char ** argv )
 
     pkcs11Context * p11Context = NULL;
     func_rc retcode;
-    int p11keygenrc = EXIT_SUCCESS;
+    int p11keygenrc = EX_OK;
 
 //    enum keytype { unknown, aes, des, rsa, ec, dsa, dh, generic };
     enum keytype kt = unknown;
@@ -205,11 +208,8 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:k:b:q:d:hVW:" ) ) != -1 )
-    {
-	switch ( argnum )
-	{
-
+    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:k:b:q:d:hVW:" ) ) != -1 ) {
+	switch ( argnum ) {
 	case 'l' :
 	    library =  optarg;
 	    break;
@@ -319,28 +319,31 @@ int main( int argc, char ** argv )
     if(optind<argc) {
 	if( (attrs_cnt=get_attributes_from_argv( &attrs, optind , argc, argv)) == 0 ) {
 	    fprintf( stderr, "Try `%s -h' for more information.\n", argv[0]);
-	    goto err;
+	    retcode = rc_error_invalid_argument;
+	    goto epilog;
 	}
     }
 
     if ( errflag ) {
 	fprintf(stderr, "Try `%s -h' for more information.\n", argv[0]);
-	goto err;
+	retcode = rc_error_usage;
+	goto epilog;
     }
 
     if ( library == NULL || label == NULL || kt == unknown || (kb == 0 && param == NULL) ) {
 	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
-	goto err;
+	retcode = rc_error_usage;
+	goto epilog;
     }
 
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
-      goto err;
+      goto epilog;
     }
 
     /* validate the given provider library exists and can be opened */
     if (( retcode = pkcs11_initialize( p11Context ) ) != CKR_OK ) {
-      goto err;
+      goto epilog;
     }
 
     {
@@ -513,7 +516,7 @@ int main( int argc, char ** argv )
     pkcs11_finalize( p11Context );
 
     /* free allocated memory */
-err:
+epilog:
     /* free wrappingjob built strings */
     for(i=0; i<numjobs;i++) {
 	if(wrappingjob[i].fullstring_allocated==1) { free(wrappingjob[i].fullstring); }
@@ -522,16 +525,24 @@ err:
     release_attributes( attrs, attrs_cnt );
     pkcs11_freeContext(p11Context);
 
-    if(retcode != rc_ok ) {
-	p11keygenrc = retcode;
-	fprintf(stderr, "key generation failed - returning code %d (0x%04.4x) to calling process\n", p11keygenrc, p11keygenrc);
-    } else {
+    switch(retcode) {
+    case rc_ok:
 	if(numfailed>0) {
-	    p11keygenrc = 0x0010 + numfailed;
+	    p11keygenrc = numfailed;
 	    fprintf(stderr, "some (%d) wrapping jobs failed - returning code %d (0x%04.4x) to calling process\n", numfailed, p11keygenrc, p11keygenrc);
 	} else {
 	    fprintf(stderr, "key generation succeeded\n");
 	}
-    }
+	break;
+
+    case rc_error_usage:
+    case rc_error_invalid_argument:
+	p11keygenrc = EX_USAGE;
+	break;
+
+    default:
+	p11keygenrc = retcode;
+	fprintf(stderr, "key generation failed - returning code %d (0x%04.4x) to calling process\n", p11keygenrc, p11keygenrc);
+    }	
     return p11keygenrc;
 }

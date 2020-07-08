@@ -630,7 +630,7 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
     char hostname[255];
 
     /* keyindex: in case of envelope wrapping, the index shall always be the outer */
-    int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_OUTER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
+    int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_INNER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
 
     char *wctxlabel = wctx->wrappedkeylabel;
     char *handlelabel = pkcs11_alloclabelforhandle(wctx->p11Context, wctx->key[keyindex].wrappedkeyhandle);
@@ -962,6 +962,7 @@ static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", CK_FALSE },
 	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", CK_FALSE },
 	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY", CK_FALSE },
+	{ CKA_VERIFY_RECOVER, fprintf_boolean_attr, "CKA_VERIFY_RECOVER", CK_FALSE },
 	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", CK_FALSE },
 	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", CK_FALSE },
 	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", CK_FALSE },

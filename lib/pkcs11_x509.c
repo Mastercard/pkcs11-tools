@@ -526,7 +526,9 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 						      (trusted ? sizeof(certTemplate) : sizeof(certTemplate)-2) / sizeof(CK_ATTRIBUTE),
 						      &hCert);
 
-			    pkcs11_error( retCode, "CreateObject" );
+			    if(retCode != CKR_OK) {
+				pkcs11_error( retCode, "CreateObject" );
+			    }
 
 			    /* if we are here, we have to free up memory anyway */
 			    free_X509_buf(modulus_hash);

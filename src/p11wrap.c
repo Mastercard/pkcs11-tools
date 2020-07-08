@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sysexits.h>
 #include "pkcs11lib.h"
 
 
@@ -115,7 +116,7 @@ void print_usage(char *progname)
 	     "\n"
 	     , pkcs11_ll_basename(progname) );
 
-    exit( RC_ERROR_USAGE );
+    exit( EX_USAGE );
 }
 
 
@@ -136,7 +137,7 @@ int main( int argc, char ** argv )
     char * wrappedkeylabel = NULL;
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_ok;
-    int p11wraprc = EXIT_SUCCESS;
+    int p11wraprc = EX_OK;
     wrappedKeyCtx *wctx = NULL;
     wrappingjob_t wrappingjob[MAX_WRAPPINGJOB];
     int numjobs = 0;
@@ -281,14 +282,16 @@ int main( int argc, char ** argv )
 
     if ( errflag ) {
 	fprintf(stderr, "Try `%s -h' for more information.\n", argv[0]);
-	goto err;
+	p11wraprc = rc_error_usage;
+	goto epilog;
     }
 
     if ( library == NULL || wrappedkeylabel == NULL ||
 	 option == option_unknown || (option == option_separate && wrappingjob[0].wrappingkeylabel==NULL) ) {
 	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
-	goto err;
+	p11wraprc = rc_error_usage;
+	goto epilog;
     }
 
     if(numjobs>1) {
@@ -297,12 +300,12 @@ int main( int argc, char ** argv )
 
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
 	retcode = rc_error_memory;
-	goto err;
+	goto epilog;
     }
 
     /* validate the given provider library exists and can be opened */
     if (( retcode = pkcs11_initialize( p11Context ) ) != CKR_OK ) {
-	goto err;
+	goto epilog;
     }
 
 
@@ -400,7 +403,7 @@ int main( int argc, char ** argv )
 	if(wrappingjob[i].retcode != rc_ok) { numfailed++; }
     }
 
-err:
+epilog:
     /* free wrappingjob built strings */
     for(i=0; i<numjobs;i++) {
 	if(wrappingjob[i].fullstring_allocated==1) { free(wrappingjob[i].fullstring); }
@@ -409,16 +412,25 @@ err:
     if(wctx) { pkcs11_free_wrappedkeycontext(wctx); wctx = NULL; }
     if(p11Context) { pkcs11_freeContext(p11Context); p11Context = NULL; }
 
-    if(retcode != rc_ok ) {
-	p11wraprc = retcode;
-	fprintf(stderr, "Key wrapping operations failed - returning code %d (0x%04.4x) to calling process\n", p11wraprc, p11wraprc);
-    } else {
+    switch(retcode) {
+    case rc_ok:
 	if(numfailed>0) {
-	    p11wraprc = 0x0010 + numfailed;
+	    p11wraprc = numfailed;
 	    fprintf(stderr, "Some (%d) wrapping jobs failed - returning code %d (0x%04.4x) to calling process\n", numfailed, p11wraprc, p11wraprc);
 	} else {
+	    p11wraprc = EX_OK;
 	    fprintf(stderr, "Key wrapping operations succeeded\n");
 	}
+	break;
+
+    case rc_error_usage:
+    case rc_error_invalid_argument:
+	p11wraprc = EX_USAGE;
+	break;
+
+    default:
+	p11wraprc = retcode;
+	fprintf(stderr, "Key wrapping operations failed - returning code %d (0x%04.4x) to calling process\n", p11wraprc, p11wraprc);
     }
     return p11wraprc;
 }

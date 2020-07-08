@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sysexits.h>
 #include "pkcs11lib.h"
 
 
@@ -88,7 +89,7 @@ void print_usage(char *progname)
 	     "\n"
 	     , pkcs11_ll_basename(progname) );
 
-    exit( RC_ERROR_USAGE );
+    exit( EX_USAGE );
 }
 
 int main( int argc, char ** argv )
@@ -109,7 +110,8 @@ int main( int argc, char ** argv )
     char * wrappedkeylabel = NULL;
     char * wrappingkeylabel = NULL;
     pkcs11Context * p11Context = NULL;
-    CK_RV retcode = EXIT_FAILURE;
+    func_rc retcode = rc_ok;
+    int p11unwraprc = EX_OK;
 
     CK_ATTRIBUTE *attrs=NULL;
     size_t attrs_cnt=0;
@@ -198,18 +200,21 @@ int main( int argc, char ** argv )
 	if( (attrs_cnt=get_attributes_from_argv( &attrs, optind , argc, argv)) == 0 ) {
 	    fprintf( stderr, "Attributes passed as argument could not be read.\n"
 		     "Try `%s -h' for more information.\n", argv[0]);
+	    retcode = rc_error_invalid_argument;
 	    goto err;
 	}
     }
 
     if ( errflag ) {
 	fprintf(stderr, "Try `%s -h' for more information.\n", argv[0]);
+	retcode = rc_error_usage;
 	goto err;
     }
 
     if ( library == NULL || filename == NULL ) {
 	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
+	retcode = rc_error_usage;
 	goto err;
     }
 
@@ -244,7 +249,20 @@ err:
 
     pkcs11_freeContext(p11Context);
 
-    fprintf(stderr, "key unwrapping %s\n", retcode==rc_ok ? "succeeded" : "failed" );
+    switch(retcode) {
+    case rc_error_usage:
+    case rc_error_invalid_argument:
+	p11unwraprc = EX_USAGE;
+	break;
 
-    return ( retcode );
+    case rc_ok:
+	fprintf(stderr, "Key unwrapping operation succeeded\n");
+	p11unwraprc = EX_OK;
+	break;
+	
+    default:
+	p11unwraprc = retcode;
+	fprintf(stderr, "Key wrapping operations failed - returning code %d (0x%04.4x) to calling process\n", p11unwraprc, p11unwraprc);
+    }    
+    return p11unwraprc;
 }
