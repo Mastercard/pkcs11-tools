@@ -499,7 +499,7 @@ Generating, please wait... Key Generation succeeded
 For generating HMAC key on nCipher, you need to use one of the following key types: `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512`; In addition, specify `CKA_SIGN=true` and `CKA_VERIFY=true`. The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
 
 ### creating wrapped keys
-using `p11keygen`, it is possible to generate a session key and wrap it immediately under one or several wrapping keys. To achieve this, you simply need to add the `-W` optional parameter, followed by the wrapping parameters string, as explained in `p11wrap`. Note that the key will not be stored on the token.
+using `p11keygen`, it is possible to generate a session key and wrap it immediately under one or several wrapping keys. To achieve this, you simply need to add the `-W` optional parameter, followed by the wrapping parameters string, as explained in `p11wrap`. Note that by default, `p11keygen` will attempt to store a copy of the session key on the token. To prevent this (some PKCS\#11 library do not support this), add the `-r` optional parameter.
 
 ## p11kcv
 Computes the key check value of a symmetric key and prints it. This will work only on symmetric keys (`des` and `aes` keys).
@@ -721,37 +721,41 @@ While this procedure works, it is cumbersome and insecure to some degrees, as ke
 All the steps above can be executed in a simpler and more secure fashion, that leverages the PKCS\#11 capability to create session keys, accessible only to the calling process.
 
 1. On the destination token, generate an RSA key pair e.g. using the following command:
-`p11keygen -k rsa -b 4096 -i rsa-dest-wrapping-key CKA_WRAP=true CKA_UNWRAP=true`
-2. Similarly, On the source token, generate an RSA key pair e.g. using the following command:
-`p11keygen -k rsa -b 4096 -i rsa-source-wrapping-key CKA_WRAP=true CKA_UNWRAP=true`
-3. On the destination token, the freshly created public key can be extracted as follows:
-`p11cat pubk/rsa-dest-wrapping-key >rsa-dest-wrapping-key.pubk`
-4. On the source token, the public key can be imported using:
-`p11importpubk -f rsa-wrapping-dest-key.pubk -i rsa-dest-wrapping-key`
-5. On the source token, generate and wrap to both wrapping keys (using `p11keygen` with `-W` parameter)
-`p11keygen -k aes -b 128 -i business-key -W 'algorithm=envelope,wrappingkey="rsa-dest-wrapping-key",filename="business-key-for-dest-token.wrap" -W 'algorithm=envelope,wrappingkey="rsa-source-wrapping-key",filename="business-key-for-source-token.wrap"' encrypt=yes decrypt=yes`
-6. On the destination token, unwrap the key
-`p11unwrap -f business-key-for-dest-token.wrap`
-7. On the source token, unwrap the key
-`p11unwrap -f business-key-for-source-token.wrap`
-
+   ```
+   p11keygen -k rsa -b 4096 -i rsa-dest-wrapping-key CKA_WRAP=true CKA_UNWRAP=true
+   ```
+2. On the destination token, the freshly created public key can be extracted as follows:
+   ```
+   p11cat pubk/rsa-dest-wrapping-key >rsa-dest-wrapping-key.pubk
+   ```
+3. On the source token, the public key can be imported using:
+   ```
+   p11importpubk -f rsa-wrapping-dest-key.pubk -i rsa-dest-wrapping-key`
+   ```
+4. On the source token, generate and wrap to both wrapping keys (using `p11keygen` with `-W` parameter)
+   ```
+   p11keygen -k aes -b 128 -i business-key -W 'algorithm=envelope,wrappingkey="rsa-dest-wrapping-key",filename="business-key-for-dest-token.wrap" -W 'algorithm=envelope,wrappingkey="rsa-source-wrapping-key",filename="business-key-for-source-token.wrap"' encrypt=yes decrypt=yes
+   ```
+5. On the destination token, unwrap the key
+   ```
+   p11unwrap -f business-key-for-dest-token.wrap
+   ```
+   
+The following diagram illustrate these steps:
 ```
 +--+ DEST TOKEN +--------------+      +---+ SOURCE TOKEN +---------------+
 |                              |      |                                  |
-|  1. generate RSA key pair    |      |     2. generate RSA key pair     |
-|     that can wrap            |      |        that can wrap             |
-|     (p11keygen)              |      |        (p11keygen)               |
+|  1. generate RSA key pair    |      |                                  |
+|     that can wrap            |      |                                  |
+|     (p11keygen)              |      |                                  |
 |                              |      |                                  |
-|  3. export public key  +--------------->  4. import public key         |
+|  2. export public key  +--------------->  3. import public key         |
 |     (p11cat)                 |      |        (p11importpubk)           |
 |                              |      |                                  |
-|  6. unwrap key               |      |     5. generate key to share     |
+|  5. unwrap key               |      |     4. generate key to share     |
 |     (p11unwrap)        <----------------+    and wrap it under         |
 |                              |      |        RSA key pair, using       |
 |                              |      |        envelope algorithm        |
-|                              |      |                                  |
-|                              |      |     7. unwrap key                |
-|                              |      |        (p11unwrap)               |
 |                              |      |                                  |
 +------------------------------+      +----------------------------------+
 ```
