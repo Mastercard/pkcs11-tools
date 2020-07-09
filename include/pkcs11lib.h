@@ -293,7 +293,10 @@ void hex2bin_free(char *ptr);
 CK_ATTRIBUTE_PTR get_attribute_for_type_and_value(CK_ATTRIBUTE_TYPE argattrtype, char *arg );
 int get_attributes_from_argv( CK_ATTRIBUTE *attrs[] , int pos, int argc, char **argv);
 char * label_or_id(CK_ATTRIBUTE_PTR label, CK_ATTRIBUTE_PTR id, char *buffer, int buffer_len);
-void pkcs11_error( CK_RV, char * );
+
+/* pkcs11_error.c */
+func_rc pkcs11_error( CK_RV, char * const );
+func_rc pkcs11_warning( CK_RV, char * const );
 
 /* pkcs11_ll_[PLATFORM].c */
 /* platform-specific low-level routines */

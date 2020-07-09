@@ -328,7 +328,7 @@ func_rc pkcs11_genDSA (pkcs11Context * p11ctx,
 							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
 							 &copyhandle );
 	    if (retcode != CKR_OK ) {
-		pkcs11_error( retcode, "C_CopyObject" );
+		pkcs11_warning( retcode, "C_CopyObject" );
 		fprintf(stderr, "***Warning: could not create a local copy for private key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
 	    }
 
@@ -339,7 +339,7 @@ func_rc pkcs11_genDSA (pkcs11Context * p11ctx,
 							 1, /* CKA_EXTRACTABLE is for private/secret keys only, so index is limited to CKA_TOKEN */
 							 &copyhandle );
 	    if (retcode != CKR_OK ) {
-		pkcs11_error( retcode, "C_CopyObject" );
+		pkcs11_warning( retcode, "C_CopyObject" );
 		fprintf(stderr, "***Warning: could not create a local copy for public key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
 	    }
 	}

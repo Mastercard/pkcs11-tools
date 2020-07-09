@@ -161,7 +161,7 @@ func_rc pkcs11_genAES( pkcs11Context * p11ctx,
 							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
 							 &copyhandle );
 	    if (retcode != CKR_OK ) {
-		pkcs11_error( retcode, "C_CopyObject" );
+		pkcs11_warning( retcode, "C_CopyObject" );
 		fprintf(stderr, "***Warning: could not create a local copy for secret key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
 	    }
 	}
@@ -288,7 +288,7 @@ func_rc pkcs11_genDESX( pkcs11Context * p11ctx,
 							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
 							 &copyhandle );
 	    if (retcode != CKR_OK ) {
-		pkcs11_error( retcode, "C_CopyObject" );
+		pkcs11_warning( retcode, "C_CopyObject" );
 		fprintf(stderr, "***Warning: could not create a local copy for secret key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
 	    }
 	}
@@ -450,7 +450,7 @@ func_rc pkcs11_genGeneric( pkcs11Context * p11ctx,
 							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
 							 &copyhandle );
 	    if (retcode != CKR_OK ) {
-		pkcs11_error( retcode, "C_CopyObject" );
+		pkcs11_warning( retcode, "C_CopyObject" );
 		fprintf(stderr, "***Warning: could not create a local copy for secret key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
 	    }
 	}
@@ -640,7 +640,7 @@ func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
 							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
 							 &copyhandle );
 	    if (retcode != CKR_OK ) {
-		pkcs11_error( retcode, "C_CopyObject" );
+		pkcs11_warning( retcode, "C_CopyObject" );
 		fprintf(stderr, "***Warning: could not create a local copy for private key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
 	    }
 
@@ -651,7 +651,7 @@ func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
 							 1, /* CKA_EXTRACTABLE is for private/secret keys only, so index is limited to CKA_TOKEN */
 							 &copyhandle );
 	    if (retcode != CKR_OK ) {
-		pkcs11_error( retcode, "C_CopyObject" );
+		pkcs11_warning( retcode, "C_CopyObject" );
 		fprintf(stderr, "***Warning: could not create a local copy for public key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
 	    }
 	}
@@ -791,7 +791,7 @@ func_rc pkcs11_genEC( pkcs11Context * p11ctx,
 							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
 							 &copyhandle );
 	    if (retcode != CKR_OK ) {
-		pkcs11_error( retcode, "C_CopyObject" );
+		pkcs11_warning( retcode, "C_CopyObject" );
 		fprintf(stderr, "***Warning: could not create a local copy for private key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
 	    }
 
@@ -802,7 +802,7 @@ func_rc pkcs11_genEC( pkcs11Context * p11ctx,
 							 1, /* CKA_EXTRACTABLE is for private/secret keys only, so index is limited to CKA_TOKEN */
 							 &copyhandle );
 	    if (retcode != CKR_OK ) {
-		pkcs11_error( retcode, "C_CopyObject" );
+		pkcs11_warning( retcode, "C_CopyObject" );
 		fprintf(stderr, "***Warning: could not create a local copy for public key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
 	    }
 	}

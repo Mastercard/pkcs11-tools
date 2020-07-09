@@ -994,7 +994,9 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
 								  &hPubk);
 
-		pkcs11_error( retCode, "CreateObject" );
+		if(retCode!=CKR_OK) {
+		    pkcs11_error( retCode, "CreateObject" );
+		}
 
 		/* if we are here, we have to free up memory anyway */
 	    }
