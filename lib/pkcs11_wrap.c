@@ -1823,13 +1823,15 @@ static func_rc _wrap_envelope(wrappedKeyCtx *wctx)
     snprintf((char *)tempaes_label, sizeof tempaes_label, "tempaes-%ld", time(NULL));
 
     /* TODO - adapt to support other symmetric types - detect on wrapping alg */
-    if(!pkcs11_genAES(wctx->p11Context,
-		      tempaes_label,
-		      256,
-		      tempaes_attrs,
-		      sizeof tempaes_attrs / sizeof(CK_ATTRIBUTE),
-		      &tempaes_handle,
-		      kg_session_for_wrapping)) {
+    rc = pkcs11_genAES(wctx->p11Context,
+		       tempaes_label,
+		       256,
+		       tempaes_attrs,
+		       sizeof tempaes_attrs / sizeof(CK_ATTRIBUTE),
+		       &tempaes_handle,
+		       kg_session_for_wrapping);
+
+    if(rc != rc_ok ) {
 	fprintf(stderr, "Unable to generate temporary wrapping key\n");
 	goto error;
     }

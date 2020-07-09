@@ -188,9 +188,9 @@ CK_RV pkcs11_setObjectAttributes( pkcs11Context * p11Context, CK_OBJECT_HANDLE o
 
 
 /* adjust CKA_ID for RSA key pair, to set it to SHA1(modulus) for RSA and SHA1(ec_point) for EC */
-int pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPublicKey, CK_OBJECT_HANDLE hPrivateKey)
+func_rc pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPublicKey, CK_OBJECT_HANDLE hPrivateKey)
 {
-    int rv=0;
+    func_rc rc = rc_error_other_error;
 
     pkcs11AttrList *attrs;
 
@@ -239,7 +239,7 @@ int pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPubli
 		    fprintf(stderr, "Warning: no public key object found.");
 		}
 	    }
-	    rv = 1;
+	    rc = rc_ok;
 
 	    if(id_attr.pValue != NULL_PTR) pkcs11_openssl_free(&id_attr.pValue);
 	    pkcs11_delete_attrlist(attrs);
@@ -248,7 +248,7 @@ int pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPubli
 	    fprintf(stderr, "Warning: could not find a public value to hash for adjusting CKA_ID");
 	}
     }
-    return rv;
+    return rc;
 }
 
 

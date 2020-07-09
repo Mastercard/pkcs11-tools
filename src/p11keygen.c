@@ -112,6 +112,7 @@ void print_usage(char *progname)
 	     "                      note that algoritms can be specified with their parameters\n"
 	     "                      default: envelope(inner=cbcpad,outer=oaep)\n"
 	     "   \"<path>\"     : path to the output file (double quotes are mandatory)\n"
+	     "  -r : when wrapping a key, remove token copy (default is to leave a local copy on the token)\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
 	     "|\n"
@@ -148,7 +149,7 @@ void print_usage(char *progname)
 	     "\n"
 	     , pkcs11_ll_basename(progname) );
 
-    exit( RC_ERROR_USAGE );
+    exit( EX_USAGE );
 }
 
 int main( int argc, char ** argv )
@@ -182,6 +183,7 @@ int main( int argc, char ** argv )
     wrappingjob_t wrappingjob[MAX_WRAPPINGJOB];
     int numjobs = 0;
     int numfailed = 0;
+    int removetokencopy = 0;
 
     int i;
     for(i=0; i<MAX_WRAPPINGJOB;i++) {
@@ -208,7 +210,7 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:k:b:q:d:hVW:" ) ) != -1 ) {
+    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:k:b:q:d:rhVW:" ) ) != -1 ) {
 	switch ( argnum ) {
 	case 'l' :
 	    library =  optarg;
@@ -310,6 +312,10 @@ int main( int argc, char ** argv )
 	    }
 	    break;
 
+	case 'r':
+	    removetokencopy = 1;
+	    break;
+
 	default:
 	    errflag++;
 	    break;
@@ -337,6 +343,13 @@ int main( int argc, char ** argv )
 	goto epilog;
     }
 
+    if (numjobs==0 && removetokencopy==1) {
+	fprintf( stderr, "-r optional argument is valid only when wrapping keys.\n"
+		 "Try `%s -h' for more information.\n", argv[0]);
+	retcode = rc_error_usage;
+	goto epilog;
+    }
+
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
       goto epilog;
     }
@@ -351,11 +364,10 @@ int main( int argc, char ** argv )
 
 	if ( retcode == rc_ok )
 	{
-
-	    int rc=0;
 	    CK_OBJECT_HANDLE keyhandle=0, pubkhandle=0; /* keyhandle will receive either private or secret key handle */
 	    CK_BBOOL ck_true = CK_TRUE;
 	    CK_BBOOL ck_false = CK_FALSE;
+	    key_generation_t keygentype;
 
 	    if(pkcs11_label_exists(p11Context, label)) {
 		fprintf(stderr, "an object with this label already exists, aborting\n");
@@ -363,24 +375,26 @@ int main( int argc, char ** argv )
 		goto err_object_exists;
 	    }
 
+	    keygentype = numjobs>0 ? removetokencopy ? kg_session_for_wrapping : kg_token_for_wrapping : kg_token;
+
 	    printf("Generating, please wait...\n");
 
 	    switch(kt) {
 	    case aes:
-		rc = pkcs11_genAES( p11Context, label, kb,
-				    attrs,
-				    attrs_cnt,
-				    &keyhandle,
-				    numjobs>0 ? kg_session_for_wrapping : kg_token
+		retcode = pkcs11_genAES( p11Context, label, kb,
+					 attrs,
+					 attrs_cnt,
+					 &keyhandle,
+					 keygentype
 		    );
 		break;
 
 	    case des:
-		rc = pkcs11_genDESX( p11Context, label, kb,
-				     attrs,
-				     attrs_cnt,
-				     &keyhandle,
-				     numjobs>0 ? kg_session_for_wrapping : kg_token);
+		retcode = pkcs11_genDESX( p11Context, label, kb,
+					  attrs,
+					  attrs_cnt,
+					  &keyhandle,
+					  keygentype);
 		break;
 
 	    case generic:	/* HMAC */
@@ -390,63 +404,63 @@ int main( int argc, char ** argv )
 	    case hmacsha384:
 	    case hmacsha512:
 
-		rc = pkcs11_genGeneric( p11Context, label, kt, kb,
-					attrs,
-					attrs_cnt,
-					&keyhandle,
-					numjobs>0 ? kg_session_for_wrapping : kg_token);
+		retcode = pkcs11_genGeneric( p11Context, label, kt, kb,
+					     attrs,
+					     attrs_cnt,
+					     &keyhandle,
+					     keygentype);
 		break;
 
 	    case rsa:
-		rc = pkcs11_genRSA( p11Context, label, kb,
-				    attrs,
-				    attrs_cnt,
-				    &pubkhandle,
-				    &keyhandle,
-				    numjobs>0 ? kg_session_for_wrapping : kg_token);
+		retcode = pkcs11_genRSA( p11Context, label, kb,
+					 attrs,
+					 attrs_cnt,
+					 &pubkhandle,
+					 &keyhandle,
+					 keygentype);
 
-		if(rc) {
-		    rc = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
+		if(retcode==rc_ok) {
+		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
 		}
 
 		break;
 
 	    case ec:
-		rc = pkcs11_genECDSA( p11Context, label, param,
-				      attrs,
-				      attrs_cnt,
-				      &pubkhandle,
-				      &keyhandle,
-				      numjobs > 0 ? kg_session_for_wrapping : kg_token);
+		retcode = pkcs11_genEC( p11Context, label, param,
+					attrs,
+					attrs_cnt,
+					&pubkhandle,
+					&keyhandle,
+					keygentype);
 
-		if(rc) {
-		    rc = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
+		if(retcode==rc_ok) {
+		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
 		}
 		break;
 
 	    case dsa:
-		rc = pkcs11_genDSA( p11Context, label, param,
-				    attrs,
-				    attrs_cnt,
-				    &pubkhandle,
-				    &keyhandle,
-				    numjobs > 0 ? kg_session_for_wrapping : kg_token);
+		retcode = pkcs11_genDSA( p11Context, label, param,
+					 attrs,
+					 attrs_cnt,
+					 &pubkhandle,
+					 &keyhandle,
+					 keygentype);
 
-		if(rc) {
-		    rc = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
+		if(retcode == rc_ok) {
+		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
 		}
 		break;
 
 	    case dh:
-		rc = pkcs11_genDH( p11Context, label, param,
-				   attrs,
-				   attrs_cnt,
-				   &pubkhandle,
-				   &keyhandle,
-				   numjobs > 0 ? kg_session_for_wrapping : kg_token);
+		retcode = pkcs11_genDH( p11Context, label, param,
+					attrs,
+					attrs_cnt,
+					&pubkhandle,
+					&keyhandle,
+					keygentype);
 
-		if(rc) {
-		    rc = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
+		if(retcode == rc_ok) {
+		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
 		}
 		break;
 
@@ -455,9 +469,9 @@ int main( int argc, char ** argv )
 		break;
 	    }
 
-	    fprintf(stderr, ">>> key %sgenerated\n", rc ? "" : "not " );
+	    fprintf(stderr, ">>> key %sgenerated\n", retcode==rc_ok ? "" : "not " );
 
-	    if(numjobs>0) { 	/* we've got to wrap things */
+	    if(retcode==rc_ok && numjobs>0) { 	/* we've got to wrap things */
 		int i;
 
 		for(i=0; i<numjobs; i++) {
@@ -543,6 +557,6 @@ epilog:
     default:
 	p11keygenrc = retcode;
 	fprintf(stderr, "key generation failed - returning code %d (0x%04.4x) to calling process\n", p11keygenrc, p11keygenrc);
-    }	
+    }
     return p11keygenrc;
 }

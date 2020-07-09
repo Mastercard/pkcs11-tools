@@ -86,6 +86,7 @@ typedef enum e_func_rc {
     rc_error_wrong_object_class,
     rc_warning_not_entirely_completed, /* when a command has only partially succeeded */
     rc_error_other_error,
+    rc_error_insecure,
 } func_rc;
 
 #define AES_WRAP_MECH_SIZE_MAX 8 /* for both rfc3394 and rfc5496, remember the compatible */
@@ -343,7 +344,7 @@ CK_RV pkcs11_setObjectAttributes( pkcs11Context * p11Context, CK_OBJECT_HANDLE o
 int pkcs11_getObjectAttributes( pkcs11Context * p11Context, CK_OBJECT_HANDLE objectHandle, CK_ATTRIBUTE attr[], int attrlen );
 void pkcs11_freeObjectAttributesValues( CK_ATTRIBUTE attr[], int attrlen);
 
-int pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPublicKey, CK_OBJECT_HANDLE hPrivateKey);
+func_rc pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPublicKey, CK_OBJECT_HANDLE hPrivateKey);
 CK_ULONG pkcs11_get_object_size(pkcs11Context *p11ctx, CK_OBJECT_HANDLE obj);
 void pkcs11_adjust_des_key_parity(CK_BYTE* pucKey, int nKeyLen);
 int pkcs11_get_rsa_modulus_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE obj);
@@ -389,47 +390,68 @@ void pkcs11_ec_freeoid(CK_BYTE_PTR buf);
 
 /* pkcs11_keygen.c */
 typedef enum {
-    kg_token,
-    kg_session_for_wrapping
+    kg_token,			/* token key */
+    kg_session_for_wrapping,	/* session key, that will be wrapped */
+    kg_token_for_wrapping	/* create session key, wrap, then copy locally as token key */
 } key_generation_t;
 
-int pkcs11_genAES( pkcs11Context * p11Context,
-		   char *label,
-		   CK_ULONG bits,
-		   CK_ATTRIBUTE attrs[],
-		   CK_ULONG numattrs,
-		   CK_OBJECT_HANDLE_PTR hSecretKey,
-                   key_generation_t gentype);
-
-int pkcs11_genDESX( pkcs11Context * p11Context,
-		    char *label,
-		    CK_ULONG bits,
-		    CK_ATTRIBUTE attrs[],
-		    CK_ULONG numattrs,
-		    CK_OBJECT_HANDLE_PTR hSecretKey,
-		    key_generation_t gentype);
-
-/* HMAC keys */
-int pkcs11_genGeneric( pkcs11Context * p11Context,
+func_rc pkcs11_genAES( pkcs11Context * p11Context,
 		       char *label,
-		       enum keytype kt,
 		       CK_ULONG bits,
 		       CK_ATTRIBUTE attrs[],
 		       CK_ULONG numattrs,
 		       CK_OBJECT_HANDLE_PTR hSecretKey,
 		       key_generation_t gentype);
 
-int pkcs11_genRSA( pkcs11Context * p11Context,
-		   char *label,
-		   CK_ULONG bits,
-		   CK_ATTRIBUTE attrs[],
-		   CK_ULONG numattrs,
-		   CK_OBJECT_HANDLE_PTR hPublicKey,
-		   CK_OBJECT_HANDLE_PTR hPrivateKey,
-		   key_generation_t gentype);
+func_rc pkcs11_genDESX( pkcs11Context * p11Context,
+			char *label,
+			CK_ULONG bits,
+			CK_ATTRIBUTE attrs[],
+			CK_ULONG numattrs,
+			CK_OBJECT_HANDLE_PTR hSecretKey,
+			key_generation_t gentype);
+
+/* HMAC keys */
+func_rc pkcs11_genGeneric( pkcs11Context * p11Context,
+			   char *label,
+			   enum keytype kt,
+			   CK_ULONG bits,
+			   CK_ATTRIBUTE attrs[],
+			   CK_ULONG numattrs,
+			   CK_OBJECT_HANDLE_PTR hSecretKey,
+			   key_generation_t gentype);
+
+func_rc pkcs11_genRSA( pkcs11Context * p11Context,
+		       char *label,
+		       CK_ULONG bits,
+		       CK_ATTRIBUTE attrs[],
+		       CK_ULONG numattrs,
+		       CK_OBJECT_HANDLE_PTR hPublicKey,
+		       CK_OBJECT_HANDLE_PTR hPrivateKey,
+		       key_generation_t gentype);
 
 
-int pkcs11_genECDSA( pkcs11Context * p11Context,
+func_rc pkcs11_genEC( pkcs11Context * p11Context,
+		      char *label,
+		      char *param,
+		      CK_ATTRIBUTE attrs[],
+		      CK_ULONG numattrs,
+		      CK_OBJECT_HANDLE_PTR hPublicKey,
+		      CK_OBJECT_HANDLE_PTR hPrivateKey,
+		      key_generation_t gentype);
+
+int pkcs11_testgenEC_support( pkcs11Context * p11Context, const char *param );
+
+func_rc pkcs11_genDSA(pkcs11Context * p11Context,
+		      char *label,
+		      char *param,
+		      CK_ATTRIBUTE attrs[],
+		      CK_ULONG numattrs,
+		      CK_OBJECT_HANDLE_PTR hPublicKey,
+		      CK_OBJECT_HANDLE_PTR hPrivateKey,
+		      key_generation_t gentype);
+
+func_rc pkcs11_genDH(pkcs11Context * p11Context,
 		     char *label,
 		     char *param,
 		     CK_ATTRIBUTE attrs[],
@@ -437,26 +459,6 @@ int pkcs11_genECDSA( pkcs11Context * p11Context,
 		     CK_OBJECT_HANDLE_PTR hPublicKey,
 		     CK_OBJECT_HANDLE_PTR hPrivateKey,
 		     key_generation_t gentype);
-
-int pkcs11_testgenECDSA_support( pkcs11Context * p11Context, const char *param );
-
-int pkcs11_genDSA(pkcs11Context * p11Context,
-		  char *label,
-		  char *param,
-		  CK_ATTRIBUTE attrs[],
-		  CK_ULONG numattrs,
-		  CK_OBJECT_HANDLE_PTR hPublicKey,
-		  CK_OBJECT_HANDLE_PTR hPrivateKey,
-		  key_generation_t gentype);
-
-int pkcs11_genDH(pkcs11Context * p11Context,
-		 char *label,
-		 char *param,
-		 CK_ATTRIBUTE attrs[],
-		 CK_ULONG numattrs,
-		 CK_OBJECT_HANDLE_PTR hPublicKey,
-		 CK_OBJECT_HANDLE_PTR hPrivateKey,
-		 key_generation_t gentype);
 
 
 /* pkcs11_req.c */

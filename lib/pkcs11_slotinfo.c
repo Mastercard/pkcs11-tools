@@ -232,7 +232,7 @@ func_rc pkcs11_info_ecsupport(pkcs11Context *p11Context)
 		P_ERR();
 		continue;
 	    }
-	    if ( pkcs11_testgenECDSA_support(p11Context, sname)==1 ) {
+	    if ( pkcs11_testgenEC_support(p11Context, sname)==1 ) {
 		fprintf(stdout, "%s\n",  sname );
 	    }
 	} 
