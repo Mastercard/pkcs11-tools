@@ -100,94 +100,91 @@ static CK_ULONG get_X509_subject_der(X509 *hndl, CK_BYTE_PTR * buf)
     return rv;
 }
 
-static CK_ULONG get_X509_issuer_der(X509 *hndl, CK_BYTE_PTR *buf)
-{
+static CK_ULONG get_X509_issuer_der(X509 *hndl, CK_BYTE_PTR *buf) {
 
-    X509_NAME *issuer;
-    CK_ULONG rv=0;
+  X509_NAME *issuer;
+  CK_ULONG rv = 0;
 
-    if( hndl ) {
-	issuer = X509_get_issuer_name(hndl);
-	if(issuer) {
+  if (hndl) {
+    issuer = X509_get_issuer_name(hndl);
+    if (issuer) {
 
-	    rv = i2d_X509_NAME(issuer, NULL);	/* first call to fetch buffer size. */
+      rv = i2d_X509_NAME(issuer, NULL);  /* first call to fetch buffer size. */
 
-	    if( rv>0 ) {
-		CK_BYTE_PTR p;
+      if (rv > 0) {
+        CK_BYTE_PTR p;
 
-		p = *buf = OPENSSL_malloc(rv);
+        p = *buf = OPENSSL_malloc(rv);
 
-		if(*buf) {
-		    rv = i2d_X509_NAME(issuer, &p); /* second call. p is incremented. */
+        if (*buf) {
+          rv = i2d_X509_NAME(issuer, &p); /* second call. p is incremented. */
 
-		    /* if we fail here, we would free up requested memory */
-		    if(rv==0) {
-			OPENSSL_free(*buf);
-		    }
-		}
-	    }
-	}
+          /* if we fail here, we would free up requested memory */
+          if (rv == 0) {
+            OPENSSL_free(*buf);
+          }
+        }
+      }
     }
-    return rv;
+  }
+  return rv;
 }
 
 
-static CK_ULONG get_X509_cert_der(X509 *hndl, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_X509_cert_der(X509 *hndl, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( hndl ) {
-	rv = i2d_X509(hndl, NULL);
+  if (hndl) {
+    rv = i2d_X509(hndl, NULL);
 
-	if( rv>0 ) {
-	    CK_BYTE_PTR p;
+    if (rv > 0) {
+      CK_BYTE_PTR p;
 
-	    p = *buf = OPENSSL_malloc(rv);
+      p = *buf = OPENSSL_malloc(rv);
 
-	    if(*buf) {
-		rv = i2d_X509(hndl, &p);
+      if (*buf) {
+        rv = i2d_X509(hndl, &p);
 
-		/* if we fail here, we would free up requested memory */
-		if(rv==0) {
-		    OPENSSL_free(*buf);
-		}
-	    }
-	}
+        /* if we fail here, we would free up requested memory */
+        if (rv == 0) {
+          OPENSSL_free(*buf);
+        }
+      }
     }
-    return rv;
+  }
+  return rv;
 }
 
 
-static CK_ULONG get_X509_serial_number_hex(X509 *hndl, CK_BYTE_PTR *buf)
-{
+static CK_ULONG get_X509_serial_number_hex(X509 *hndl, CK_BYTE_PTR *buf) {
 
-    ASN1_INTEGER *serialnumber;
-    CK_ULONG rv=0;
+  ASN1_INTEGER *serialnumber;
+  CK_ULONG rv = 0;
 
-    if( hndl ) {
+  if (hndl) {
 
-	serialnumber = X509_get_serialNumber( hndl );
-	if(serialnumber) {
+    serialnumber = X509_get_serialNumber(hndl);
+    if (serialnumber) {
 
-	    rv = i2c_ASN1_INTEGER(serialnumber, NULL);
+      rv = i2d_ASN1_INTEGER(serialnumber, NULL);
 
-	    if(rv>0) {
-		CK_BYTE_PTR p;
+      if (rv > 0) {
+        CK_BYTE_PTR p;
 
-		p = *buf = OPENSSL_malloc(rv);
+        p = *buf = OPENSSL_malloc(rv);
 
-		if(*buf) {
-		    rv = i2c_ASN1_INTEGER(serialnumber, &p);
+        if (*buf) {
+          rv = i2d_ASN1_INTEGER(serialnumber, &p);
 
-		    /* if we fail here, we would free up requested memory */
-		    if(rv==0) {
-			OPENSSL_free(*buf);
-		    }
-		}
-	    }
-	}
+          /* if we fail here, we would free up requested memory */
+          if (rv == 0) {
+            OPENSSL_free(*buf);
+          }
+        }
+      }
     }
-    return rv;
+  }
+  return rv;
 }
 
 
@@ -211,16 +208,18 @@ static CK_ULONG get_X509_pubkey_sha1(X509 *hndl, CK_BYTE_PTR *buf)
 	pubkey = X509_get_pubkey(hndl);
 
 	if(pubkey) {
-	    switch(EVP_PKEY_type(pubkey->type)) {
+	    switch(EVP_PKEY_base_id(pubkey)) {
 		case EVP_PKEY_RSA:
 		{
 		    RSA *rsa;
+		    const BIGNUM *rsa_n;
 
 		    rsa = EVP_PKEY_get1_RSA(pubkey);
 		    if(rsa) {
-			CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(rsa->n)); /* we allocate before converting */
-			if(bn_buf) {
-			    int bn_buf_len = BN_bn2bin(rsa->n, bn_buf);
+		      RSA_get0_key(rsa, &rsa_n, NULL, NULL);
+			    CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(rsa_n)); /* we allocate before converting */
+		  	if(bn_buf) {
+			    int bn_buf_len = BN_bn2bin(rsa_n, bn_buf);
 			    {
 				/* SHA-1 block */
 				EVP_MD_CTX *mdctx;
@@ -249,12 +248,14 @@ static CK_ULONG get_X509_pubkey_sha1(X509 *hndl, CK_BYTE_PTR *buf)
 		case EVP_PKEY_DSA:
 		{
 		    DSA *dsa;
+		    const BIGNUM *dsa_pub;
 
 		    dsa = EVP_PKEY_get1_DSA(pubkey);
 		    if(dsa) {
-			CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(dsa->pub_key)); /* we allocate before converting */
+		      DSA_get0_key(dsa, &dsa_pub, NULL);
+			CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(dsa_pub)); /* we allocate before converting */
 			if(bn_buf) {
-			    int bn_buf_len = BN_bn2bin(dsa->pub_key, bn_buf);
+			    int bn_buf_len = BN_bn2bin(dsa_pub, bn_buf);
 			    {
 				/* SHA-1 block */
 				EVP_MD_CTX *mdctx;

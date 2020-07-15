@@ -74,7 +74,7 @@ static void write_pubk(EVP_PKEY* pk, int openssl_native_flag, BIO *sink)
 
     if(openssl_native_flag==1) {	/* openssl native format */
     /* first write params, if any */
-	switch(EVP_PKEY_type(pk->type)) {
+	switch(EVP_PKEY_base_id(pk)) {
 	case EVP_PKEY_RSA:	/* RSA is the only key type with native openssl format */
 	    PEM_write_bio_RSAPublicKey(sink ? sink : bio_stdout, EVP_PKEY_get1_RSA(pk));
 	    break;
@@ -217,12 +217,9 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
 			goto key_rsa_error;
 		    }
 
-		    /* free is pre-allocated */
-		    if(rsa->n !=NULL ) { BN_free(rsa->n); rsa->n = NULL; }
-		    if(rsa->e !=NULL ) { BN_free(rsa->e); rsa->e = NULL; }
-
-		    rsa->n = bn_modulus;     bn_modulus = NULL; /* forget, moved to rsa */
-		    rsa->e = bn_exponent;    bn_exponent = NULL; /* forget, moved to rsa */
+		    RSA_set0_key(rsa, bn_modulus, bn_exponent, NULL);
+		    bn_modulus = NULL; /* forget, moved to rsa */
+		    bn_exponent = NULL; /* forget, moved to rsa */
 
 		    if (!EVP_PKEY_assign_RSA(pk,rsa)) {
 			P_ERR();
@@ -285,15 +282,12 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
 			goto key_dsa_error;
 		    }
 
-		    if(dsa->p !=NULL ) { BN_free(dsa->p); dsa->p = NULL; }
-		    if(dsa->q !=NULL ) { BN_free(dsa->q); dsa->q = NULL; }
-		    if(dsa->g !=NULL ) { BN_free(dsa->g); dsa->g = NULL; }
-		    if(dsa->pub_key !=NULL ) { BN_free(dsa->pub_key); dsa->pub_key = NULL; }
-
-		    dsa->p = bn_prime;        bn_prime = NULL;    /* forget, moved to dsa */
-		    dsa->q = bn_subprime;     bn_subprime = NULL; /* forget, moved to dsa */
-		    dsa->g = bn_base;         bn_base = NULL;     /* forget, moved to dsa */
-		    dsa->pub_key = bn_pubkey; bn_pubkey = NULL;   /* forget, moved to dsa */
+		    DSA_set0_pqg(dsa, bn_prime, bn_subprime, bn_base);
+		    DSA_set0_key(dsa, bn_pubkey, NULL);
+		    bn_prime = NULL;    /* forget, moved to dsa */
+		    bn_subprime = NULL; /* forget, moved to dsa */
+		    bn_base = NULL;     /* forget, moved to dsa */
+		    bn_pubkey = NULL;   /* forget, moved to dsa */
 
 		    if (!EVP_PKEY_assign_DSA(pk,dsa)) {
 			P_ERR();
@@ -350,13 +344,11 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
 			goto key_dh_error;
 		    }
 
-		    if(dh->p !=NULL ) { BN_free(dh->p); dh->p = NULL; }
-		    if(dh->g !=NULL ) { BN_free(dh->g); dh->g = NULL; }
-		    if(dh->pub_key !=NULL ) { BN_free(dh->pub_key); dh->pub_key = NULL; }
-
-		    dh->p = bn_prime;        bn_prime = NULL;    /* forget, moved to dh */
-		    dh->g = bn_base;         bn_base = NULL;     /* forget, moved to dh */
-		    dh->pub_key = bn_pubkey; bn_pubkey = NULL;   /* forget, moved to dh */
+		    DH_set0_pqg(dh, bn_prime, NULL, bn_base);
+		    DH_set0_key(dh, bn_pubkey, NULL);
+		    bn_prime = NULL;    /* forget, moved to dh */
+		    bn_base = NULL;     /* forget, moved to dh */
+		    bn_pubkey = NULL;   /* forget, moved to dh */
 
 		    if (!EVP_PKEY_assign_DH(pk,dh)) {
 			P_ERR();

@@ -59,9 +59,9 @@ static int add_ext(STACK_OF(X509_EXTENSION) *sk, int nid, char *value);
 /* grabbed from openssl/apps/apps.c                                     */
 
 /*
-* subject is expected to be in the format /type0=value0/type1=value1/type2=...
-* where characters may be escaped by \
-*/
+ * subject is expected to be in the format /type0=value0/type1=value1/type2=...
+ * where characters may be escaped by \
+ */
 
 /* TODO : fix support for multirdn */
 
@@ -316,9 +316,9 @@ CK_VOID_PTR pkcs11_create_unsigned_X509_REQ(char *dn, int reverse, char *san[], 
 	P_ERR();
 	goto err;
     }
-
-    rsa->n = bn_modulus;     bn_modulus = NULL;
-    rsa->e = bn_exponent;    bn_exponent = NULL;
+    RSA_set0_key(rsa, bn_modulus, bn_exponent, NULL);
+    bn_modulus = NULL;
+    bn_exponent = NULL;
 
     if (!EVP_PKEY_assign_RSA(pk,rsa)) {
 	P_ERR();
@@ -493,10 +493,12 @@ CK_VOID_PTR pkcs11_create_unsigned_X509_REQ_DSA(char *dn, int reverse, char *san
 	goto err;
     }
 
-    dsa->p = bn_prime;       bn_prime = NULL;
-    dsa->q = bn_subprime;    bn_subprime = NULL;
-    dsa->g = bn_base;        bn_base = NULL;
-    dsa->pub_key = bn_pubkey; bn_pubkey = NULL;
+    DSA_set0_pqg(dsa, bn_prime, bn_subprime, bn_base);
+    bn_prime = NULL;
+    bn_subprime = NULL;
+    bn_base = NULL;
+    DSA_set0_key(dsa, bn_pubkey, NULL);
+    bn_pubkey = NULL;
 
     if (!EVP_PKEY_assign_DSA(pk,dsa)) {
 	P_ERR();
@@ -672,8 +674,8 @@ CK_VOID_PTR pkcs11_create_unsigned_X509_REQ_EC(char *dn, int reverse, char *san[
 
     /* assign group to key */
     if(EC_KEY_set_group(ec, ec_group) == 0) {
-      P_ERR();
-      goto err;
+	P_ERR();
+	goto err;
     }
 
     /* create point container (OCTET STRING) */
@@ -705,8 +707,8 @@ CK_VOID_PTR pkcs11_create_unsigned_X509_REQ_EC(char *dn, int reverse, char *san[
 
     /* assign EC key to EVP */
     if (!EVP_PKEY_assign_EC_KEY(pk, ec)) {
-      P_ERR();
-      goto err;
+	P_ERR();
+	goto err;
     }
     ec=NULL;	/* forget it, moved to pk */
 
@@ -863,17 +865,17 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
 
 
     case CKM_DSA_SHA1:
-	type = (EVP_MD*) EVP_dss1();
+	type = (EVP_MD*) EVP_sha1();
 	openssl_pkey_type = NID_dsaWithSHA1;
 	break;
 
     case CKM_ECDSA_SHA1:
-	type = (EVP_MD*) EVP_ecdsa();
+	type = (EVP_MD*) EVP_sha1();
 	openssl_pkey_type = NID_ecdsa_with_SHA1;
 	break;
 
     case CKM_ECDSA_SHA224:
-	type = (EVP_MD*) EVP_ecdsa();
+	type = (EVP_MD*) EVP_sha224();
 
 	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
 	    mechtype = CKM_ECDSA;
@@ -884,7 +886,7 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
 	break;
 
     case CKM_ECDSA_SHA256:
-	type = (EVP_MD*) EVP_ecdsa();
+	type = (EVP_MD*) EVP_sha256();
 	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
 	    mechtype = CKM_ECDSA;
 	    prehash  = 1;
@@ -894,7 +896,7 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
 	break;
 
     case CKM_ECDSA_SHA384:
-	type = (EVP_MD*) EVP_ecdsa();
+	type = (EVP_MD*) EVP_sha384();
 	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
 	    mechtype = CKM_ECDSA;
 	    prehash  = 1;
@@ -904,7 +906,7 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
 	break;
 
     case CKM_ECDSA_SHA512:
-	type = (EVP_MD*) EVP_ecdsa();
+	type = (EVP_MD*) EVP_sha512();
 	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
 	    mechtype = CKM_ECDSA;
 	    prehash  = 1;
@@ -919,11 +921,12 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
     }
 
 
-    X509_ALGOR *a = ((X509_REQ*)req)->sig_alg;
-    ASN1_BIT_STRING *signature = ((X509_REQ*)req)->signature;
+    X509_ALGOR *a;
+    ASN1_BIT_STRING *signature;
+    X509_REQ_get0_signature(req, (const ASN1_BIT_STRING **)&signature, (const X509_ALGOR **)&a);
 
     /* first of all extract stuff to be signed */
-    if((inlen = i2d_X509_REQ_INFO( ((X509_REQ*)req)->req_info, &inbuf))==0) {
+    if((inlen = i2d_re_X509_REQ_tbs((X509_REQ*)req, &inbuf))==0) {
 	P_ERR();
 	goto err;
     }
@@ -1012,19 +1015,19 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
     /* carry-over, modified, from openssl  */
 
     /* fix req->sig_alg to make it match */
-    /* borrowed from openssl/crypto/asn/a_sign.c */
-    if ( type->pkey_type == NID_dsaWithSHA1 ||
-	 openssl_pkey_type == NID_ecdsa_with_SHA1 ||
-	 openssl_pkey_type == NID_ecdsa_with_SHA224 ||
-	 openssl_pkey_type == NID_ecdsa_with_SHA256 ||
-	 openssl_pkey_type == NID_ecdsa_with_SHA384 ||
-	 openssl_pkey_type == NID_ecdsa_with_SHA512) {
+    /* borrowed/inspired by openssl/crypto/asn1/a_sign.c */
+    if (EVP_MD_pkey_type(type) == NID_dsaWithSHA1 ||
+	openssl_pkey_type == NID_ecdsa_with_SHA1 ||
+	openssl_pkey_type == NID_ecdsa_with_SHA224 ||
+	openssl_pkey_type == NID_ecdsa_with_SHA256 ||
+	openssl_pkey_type == NID_ecdsa_with_SHA384 ||
+	openssl_pkey_type == NID_ecdsa_with_SHA512) {
 	/* special case: RFC 3279 tells us to omit 'parameters'
 	 * with id-dsa-with-sha1 and ecdsa-with-SHA1 */
 	ASN1_TYPE_free(a->parameter);
 	a->parameter = NULL;
     }  else if ((a->parameter == NULL) ||
-	   (a->parameter->type != V_ASN1_NULL)) {
+                (a->parameter->type != V_ASN1_NULL)) {
 	ASN1_TYPE_free(a->parameter);
 	if ((a->parameter=ASN1_TYPE_new()) == NULL) {
 	    P_ERR();
@@ -1033,13 +1036,13 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
 	a->parameter->type=V_ASN1_NULL;
     }
     ASN1_OBJECT_free(a->algorithm);
-    a->algorithm=OBJ_nid2obj(openssl_pkey_type ? openssl_pkey_type : type->pkey_type); /* under openssl, was type->pkey_type */
+    a->algorithm=OBJ_nid2obj(openssl_pkey_type ? openssl_pkey_type : EVP_MD_pkey_type(type)); /* under openssl, was type->pkey_type */
     if (a->algorithm == NULL)  {
 	ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_UNKNOWN_OBJECT_TYPE);
 	P_ERR();
 	goto err;
     }
-    if (a->algorithm->length == 0)  {
+    if (OBJ_length(a->algorithm) == 0)  {
 	ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
 	P_ERR();
 	goto err;
@@ -1049,6 +1052,12 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
     /* free signature->data in case it is already busy */
     if (signature->data != NULL) OPENSSL_free(signature->data);
 
+
+    DSA_SIG *sig = NULL;
+    ECDSA_SIG *ecsig = NULL;
+    BIGNUM *sig_r = NULL;
+    BIGNUM *sig_s = NULL;
+    
     switch(p_mechtype)
     {
 
@@ -1096,25 +1105,33 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
 
 	/* first we need to make two bignums */
     {
-
-	ECDSA_SIG *ecsig = ECDSA_SIG_new();
-
 	int siglen;
 	unsigned char *sigder = NULL;
 
-	if(ecsig==NULL) {
+	if((ecsig = ECDSA_SIG_new())==NULL) {
+	    P_ERR();
 	    goto err;
 	}
-
-	if( BN_bin2bn( &outbuf[0], outlen/2, ecsig->r) == NULL) {
+	if((sig_r = BN_new()) == NULL) {
+	    P_ERR();
+	    goto err;
+	}
+	if((sig_s = BN_new()) == NULL) {
 	    P_ERR();
 	    goto err;
 	}
 
-	if( BN_bin2bn( &outbuf[outlen/2], outlen/2, ecsig->s) == NULL ) {
+	if(BN_bin2bn( &outbuf[0], outlen/2, sig_r) == NULL) {
 	    P_ERR();
 	    goto err;
 	}
+	if(BN_bin2bn( &outbuf[outlen/2], outlen/2, sig_s) == NULL ) {
+	    P_ERR();
+	    goto err;
+	}
+	
+	ECDSA_SIG_set0(ecsig, sig_r, sig_s);
+	sig_r = sig_s = NULL;	/* ownership transferred to ecsig */
 
 	siglen = i2d_ECDSA_SIG(ecsig, &sigder);
 	if(siglen==0) {
@@ -1131,40 +1148,44 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
     /* DSA_SHA1: same stuff as ECDSA_SHA1 */
     case CKM_DSA_SHA1:
     {
-
-	DSA_SIG *sig = DSA_SIG_new();
-
 	/*
 
-	   DSA_SIG_new() does not generate r & s bignums
-	   as it would with ECDSA_SIG_new().
+	  DSA_SIG_new() does not generate r & s bignums
+	  as it would with ECDSA_SIG_new().
 
-	   because of this inconsistency, we need to capture bignums
-	   as they come from the output of BN_bin2bn.
+	  because of this inconsistency, we need to capture bignums
+	  as they come from the output of BN_bin2bn.
 
-	 */
+	*/
 
 	int siglen;
 	unsigned char *sigder = NULL;
 
-	if(sig==NULL) {
-	    goto err;
-	}
-
-	/* just do right housekeeping */
-	if(sig->r !=NULL) {  BN_free(sig->r); sig->r = NULL; }
-	if(sig->s !=NULL) {  BN_free(sig->s); sig->s = NULL; }
-
-
-	if( (sig->r = BN_bin2bn( &outbuf[0], outlen/2, sig->r)) == NULL) {
+	if((sig=DSA_SIG_new())==NULL) {
 	    P_ERR();
 	    goto err;
 	}
 
-	if( (sig->s = BN_bin2bn( &outbuf[outlen/2], outlen/2, sig->s)) == NULL ) {
+	if((sig_r = BN_new()) == NULL) {
 	    P_ERR();
 	    goto err;
 	}
+	if((sig_s = BN_new()) == NULL) {
+	    P_ERR();
+	    goto err;
+	}
+
+	if( BN_bin2bn( &outbuf[0], outlen/2, sig_r) == NULL) {
+	    P_ERR();
+	    goto err;
+	}
+
+	if( BN_bin2bn( &outbuf[outlen/2], outlen/2, sig_s) == NULL ) {
+	    P_ERR();
+	    goto err;
+	}
+	DSA_SIG_set0(sig, sig_r, sig_s);
+	sig_r = sig_s = NULL;	/* ownership transferred to sig */
 
 	siglen = i2d_DSA_SIG(sig, &sigder);
 	if(siglen==0) {
@@ -1188,13 +1209,15 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
 
     retval = 1;
 
-  err:
-  /* TODO - proper cleanup */
-
-  if(outbuf) { OPENSSL_free(outbuf); outbuf=NULL; }
-  if(inbuf) { OPENSSL_free(inbuf); inbuf=NULL; }
-  if(hashbuf) { OPENSSL_free(hashbuf); hashbuf=NULL; }
-  return retval;
+err:
+    if(sig) { DSA_SIG_free(sig); sig = NULL; }
+    if(ecsig) { ECDSA_SIG_free(ecsig); ecsig = NULL; }
+    if(sig_r) { BN_free(sig_r); sig_r = NULL; }
+    if(sig_s) { BN_free(sig_s); sig_s = NULL; }
+    if(outbuf) { OPENSSL_free(outbuf); outbuf=NULL; }
+    if(inbuf) { OPENSSL_free(inbuf); inbuf=NULL; }
+    if(hashbuf) { OPENSSL_free(hashbuf); hashbuf=NULL; }
+    return retval;
 
 }
 
@@ -1211,17 +1234,17 @@ void write_X509_REQ(CK_VOID_PTR req, char *filename, int verbose)
     bio_stdout = BIO_new( BIO_s_file() );
 
     if( bio_file==NULL || bio_stdout==NULL) {
-      fprintf(stderr, "Error: Can't create BIO objects.\n");
-      goto err;
+	fprintf(stderr, "Error: Can't create BIO objects.\n");
+	goto err;
     }
 
     BIO_set_fp(bio_stdout, stdout, BIO_NOCLOSE);
 
     if(filename==NULL) {	/* no file: we write to stdout */
-      BIO_set_fp(bio_file, stdout, BIO_NOCLOSE);
+	BIO_set_fp(bio_file, stdout, BIO_NOCLOSE);
     }
     else {			/* write to filename */
-      BIO_write_filename(bio_file, filename);
+	BIO_write_filename(bio_file, filename);
     }
 
     if(verbose) {
@@ -1230,7 +1253,7 @@ void write_X509_REQ(CK_VOID_PTR req, char *filename, int verbose)
 
     PEM_write_bio_X509_REQ(bio_file,xreq); /* PEM */
 
- err:
+err:
     if(bio_file) BIO_free(bio_file);
     if(bio_stdout) BIO_free(bio_stdout);
 }

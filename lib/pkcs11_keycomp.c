@@ -96,10 +96,9 @@ KeyImportCtx *pkcs11_import_component_init(pkcs11Context *p11Context, char *unwr
     if( (rsa=RSA_new()) == NULL ) {
 	goto error;
     }
-
-    rsa->n = bn_modulus;     bn_modulus = NULL; /* forget, moved to rsa */
-    rsa->e = bn_exponent;    bn_exponent = NULL; /* forget, moved to rsa */
-
+    RSA_set0_key(rsa, bn_modulus, bn_exponent, NULL);
+    bn_modulus = NULL; /* forget, moved to rsa */
+    bn_exponent = NULL; /* forget, moved to rsa */
 
     /* allocate structure */
     kctx = calloc(1, sizeof(_KeyImportCtx));
