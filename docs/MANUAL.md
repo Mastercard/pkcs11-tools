@@ -499,7 +499,8 @@ Computes the key check value of a symmetric key and prints it. This will work on
 Generate a PKCS\#10 CSR. Important options are:
 
  - `-i`: the label of the key
- - `-d`: subject DN - Caution: must be specified in strict OpenSSL format, which is with a leading `/` character. In addition, the order in which the subject name is given is the binary layout, i.e. NOT inversed for human reading. If the CSR DN must comply with network order ( e.g. for inclusion of the certificate into an LDAP database), you MUST write it reversed, e.g. `/dc=com/dc=company/ou=whatever/cn=test cert`
+ - `-d`: subject DN - Caution: must be specified in strict OpenSSL format, which is with a leading `/` character; however, unlike OpenSSL, the ordering is inverted (to ease human order encoding). It means that when you write `/CN=my cert/O=My Org/C=BE`, the actual (binary) order will start with the `C` attribute, then the `O` and finally the `C`. If however you would like to write the Subject DN in "binary" order, you can specify the `-r` option.
+- `-r`: use reverse order when specifying Subject DN (see `-d`for details).  
 - `-e` ( may be specified several times): SAN field. It is prefixed with `DNS:` for a DNS entry, `email:` for an email entry, and `IP:` for an IPv4 address.
 - `-H` : hashing algorithm (`sha1`, `sha256`, \.... )
 - `-X`: add a subject key identifier extension to the CSR.

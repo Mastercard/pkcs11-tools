@@ -9,7 +9,7 @@
 ## Pre-requisites
 In order to build the project from scratch, you will need
  - a C compiler (tested with `gcc`, `clang`, `xlc` on `AIX`)
- - the autotools suite: `autoconf`, `automake`, `libtool`
+ - the autotools suite: `autoconf`, `automake`, `libtool`, and `autoconf-archive`
  - optionally, `lex`/`flex` and `yacc`/`bison`
  - a connection to Internet (to checkout `gnulib`)
 
@@ -37,7 +37,7 @@ To install OpenSSL 1.0, proceed as follows:
       
     - for other platforms, change `linux-x86_x64` to the relevant value:
     
-      | platform               	| value                 	|
+      | platform               	| value                 		|
       | ------------------------	| -----------------------	|
       | Linux/amd64            	| `linux-x86_64`          	|
       | Freebsd/amd64           	| `BSD-x86_64`            	|
