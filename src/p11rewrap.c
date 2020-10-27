@@ -24,6 +24,9 @@
 #include <sysexits.h>
 #include "pkcs11lib.h"
 
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
 
 #define COMMAND_SUMMARY							\
     "Unwrap a key, and rewrap it under (an)other wrapping key(s), on a PKCS#11 token.\n\n"

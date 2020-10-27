@@ -24,6 +24,9 @@
 #include <sysexits.h>
 #include "pkcs11lib.h"
 
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
 
 #define COMMAND_SUMMARY \
     "Wrap a key, using one or more wrapping key(s) on a PKCS#11 token.\n\n"

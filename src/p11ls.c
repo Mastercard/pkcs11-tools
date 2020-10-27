@@ -23,6 +23,9 @@
 #include <unistd.h>
 #include "pkcs11lib.h"
 
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
 
 #define COMMAND_SUMMARY \
     "List information about PKCS#11 token content.\n\n"

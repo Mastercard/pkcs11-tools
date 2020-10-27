@@ -23,6 +23,9 @@
 #include <unistd.h>
 #include "pkcs11lib.h"
 
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
 
 #define COMMAND_SUMMARY \
     "Computes key check value for a symmetric key on PKCS#11 token.\n\n"
