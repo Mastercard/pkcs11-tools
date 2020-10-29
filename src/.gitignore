@@ -9,6 +9,7 @@ p11kcv
 p11keycomp
 p11keygen
 p11ls
+p11mkcert
 p11more
 p11mv
 p11od

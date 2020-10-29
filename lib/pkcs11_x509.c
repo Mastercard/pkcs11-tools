@@ -423,9 +423,8 @@ static void free_X509_handle(X509 * hndl)
 }
 
 
-CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, char *label, int trusted)
+CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, void *x509, char *label, int trusted)
 {
-
     CK_OBJECT_HANDLE hCert = NULL_PTR;
 
     CK_RV retCode;
@@ -468,11 +467,8 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 
     pC_CreateObject = p11Context->FunctionList.C_CreateObject;
 
-    /* now let's create the attributes from file and alias */
-
-
-
-    cert = new_X509_from_file(filename);
+    /* if x509 is not null, use it, otherwise get a cert from the file. */
+    cert = x509 ? (X509 *)x509 : new_X509_from_file(filename);
 
     if(cert) {
 
@@ -541,7 +537,7 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 	    }
 	    free_X509_buf(subject);
 	}
-	free_X509_handle(cert);
+	if(filename) { free_X509_handle(cert); } /* we free only if the cert was retrieved from a file */
     }
     return hCert;
 }

@@ -64,6 +64,7 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_mv.c \
 	pkcs11_peekpoke.c \
 	pkcs11_req.c \
+	pkcs11_cert.c \
 	pkcs11_rm.c \
 	pkcs11_search.c \
 	pkcs11_slotinfo.c \
