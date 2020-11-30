@@ -360,6 +360,7 @@ char *pkcs11_alloclabelforhandle(pkcs11Context *p11Context, CK_OBJECT_HANDLE hnd
 
 CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context,
 				    char *filename,
+				    void *x509,
 				    char *label,
 				    int trusted);
 
@@ -475,6 +476,20 @@ CK_VOID_PTR pkcs11_create_unsigned_X509_REQ_EC(char *dn, int reverse, char *san[
 
 int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int outputbytes, CK_OBJECT_HANDLE hPrivateKey, CK_MECHANISM_TYPE mechtype, int fake);
 void write_X509_REQ(CK_VOID_PTR req, char *filename, int verbose);
+
+/* pkcs11_cert.c */
+
+int pkcs11_X509_CERT_check_DN(char *subject);
+CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_RSA(pkcs11Context * p11Context, char *dn, int reverse, int days, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski, CK_ATTRIBUTE_PTR modulus, CK_ATTRIBUTE_PTR exponent);
+
+CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_DSA(pkcs11Context * p11Context, char *dn, int reverse, int days, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski, CK_ATTRIBUTE_PTR prime, CK_ATTRIBUTE_PTR subprime, CK_ATTRIBUTE_PTR base, CK_ATTRIBUTE_PTR pubkey);
+
+CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_EC(pkcs11Context * p11Context, char *dn, int reverse, int days, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski, char *curvename, CK_ATTRIBUTE_PTR p_ec_point, int *degree);
+
+int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR req, int outputbytes, CK_OBJECT_HANDLE hPrivateKey, CK_MECHANISM_TYPE mechtype);
+void write_X509_CERT(CK_VOID_PTR req, char *filename, int verbose);
+
+
 CK_ULONG pkcs11_allocate_and_hash_sha1(CK_BYTE_PTR data, CK_ULONG datalen, CK_VOID_PTR_PTR buf);
 
 
