@@ -23,6 +23,10 @@
 #include <unistd.h>
 #include "pkcs11lib.h"
 
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
+
 #define COMMAND_SUMMARY \
     "Import data from a file onto PKCS#11 token.\n\n"
 

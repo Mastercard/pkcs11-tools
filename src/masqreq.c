@@ -24,6 +24,9 @@
 #include <getopt.h>
 #include "pkcs11lib.h"
 
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
 
 #define MAX_SAN  1000
 #define WARN_SAN 25

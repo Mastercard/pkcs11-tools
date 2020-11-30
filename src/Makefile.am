@@ -33,11 +33,6 @@ endif
 noinst_LTLIBRARIES = libcommon.la
 libcommon_la_SOURCES = version.c
 
-# special treat for minw32/windows build
-if TARGET_OS_MINGW32
-libcommon_la_SOURCES += win_applink.c
-endif
-
 libcommon_la_CFLAGS = $(LIBCRYPTO_CFLAGS)
 libcommon_la_LDFLAGS = -static
 
