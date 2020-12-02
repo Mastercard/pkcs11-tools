@@ -625,8 +625,6 @@ CK_VOID_PTR pkcs11_create_unsigned_X509_REQ_EC(char *dn, int reverse, char *san[
     EC_POINT *ec_point = NULL;
     const unsigned char * pp;
 
-    ERR_load_crypto_strings();
-
     STACK_OF(X509_EXTENSION) *exts = NULL;
 
     if( (ec=EC_KEY_new()) == NULL ) {
@@ -876,7 +874,6 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
 
     case CKM_ECDSA_SHA224:
 	type = (EVP_MD*) EVP_sha224();
-
 	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
 	    mechtype = CKM_ECDSA;
 	    prehash  = 1;

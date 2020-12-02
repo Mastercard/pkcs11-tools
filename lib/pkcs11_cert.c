@@ -317,9 +317,9 @@ CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_RSA(pkcs11Context *p11Context, char
 	P_ERR();
 	goto err;
     }
-
-    rsa->n = bn_modulus;     bn_modulus = NULL;
-    rsa->e = bn_exponent;    bn_exponent = NULL;
+    RSA_set0_key(rsa, bn_modulus, bn_exponent, NULL);
+    bn_modulus = NULL;
+    bn_exponent = NULL;
 
     if (!EVP_PKEY_assign_RSA(pk,rsa)) {
 	P_ERR();
@@ -498,10 +498,12 @@ CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_DSA(pkcs11Context *p11Context, char
 	goto err;
     }
 
-    dsa->p = bn_prime;       bn_prime = NULL;
-    dsa->q = bn_subprime;    bn_subprime = NULL;
-    dsa->g = bn_base;        bn_base = NULL;
-    dsa->pub_key = bn_pubkey; bn_pubkey = NULL;
+    DSA_set0_pqg(dsa, bn_prime, bn_subprime, bn_base);
+    bn_prime = NULL;
+    bn_subprime = NULL;
+    bn_base = NULL;
+    DSA_set0_key(dsa, bn_pubkey, NULL);
+    bn_pubkey = NULL;
 
     if (!EVP_PKEY_assign_DSA(pk,dsa)) {
 	P_ERR();
@@ -827,9 +829,9 @@ static int set_signing_algo( X509_ALGOR *a, EVP_MD *sigalg, int openssl_pkey_typ
 
     /* fix crt->sig_alg to make it match */
     /* borrowed from openssl/crypto/asn/a_sign.c */
-    if ( sigalg->pkey_type == NID_dsaWithSHA1 ||
-	 sigalg->pkey_type == NID_dsa_with_SHA224 ||
-	 sigalg->pkey_type == NID_dsa_with_SHA256 ||
+    if ( EVP_MD_pkey_type(sigalg) == NID_dsaWithSHA1 ||
+	 EVP_MD_pkey_type(sigalg) == NID_dsa_with_SHA224 ||
+	 EVP_MD_pkey_type(sigalg) == NID_dsa_with_SHA256 ||
 	 openssl_pkey_type == NID_ecdsa_with_SHA1 ||
 	 openssl_pkey_type == NID_ecdsa_with_SHA224 ||
 	 openssl_pkey_type == NID_ecdsa_with_SHA256 ||
@@ -852,13 +854,13 @@ static int set_signing_algo( X509_ALGOR *a, EVP_MD *sigalg, int openssl_pkey_typ
 	a->parameter->type=V_ASN1_NULL;
     }
     ASN1_OBJECT_free(a->algorithm);
-    a->algorithm=OBJ_nid2obj(openssl_pkey_type ? openssl_pkey_type : sigalg->pkey_type); /* under openssl, was sigalg->pkey_type */
+    a->algorithm=OBJ_nid2obj(openssl_pkey_type ? openssl_pkey_type : EVP_MD_pkey_type(sigalg)); /* under openssl, was sigalg->pkey_type */
     if (a->algorithm == NULL)  {
 	ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_UNKNOWN_OBJECT_TYPE);
 	P_ERR();
 	goto err;
     }
-    if (a->algorithm->length == 0)  {
+    if (OBJ_length(a->algorithm) == 0)  {
 	ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
 	P_ERR();
 	goto err;
@@ -912,56 +914,52 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
 	break;
 
     case CKM_DSA_SHA1:
-	type = (EVP_MD*) EVP_dss1();
+	type = (EVP_MD*) EVP_sha1();
 	openssl_pkey_type = NID_dsaWithSHA1;
 	break;
 
     case CKM_ECDSA_SHA1:
-	type = (EVP_MD*) EVP_ecdsa();
+	type = (EVP_MD*) EVP_sha1();
 	openssl_pkey_type = NID_ecdsa_with_SHA1;
 	break;
 
     case CKM_ECDSA_SHA224:
-	type = (EVP_MD*) EVP_ecdsa();
-	openssl_pkey_type = NID_ecdsa_with_SHA224;
-
+	type = (EVP_MD*) EVP_sha224();
 	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
 	    mechtype = CKM_ECDSA;
 	    prehash  = 1;
 	    prehash_type = CKM_SHA224;
+	    openssl_pkey_type = NID_ecdsa_with_SHA224;
 	}
 	break;
 
     case CKM_ECDSA_SHA256:
-	type = (EVP_MD*) EVP_ecdsa();
-	openssl_pkey_type = NID_ecdsa_with_SHA256;
-
+	type = (EVP_MD*) EVP_sha256();
 	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
 	    mechtype = CKM_ECDSA;
 	    prehash  = 1;
 	    prehash_type = CKM_SHA256;
+	    openssl_pkey_type = NID_ecdsa_with_SHA256;
 	}
 	break;
 
     case CKM_ECDSA_SHA384:
-	type = (EVP_MD*) EVP_ecdsa();
-	openssl_pkey_type = NID_ecdsa_with_SHA384;
-
+	type = (EVP_MD*) EVP_sha384();
 	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
 	    mechtype = CKM_ECDSA;
 	    prehash  = 1;
 	    prehash_type = CKM_SHA384;
+	    openssl_pkey_type = NID_ecdsa_with_SHA384;	    
 	}
 	break;
 
     case CKM_ECDSA_SHA512:
-	type = (EVP_MD*) EVP_ecdsa();
-	openssl_pkey_type = NID_ecdsa_with_SHA512;
-
+	type = (EVP_MD*) EVP_sha512();
 	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
 	    mechtype = CKM_ECDSA;
 	    prehash  = 1;
 	    prehash_type = CKM_SHA512;
+	    openssl_pkey_type = NID_ecdsa_with_SHA512;
 	}
 	break;
 
@@ -971,13 +969,15 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
     }
 
     /* set the signing algo on the TBS structure */
-    set_signing_algo( xcrt->cert_info->signature, type, openssl_pkey_type);
+    set_signing_algo( (X509_ALGOR *)X509_get0_tbs_sigalg(xcrt), type, openssl_pkey_type);
 
-    /* X509_ALGOR *a = xcrt->sig_alg; */
-    ASN1_BIT_STRING *signature = xcrt->signature;
+    /* get actual certificate signature and algo */
+    X509_ALGOR *a;
+    ASN1_BIT_STRING *signature;
+    X509_get0_signature((const ASN1_BIT_STRING **)&signature, (const X509_ALGOR **)&a, xcrt);
 
     /* first of all extract stuff to be signed */
-    if((inlen = i2d_X509_CINF(xcrt->cert_info, &inbuf))==0) {
+    if((inlen = i2d_re_X509_tbs(xcrt, &inbuf))==0) {
 	P_ERR();
 	goto err;
     }
@@ -1049,10 +1049,15 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
 	}
     }
 
-    set_signing_algo( xcrt->sig_alg, type, openssl_pkey_type); /* set the signing algo of the cert */
+    set_signing_algo( a, type, openssl_pkey_type); /* set the signing algo of the cert */
 
     /* free signature->data in case it is already busy */
     if (signature->data != NULL) OPENSSL_free(signature->data);
+
+    DSA_SIG *sig = NULL;
+    ECDSA_SIG *ecsig = NULL;
+    BIGNUM *sig_r = NULL;
+    BIGNUM *sig_s = NULL;
 
     switch(p_mechtype)
     {
@@ -1101,25 +1106,37 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
 
 	/* first we need to make two bignums */
     {
-
-	ECDSA_SIG *ecsig = ECDSA_SIG_new();
-
 	int siglen;
 	unsigned char *sigder = NULL;
 
-	if(ecsig==NULL) {
-	    goto err;
-	}
-
-	if( BN_bin2bn( &outbuf[0], outlen/2, ecsig->r) == NULL) {
+	if((ecsig = ECDSA_SIG_new())==NULL) {
 	    P_ERR();
 	    goto err;
 	}
 
-	if( BN_bin2bn( &outbuf[outlen/2], outlen/2, ecsig->s) == NULL ) {
+	if((sig_r = BN_new()) == NULL) {
 	    P_ERR();
 	    goto err;
 	}
+
+	if((sig_s = BN_new()) == NULL) {
+	    P_ERR();
+	    goto err;
+	}
+
+
+	if( BN_bin2bn( &outbuf[0], outlen/2, sig_r) == NULL) {
+	    P_ERR();
+	    goto err;
+	}
+
+	if( BN_bin2bn( &outbuf[outlen/2], outlen/2, sig_s) == NULL ) {
+	    P_ERR();
+	    goto err;
+	}
+
+	ECDSA_SIG_set0(ecsig, sig_r, sig_s);
+	sig_r = sig_s = NULL;	/* ownership transferred to ecsig */
 
 	siglen = i2d_ECDSA_SIG(ecsig, &sigder);
 	if(siglen==0) {
@@ -1136,9 +1153,6 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
     /* DSA_SHA1: same stuff as ECDSA_SHA1 */
     case CKM_DSA_SHA1:
     {
-
-	DSA_SIG *sig = DSA_SIG_new();
-
 	/*
 
 	  DSA_SIG_new() does not generate r & s bignums
@@ -1152,24 +1166,32 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
 	int siglen;
 	unsigned char *sigder = NULL;
 
-	if(sig==NULL) {
-	    goto err;
-	}
-
-	/* just do right housekeeping */
-	if(sig->r !=NULL) {  BN_free(sig->r); sig->r = NULL; }
-	if(sig->s !=NULL) {  BN_free(sig->s); sig->s = NULL; }
-
-
-	if( (sig->r = BN_bin2bn( &outbuf[0], outlen/2, sig->r)) == NULL) {
+	if((sig=DSA_SIG_new())==NULL) {
 	    P_ERR();
 	    goto err;
 	}
 
-	if( (sig->s = BN_bin2bn( &outbuf[outlen/2], outlen/2, sig->s)) == NULL ) {
+	if((sig_r = BN_new()) == NULL) {
 	    P_ERR();
 	    goto err;
 	}
+	if((sig_s = BN_new()) == NULL) {
+	    P_ERR();
+	    goto err;
+	}
+
+	if( (sig_r = BN_bin2bn( &outbuf[0], outlen/2, sig_r)) == NULL) {
+	    P_ERR();
+	    goto err;
+	}
+
+	if( (sig_s = BN_bin2bn( &outbuf[outlen/2], outlen/2, sig_s)) == NULL ) {
+	    P_ERR();
+	    goto err;
+	}
+
+	DSA_SIG_set0(sig, sig_r, sig_s);
+	sig_r = sig_s = NULL;	/* ownership transferred to sig */
 
 	siglen = i2d_DSA_SIG(sig, &sigder);
 	if(siglen==0) {
@@ -1184,11 +1206,16 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
 
     }
 
+    signature->flags&= ~(ASN1_STRING_FLAG_BITS_LEFT|0x07);
+    signature->flags|=ASN1_STRING_FLAG_BITS_LEFT;
+	
     retval = 1;
 
 err:
-    /* TODO - proper cleanup */
-
+    if(sig) { DSA_SIG_free(sig); sig = NULL; }
+    if(ecsig) { ECDSA_SIG_free(ecsig); ecsig = NULL; }
+    if(sig_r) { BN_free(sig_r); sig_r = NULL; }
+    if(sig_s) { BN_free(sig_s); sig_s = NULL; }
     if(outbuf) { OPENSSL_free(outbuf); outbuf=NULL; }
     if(inbuf) { OPENSSL_free(inbuf); inbuf=NULL; }
     if(hashbuf) { OPENSSL_free(hashbuf); hashbuf=NULL; }

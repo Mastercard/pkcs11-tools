@@ -23,6 +23,9 @@
 #include <unistd.h>
 #include "pkcs11lib.h"
 
+#define COMMAND_SUMMARY							\
+    "Generate and output a PKCS#10 Certification Signing Request (CSR) using a key stored on PKCS#11 token.\n\n"
+
 #ifdef _WIN32
 #include <openssl/applink.c>
 #endif
@@ -78,6 +81,9 @@ int main( int argc, char **argv);
 void print_usage(char *progname)
 {
     fprintf( stderr, "USAGE: %s OPTIONS\n"
+	     "\n"
+	     COMMAND_SUMMARY
+	     "OPTIONS:\n"
 	     "* -l <pkcs#11 library path> : path to PKCS#11 library\n"
 	     "  -m <NSS config dir> ( e.g. '.' or 'sql:.' ) : NSS db directory \n"
 	     "  -s <slot number>\n"
@@ -95,7 +101,7 @@ void print_usage(char *progname)
 	     "                  - IP:[IPv4 address]\n"
 	     "  -X : add Subject Key Identifier X509v3 to request (value is SHA1 of key modulus)\n"
 	     "  -F : fake signing, do not sign and put dummy information in signature\n"
-             "  -v : be verbose, output content of generated PKCS#10 to standard output\n"	     
+             "  -v : be verbose, output content of generated PKCS#10 to standard output\n"	    
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
 	     "|\n"
