@@ -274,7 +274,52 @@ int pkcs11_X509_CERT_check_DN(char *subject)
 /*------------------------------------------------------------------------*/
 
 
-CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_RSA(pkcs11Context *p11Context, char *dn, int reverse, int days, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski, CK_ATTRIBUTE_PTR modulus, CK_ATTRIBUTE_PTR exponent)
+/* TODO move this primitive to a separate file (common) */
+
+static const EVP_MD * pkcs11_get_EVP_MD(hash_alg_t hash_alg)
+{
+    const EVP_MD * rv;
+    
+    switch(hash_alg) {
+
+    case sha1:
+	rv = EVP_sha1();
+	break;
+	
+    case sha224:
+	rv = EVP_sha224();
+	break;
+	
+    case sha256:
+	rv = EVP_sha256();
+	break;
+	
+    case sha384:
+	rv = EVP_sha384();
+	break;
+	
+    case sha512:
+	rv = EVP_sha512();
+	break;
+	
+    default:
+	rv = NULL;
+    }
+    return rv;
+}
+
+
+CK_VOID_PTR pkcs11_create_X509_CERT_RSA(pkcs11Context *p11Context,
+					char *dn,
+					int reverse,
+					int days,
+					char *san[],
+					int sancnt,
+					hash_alg_t hash_alg,
+					CK_OBJECT_HANDLE hprivkey,
+					CK_ATTRIBUTE_PTR ski,
+					CK_ATTRIBUTE_PTR modulus,
+					CK_ATTRIBUTE_PTR exponent)
 {
     X509 *crt = NULL, *retval = NULL;
     EVP_PKEY *pk = NULL;
@@ -417,6 +462,14 @@ CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_RSA(pkcs11Context *p11Context, char
 	}
     }
 
+    pkcs11_rsa_method_setup();
+    pkcs11_rsa_method_pkcs11_context(p11Context, hprivkey);
+
+    if(!X509_sign(crt, pk, pkcs11_get_EVP_MD(hash_alg))) {
+	P_ERR();
+	goto err;
+    }
+    
     retval = (CK_VOID_PTR)crt;
     crt = NULL;			/* transfer to retval and avoid freeing structure */
 
@@ -435,11 +488,20 @@ err:
 }
 
 
-CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_DSA(pkcs11Context *p11Context, char *dn, int reverse, int days, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski,
-						CK_ATTRIBUTE_PTR prime,
-						CK_ATTRIBUTE_PTR subprime,
-						CK_ATTRIBUTE_PTR base,
-						CK_ATTRIBUTE_PTR pubkey )
+CK_VOID_PTR pkcs11_create_X509_CERT_DSA(pkcs11Context *p11Context,
+					char *dn,
+					int reverse,
+					int days,
+					char *san[],
+					int sancnt,
+					hash_alg_t hash_alg,					
+					CK_OBJECT_HANDLE hprivkey,
+					CK_ATTRIBUTE_PTR ski,
+					CK_ATTRIBUTE_PTR prime,
+					CK_ATTRIBUTE_PTR subprime,
+					CK_ATTRIBUTE_PTR base,
+					CK_ATTRIBUTE_PTR pubkey)
+					
 {
     X509 *crt = NULL, *retval = NULL;
     EVP_PKEY *pk = NULL;
@@ -598,6 +660,14 @@ CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_DSA(pkcs11Context *p11Context, char
 	}
     }
 
+    pkcs11_dsa_method_setup();
+    pkcs11_dsa_method_pkcs11_context(p11Context, hprivkey);
+
+    if(!X509_sign(crt, pk, pkcs11_get_EVP_MD(hash_alg))) {
+	P_ERR();
+	goto err;
+    }
+    
     retval = (CK_VOID_PTR)crt;
     crt = NULL;			/* transfer to retval and avoid freeing structure */
 
@@ -901,6 +971,7 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
     BIGNUM *sig_s = NULL;
 
     switch( p_mechtype ) {
+    /* RSA */
     case CKM_SHA1_RSA_PKCS:
 	type = (EVP_MD *) EVP_sha1();
 	break;
@@ -921,11 +992,23 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
 	type = (EVP_MD*) EVP_sha512();
 	break;
 
+    /* DSA */
     case CKM_DSA_SHA1:
 	type = (EVP_MD*) EVP_sha1();
 	openssl_pkey_type = NID_dsaWithSHA1;
 	break;
 
+    case CKM_DSA_SHA224:
+	type = (EVP_MD*) EVP_sha224();
+	openssl_pkey_type = NID_dsa_with_SHA224;
+	break;
+	
+    case CKM_DSA_SHA256:
+	type = (EVP_MD*) EVP_sha256();
+	openssl_pkey_type = NID_dsa_with_SHA256;
+	break;
+	
+    /*  ECDSA */
     case CKM_ECDSA_SHA1:
 	type = (EVP_MD*) EVP_sha1();
 	openssl_pkey_type = NID_ecdsa_with_SHA1;
@@ -971,6 +1054,8 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
 	}
 	break;
 
+    case CKM_DSA_SHA384:	/* unsupported by OpenSSL, currently */
+    case CKM_DSA_SHA512:	/* unsupportrd by OpenSSL, currently */
     default:
 	fprintf(stderr, "Unsupported mechanism for signing, or unsuitable hash algo for signing algorithm.\n");
 	goto err;
@@ -1151,8 +1236,10 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
     break;
 
 
-    /* DSA_SHA1: same stuff as ECDSA_SHA1 */
+    /* DSA: same stuff as ECDSA */
     case CKM_DSA_SHA1:
+    case CKM_DSA_SHA224:
+    case CKM_DSA_SHA256:
     {
 	/*
 
@@ -1205,6 +1292,11 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
     }
     break;
 
+    case CKM_DSA_SHA384:	/* unsupported by OpenSSL, currently */
+    case CKM_DSA_SHA512:	/* unsupported by OpenSSL, currently */
+    default:
+	fprintf(stderr, "Internal error - signature mechanism not implemented.\n");
+	goto err;
     }
 
     signature->flags&= ~(ASN1_STRING_FLAG_BITS_LEFT|0x07);

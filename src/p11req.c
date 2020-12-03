@@ -33,10 +33,8 @@
 #define MAX_SAN  1000
 #define WARN_SAN 25
 
-typedef enum { sha1, sha224, sha256, sha384, sha512 } hash_alg ;
-
 typedef struct {
-    hash_alg a;
+    hash_alg_t a;
     CK_MECHANISM_TYPE h;
 
 } st_hash_alg_map ;
@@ -150,7 +148,7 @@ int main( int argc, char ** argv )
     int fake = 0;
     int reverse = 0;
 
-    hash_alg hash_a = sha256; 	/* as of release 0.25.3, sha256 is the default */
+    hash_alg_t hash_alg = sha256; 	/* as of release 0.25.3, sha256 is the default */
 
     pkcs11Context * p11Context = NULL;
     CK_RV retcode = EXIT_FAILURE;
@@ -216,17 +214,17 @@ int main( int argc, char ** argv )
 
 	case 'H':
 	    if(strcasecmp(optarg,"sha1")==0 || strcasecmp(optarg,"sha")==0 ) { 
-		hash_a = sha1;
+		hash_alg = sha1;
 	    } else if (strcasecmp(optarg,"sha224")==0) { 
-		hash_a = sha224;
+		hash_alg = sha224;
 	    } else if (strcasecmp(optarg,"sha256")==0) { 
-		hash_a = sha256;
+		hash_alg = sha256;
 	    } else if (strcasecmp(optarg,"sha2")==0) { /* alias for sha256 */
-		hash_a = sha256;
+		hash_alg = sha256;
 	    } else if (strcasecmp(optarg,"sha384")==0) { 
-		hash_a = sha384;
+		hash_alg = sha384;
 	    } else if (strcasecmp(optarg,"sha512")==0) { 
-		hash_a = sha512;
+		hash_alg = sha512;
 	    } else {
 		fprintf( stderr, "Error: unknown hash algorithm (%s)\n", optarg);
 		++errflag;
@@ -374,7 +372,7 @@ int main( int argc, char ** argv )
 				int i;
 
 				for(i=0;i<sizeof rsa_hash_mech/sizeof(st_hash_alg_map); i++) {
-				    if (rsa_hash_mech[i].a == hash_a) {
+				    if (rsa_hash_mech[i].a == hash_alg) {
 					hash = rsa_hash_mech[i].h;
 					break;
 				    }
@@ -429,7 +427,7 @@ int main( int argc, char ** argv )
 			int i;
 			
 			for(i=0;i<sizeof dsa_hash_mech/sizeof(st_hash_alg_map); i++) {
-			    if (dsa_hash_mech[i].a == hash_a) {
+			    if (dsa_hash_mech[i].a == hash_alg) {
 				hash = dsa_hash_mech[i].h;
 				break;
 			    }
@@ -487,7 +485,7 @@ int main( int argc, char ** argv )
 			                                                     /* two extra bytes: one per coordinate of the point    */
 
 			    for(i=0;i<sizeof ecdsa_hash_mech/sizeof(st_hash_alg_map); i++) {
-				if (ecdsa_hash_mech[i].a == hash_a) {
+				if (ecdsa_hash_mech[i].a == hash_alg) {
 				    hash = ecdsa_hash_mech[i].h;
 				    break;
 				}

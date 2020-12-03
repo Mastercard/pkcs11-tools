@@ -33,23 +33,12 @@
 #define MAX_SAN  1000
 #define WARN_SAN 25
 
-typedef enum { sha1, sha224, sha256, sha384, sha512 } hash_alg ;
-
 typedef struct {
-    hash_alg a;
+    hash_alg_t a;
     CK_MECHANISM_TYPE h;
 
 } st_hash_alg_map ;
 
-
-
-static const st_hash_alg_map rsa_hash_mech[] = {
-    { sha1, CKM_SHA1_RSA_PKCS },
-    { sha224, CKM_SHA224_RSA_PKCS },
-    { sha256, CKM_SHA256_RSA_PKCS },
-    { sha384, CKM_SHA384_RSA_PKCS },
-    { sha512, CKM_SHA512_RSA_PKCS },
-};
 
 
 static const st_hash_alg_map dsa_hash_mech[] = {
@@ -153,7 +142,7 @@ int main( int argc, char ** argv )
     int reverse = 0;
     int import = 0;		/* by default, no import to token */
 
-    hash_alg hash_a = sha256; 	/* as of release 0.25.3, sha256 is the default */
+    hash_alg_t hash_alg = sha256; 	/* as of release 0.25.3, sha256 is the default */
 
     pkcs11Context * p11Context = NULL;
     CK_RV retcode = EXIT_FAILURE;
@@ -219,17 +208,15 @@ int main( int argc, char ** argv )
 
 	case 'H':
 	    if(strcasecmp(optarg,"sha1")==0 || strcasecmp(optarg,"sha")==0 ) {
-		hash_a = sha1;
+		hash_alg = sha1;
 	    } else if (strcasecmp(optarg,"sha224")==0) {
-		hash_a = sha224;
-	    } else if (strcasecmp(optarg,"sha256")==0) {
-		hash_a = sha256;
-	    } else if (strcasecmp(optarg,"sha2")==0) { /* alias for sha256 */
-		hash_a = sha256;
+		hash_alg = sha224;
+	    } else if (strcasecmp(optarg,"sha2")==0 || strcasecmp(optarg,"sha256")==0) {
+		hash_alg = sha256;
 	    } else if (strcasecmp(optarg,"sha384")==0) {
-		hash_a = sha384;
+		hash_alg = sha384;
 	    } else if (strcasecmp(optarg,"sha512")==0) {
-		hash_a = sha512;
+		hash_alg = sha512;
 	    } else {
 		fprintf( stderr, "Error: unknown hash algorithm (%s)\n", optarg);
 		++errflag;
@@ -373,32 +360,19 @@ int main( int argc, char ** argv )
 
 
 			{
-			    CK_VOID_PTR x509 = pkcs11_create_unsigned_X509_CERT_RSA(p11Context,
-										    dn, reverse, days,
-										    san, san_cnt,
-										    ski ? &id_attr : NULL,
-										    &attr[0],
-										    &attr[1]);
+			    CK_VOID_PTR x509 = pkcs11_create_X509_CERT_RSA(p11Context,
+									   dn, reverse, days,
+									   san, san_cnt,
+									   hash_alg,
+									   hPrivateKey,
+									   ski ? &id_attr : NULL,
+									   &attr[0],
+									   &attr[1]
+				);
 
 			    if(x509) {
-				CK_MECHANISM_TYPE hash = 0;
-
-				int i;
-
-				for(i=0;i<sizeof rsa_hash_mech/sizeof(st_hash_alg_map); i++) {
-				    if (rsa_hash_mech[i].a == hash_a) {
-					hash = rsa_hash_mech[i].h;
-					break;
-				    }
-				}
-
-				int keybits = pkcs11_get_rsa_modulus_bits(p11Context, hPrivateKey);
-				int keybytes = (keybits>>3) + (keybits%8 ? 1 : 0);
-				int rv = pkcs11_sign_X509_CERT(p11Context, x509, keybytes, hPrivateKey, hash);
-
-				if(rv==1) {
-				    write_X509_CERT(x509, filename, verbose);
-				}
+				write_X509_CERT(x509, filename, verbose);
+				
 				if(import) {
 				    if(!pkcs11_importcert( p11Context, NULL, x509, label, 0)) {
 					fprintf(stderr, "Warning: unable to import the certificate to the PKCS#11 token\n");
@@ -406,10 +380,10 @@ int main( int argc, char ** argv )
 					fprintf(stderr, "importing certificate succeeded.\n");
 				    }
 				}
+				
 			    } else {
-				fprintf(stderr, "Error: Unable to generate certificate TBS structure\n");
+				fprintf(stderr, "Error: Unable to generate certificate\n");
 			    }
-
 			    /* free stuff */
 			}
 
@@ -434,34 +408,20 @@ int main( int argc, char ** argv )
 		};
 
 		if( pkcs11_getObjectAttributes( p11Context, hPublicKey, attr, sizeof attr/sizeof (CK_ATTRIBUTE) ) == CKR_OK ) {
-		    CK_VOID_PTR x509 = pkcs11_create_unsigned_X509_CERT_DSA(p11Context,
-									    dn, reverse, days,
-									    san, san_cnt,
-									    ski ? &attr[4] : NULL,
-									    &attr[0],
-									    &attr[1],
-									    &attr[2],
-									    &attr[3] );
+		    CK_VOID_PTR x509 = pkcs11_create_X509_CERT_DSA(p11Context,
+								   dn, reverse, days,
+								   san, san_cnt,
+								   hash_alg,
+								   hPrivateKey,
+								   ski ? &attr[4] : NULL,
+								   &attr[0],
+								   &attr[1],
+								   &attr[2],
+								   &attr[3] );
 
 		    if(x509) {
-			CK_MECHANISM_TYPE hash = 0;
-
-			int i;
-
-			for(i=0;i<sizeof dsa_hash_mech/sizeof(st_hash_alg_map); i++) {
-			    if (dsa_hash_mech[i].a == hash_a) {
-				hash = dsa_hash_mech[i].h;
-				break;
-			    }
-			}
-
-			int keybits = pkcs11_get_dsa_pubkey_bits(p11Context, hPublicKey);
-			int keybytes = (keybits>>3) + (keybits%8 ? 1 : 0);
-			int rv = pkcs11_sign_X509_CERT(p11Context, x509, keybytes, hPrivateKey, hash);
-
-			if(rv==1) {
-			    write_X509_CERT(x509, filename, verbose);
-			}
+			write_X509_CERT(x509, filename, verbose);
+			
 			if(import) {
 			    if(!pkcs11_importcert( p11Context, NULL, x509, label, 0)) {
 				fprintf(stderr, "Warning: unable to import the certificate to the PKCS#11 token\n");
@@ -470,7 +430,7 @@ int main( int argc, char ** argv )
 			    }
 			}
 		    } else {
-			fprintf(stderr, "Error: Unable to generate certificate TBS structure\n");
+			fprintf(stderr, "Error: Unable to generate certificate\n");
 		    }
 
 		    pkcs11_freeObjectAttributesValues( attr, sizeof attr/sizeof (CK_ATTRIBUTE));
@@ -514,7 +474,7 @@ int main( int argc, char ** argv )
 			                                                     /* two extra bytes: one per coordinate of the point    */
 
 			    for(i=0;i<sizeof ecdsa_hash_mech/sizeof(st_hash_alg_map); i++) {
-				if (ecdsa_hash_mech[i].a == hash_a) {
+				if (ecdsa_hash_mech[i].a == hash_alg) {
 				    hash = ecdsa_hash_mech[i].h;
 				    break;
 				}

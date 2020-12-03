@@ -849,6 +849,7 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
     BIGNUM *sig_s = NULL;
 
     switch( p_mechtype ) {
+    /* RSA */
     case CKM_SHA1_RSA_PKCS:
 	type = (EVP_MD *) EVP_sha1();
 	break;
@@ -869,12 +870,23 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
 	type = (EVP_MD*) EVP_sha512();
 	break;
 
-
+    /* DSA */
     case CKM_DSA_SHA1:
 	type = (EVP_MD*) EVP_sha1();
 	openssl_pkey_type = NID_dsaWithSHA1;
 	break;
 
+    case CKM_DSA_SHA224:
+	type = (EVP_MD*) EVP_sha224();
+	openssl_pkey_type = NID_dsa_with_SHA224;
+	break;
+	
+    case CKM_DSA_SHA256:
+	type = (EVP_MD*) EVP_sha256();
+	openssl_pkey_type = NID_dsa_with_SHA256;
+	break;
+	
+    /* ECDSA */
     case CKM_ECDSA_SHA1:
 	type = (EVP_MD*) EVP_sha1();
 	openssl_pkey_type = NID_ecdsa_with_SHA1;
@@ -920,6 +932,8 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
 	}
 	break;
 
+    case CKM_DSA_SHA384:	/* unsupported by OpenSSL, currently */
+    case CKM_DSA_SHA512:	/* unsupportrd by OpenSSL, currently */
     default:
 	fprintf(stderr, "Unsupported mechanism for signing, or unsuitable hash algo for signing algorithm.\n");
 	goto err;
@@ -1141,8 +1155,10 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
     break;
 
 
-    /* DSA_SHA1: same stuff as ECDSA_SHA1 */
+    /* DSA: same stuff as ECDSA */
     case CKM_DSA_SHA1:
+    case CKM_DSA_SHA224:
+    case CKM_DSA_SHA256:
     {
 	/*
 
@@ -1194,6 +1210,11 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
     }
     break;
 
+    case CKM_DSA_SHA384:	/* unsupported by OpenSSL, currently */
+    case CKM_DSA_SHA512:	/* unsupported by OpenSSL, currently */
+    default:
+	fprintf(stderr, "Internal error - signature mechanism not implemented.\n");
+	goto err;
     }
 
 

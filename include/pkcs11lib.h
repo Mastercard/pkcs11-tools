@@ -188,6 +188,14 @@ enum wrappingmethod { w_unknown,     /* unidentified alg */
 		      w_envelope,    /* envelope wrapping ( Private Key -> Symmetric Key -> Any Key) */
 };
 
+typedef enum {
+    sha1,
+    sha224,
+    sha256,
+    sha384,
+    sha512
+} hash_alg_t ;
+
 /* pkcs11_unwrap / pkcs11_wrap / pkcs11_wctx */
 
 typedef struct s_p11_wrappedkeyctx {
@@ -480,9 +488,33 @@ void write_X509_REQ(CK_VOID_PTR req, char *filename, int verbose);
 /* pkcs11_cert.c */
 
 int pkcs11_X509_CERT_check_DN(char *subject);
-CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_RSA(pkcs11Context * p11Context, char *dn, int reverse, int days, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski, CK_ATTRIBUTE_PTR modulus, CK_ATTRIBUTE_PTR exponent);
 
-CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_DSA(pkcs11Context * p11Context, char *dn, int reverse, int days, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski, CK_ATTRIBUTE_PTR prime, CK_ATTRIBUTE_PTR subprime, CK_ATTRIBUTE_PTR base, CK_ATTRIBUTE_PTR pubkey);
+CK_VOID_PTR pkcs11_create_X509_CERT_RSA(pkcs11Context *p11Context,
+					char *dn,
+					int reverse,
+					int days,
+					char *san[],
+					int sancnt,
+					hash_alg_t hash_alg,
+					CK_OBJECT_HANDLE hprivkey,
+					CK_ATTRIBUTE_PTR ski,
+					CK_ATTRIBUTE_PTR modulus,
+					CK_ATTRIBUTE_PTR exponent);
+
+CK_VOID_PTR pkcs11_create_X509_CERT_DSA(pkcs11Context *p11Context,
+					char *dn,
+					int reverse,
+					int days,
+					char *san[],
+					int sancnt,
+					hash_alg_t hash_alg,					
+					CK_OBJECT_HANDLE hprivkey,
+					CK_ATTRIBUTE_PTR ski,
+					CK_ATTRIBUTE_PTR prime,
+					CK_ATTRIBUTE_PTR subprime,
+					CK_ATTRIBUTE_PTR base,
+					CK_ATTRIBUTE_PTR pubkey);
+
 
 CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_EC(pkcs11Context * p11Context, char *dn, int reverse, int days, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski, char *curvename, CK_ATTRIBUTE_PTR p_ec_point, int *degree);
 
@@ -552,6 +584,15 @@ void pkcs11_openssl_error(char * file, int line);
 
 CK_ULONG pkcs11_openssl_alloc_and_sha1(CK_BYTE_PTR data, CK_ULONG datalen, CK_VOID_PTR_PTR buf);
 void pkcs11_openssl_free(CK_VOID_PTR_PTR buf);
+
+/* pkcs11_ossl_rsa_meth.c */
+void pkcs11_rsa_method_setup();
+void pkcs11_rsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey);
+
+/* pkcs11_ossl_dsa_meth.c */
+void pkcs11_dsa_method_setup();
+void pkcs11_dsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey);
+
 
 /* list functions */
 int pkcs11_ls_certs(pkcs11Context *p11Context);
