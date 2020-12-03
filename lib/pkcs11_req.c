@@ -840,6 +840,14 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
     EVP_MD *type;
     int openssl_pkey_type = 0;
 
+    X509_ALGOR *a;
+    ASN1_BIT_STRING *signature;
+
+    DSA_SIG *sig = NULL;
+    ECDSA_SIG *ecsig = NULL;
+    BIGNUM *sig_r = NULL;
+    BIGNUM *sig_s = NULL;
+
     switch( p_mechtype ) {
     case CKM_SHA1_RSA_PKCS:
 	type = (EVP_MD *) EVP_sha1();
@@ -917,9 +925,6 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
 	goto err;
     }
 
-
-    X509_ALGOR *a;
-    ASN1_BIT_STRING *signature;
     X509_REQ_get0_signature(req, (const ASN1_BIT_STRING **)&signature, (const X509_ALGOR **)&a);
 
     /* first of all extract stuff to be signed */
@@ -1049,12 +1054,6 @@ int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int output
     /* free signature->data in case it is already busy */
     if (signature->data != NULL) OPENSSL_free(signature->data);
 
-
-    DSA_SIG *sig = NULL;
-    ECDSA_SIG *ecsig = NULL;
-    BIGNUM *sig_r = NULL;
-    BIGNUM *sig_s = NULL;
-    
     switch(p_mechtype)
     {
 

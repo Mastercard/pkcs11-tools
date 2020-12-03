@@ -892,6 +892,14 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
     int openssl_pkey_type = 0;
     X509 *xcrt = (X509 *)crt;
 
+    X509_ALGOR *a;
+    ASN1_BIT_STRING *signature;
+
+    DSA_SIG *dsasig = NULL;
+    ECDSA_SIG *ecdsasig = NULL;
+    BIGNUM *sig_r = NULL;
+    BIGNUM *sig_s = NULL;
+
     switch( p_mechtype ) {
     case CKM_SHA1_RSA_PKCS:
 	type = (EVP_MD *) EVP_sha1();
@@ -972,8 +980,6 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
     set_signing_algo( (X509_ALGOR *)X509_get0_tbs_sigalg(xcrt), type, openssl_pkey_type);
 
     /* get actual certificate signature and algo */
-    X509_ALGOR *a;
-    ASN1_BIT_STRING *signature;
     X509_get0_signature((const ASN1_BIT_STRING **)&signature, (const X509_ALGOR **)&a, xcrt);
 
     /* first of all extract stuff to be signed */
@@ -1054,11 +1060,6 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
     /* free signature->data in case it is already busy */
     if (signature->data != NULL) OPENSSL_free(signature->data);
 
-    DSA_SIG *sig = NULL;
-    ECDSA_SIG *ecsig = NULL;
-    BIGNUM *sig_r = NULL;
-    BIGNUM *sig_s = NULL;
-
     switch(p_mechtype)
     {
 
@@ -1109,7 +1110,7 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
 	int siglen;
 	unsigned char *sigder = NULL;
 
-	if((ecsig = ECDSA_SIG_new())==NULL) {
+	if((ecdsasig = ECDSA_SIG_new())==NULL) {
 	    P_ERR();
 	    goto err;
 	}
@@ -1135,10 +1136,10 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
 	    goto err;
 	}
 
-	ECDSA_SIG_set0(ecsig, sig_r, sig_s);
-	sig_r = sig_s = NULL;	/* ownership transferred to ecsig */
+	ECDSA_SIG_set0(ecdsasig, sig_r, sig_s);
+	sig_r = sig_s = NULL;	/* ownership transferred to ecdsasig */
 
-	siglen = i2d_ECDSA_SIG(ecsig, &sigder);
+	siglen = i2d_ECDSA_SIG(ecdsasig, &sigder);
 	if(siglen==0) {
 	    P_ERR();
 	    goto err;
@@ -1166,7 +1167,7 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
 	int siglen;
 	unsigned char *sigder = NULL;
 
-	if((sig=DSA_SIG_new())==NULL) {
+	if((dsasig=DSA_SIG_new())==NULL) {
 	    P_ERR();
 	    goto err;
 	}
@@ -1190,10 +1191,10 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
 	    goto err;
 	}
 
-	DSA_SIG_set0(sig, sig_r, sig_s);
+	DSA_SIG_set0(dsasig, sig_r, sig_s);
 	sig_r = sig_s = NULL;	/* ownership transferred to sig */
 
-	siglen = i2d_DSA_SIG(sig, &sigder);
+	siglen = i2d_DSA_SIG(dsasig, &sigder);
 	if(siglen==0) {
 	    P_ERR();
 	    goto err;
@@ -1212,8 +1213,8 @@ int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outpu
     retval = 1;
 
 err:
-    if(sig) { DSA_SIG_free(sig); sig = NULL; }
-    if(ecsig) { ECDSA_SIG_free(ecsig); ecsig = NULL; }
+    if(dsasig) { DSA_SIG_free(dsasig); dsasig = NULL; }
+    if(ecdsasig) { ECDSA_SIG_free(ecdsasig); ecdsasig = NULL; }
     if(sig_r) { BN_free(sig_r); sig_r = NULL; }
     if(sig_s) { BN_free(sig_s); sig_s = NULL; }
     if(outbuf) { OPENSSL_free(outbuf); outbuf=NULL; }

@@ -104,6 +104,8 @@ static inline DSA * new_dsaparam_from_file(char *filename)
 		if(dsaparam) {
 		    puts("PEM format detected");
 		    rv = dsaparam;
+		} else {
+		    P_ERR();
 		}
 	    } else {
 		perror("Error opening file");
