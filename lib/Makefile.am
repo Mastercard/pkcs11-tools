@@ -77,7 +77,8 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_dsa.c \
 	pkcs11_dh.c \
 	pkcs11_ossl_rsa_meth.c \
-	pkcs11_ossl_dsa_meth.c
+	pkcs11_ossl_dsa_meth.c \
+	pkcs11_ossl_ecdsa_meth.c
 
 
 dist_libp11_la_SOURCES = gen_attrinfo_h.pl gen_mechinfo_h.pl wrappedkey_parser.y wrappedkey_lexer.l wrappedkey_lexer.h

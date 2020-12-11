@@ -28,7 +28,7 @@
 
 /* OpenSSL version tag */
 
-const char * pkcs11_openssl_version(void)
+inline const char * pkcs11_openssl_version(void)
 {
     return SSLeay_version(SSLEAY_VERSION);
 }
@@ -106,7 +106,7 @@ CK_ULONG pkcs11_openssl_alloc_and_sha1(CK_BYTE_PTR data, CK_ULONG datalen, CK_VO
     return rv;
 }
 
-void pkcs11_openssl_free(CK_VOID_PTR_PTR buf)
+inline void pkcs11_openssl_free(CK_VOID_PTR_PTR buf)
 {
     if(buf && *buf) {
 	OPENSSL_free(*buf);

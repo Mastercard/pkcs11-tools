@@ -257,6 +257,9 @@ error:
     return NULL;
 }
 
+/* end of grab */
+/*------------------------------------------------------------------------*/
+
 
 int pkcs11_X509_CERT_check_DN(char *subject)
 {
@@ -270,8 +273,30 @@ int pkcs11_X509_CERT_check_DN(char *subject)
     return 1;
 }
 
-/* end of grab */
-/*------------------------------------------------------------------------*/
+/* Add extension using V3 code: we can set the config file as NULL
+ * because we wont reference any other sections.
+ */
+
+static int add_ext(X509 *cert, int nid, char *value)
+{
+    X509_EXTENSION *ex;
+    X509V3_CTX ctx;
+    /* This sets the 'context' of the extensions. */
+    /* No configuration database */
+    X509V3_set_ctx_nodb(&ctx);
+    /*
+     * Issuer and subject certs: both the target since it is self signed, no
+     * request and no CRL
+     */
+    X509V3_set_ctx(&ctx, cert, cert, NULL, NULL, 0);
+    ex = X509V3_EXT_conf_nid(NULL, &ctx, nid, value);
+    if (!ex)
+	return 0;
+
+    X509_add_ext(cert, ex, -1);
+    X509_EXTENSION_free(ex);
+    return 1;
+}
 
 
 /* TODO move this primitive to a separate file (common) */
@@ -447,7 +472,7 @@ CK_VOID_PTR pkcs11_create_X509_CERT_RSA(pkcs11Context *p11Context,
 	char *value=NULL;
 
 	value=(char *) OPENSSL_malloc( (ski->ulValueLen) * 2  + 1 );
-
+	
 	if(value) {
 	    int i;
 
@@ -458,6 +483,7 @@ CK_VOID_PTR pkcs11_create_X509_CERT_RSA(pkcs11Context *p11Context,
 	    }
 
 	    add_ext(crt, NID_subject_key_identifier, value);
+	    add_ext(crt, NID_authority_key_identifier, value); /* if we self-sign, we need this guy also */
 	    OPENSSL_free(value);
 	}
     }
@@ -656,6 +682,7 @@ CK_VOID_PTR pkcs11_create_X509_CERT_DSA(pkcs11Context *p11Context,
 	    }
 
 	    add_ext(crt, NID_subject_key_identifier, value);
+	    add_ext(crt, NID_authority_key_identifier, value); /* if we self-sign, we need this guy also */
 	    OPENSSL_free(value);
 	}
     }
@@ -688,39 +715,45 @@ err:
 }
 
 
-CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_EC(pkcs11Context *p11Context, char *dn, int reverse, int days, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski, char *curvename, CK_ATTRIBUTE_PTR p_ec_point, int *degree)
+CK_VOID_PTR pkcs11_create_X509_CERT_EC(pkcs11Context *p11Context,
+				       char *dn,
+				       int reverse,
+				       int days,
+				       char *san[],
+				       int sancnt,
+				       hash_alg_t hash_alg,					
+				       CK_OBJECT_HANDLE hprivkey,
+				       CK_ATTRIBUTE_PTR ski,
+				       CK_ATTRIBUTE_PTR p_ec_params,
+				       CK_ATTRIBUTE_PTR p_ec_point) 
 {
     X509 *crt = NULL, *retval = NULL;
     EVP_PKEY *pk = NULL;
     EC_KEY *ec = NULL;
     X509_NAME *name=NULL;
     ASN1_OCTET_STRING *ec_point_container = NULL;
+    ECPARAMETERS *ec_parameters = NULL;
     EC_GROUP *ec_group = NULL;
     EC_POINT *ec_point = NULL;
     const unsigned char * pp;
     BIGNUM *bn_sn = NULL;
     CK_BYTE sn[20];
+    
 
+    /* create EC key object */
     if( (ec=EC_KEY_new()) == NULL ) {
 	P_ERR();
 	goto err;
     }
 
-    if( (ec_group=EC_GROUP_new_by_curve_name( OBJ_sn2nid(curvename)) ) == NULL ) {
+    /* create EC group from curve parameters */
+    const unsigned char *ptr = p_ec_params->pValue;
+    if( (ec_group = d2i_ECPKParameters(&ec_group, &ptr, p_ec_params->ulValueLen)) == NULL) {
 	P_ERR();
 	goto err;
     }
 
-    /* we want to use OID shortcuts rather than the whole parameters */
-    EC_GROUP_set_asn1_flag(ec_group,1);
-
-    /* obtain group degree, aka bit length of public key */
-    *degree = EC_GROUP_get_degree(ec_group);
-    if(*degree == 0) {
-	P_ERR();
-	goto err;
-    }
-
+    /* create ec_point on the group */
     if( (ec_point=EC_POINT_new(ec_group)) == NULL ) {
 	P_ERR();
 	goto err;
@@ -855,24 +888,37 @@ CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_EC(pkcs11Context *p11Context, char 
 	}
     }
 
+    /* on a self-signed cert, AKI and SKI go along. */
+    /* that is why we are setting them both.        */
     if(ski!=NULL) {
 	char *value=NULL;
+	const char keyid_prefix[] = "keyid:";
 
-	value=(char *) OPENSSL_malloc( (ski->ulValueLen) * 2  + 1 );
+	value=(char *) OPENSSL_zalloc( (ski->ulValueLen) * 2  + sizeof keyid_prefix + 1 );
 
 	if(value) {
 	    int i;
 
-	    value[0]=0;
-
+	    strcpy(value, keyid_prefix);
+	    
 	    for(i=0; i<ski->ulValueLen; i++) {
-		sprintf(&value[i*2], "%02.2x", ((unsigned char *)ski->pValue)[i]);
+		sprintf(&value[sizeof keyid_prefix - 1 + i*2], "%02.2x", ((unsigned char *)ski->pValue)[i]);
 	    }
 
-	    add_ext(crt, NID_subject_key_identifier, value);
+	    add_ext(crt, NID_subject_key_identifier, &value[sizeof keyid_prefix - 1]); /* for SKI, we skip the 'keyid:' prefix */
+	    add_ext(crt, NID_authority_key_identifier, &value[0]); /* if we self-sign, we need this guy also */
 	    OPENSSL_free(value);
 	}
     }
+
+    pkcs11_ecdsa_method_setup();
+    pkcs11_ecdsa_method_pkcs11_context(p11Context, hprivkey);
+
+    if(!X509_sign(crt, pk, pkcs11_get_EVP_MD(hash_alg))) {
+	P_ERR();
+	goto err;
+    }
+    
 
     retval = (CK_VOID_PTR)crt;
     crt = NULL;			/* transfer to retval and avoid freeing structure */
@@ -881,6 +927,7 @@ err:
     /* cleanup */
     if(name != NULL) { X509_NAME_free(name); name=NULL; }
     /* TODO CLEANUP */
+    if(ec_parameters!=NULL) { ECPARAMETERS_free(ec_parameters); ec_parameters=NULL; }
     if(ec_point!=NULL) { EC_POINT_free(ec_point); ec_point=NULL; }
     if(ec_group!=NULL) { EC_GROUP_free(ec_group); ec_group=NULL; }
     if(bn_sn != NULL) { BN_free(bn_sn); bn_sn=NULL; }
@@ -891,431 +938,6 @@ err:
 
     return retval;
 }
-
-
-static int set_signing_algo( X509_ALGOR *a, EVP_MD *sigalg, int openssl_pkey_type)
-{
-    int rc=0;
-
-    /* fix crt->sig_alg to make it match */
-    /* borrowed from openssl/crypto/asn/a_sign.c */
-    if ( EVP_MD_pkey_type(sigalg) == NID_dsaWithSHA1 ||
-	 EVP_MD_pkey_type(sigalg) == NID_dsa_with_SHA224 ||
-	 EVP_MD_pkey_type(sigalg) == NID_dsa_with_SHA256 ||
-	 openssl_pkey_type == NID_ecdsa_with_SHA1 ||
-	 openssl_pkey_type == NID_ecdsa_with_SHA224 ||
-	 openssl_pkey_type == NID_ecdsa_with_SHA256 ||
-	 openssl_pkey_type == NID_ecdsa_with_SHA384 ||
-	 openssl_pkey_type == NID_ecdsa_with_SHA512) {
-	/* special case: RFC 3279 tells us to omit 'parameters'
-	 * with id-dsa-with-sha1 and ecdsa-with-SHA1 */
-	/* in addition, RFC5758 tells is to do the same
-	 * with other hashing algs */
-
-	ASN1_TYPE_free(a->parameter);
-	a->parameter = NULL;
-    }  else if ((a->parameter == NULL) ||
-		(a->parameter->type != V_ASN1_NULL)) {
-	ASN1_TYPE_free(a->parameter);
-	if ((a->parameter=ASN1_TYPE_new()) == NULL) {
-	    P_ERR();
-	    goto err;
-	}
-	a->parameter->type=V_ASN1_NULL;
-    }
-    ASN1_OBJECT_free(a->algorithm);
-    a->algorithm=OBJ_nid2obj(openssl_pkey_type ? openssl_pkey_type : EVP_MD_pkey_type(sigalg)); /* under openssl, was sigalg->pkey_type */
-    if (a->algorithm == NULL)  {
-	ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_UNKNOWN_OBJECT_TYPE);
-	P_ERR();
-	goto err;
-    }
-    if (OBJ_length(a->algorithm) == 0)  {
-	ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
-	P_ERR();
-	goto err;
-    }
-    rc = 1;
-
-err:
-    return rc;
-}
-
-
-int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR crt, int outputbytes, CK_OBJECT_HANDLE hPrivateKey, CK_MECHANISM_TYPE p_mechtype)
-{
-    int retval=0;
-    int prehash=0;
-    CK_MECHANISM_TYPE prehash_type=0;
-    CK_MECHANISM_TYPE mechtype = p_mechtype;
-
-    unsigned char *inbuf = NULL;
-    CK_ULONG inlen=0;
-
-    unsigned char *outbuf = NULL;
-    CK_ULONG outlen=0;
-
-    unsigned char *hashbuf = NULL;
-    CK_ULONG hashlen=0;
-
-    EVP_MD *type;
-    int openssl_pkey_type = 0;
-    X509 *xcrt = (X509 *)crt;
-
-    X509_ALGOR *a;
-    ASN1_BIT_STRING *signature;
-
-    DSA_SIG *dsasig = NULL;
-    ECDSA_SIG *ecdsasig = NULL;
-    BIGNUM *sig_r = NULL;
-    BIGNUM *sig_s = NULL;
-
-    switch( p_mechtype ) {
-    /* RSA */
-    case CKM_SHA1_RSA_PKCS:
-	type = (EVP_MD *) EVP_sha1();
-	break;
-
-    case CKM_SHA224_RSA_PKCS:
-	type = (EVP_MD*) EVP_sha224();
-	break;
-
-    case CKM_SHA256_RSA_PKCS:
-	type = (EVP_MD*) EVP_sha256();
-	break;
-
-    case CKM_SHA384_RSA_PKCS:
-	type = (EVP_MD*) EVP_sha384();
-	break;
-
-    case CKM_SHA512_RSA_PKCS:
-	type = (EVP_MD*) EVP_sha512();
-	break;
-
-    /* DSA */
-    case CKM_DSA_SHA1:
-	type = (EVP_MD*) EVP_sha1();
-	openssl_pkey_type = NID_dsaWithSHA1;
-	break;
-
-    case CKM_DSA_SHA224:
-	type = (EVP_MD*) EVP_sha224();
-	openssl_pkey_type = NID_dsa_with_SHA224;
-	break;
-	
-    case CKM_DSA_SHA256:
-	type = (EVP_MD*) EVP_sha256();
-	openssl_pkey_type = NID_dsa_with_SHA256;
-	break;
-	
-    /*  ECDSA */
-    case CKM_ECDSA_SHA1:
-	type = (EVP_MD*) EVP_sha1();
-	openssl_pkey_type = NID_ecdsa_with_SHA1;
-	break;
-
-    case CKM_ECDSA_SHA224:
-	type = (EVP_MD*) EVP_sha224();
-	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
-	    mechtype = CKM_ECDSA;
-	    prehash  = 1;
-	    prehash_type = CKM_SHA224;
-	    openssl_pkey_type = NID_ecdsa_with_SHA224;
-	}
-	break;
-
-    case CKM_ECDSA_SHA256:
-	type = (EVP_MD*) EVP_sha256();
-	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
-	    mechtype = CKM_ECDSA;
-	    prehash  = 1;
-	    prehash_type = CKM_SHA256;
-	    openssl_pkey_type = NID_ecdsa_with_SHA256;
-	}
-	break;
-
-    case CKM_ECDSA_SHA384:
-	type = (EVP_MD*) EVP_sha384();
-	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
-	    mechtype = CKM_ECDSA;
-	    prehash  = 1;
-	    prehash_type = CKM_SHA384;
-	    openssl_pkey_type = NID_ecdsa_with_SHA384;	    
-	}
-	break;
-
-    case CKM_ECDSA_SHA512:
-	type = (EVP_MD*) EVP_sha512();
-	if(pkcs11_is_mech_supported(p11Context, p_mechtype)==CK_FALSE) {
-	    mechtype = CKM_ECDSA;
-	    prehash  = 1;
-	    prehash_type = CKM_SHA512;
-	    openssl_pkey_type = NID_ecdsa_with_SHA512;
-	}
-	break;
-
-    case CKM_DSA_SHA384:	/* unsupported by OpenSSL, currently */
-    case CKM_DSA_SHA512:	/* unsupportrd by OpenSSL, currently */
-    default:
-	fprintf(stderr, "Unsupported mechanism for signing, or unsuitable hash algo for signing algorithm.\n");
-	goto err;
-    }
-
-    /* set the signing algo on the TBS structure */
-    set_signing_algo( (X509_ALGOR *)X509_get0_tbs_sigalg(xcrt), type, openssl_pkey_type);
-
-    /* get actual certificate signature and algo */
-    X509_get0_signature((const ASN1_BIT_STRING **)&signature, (const X509_ALGOR **)&a, xcrt);
-
-    /* first of all extract stuff to be signed */
-    if((inlen = i2d_re_X509_tbs(xcrt, &inbuf))==0) {
-	P_ERR();
-	goto err;
-    }
-
-    /* full signature alg not supported, we need to prehash value */
-    if(prehash==1) {
-	CK_C_DigestInit pC_DigestInit = p11Context->FunctionList.C_DigestInit;
-	CK_C_Digest pC_Digest = p11Context->FunctionList.C_Digest;
-
-	CK_MECHANISM mechanism = { prehash_type, NULL_PTR, 0 };
-	CK_RV rv;
-
-	rv = pC_DigestInit(p11Context->Session, &mechanism);
-	if(rv!= CKR_OK) {
-	    pkcs11_error(rv,"C_DigestInit");
-	    goto err;
-	}
-
-	rv = pC_Digest(p11Context->Session, inbuf, inlen, NULL, &hashlen);
-	if(rv!= CKR_OK) {
-	    pkcs11_error(rv,"C_Digest");
-	    goto err;
-	}
-
-	hashbuf=(unsigned char *)OPENSSL_malloc((unsigned int)hashlen);
-	if(hashbuf==NULL) {
-	    P_ERR();
-	    goto err;
-	}
-
-	rv = pC_Digest(p11Context->Session, inbuf, inlen, hashbuf, &hashlen);
-	if(rv!= CKR_OK) {
-	    pkcs11_error(rv,"C_Digest");
-	    goto err;
-	}
-    }
-
-    /* then allocate memory for output */
-
-    outlen= outputbytes;
-    outbuf=(unsigned char *)OPENSSL_malloc((unsigned int)outlen);
-
-    /* at this point, inbuf contains the stuff to sign. */
-
-    {
-	/* really sign */
-	CK_C_SignInit pC_SignInit = p11Context->FunctionList.C_SignInit;
-	CK_C_Sign pC_Sign = p11Context->FunctionList.C_Sign;
-
-	CK_MECHANISM mechanism = { mechtype, NULL_PTR, 0 };
-	CK_RV rv;
-
-	rv = pC_SignInit(p11Context->Session, &mechanism, hPrivateKey);
-
-	if (rv == CKR_OK) {
-	    rv = pC_Sign(p11Context->Session,
-			 prehash==1? hashbuf : inbuf,
-			 prehash==1? hashlen : inlen,
-			 outbuf,
-			 &outlen);
-
-	    if(rv!= CKR_OK) {
-		pkcs11_error(rv,"C_Sign");
-		goto err;
-	    }
-	} else {
-	    pkcs11_error(rv,"C_SignInit");
-	    goto err;
-	}
-    }
-
-    set_signing_algo( a, type, openssl_pkey_type); /* set the signing algo of the cert */
-
-    /* free signature->data in case it is already busy */
-    if (signature->data != NULL) OPENSSL_free(signature->data);
-
-    switch(p_mechtype)
-    {
-
-    case CKM_SHA1_RSA_PKCS:
-    case CKM_SHA256_RSA_PKCS:
-    case CKM_SHA384_RSA_PKCS:
-    case CKM_SHA512_RSA_PKCS:
-
-	/* fix crt->signature to contain our stuff  */
-	signature->data=outbuf;
-	outbuf=NULL;
-	signature->length=outlen;
-	break;
-
-    case CKM_ECDSA_SHA1:
-    case CKM_ECDSA_SHA224:
-    case CKM_ECDSA_SHA256:
-    case CKM_ECDSA_SHA384:
-    case CKM_ECDSA_SHA512:
-
-	/* excerpt from PKCS11 v2.20 */
-/* 12.3.1 EC Signatures */
-/* For the purposes of these mechanisms, an ECDSA signature is an octet string of even */
-/* length which is at most two times nLen octets, where nLen is the length in octets of the */
-/* base point order n. The signature octets correspond to the concatenation of the ECDSA */
-/* values r and s, both represented as an octet string of equal length of at most nLen with the */
-/* most significant byte first. If r and s have different octet length, the shorter of both must */
-/* be padded with leading zero octets such that both have the same octet length. Loosely */
-/* spoken, the first half of the signature is r and the second half is s. For signatures created */
-/* by a token, the resulting signature is always of length 2nLen. For signatures passed to a */
-/* token for verification, the signature may have a shorter length but must be composed as */
-/* specified before. */
-/* If the length of the hash value is larger than the bit length of n, only the leftmost bits of */
-/* the hash up to the length of n will be used. */
-
-/* Note: For applications, it is recommended to encode the signature as an octet string of */
-/* length two times nLen if possible. This ensures that the application works with PKCS#11 */
-/* modules which have been implemented based on an older version of this document. */
-/* Older versions required all signatures to have length two times nLen. It may be */
-/* impossible to encode the signature with the maximum length of two times nLen if the */
-/* application just gets the integer values of r and s (i.e. without leading zeros), but does not */
-/* know the base point order n, because r and s can have any value between zero and the */
-/* base point order n. */
-
-
-	/* first we need to make two bignums */
-    {
-	int siglen;
-	unsigned char *sigder = NULL;
-
-	if((ecdsasig = ECDSA_SIG_new())==NULL) {
-	    P_ERR();
-	    goto err;
-	}
-
-	if((sig_r = BN_new()) == NULL) {
-	    P_ERR();
-	    goto err;
-	}
-
-	if((sig_s = BN_new()) == NULL) {
-	    P_ERR();
-	    goto err;
-	}
-
-
-	if( BN_bin2bn( &outbuf[0], outlen/2, sig_r) == NULL) {
-	    P_ERR();
-	    goto err;
-	}
-
-	if( BN_bin2bn( &outbuf[outlen/2], outlen/2, sig_s) == NULL ) {
-	    P_ERR();
-	    goto err;
-	}
-
-	ECDSA_SIG_set0(ecdsasig, sig_r, sig_s);
-	sig_r = sig_s = NULL;	/* ownership transferred to ecdsasig */
-
-	siglen = i2d_ECDSA_SIG(ecdsasig, &sigder);
-	if(siglen==0) {
-	    P_ERR();
-	    goto err;
-	}
-
-	signature->data=sigder;
-	signature->length=siglen;
-    }
-    break;
-
-
-    /* DSA: same stuff as ECDSA */
-    case CKM_DSA_SHA1:
-    case CKM_DSA_SHA224:
-    case CKM_DSA_SHA256:
-    {
-	/*
-
-	  DSA_SIG_new() does not generate r & s bignums
-	  as it would with ECDSA_SIG_new().
-
-	  because of this inconsistency, we need to capture bignums
-	  as they come from the output of BN_bin2bn.
-
-	*/
-
-	int siglen;
-	unsigned char *sigder = NULL;
-
-	if((dsasig=DSA_SIG_new())==NULL) {
-	    P_ERR();
-	    goto err;
-	}
-
-	if((sig_r = BN_new()) == NULL) {
-	    P_ERR();
-	    goto err;
-	}
-	if((sig_s = BN_new()) == NULL) {
-	    P_ERR();
-	    goto err;
-	}
-
-	if( (sig_r = BN_bin2bn( &outbuf[0], outlen/2, sig_r)) == NULL) {
-	    P_ERR();
-	    goto err;
-	}
-
-	if( (sig_s = BN_bin2bn( &outbuf[outlen/2], outlen/2, sig_s)) == NULL ) {
-	    P_ERR();
-	    goto err;
-	}
-
-	DSA_SIG_set0(dsasig, sig_r, sig_s);
-	sig_r = sig_s = NULL;	/* ownership transferred to sig */
-
-	siglen = i2d_DSA_SIG(dsasig, &sigder);
-	if(siglen==0) {
-	    P_ERR();
-	    goto err;
-	}
-
-	signature->data=sigder;
-	signature->length=siglen;
-    }
-    break;
-
-    case CKM_DSA_SHA384:	/* unsupported by OpenSSL, currently */
-    case CKM_DSA_SHA512:	/* unsupported by OpenSSL, currently */
-    default:
-	fprintf(stderr, "Internal error - signature mechanism not implemented.\n");
-	goto err;
-    }
-
-    signature->flags&= ~(ASN1_STRING_FLAG_BITS_LEFT|0x07);
-    signature->flags|=ASN1_STRING_FLAG_BITS_LEFT;
-	
-    retval = 1;
-
-err:
-    if(dsasig) { DSA_SIG_free(dsasig); dsasig = NULL; }
-    if(ecdsasig) { ECDSA_SIG_free(ecdsasig); ecdsasig = NULL; }
-    if(sig_r) { BN_free(sig_r); sig_r = NULL; }
-    if(sig_s) { BN_free(sig_s); sig_s = NULL; }
-    if(outbuf) { OPENSSL_free(outbuf); outbuf=NULL; }
-    if(inbuf) { OPENSSL_free(inbuf); inbuf=NULL; }
-    if(hashbuf) { OPENSSL_free(hashbuf); hashbuf=NULL; }
-    return retval;
-
-}
-
 
 
 void write_X509_CERT(CK_VOID_PTR crt, char *filename, int verbose)
@@ -1351,30 +973,4 @@ void write_X509_CERT(CK_VOID_PTR crt, char *filename, int verbose)
 err:
     if(bio_file) BIO_free(bio_file);
     if(bio_stdout) BIO_free(bio_stdout);
-}
-
-
-/* Add extension using V3 code: we can set the config file as NULL
- * because we wont reference any other sections.
- */
-
-static int add_ext(X509 *cert, int nid, char *value)
-{
-    X509_EXTENSION *ex;
-    X509V3_CTX ctx;
-    /* This sets the 'context' of the extensions. */
-    /* No configuration database */
-    X509V3_set_ctx_nodb(&ctx);
-    /*
-     * Issuer and subject certs: both the target since it is self signed, no
-     * request and no CRL
-     */
-    X509V3_set_ctx(&ctx, cert, cert, NULL, NULL, 0);
-    ex = X509V3_EXT_conf_nid(NULL, &ctx, nid, value);
-    if (!ex)
-	return 0;
-
-    X509_add_ext(cert, ex, -1);
-    X509_EXTENSION_free(ex);
-    return 1;
 }

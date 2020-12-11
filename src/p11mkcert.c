@@ -33,32 +33,6 @@
 #define MAX_SAN  1000
 #define WARN_SAN 25
 
-typedef struct {
-    hash_alg_t a;
-    CK_MECHANISM_TYPE h;
-
-} st_hash_alg_map ;
-
-
-
-static const st_hash_alg_map dsa_hash_mech[] = {
-    { sha1, CKM_DSA_SHA1 },
-    { sha224, CKM_DSA_SHA224 },
-    { sha256, CKM_DSA_SHA256 },
-    { sha384, CKM_DSA_SHA384 },
-    { sha512, CKM_DSA_SHA512 },
-};
-
-
-static const st_hash_alg_map ecdsa_hash_mech[] = {
-    { sha1, CKM_ECDSA_SHA1 },
-    { sha224, CKM_ECDSA_SHA224 },
-    { sha256, CKM_ECDSA_SHA256 },
-    { sha384, CKM_ECDSA_SHA384 },
-    { sha512, CKM_ECDSA_SHA512 },
-};
-
-
 
 /* prototypes */
 void print_version_info(char *progname);
@@ -442,7 +416,7 @@ int main( int argc, char ** argv )
 
 	    case CKK_EC:
 	    {
-		/* get modulus and exponent */
+		/* get parameters, point and ID */
 		CK_ATTRIBUTE attr[3];
 
 		attr[0].type = CKA_EC_PARAMS;
@@ -451,56 +425,32 @@ int main( int argc, char ** argv )
 
 		if( pkcs11_getObjectAttributes( p11Context, hPublicKey, attr, sizeof attr/sizeof (CK_ATTRIBUTE) ) == CKR_OK ) {
 
-		    char curvename[40];
+		    CK_VOID_PTR x509 = pkcs11_create_X509_CERT_EC(p11Context,
+								  dn, reverse, days,
+								  san, san_cnt,
+								  hash_alg,
+								  hPrivateKey,
+								  ski ? &attr[2] : NULL,
+								  &attr[0],
+								  &attr[1]);
 
-		    pkcs11_ec_oid2curvename(attr[0].pValue, attr[0].ulValueLen, curvename, sizeof curvename);
+		    if(x509) {
+			write_X509_CERT(x509, filename, verbose);
 
-		    {
-
-			int degree;
-			CK_VOID_PTR x509 = pkcs11_create_unsigned_X509_CERT_EC(p11Context,
-									       dn, reverse, days,
-									       san, san_cnt,
-									       ski ? &attr[2] : NULL,
-									       curvename,
-									       &attr[1],
-									       &degree);
-
-			if(x509) {
-			    CK_MECHANISM_TYPE hash = 0;
-
-			    int i;
-			    int keybytes = (degree<<1) + (degree%8 ? 2 : 0); /* if degree is not congruent modulo 8, we need to add */
-			                                                     /* two extra bytes: one per coordinate of the point    */
-
-			    for(i=0;i<sizeof ecdsa_hash_mech/sizeof(st_hash_alg_map); i++) {
-				if (ecdsa_hash_mech[i].a == hash_alg) {
-				    hash = ecdsa_hash_mech[i].h;
-				    break;
-				}
+			if(import) {
+			    if(!pkcs11_importcert( p11Context, NULL, x509, label, 0)) {
+				fprintf(stderr, "Warning: unable to import the certificate to the PKCS#11 token\n");
+			    } else {
+				fprintf(stderr, "importing certificate succeeded.\n");
 			    }
-
-			    int rv = pkcs11_sign_X509_CERT(p11Context, x509, degree<<1, hPrivateKey, hash);
-
-			    if(rv==1) {
-				write_X509_CERT(x509, filename, verbose);
-			    }
-			    if(import) {
-				if(!pkcs11_importcert( p11Context, NULL, x509, label, 0)) {
-				    fprintf(stderr, "Warning: unable to import the certificate to the PKCS#11 token\n");
-				} else {
-				    fprintf(stderr, "importing certificate succeeded.\n");
-				}
-			    }
-			} else {
-			    fprintf(stderr, "Error: Unable to generate certificate TBS structure\n");
 			}
-
-			/* free stuff */
+		    } else {
+			fprintf(stderr, "Error: Unable to generate certificate\n");
 		    }
+
 		    pkcs11_freeObjectAttributesValues( attr, sizeof attr/sizeof (CK_ATTRIBUTE));
 		} else {
-		    fprintf(stderr, "Error: Unknown EC\n");
+		    fprintf(stderr, "Error: Issue with EC key\n");
 		}
 	    }
 	    break;

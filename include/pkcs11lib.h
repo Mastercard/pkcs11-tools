@@ -516,7 +516,18 @@ CK_VOID_PTR pkcs11_create_X509_CERT_DSA(pkcs11Context *p11Context,
 					CK_ATTRIBUTE_PTR pubkey);
 
 
-CK_VOID_PTR pkcs11_create_unsigned_X509_CERT_EC(pkcs11Context * p11Context, char *dn, int reverse, int days, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski, char *curvename, CK_ATTRIBUTE_PTR p_ec_point, int *degree);
+CK_VOID_PTR pkcs11_create_X509_CERT_EC(pkcs11Context *p11Context,
+				       char *dn,
+				       int reverse,
+				       int days,
+				       char *san[],
+				       int sancnt,
+				       hash_alg_t hash_alg,					
+				       CK_OBJECT_HANDLE hprivkey,
+				       CK_ATTRIBUTE_PTR ski,
+				       CK_ATTRIBUTE_PTR p_ec_params,
+				       CK_ATTRIBUTE_PTR p_ec_point);
+
 
 int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR req, int outputbytes, CK_OBJECT_HANDLE hPrivateKey, CK_MECHANISM_TYPE mechtype);
 void write_X509_CERT(CK_VOID_PTR req, char *filename, int verbose);
@@ -592,6 +603,10 @@ void pkcs11_rsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HAND
 /* pkcs11_ossl_dsa_meth.c */
 void pkcs11_dsa_method_setup();
 void pkcs11_dsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey);
+
+/* pkcs11_ossl_ecdsa_meth.c */
+void pkcs11_ecdsa_method_setup();
+void pkcs11_ecdsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey);
 
 
 /* list functions */
