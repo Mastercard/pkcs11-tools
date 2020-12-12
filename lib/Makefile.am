@@ -65,6 +65,7 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_peekpoke.c \
 	pkcs11_req.c \
 	pkcs11_cert.c \
+	pkcs11_cert_common.c \
 	pkcs11_rm.c \
 	pkcs11_search.c \
 	pkcs11_slotinfo.c \
@@ -78,7 +79,8 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_dh.c \
 	pkcs11_ossl_rsa_meth.c \
 	pkcs11_ossl_dsa_meth.c \
-	pkcs11_ossl_ecdsa_meth.c
+	pkcs11_ossl_ecdsa_meth.c \
+	pkcs11_ossl_fake_sign.c
 
 
 dist_libp11_la_SOURCES = gen_attrinfo_h.pl gen_mechinfo_h.pl wrappedkey_parser.y wrappedkey_lexer.l wrappedkey_lexer.h

@@ -23,6 +23,7 @@
 
 #include <stddef.h>		/* needed for size_t */
 #include <stdio.h>		/* needed for FILE */
+#include <stdbool.h>		/* needed for bool type */
 #include <openssl/bio.h>	/* needed for BIO */
 
 /* add support for dmalloc */
@@ -87,6 +88,8 @@ typedef enum e_func_rc {
     rc_warning_not_entirely_completed, /* when a command has only partially succeeded */
     rc_error_other_error,
     rc_error_insecure,
+    rc_error_dsa_missing_public_key,
+    rc_error_ec_missing_public_key,
 } func_rc;
 
 #define AES_WRAP_MECH_SIZE_MAX 8 /* for both rfc3394 and rfc5496, remember the compatible */
@@ -171,12 +174,25 @@ typedef struct s_p11_attrlist {
 
 
 /* supported key types */
-enum keytype { unknown, aes, des, rsa, ec, dsa, dh, generic,
-	       hmacsha1,
-	       hmacsha224,
-	       hmacsha256,
-	       hmacsha384,
-	       hmacsha512};
+typedef enum {
+    unknown,
+    aes,
+    des,
+    des2,			/* des3 double length */
+    des3,			/* des3 triple length */
+    rsa,
+    ec,
+    dsa,
+    dh,
+    generic,
+#if defined(HAVE_NCIPHER)    
+    hmacsha1,
+    hmacsha224,
+    hmacsha256,
+    hmacsha384,
+    hmacsha512
+#endif
+} key_type_t; 
 
 /* supported wrapping methods */
 enum wrappingmethod { w_unknown,     /* unidentified alg */
@@ -188,6 +204,7 @@ enum wrappingmethod { w_unknown,     /* unidentified alg */
 		      w_envelope,    /* envelope wrapping ( Private Key -> Symmetric Key -> Any Key) */
 };
 
+/* supported hashing algorithms */
 typedef enum {
     sha1,
     sha224,
@@ -361,7 +378,7 @@ void pkcs11_adjust_des_key_parity(CK_BYTE* pucKey, int nKeyLen);
 int pkcs11_get_rsa_modulus_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE obj);
 int pkcs11_get_dsa_pubkey_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
 CK_OBJECT_CLASS pkcs11_get_object_class(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
-CK_KEY_TYPE pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
+key_type_t pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
 char *pkcs11_alloclabelforhandle(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
 
 /* pkcs11_x509.c */
@@ -373,6 +390,8 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context,
 				    int trusted);
 
 /* pkcs11_pubk.c */
+CK_ULONG pkcs11_new_SKI_value_from_pubk(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+
 CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 				    char *filename,
 				    char *label,
@@ -426,7 +445,7 @@ func_rc pkcs11_genDESX( pkcs11Context * p11Context,
 /* HMAC keys */
 func_rc pkcs11_genGeneric( pkcs11Context * p11Context,
 			   char *label,
-			   enum keytype kt,
+			   key_type_t kt,
 			   CK_ULONG bits,
 			   CK_ATTRIBUTE attrs[],
 			   CK_ULONG numattrs,
@@ -472,73 +491,61 @@ func_rc pkcs11_genDH(pkcs11Context * p11Context,
 		     CK_OBJECT_HANDLE_PTR hPrivateKey,
 		     key_generation_t gentype);
 
+/* pkcs11_cert_common.c */
+X509_NAME *pkcs11_DN_new_from_string(char *subject, long chtype, bool multirdn, bool reverse);
+bool pkcs11_X509_check_DN(char *subject);
+const EVP_MD *pkcs11_get_EVP_MD(hash_alg_t hash_alg);
+EVP_PKEY *pkcs11_SPKI_from_RSA(pkcs11AttrList *attrlist );
+EVP_PKEY *pkcs11_SPKI_from_DSA(pkcs11AttrList *attrlist );
+EVP_PKEY *pkcs11_SPKI_from_EC(pkcs11AttrList *attrlist );
+
+
 
 /* pkcs11_req.c */
+CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
+				   char *dn,
+				   bool reverse,
+				   bool fake,
+				   char *san[],
+				   int sancnt,
+				   bool ext_ski,
+				   key_type_t key_type,
+				   hash_alg_t hash_alg,
+				   CK_OBJECT_HANDLE hprivkey,
+				   pkcs11AttrList *attrlist) ;
 
-int pkcs11_X509_REQ_check_DN(char *subject);
-CK_VOID_PTR pkcs11_create_unsigned_X509_REQ(char *dn, int reverse, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski, CK_ATTRIBUTE_PTR modulus, CK_ATTRIBUTE_PTR exponent);
-
-CK_VOID_PTR pkcs11_create_unsigned_X509_REQ_DSA(char *dn, int reverse, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski, CK_ATTRIBUTE_PTR prime, CK_ATTRIBUTE_PTR subprime, CK_ATTRIBUTE_PTR base, CK_ATTRIBUTE_PTR pubkey );
-
-CK_VOID_PTR pkcs11_create_unsigned_X509_REQ_EC(char *dn, int reverse, char *san[], int sancnt, CK_ATTRIBUTE_PTR ski, char *curvename, CK_ATTRIBUTE_PTR p_ec_point, int *degree);
-
-int pkcs11_sign_X509_REQ(pkcs11Context * p11Context, CK_VOID_PTR req, int outputbytes, CK_OBJECT_HANDLE hPrivateKey, CK_MECHANISM_TYPE mechtype, int fake);
-void write_X509_REQ(CK_VOID_PTR req, char *filename, int verbose);
+void write_X509_REQ(CK_VOID_PTR req, char *filename, bool verbose);
 
 /* pkcs11_cert.c */
+CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
+				    char *dn,
+				    bool reverse,
+				    int days,
+				    char *san[],
+				    int sancnt,
+				    bool ext_ski,
+				    key_type_t key_type,
+				    hash_alg_t hash_alg,
+				    CK_OBJECT_HANDLE hprivkey,
+				    pkcs11AttrList *attrlist);
 
-int pkcs11_X509_CERT_check_DN(char *subject);
-
-CK_VOID_PTR pkcs11_create_X509_CERT_RSA(pkcs11Context *p11Context,
-					char *dn,
-					int reverse,
-					int days,
-					char *san[],
-					int sancnt,
-					hash_alg_t hash_alg,
-					CK_OBJECT_HANDLE hprivkey,
-					CK_ATTRIBUTE_PTR ski,
-					CK_ATTRIBUTE_PTR modulus,
-					CK_ATTRIBUTE_PTR exponent);
-
-CK_VOID_PTR pkcs11_create_X509_CERT_DSA(pkcs11Context *p11Context,
-					char *dn,
-					int reverse,
-					int days,
-					char *san[],
-					int sancnt,
-					hash_alg_t hash_alg,					
-					CK_OBJECT_HANDLE hprivkey,
-					CK_ATTRIBUTE_PTR ski,
-					CK_ATTRIBUTE_PTR prime,
-					CK_ATTRIBUTE_PTR subprime,
-					CK_ATTRIBUTE_PTR base,
-					CK_ATTRIBUTE_PTR pubkey);
-
-
-CK_VOID_PTR pkcs11_create_X509_CERT_EC(pkcs11Context *p11Context,
-				       char *dn,
-				       int reverse,
-				       int days,
-				       char *san[],
-				       int sancnt,
-				       hash_alg_t hash_alg,					
-				       CK_OBJECT_HANDLE hprivkey,
-				       CK_ATTRIBUTE_PTR ski,
-				       CK_ATTRIBUTE_PTR p_ec_params,
-				       CK_ATTRIBUTE_PTR p_ec_point);
-
-
-int pkcs11_sign_X509_CERT(pkcs11Context * p11Context, CK_VOID_PTR req, int outputbytes, CK_OBJECT_HANDLE hPrivateKey, CK_MECHANISM_TYPE mechtype);
-void write_X509_CERT(CK_VOID_PTR req, char *filename, int verbose);
+void write_X509_CERT(CK_VOID_PTR req, char *filename, bool verbose);
 
 
 CK_ULONG pkcs11_allocate_and_hash_sha1(CK_BYTE_PTR data, CK_ULONG datalen, CK_VOID_PTR_PTR buf);
 
+/* pkcs11_masq.c */
 
-CK_BBOOL pkcs11_extract_pubk_from_X509_REQ(char *csrfilename, CK_ATTRIBUTE_PTR modulus, CK_ATTRIBUTE_PTR exponent);
-void pkcs11_free_X509_REQ_attributes(CK_ATTRIBUTE_PTR modulus, CK_ATTRIBUTE_PTR exponent);
-int pkcs11_fakesign_X509_REQ(CK_VOID_PTR req, int pubkeybits, CK_MECHANISM_TYPE mechtype); /* perform fake signature */
+typedef struct x509_req_handle_struct_t x509_req_handle_t;
+
+x509_req_handle_t *pkcs11_get_X509_REQ_from_file(char *csrfilename);
+void x509_req_handle_t_free(x509_req_handle_t *hndl);
+bool pkcs11_masq_X509_REQ(x509_req_handle_t *req,
+			  char *dn,
+			  bool reverse,
+			  char *san[],
+			  int sancnt,
+			  bool ext_ski);
 
 
 /* pkcs11_search.c */
@@ -575,6 +582,8 @@ CK_BBOOL pkcs11_set_attr_in_attrlist ( pkcs11AttrList *attrlist,
 				       CK_ATTRIBUTE_TYPE attrib,
 				       CK_VOID_PTR pvalue,
 				       CK_ULONG len );
+
+bool pkcs11_attrlist_has_attribute(const pkcs11AttrList *attrlist, CK_ATTRIBUTE_TYPE attr);
 CK_ATTRIBUTE_PTR pkcs11_get_attr_in_attrlist ( pkcs11AttrList *attrlist,
 					       CK_ATTRIBUTE_TYPE attrib );
 
@@ -598,15 +607,15 @@ void pkcs11_openssl_free(CK_VOID_PTR_PTR buf);
 
 /* pkcs11_ossl_rsa_meth.c */
 void pkcs11_rsa_method_setup();
-void pkcs11_rsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey);
+void pkcs11_rsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
 
 /* pkcs11_ossl_dsa_meth.c */
 void pkcs11_dsa_method_setup();
-void pkcs11_dsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey);
+void pkcs11_dsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
 
 /* pkcs11_ossl_ecdsa_meth.c */
 void pkcs11_ecdsa_method_setup();
-void pkcs11_ecdsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey);
+void pkcs11_ecdsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
 
 
 /* list functions */

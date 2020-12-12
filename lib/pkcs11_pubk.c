@@ -604,7 +604,7 @@ error:
 static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
 
   CK_ULONG rv = 0;
-  if (pubkey) {
+  if (pubkey && buf) {
     switch (EVP_PKEY_base_id(pubkey)) {
 
       case EVP_PKEY_RSA: {
@@ -852,8 +852,8 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
     CK_OBJECT_CLASS pubkClass = CKO_PUBLIC_KEY;
     CK_KEY_TYPE pubkType;
 
-    CK_BBOOL false = CK_FALSE;
-    CK_BBOOL true = CK_TRUE;
+    CK_BBOOL ck_false = CK_FALSE;
+    CK_BBOOL ck_true = CK_TRUE;
 
     EVP_PKEY *pubk = NULL;
 
@@ -893,21 +893,21 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 	    CK_ULONG rsa_public_exponent_len =0;
 
 	    CK_ATTRIBUTE pubkTemplate[] = {
-		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},      /* 0  */
-		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},     /* 1  */
+		{CKA_CLASS, &pubkClass, sizeof pubkClass},       /* 0  */
+		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},      /* 1  */
 		{CKA_ID, NULL, 0},				 /* 2  */
 		{CKA_LABEL, label, label ? strlen(label) : 0 },	 /* 3  */
-		{CKA_ENCRYPT, &true, sizeof(true) },	         /* 4  */
-		{CKA_WRAP, &true, sizeof(true) },		 /* 5  */
-		{CKA_VERIFY, &true, sizeof(true) },		 /* 6  */
-		{CKA_VERIFY_RECOVER, &true, sizeof(true) },	 /* 7  */
-		{CKA_TOKEN, &true, sizeof(true)},		 /* 8  */
+		{CKA_ENCRYPT, &ck_true, sizeof ck_true },	 /* 4  */
+		{CKA_WRAP, &ck_true, sizeof ck_true },		 /* 5  */
+		{CKA_VERIFY, &ck_true, sizeof ck_true },	 /* 6  */
+		{CKA_VERIFY_RECOVER, &ck_true, sizeof ck_true }, /* 7  */
+		{CKA_TOKEN, &ck_true, sizeof ck_true },		 /* 8  */
 		{CKA_MODULUS, NULL, 0 },                         /* 9  */
 		{CKA_PUBLIC_EXPONENT, NULL, 0 },                 /* 10 */
-		{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	 /* 11 */
-		{CKA_TRUSTED, &true, sizeof(CK_BBOOL) },	 /* 12 */
+		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	 /* 11 */
+		{CKA_TRUSTED, &ck_true, sizeof ck_true },	 /* 12 */
 		/* CKA_TRUSTED set at last position   */
-		/* this flag is FALSE by default      */
+		/* this flag is CK_FALSE by default      */
 		/* So we don't present it in case     */
 		/* library does not support attribute */
 		/* if trust flag is needed, then we expand */
@@ -943,7 +943,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		/* CKA_VERIFY                                 */
 		/* CKA_VERIFY_RECOVER                         */
 		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to true */
+		/* by default, all these attributes are set to ck_true */
 		/* note that CKA_TRUSTED is handled separately  */
 		int i;
 
@@ -987,7 +987,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 
 		/* if -T is set: we want trusted */
 		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &false; /* then CKA_MODIFIABLE must be false */
+		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
 		}
 
 		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
@@ -1028,20 +1028,20 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 
 
 	    CK_ATTRIBUTE pubkTemplate[] = {
-		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},          /* 0  */
-		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},	     /* 1  */
+		{CKA_CLASS, &pubkClass, sizeof pubkClass},           /* 0  */
+		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
 		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
-		{CKA_VERIFY, &true, sizeof(true) },		     /* 4  */
-		{CKA_TOKEN, &true, sizeof(true)},		     /* 5  */
+		{CKA_VERIFY, &ck_true, sizeof ck_true },		     /* 4  */
+		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 5  */
 		{CKA_PRIME, NULL, 0 },                               /* 6  */
 		{CKA_SUBPRIME, NULL, 0 },                            /* 7  */
 		{CKA_BASE, NULL, 0 },                                /* 8  */
 		{CKA_VALUE, NULL, 0 },                               /* 9  */
-		{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	     /* 10 */
-		{CKA_TRUSTED, &true, sizeof(CK_BBOOL) },	     /* 11 */
+		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 10 */
+		{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 11 */
 		/* CKA_TRUSTED set at last position   */
-		/* this flag is FALSE by default      */
+		/* this flag is CK_FALSE by default      */
 		/* So we don't present it in case     */
 		/* library does not support attribute */
 		/* if trust flag is needed, then we expand */
@@ -1086,7 +1086,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		/* we consider only the following attributes: */
 		/* CKA_VERIFY                                 */
 		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to true */
+		/* by default, all these attributes are set to ck_true */
 		/* note that CKA_TRUSTED is handled separately  */
 		int i;
 
@@ -1128,7 +1128,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 
 		/* if -T is set: we want trusted */
 		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &false; /* then CKA_MODIFIABLE must be false */
+		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
 		}
 
 		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
@@ -1166,19 +1166,19 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 	    CK_ULONG dh_pubkey_len = 0;
 
 	    CK_ATTRIBUTE pubkTemplate[] = {
-		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},          /* 0  */
-		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},	     /* 1  */
+		{CKA_CLASS, &pubkClass, sizeof pubkClass},           /* 0  */
+		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
 		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
-		{CKA_DERIVE, &true, sizeof(true) },		     /* 4  */
-		{CKA_TOKEN, &true, sizeof(true)},		     /* 5  */
+		{CKA_DERIVE, &ck_true, sizeof ck_true },		     /* 4  */
+		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 5  */
 		{CKA_PRIME, NULL, 0 },                               /* 6  */
 		{CKA_BASE, NULL, 0 },                                /* 7  */
 		{CKA_VALUE, NULL, 0 },                               /* 8  */
-		{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	     /* 9  */
-		{CKA_TRUSTED, &true, sizeof(CK_BBOOL) },	     /* 10 */
+		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 9  */
+		{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 10 */
 		/* CKA_TRUSTED set at last position   */
-		/* this flag is FALSE by default      */
+		/* this flag is CK_FALSE by default      */
 		/* So we don't present it in case     */
 		/* library does not support attribute */
 		/* if trust flag is needed, then we expand */
@@ -1218,7 +1218,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		/* we consider only the following attributes: */
 		/* CKA_DERIVE                                 */
 		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to true */
+		/* by default, all these attributes are set to ck_true */
 		/* note that CKA_TRUSTED is handled separately  */
 		int i;
 
@@ -1259,7 +1259,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 
 		/* if -T is set: we want trusted */
 		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &false; /* then CKA_MODIFIABLE must be false */
+		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
 		}
 
 		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
@@ -1292,19 +1292,19 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 	    CK_ULONG ec_point_len = 0;
 
 	    CK_ATTRIBUTE pubkTemplate[] = {
-		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},          /* 0  */
-		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},	     /* 1  */
+		{CKA_CLASS, &pubkClass, sizeof pubkClass },          /* 0  */
+		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
 		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
-		{CKA_VERIFY, &true, sizeof(true) },		     /* 4  */
-		{CKA_DERIVE, &false, sizeof(false)},                 /* 5  */
-		{CKA_TOKEN, &true, sizeof(true)},		     /* 6  */
+		{CKA_VERIFY, &ck_true, sizeof ck_true },             /* 4  */
+		{CKA_DERIVE, &ck_false, sizeof ck_false},            /* 5  */
+		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 6  */
 		{CKA_EC_PARAMS, NULL, 0 },                           /* 7  */
 		{CKA_EC_POINT, NULL, 0 },                            /* 8  */
-		{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	     /* 9  */
-		{CKA_TRUSTED, &true, sizeof(CK_BBOOL) },	     /* 10 */
+		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 9  */
+		{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 10 */
 		/* CKA_TRUSTED set at last position   */
-		/* this flag is FALSE by default      */
+		/* this flag is CK_FALSE by default      */
 		/* So we don't present it in case     */
 		/* library does not support attribute */
 		/* if trust flag is needed, then we expand */
@@ -1340,7 +1340,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		/* CKA_VERIFY                                 */
 		/* CKA_DERIVE                                 */
 		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to true */
+		/* by default, all these attributes are set to ck_true */
 		/* note that CKA_TRUSTED is handled separately  */
 		int i;
 
@@ -1383,7 +1383,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 
 		/* if -T is set: we want trusted */
 		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &false; /* then CKA_MODIFIABLE must be false */
+		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
 		}
 
 		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
@@ -1418,6 +1418,11 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 }
 
 /* public interface */
+
+inline CK_ULONG pkcs11_new_SKI_value_from_pubk(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+    return get_EVP_PKEY_sha1(pubkey, buf);
+}
+
 
 inline CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 					   char *filename,

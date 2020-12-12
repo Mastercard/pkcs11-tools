@@ -110,11 +110,11 @@ int main( int argc, char ** argv )
     char *dn = NULL;
     char *san[MAX_SAN];
     size_t san_cnt=0;
-    int ski=0;			/* add Subject Key Identifier */
-    int verbose = 0;
+    bool ski=false;		/* add Subject Key Identifier and Authority Key Identifier */
+    int verbose = false;
     int days = 365;		/* default is one year */
-    int reverse = 0;
-    int import = 0;		/* by default, no import to token */
+    bool reverse = false;
+    bool import = false;		/* by default, no import to token */
 
     hash_alg_t hash_alg = sha256; 	/* as of release 0.25.3, sha256 is the default */
 
@@ -198,7 +198,7 @@ int main( int argc, char ** argv )
 	    break;
 
 	case 'd':
-	    if(!pkcs11_X509_CERT_check_DN(optarg)) {
+	    if(!pkcs11_X509_check_DN(optarg)) {
 		fprintf( stderr , "Error: invalid DN field\n");
 		errflag++;
 	    } else {
@@ -207,11 +207,11 @@ int main( int argc, char ** argv )
 	    break;
 
 	case 'r':
-	    reverse=1;
+	    reverse=true;
 	    break;
 
 	case 'j':
-	    import=1;
+	    import=true;
 	    break;
 
 	case 'e':
@@ -233,11 +233,11 @@ int main( int argc, char ** argv )
 	    break;
 
 	case 'X':
-	    ski = 1;		/* we want a subject key identifier */
+	    ski = true;		/* we want a subject key identifier and an authority key identifier */
 	    break;
 
 	case 'v':
-	    verbose = 1;
+	    verbose = true;
 	    break;
 
 	case 'h':
@@ -290,7 +290,8 @@ int main( int argc, char ** argv )
 	int rc;
 	CK_OBJECT_HANDLE hPublicKey=NULL_PTR;
 	CK_OBJECT_HANDLE hPrivateKey=NULL_PTR;
-
+	CK_OBJECT_HANDLE handle_for_attributes=NULL_PTR;
+	pkcs11AttrList *attrlist = NULL;
 
 	if( pkcs11_findkeypair(p11Context, label, &hPublicKey, &hPrivateKey)==0 ) {
 	    fprintf(stderr, "Error: cannot find key pair with label '%s'.\n", label);
@@ -304,169 +305,104 @@ int main( int argc, char ** argv )
 	    goto err;
 	}
 
-	/* at this point, we have a key. Let's see if it is a EC, DSA or RSA. */
-	CK_ATTRIBUTE keytype;
-	keytype.type= CKA_KEY_TYPE;
+	key_type_t detected_key_type = pkcs11_get_key_type(p11Context, hPrivateKey);
 
-	if( pkcs11_getObjectAttributes( p11Context, hPrivateKey, &keytype, sizeof keytype/sizeof (CK_ATTRIBUTE)) ==CKR_OK ) {
-	    switch( *(CK_KEY_TYPE *) keytype.pValue)  {
+	switch(detected_key_type) {
+	case rsa:
+	    handle_for_attributes = hPrivateKey;
+	    attrlist = pkcs11_new_attrlist( p11Context,
+					    _ATTR(CKA_MODULUS),
+					    _ATTR(CKA_PUBLIC_EXPONENT),
+					    _ATTR(CKA_ID),
+					    _ATTR_END);
+	    break;
 
-	    case CKK_RSA:
+	case dsa:
+	    /* for DSA, we work with the public key, as the public key value is stored into CKA_VALUE */
+	    /* instead of a specific attribute, which maps to the private key value, on the private key */
+	    /* which is forcing us to use the public key object instead. */
+	    if(hPublicKey==NULL_PTR) {
+		fprintf(stderr, "Error: a public key is required in order to generate a DSA certificate.\n");
+		retcode = rc_error_dsa_missing_public_key;
+		goto err;
+	    }
 
-	    {
-		/* get modulus and exponent */
-		CK_ATTRIBUTE attr[2];
+	    handle_for_attributes = hPublicKey;
+	    attrlist = pkcs11_new_attrlist( p11Context,
+					    _ATTR(CKA_PRIME),
+					    _ATTR(CKA_SUBPRIME),
+					    _ATTR(CKA_BASE),
+					    _ATTR(CKA_VALUE),
+					    _ATTR(CKA_ID),
+					    _ATTR_END);
 
-		attr[0].type = CKA_MODULUS;
-		attr[1].type = CKA_PUBLIC_EXPONENT;
-
-		if( pkcs11_getObjectAttributes( p11Context, hPrivateKey, attr, sizeof attr/sizeof (CK_ATTRIBUTE) ) == CKR_OK ) {
-		    /* if object is found, CKA_ID is aligned to contain SHA1 of key modulus  */
-		    /* the same CKA_ID is applied to both public key and private key objects */
-		    CK_ATTRIBUTE id_attr = {CKA_ID, NULL_PTR, 0 };
-		    id_attr.ulValueLen = pkcs11_openssl_alloc_and_sha1( attr[0].pValue, attr[0].ulValueLen, &id_attr.pValue);
-		    if(id_attr.ulValueLen>0) {
-			pkcs11_setObjectAttribute( p11Context, hPrivateKey, &id_attr );
-
-			if(hPublicKey != NULL_PTR) {
-			    pkcs11_setObjectAttribute( p11Context, hPublicKey, &id_attr );
-			}
-
-
-			{
-			    CK_VOID_PTR x509 = pkcs11_create_X509_CERT_RSA(p11Context,
-									   dn, reverse, days,
-									   san, san_cnt,
-									   hash_alg,
-									   hPrivateKey,
-									   ski ? &id_attr : NULL,
-									   &attr[0],
-									   &attr[1]
-				);
-
-			    if(x509) {
-				write_X509_CERT(x509, filename, verbose);
-				
-				if(import) {
-				    if(!pkcs11_importcert( p11Context, NULL, x509, label, 0)) {
-					fprintf(stderr, "Warning: unable to import the certificate to the PKCS#11 token\n");
-				    } else {
-					fprintf(stderr, "importing certificate succeeded.\n");
-				    }
-				}
-				
-			    } else {
-				fprintf(stderr, "Error: Unable to generate certificate\n");
-			    }
-			    /* free stuff */
-			}
-
-			pkcs11_openssl_free(&id_attr.pValue);
-			id_attr.ulValueLen = 0;
-		    }
-		    pkcs11_freeObjectAttributesValues( attr, sizeof attr/sizeof (CK_ATTRIBUTE));
-		}
+	    if(!attrlist) {
+		fprintf(stderr,"Error: could not create attribute list object\n");
+		retcode = rc_error_other_error;
+		goto err;
 	    }
 	    break;
 
-
-	    case CKK_DSA:
-	    {
-		/* get DSA params + public key */
-		CK_ATTRIBUTE attr[] = {
-		    { CKA_PRIME, NULL, 0L },
-		    { CKA_SUBPRIME, NULL, 0L },
-		    { CKA_BASE, NULL, 0L },
-		    { CKA_VALUE, NULL, 0L },
-		    { CKA_ID, NULL, 0L },
-		};
-
-		if( pkcs11_getObjectAttributes( p11Context, hPublicKey, attr, sizeof attr/sizeof (CK_ATTRIBUTE) ) == CKR_OK ) {
-		    CK_VOID_PTR x509 = pkcs11_create_X509_CERT_DSA(p11Context,
-								   dn, reverse, days,
-								   san, san_cnt,
-								   hash_alg,
-								   hPrivateKey,
-								   ski ? &attr[4] : NULL,
-								   &attr[0],
-								   &attr[1],
-								   &attr[2],
-								   &attr[3] );
-
-		    if(x509) {
-			write_X509_CERT(x509, filename, verbose);
-			
-			if(import) {
-			    if(!pkcs11_importcert( p11Context, NULL, x509, label, 0)) {
-				fprintf(stderr, "Warning: unable to import the certificate to the PKCS#11 token\n");
-			    } else {
-				fprintf(stderr, "importing certificate succeeded.\n");
-			    }
-			}
-		    } else {
-			fprintf(stderr, "Error: Unable to generate certificate\n");
-		    }
-
-		    pkcs11_freeObjectAttributesValues( attr, sizeof attr/sizeof (CK_ATTRIBUTE));
-		} else {
-		    fprintf(stderr, "Error: Issue with DSA key\n");
-		}
+	case ec:
+	    /* for EC, we work with the public key, as the public key value is stored into CKA_POINT    */
+	    /* which is not present in the private key object */
+	    if(hPublicKey==NULL_PTR) {
+		fprintf(stderr, "Error: a public key is required in order to generate an ECDSA certificate.\n");
+		retcode = rc_error_dsa_missing_public_key;
+		goto err;
 	    }
+	    handle_for_attributes = hPublicKey;
+	    attrlist = pkcs11_new_attrlist( p11Context,
+					    _ATTR(CKA_EC_PARAMS),
+					    _ATTR(CKA_EC_POINT),
+					    _ATTR(CKA_ID),
+					    _ATTR_END);
 	    break;
 
-	    case CKK_EC:
-	    {
-		/* get parameters, point and ID */
-		CK_ATTRIBUTE attr[3];
-
-		attr[0].type = CKA_EC_PARAMS;
-		attr[1].type = CKA_EC_POINT;
-		attr[2].type = CKA_ID; /* for subject key identifier */
-
-		if( pkcs11_getObjectAttributes( p11Context, hPublicKey, attr, sizeof attr/sizeof (CK_ATTRIBUTE) ) == CKR_OK ) {
-
-		    CK_VOID_PTR x509 = pkcs11_create_X509_CERT_EC(p11Context,
-								  dn, reverse, days,
-								  san, san_cnt,
-								  hash_alg,
-								  hPrivateKey,
-								  ski ? &attr[2] : NULL,
-								  &attr[0],
-								  &attr[1]);
-
-		    if(x509) {
-			write_X509_CERT(x509, filename, verbose);
-
-			if(import) {
-			    if(!pkcs11_importcert( p11Context, NULL, x509, label, 0)) {
-				fprintf(stderr, "Warning: unable to import the certificate to the PKCS#11 token\n");
-			    } else {
-				fprintf(stderr, "importing certificate succeeded.\n");
-			    }
-			}
-		    } else {
-			fprintf(stderr, "Error: Unable to generate certificate\n");
-		    }
-
-		    pkcs11_freeObjectAttributesValues( attr, sizeof attr/sizeof (CK_ATTRIBUTE));
-		} else {
-		    fprintf(stderr, "Error: Issue with EC key\n");
-		}
-	    }
-	    break;
-
-	    default:
-		fprintf(stderr, "Error: unhandled key type, sorry.\n");
-		break;
-	    }
+	default:
+	    fprintf(stderr, "Error: unsupported key type\n");
+	    retcode = rc_error_unsupported;
+	    goto err;
 	}
+
+	if(attrlist && pkcs11_read_attr_from_handle (attrlist, handle_for_attributes)) {
+	    CK_VOID_PTR x509 = pkcs11_create_X509_CERT(p11Context,
+						       dn,
+						       reverse,
+						       days,
+						       san,
+						       san_cnt,
+						       ski,
+						       detected_key_type,
+						       hash_alg,
+						       hPrivateKey,
+						       attrlist);
+
+	    if(x509) {
+		write_X509_CERT(x509, filename, verbose);
+		
+		if(import) {
+		    if(!pkcs11_importcert( p11Context, NULL, x509, label, 0)) {
+			fprintf(stderr, "Warning: unable to import the certificate to the PKCS#11 token\n");
+		    } else {
+			fprintf(stderr, "importing certificate succeeded.\n");
+		    }
+		}
+	    } else {
+		fprintf(stderr, "Error: Unable to generate certificate\n");
+	    }
+	    pkcs11_delete_attrlist(attrlist);
+	} else {
+	    fprintf(stderr,"Error: could not create attribute list object, or read attributes from token\n");
+	    retcode = rc_error_other_error;
+	    /* TODO goto err */
+	}	
 	pkcs11_close_session( p11Context );
     }
 
+err:
     pkcs11_finalize( p11Context );
 
-    /* free allocated memory */
-err:
     release_attributes( argv_attrs, argv_attrs_cnt );
 
     pkcs11_freeContext(p11Context);

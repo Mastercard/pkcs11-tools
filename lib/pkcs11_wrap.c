@@ -1254,13 +1254,13 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
     keytype = pkcs11_get_key_type(wctx->p11Context, wrappingkeyhandle);
 
     switch(keytype) {
-    case CKK_AES:
+    case aes:
 	blocklength=16;
 	break;
 
-    case CKK_DES:
-    case CKK_DES2:
-    case CKK_DES3:
+    case des:
+    case des2:
+    case des3:
 	blocklength=8;
 	break;
 
@@ -1379,7 +1379,7 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
     CK_OBJECT_HANDLE wrappingkeyhandle=0;
     CK_OBJECT_HANDLE wrappedkeyhandle=0;
     CK_OBJECT_CLASS wrappedkeyobjclass;
-    CK_KEY_TYPE keytype;
+    key_type_t keytype;
 
     /* keyindex: in case of envelope wrapping, the index shall always be the outer */
     int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_INNER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
@@ -1446,7 +1446,7 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
     /* retrieve length of wrapping key */
     keytype = pkcs11_get_key_type(wctx->p11Context, wrappingkeyhandle);
 
-    if(keytype != CKK_AES ) {
+    if(keytype != aes ) {
 	fprintf(stderr, "Error: secret key with label '%s' is not an AES key\n", wctx->wrappingkeylabel);
 	rc = rc_error_wrong_key_type;
 	goto error;

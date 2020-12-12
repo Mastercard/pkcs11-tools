@@ -21,8 +21,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <getopt.h>
 #include "pkcs11lib.h"
+
+#define COMMAND_SUMMARY							\
+    "Masquerade PKCS#10 request - adapt subjet and extensions, without resigning.\n\n"
 
 #ifdef _WIN32
 #include <openssl/applink.c>
@@ -31,13 +33,12 @@
 #define MAX_SAN  1000
 #define WARN_SAN 25
 
-#define COMMAND_SUMMARY \
-    "Masquerade PKCS#10 request - adapt subjet and extensions, without resigning.\n\n"
 
 /* prototypes */
 void print_version_info(char *progname);
 void print_usage(char *);
 int main( int argc, char **argv);
+
 
 
 void print_usage(char *progname)
@@ -56,7 +57,7 @@ void print_usage(char *progname)
 	     "                  - DNS:[host name]\n"
 	     "                  - email:[rfc822 compatible mail address]\n"
 	     "                  - IP:[IPv4 address]\n"
-	     "  -S : add Subject Key Identifier X509v3 to request (value is SHA1 of key modulus)\n"
+	     "  -X : add Subject Key Identifier X509v3 to request (value is SHA1 of key modulus)\n"
              "  -v be verbose, output content of generated PKCS#10 request to standard output\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
@@ -66,72 +67,52 @@ void print_usage(char *progname)
 	     "+-> arguments marked with a plus sign(+) can be repeated\n"
 	     "\n"
 	     , pkcs11_ll_basename(progname) );
-
-    exit( RC_ERROR_USAGE );
+    exit(rc_error_usage);
 }
 
 int main( int argc, char ** argv )
 {
+    extern char *optarg;
+    extern int optind, optopt;
     int argnum = 0;
     int errflag = 0;
+    char *csrfilename = NULL;
     char * filename = NULL;
-    char * inputcsr = NULL;
-    int slot = -1;
     char *dn = NULL;
     char *san[MAX_SAN];
     size_t san_cnt=0;
-    int ski=0;			/* add Subject Key Identifier */
-    int verbose=0;
-    int reverse = 0;
+    bool ski=false;			/* add Subject Key Identifier */
+    bool verbose = false;
+    bool reverse = false;
+    x509_req_handle_t *req = NULL;
 
-    CK_MECHANISM_TYPE hash = CKM_SHA1_RSA_PKCS;
+    func_rc retcode = rc_ok;
 
-    CK_RV retcode = EXIT_FAILURE;
-    
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "c:o:d:re:H:SvhV" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "c:o:d:re:XvhV" ) ) != -1 )
     {
 	switch ( argnum )
 	{
 	case 'c':
-	    inputcsr = optarg;
+	    csrfilename = optarg;
 	    break;
-
+	    
 	case 'o':
 	    filename = optarg;
 	    break;
 
-	case 'H':
-	    if(strcasecmp(optarg,"sha1")==0) { 
-		hash = CKM_SHA1_RSA_PKCS;
-	    } else if (strcasecmp(optarg,"sha1")==0) { 
-		hash = CKM_SHA1_RSA_PKCS;
-	    } else if (strcasecmp(optarg,"sha256")==0) { 
-		hash = CKM_SHA256_RSA_PKCS;
-	    } else if (strcasecmp(optarg,"sha384")==0) { 
-		hash = CKM_SHA384_RSA_PKCS;
-	    } else if (strcasecmp(optarg,"sha512")==0) { 
-		hash = CKM_SHA512_RSA_PKCS;
-	    } else {
-		fprintf( stderr, "Error: unknown hash algorithm (%s)\n", optarg);
-		++errflag;
-	    }
-	    break;
-    
 	case 'd':
-	    if(!pkcs11_X509_REQ_check_DN(optarg)) {
+	    if(!pkcs11_X509_check_DN(optarg)) {
 		fprintf( stderr , "Error: invalid DN field\n");
 		errflag++;
 	    } else {
-	      dn = optarg;
+		dn = optarg;
 	    }
 	    break;
 
-	    
 	case 'r':
-	    reverse=1;
+	    reverse=true;
 	    break;
-	    
 	    
 	case 'e':
 	    if(san_cnt>MAX_SAN) {
@@ -147,12 +128,12 @@ int main( int argc, char ** argv )
 	    }
 	    break;
 
-	case 'S':
-	  ski = 1;		/* we want a subject key identifier */
-	  break;
+	case 'X':
+	    ski = true;		/* we want a subject key identifier */
+	    break;
 
 	case 'v':
-	    verbose = 1;
+	    verbose = true;
 	    break;
 
 	case 'h':
@@ -166,54 +147,45 @@ int main( int argc, char ** argv )
 	default:
 	    errflag++;
 	    break;
+
 	}
     }
+
 
     if ( errflag ) {
 	fprintf(stderr, "Try `%s -h' for more information.\n", argv[0]);
+	retcode = rc_error_usage;
 	goto err;
     }
 
 
-    if ( dn == NULL || inputcsr == NULL ) {
+    if ( dn == NULL || csrfilename == NULL ) {
 	fprintf( stderr, "At least one required option or argument is wrong or missing.\n" 
 		 "Try `%s -h' for more information.\n", argv[0]);
+	retcode = rc_error_usage;
+	goto err;
+    }
+
+    req = pkcs11_get_X509_REQ_from_file(csrfilename);
+
+    if(!req) {
+	fprintf(stderr, "Error: could not load PKCS#10 file <%s>\n", csrfilename);
+	retcode = rc_error_object_not_found;
 	goto err;
     }
 
 
-    {	    
-	/* get modulus and exponent */
-	CK_ATTRIBUTE modulus;
-	CK_ATTRIBUTE exponent;
-
-	if( pkcs11_extract_pubk_from_X509_REQ(inputcsr, &modulus, &exponent) == CK_TRUE) {
-	    
-	    /* extract SHA-1 from modulus, in case we want to use an SKI */
-	    CK_ATTRIBUTE id_attr = {CKA_ID, NULL_PTR, 0 };
-	    id_attr.ulValueLen = pkcs11_openssl_alloc_and_sha1( modulus.pValue, modulus.ulValueLen, &id_attr.pValue);
-
-	    {
-		CK_VOID_PTR x509_req = pkcs11_create_unsigned_X509_REQ(dn, reverse, san, san_cnt, ski ? &id_attr : NULL, &modulus, &exponent);
-		
-		if(x509_req) {
-		    int rv = pkcs11_fakesign_X509_REQ(x509_req, modulus.ulValueLen*8, hash);
-		    
-		    if(rv==1) {
-			write_X509_REQ(x509_req, filename, verbose);
-		    }
-		} else {
-		    printf("Unable to sign CSR");
-		}
-	    }
-
-	    pkcs11_free_X509_REQ_attributes(&modulus, &exponent);	    
-	    pkcs11_openssl_free(&id_attr.pValue);
-	}
+    if(!pkcs11_masq_X509_REQ(req, dn, reverse, san, san_cnt, ski)) {
+	fprintf(stderr, "Error: could not masquerade PKCS#10 file <%s>\n", csrfilename);
+	retcode = rc_error_other_error;
+	goto err;
     }
 
-    /* free allocated memory */
- err:
+    write_X509_REQ(req, filename, verbose);
 
-    return ( retcode );
+    retcode = rc_ok;
+err:
+    
+    if(req) { x509_req_handle_t_free(req); }
+    return retcode;
 }

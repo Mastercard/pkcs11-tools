@@ -374,12 +374,36 @@ CK_OBJECT_CLASS pkcs11_get_object_class(pkcs11Context *p11Context, CK_OBJECT_HAN
     return rv;
 }
 
-CK_KEY_TYPE pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
+key_type_t pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 {
-    CK_KEY_TYPE rv = 0xFFFFFFFFUL; /* synthetic value, means "error" */
+    key_type_t rv = unknown;
 
     pkcs11AttrList *attrs = NULL;
 
+    typedef struct {
+	CK_KEY_TYPE p11_key_type;
+	key_type_t key_type;
+    } key_type_mapping_t;
+
+    static const key_type_mapping_t key_type_mapping[] = {
+	{ CKK_AES, aes, },
+	{ CKK_DES, des, },
+	{ CKK_DES2, des2, },	/* des3 double length */
+	{ CKK_DES3, des3, },	/* des3 triple length */
+	{ CKK_RSA, rsa, },
+	{ CKK_EC, ec, },
+	{ CKK_DSA, dsa, },
+	{ CKK_DH, dh, },
+	{ CKK_GENERIC_SECRET, generic, },
+#if defined(HAVE_NCIPHER)    
+	{ CKK_SHA_1_HMAC, hmacsha1, },
+	{ CKK_SHA224_HMAC, hmacsha224, },
+	{ CKK_SHA256_HMAC, hmacsha256, },
+	{ CKK_SHA384_HMAC, hmacsha384, },
+	{ CKK_SHA512_HMAC, hmacsha512 },
+#endif
+    };
+    
     /* extract object class from provided handle */
     attrs = pkcs11_new_attrlist(p11Context, _ATTR(CKA_KEY_TYPE), _ATTR_END );
 
@@ -387,7 +411,13 @@ CK_KEY_TYPE pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl
 
 	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
 	    CK_ATTRIBUTE_PTR attr_ptr = pkcs11_get_attr_in_attrlist(attrs, CKA_KEY_TYPE);
-	    rv = *(CK_KEY_TYPE *)(attr_ptr->pValue);
+	    int i;
+	    for(i=0; i<sizeof key_type_mapping / sizeof(key_type_mapping_t); i++) {
+		if(*(CK_KEY_TYPE *)(attr_ptr->pValue)==key_type_mapping[i].p11_key_type) {
+		    rv = key_type_mapping[i].key_type;
+		    break;
+		}
+	    }
 	}
 
     pkcs11_delete_attrlist(attrs);

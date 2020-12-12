@@ -34,7 +34,6 @@
 
 static X509_REQ * new_X509_REQ_from_file(char *filename);
 static void free_X509_REQ_handle(X509_REQ * hndl);
-static CK_BBOOL get_X509_REQ_pubk(X509_REQ *hndl, CK_ATTRIBUTE_PTR modulus, CK_ATTRIBUTE_PTR exponent );
 
 
 static X509_REQ * new_X509_REQ_from_file(char *filename)
@@ -77,202 +76,185 @@ static X509_REQ * new_X509_REQ_from_file(char *filename)
 }
 
 
-static void free_X509_REQ_handle(X509_REQ * hndl)
+inline static void free_X509_REQ_handle(X509_REQ * hndl)
 {
-
-    if(hndl) {
-	OPENSSL_free( hndl );
-    }
+    if(hndl) { OPENSSL_free( hndl ); }
 }
 
 
-
-static CK_BBOOL get_X509_REQ_pubk(X509_REQ *hndl, 
-				  CK_ATTRIBUTE_PTR modulus,
-				  CK_ATTRIBUTE_PTR exponent )
+static bool req_add_ext(STACK_OF(X509_EXTENSION) *sk, int nid, char *value)
 {
-    EVP_PKEY *pubkey;
-    
-    CK_BBOOL rv=CK_FALSE;
+    X509_EXTENSION *ex;
+    ex = X509V3_EXT_conf_nid(NULL, NULL, nid, value);
+    if (!ex) {
+	P_ERR();
+	return false;
+    }
 
-    if( hndl ) {
-	
-	pubkey = X509_REQ_get_pubkey(hndl);
-	
-	if(pubkey && EVP_PKEY_base_id(pubkey)==EVP_PKEY_RSA) {
+    if(!sk_X509_EXTENSION_push(sk, ex)) {
+	P_ERR();
+	return false;
+    }
+
+    return true;
+}
+
+/* public interface */
+
+
+inline x509_req_handle_t *pkcs11_get_X509_REQ_from_file(char *csrfilename) {
+    return (x509_req_handle_t *) new_X509_REQ_from_file(csrfilename);
+}
+
+inline void x509_req_handle_t_free(x509_req_handle_t *hndl)
+{
+    return free_X509_REQ_handle((X509_REQ *) hndl);
+}
+
+bool pkcs11_masq_X509_REQ(x509_req_handle_t *req,
+			  char *dn,
+			  bool reverse,
+			  char *san[],
+			  int sancnt,
+			  bool ext_ski) 
+{
+    bool retval = false;
+    EVP_PKEY *pk = NULL;
+    X509_NAME *name=NULL;
+    X509_REQ *xreq = (X509_REQ *)req;
+    
+    STACK_OF(X509_EXTENSION) *exts = NULL;
+
+    /* step 1: retrieve key type */
+
+    
+    if(!(pk = X509_REQ_get0_pubkey(xreq))) {
+	P_ERR();
+	goto err;
+    }
 	  
-	    RSA *rsa;
-      const BIGNUM *rsa_n;
-      const BIGNUM *rsa_e;
+    /* step 2: do key-type specific business*/
+    switch(EVP_PKEY_base_id(pk)) {
 
-	    rsa = EVP_PKEY_get1_RSA(pubkey);
-	    if(rsa) {
-
-	      RSA_get0_key(rsa, &rsa_n, &rsa_e, NULL);
-
-		    CK_BYTE_PTR bn_n = OPENSSL_malloc(BN_num_bytes(rsa_n));
-		    CK_BYTE_PTR bn_e = OPENSSL_malloc(BN_num_bytes(rsa_e));
-
-		if(bn_n && bn_e) {
-		    int bn_n_len = BN_bn2bin(rsa_n, bn_n);
-		    int bn_e_len = BN_bn2bin(rsa_e, bn_e);
-		    
-		    modulus->type = CKA_MODULUS;
-		    modulus->ulValueLen = BN_num_bytes(rsa_n);
-		    modulus->pValue = bn_n;
-
-		    exponent->type = CKA_PUBLIC_EXPONENT;
-		    exponent->ulValueLen = BN_num_bytes(rsa_e);
-		    exponent->pValue = bn_e;
-		    
-		    rv = CK_TRUE;
-		} else {
-		    if(bn_n) OPENSSL_free(bn_n);
-		    if(bn_e) OPENSSL_free(bn_e);
-		}
-	    }
-	}
-    }	    
-    return rv;
-}
-
-
-CK_BBOOL pkcs11_extract_pubk_from_X509_REQ(char *csrfilename, CK_ATTRIBUTE_PTR modulus, CK_ATTRIBUTE_PTR exponent)
-{
-
-    CK_BBOOL rv = CK_FALSE;
-    
-    X509_REQ * csr =  new_X509_REQ_from_file(csrfilename);
-
-    if(csr) {
-	rv = get_X509_REQ_pubk( csr, modulus, exponent );
-    }
-    return rv;
-}
-
-
-void pkcs11_free_X509_REQ_attributes(CK_ATTRIBUTE_PTR modulus, CK_ATTRIBUTE_PTR exponent)
-{
-    if(modulus && modulus->pValue) {
-	OPENSSL_free(modulus->pValue);
-	modulus->pValue = NULL_PTR;
-	modulus->ulValueLen = 0L;
-    }
-
-    if(exponent && exponent->pValue) {
-	OPENSSL_free(exponent->pValue);
-	exponent->pValue = NULL_PTR;
-	exponent->ulValueLen = 0L;
-    }
-}
-
-
-int pkcs11_fakesign_X509_REQ(CK_VOID_PTR req, int pubkeybits, CK_MECHANISM_TYPE mechtype)
-{
-    int retval=0;
-    unsigned char *inbuf = NULL;
-    CK_ULONG inlen;
-
-    unsigned char *outbuf = NULL;
-    CK_ULONG outlen;
-
-    EVP_MD *type;
-    int pkey_type;
-
-    switch( mechtype ) {
-    case CKM_SHA1_RSA_PKCS:
-	type = (EVP_MD *) EVP_sha1();
+    case EVP_PKEY_RSA:
+	/* hook our crypto to OpenSSL methods */
+	pkcs11_rsa_method_setup();
+	pkcs11_rsa_method_pkcs11_context(NULL_PTR, 0, true);
 	break;
 	
-    case CKM_SHA256_RSA_PKCS:
-	type = (EVP_MD*) EVP_sha256();
+    case EVP_PKEY_DSA:
+	/* hook our crypto to OpenSSL methods */
+	pkcs11_dsa_method_setup();
+	pkcs11_dsa_method_pkcs11_context(NULL_PTR, 0, true);
 	break;
-
-    case CKM_SHA384_RSA_PKCS:
-	type = (EVP_MD*) EVP_sha384();
-	break;
-
-    case CKM_SHA512_RSA_PKCS:
-	type = (EVP_MD*) EVP_sha512();
+	
+    case EVP_PKEY_EC:
+	/* hook our crypto to OpenSSL methods */
+	pkcs11_ecdsa_method_setup();
+	pkcs11_ecdsa_method_pkcs11_context(NULL_PTR, 0, true);
 	break;
 
     default:
-	printf("Unsupported mechanism for signing");
+	fprintf(stderr, "Error: unsupported signing algorithm\n");
 	goto err;
     }
 
-    X509_ALGOR *a;
-    ASN1_BIT_STRING *signature;
-
-    X509_REQ_get0_signature((X509_REQ*)req, (const ASN1_BIT_STRING **)&signature, (const X509_ALGOR **) &a);
-
-    /* first of all extract stuff to be signed */
-    if((inlen = i2d_re_X509_REQ_tbs((X509_REQ*)req, &inbuf))==0) {
+    /* step 3: parse subject DN (which becomes issuer DN) */
+    if((name = pkcs11_DN_new_from_string(dn, MBSTRING_UTF8, false, reverse))==NULL) {
+	P_ERR();
 	goto err;
     }
 
-    /* then allocate memory for output */
-    outlen=pubkeybits/8;	/* TODO change this to get it from private key */
-    outbuf=(unsigned char *)OPENSSL_malloc((unsigned int)outlen);
-
-    /* at this point, inbuf contains the stuff to sign. */
-
-    /* pretend we sign */
-    {
-      int i;
-      unsigned char repeat[] = {'(', 0xc4, 0xbe};
-      pkey_type = EVP_MD_pkey_type(type);
-
-      for (i = 0; i < outlen; i++) {
-        outbuf[i] = repeat[i % sizeof repeat];
-      }
+    /* TODO: fix mem leak with previous value? */
+    if (!X509_REQ_set_subject_name(xreq, name)) {
+	P_ERR();
+	goto err;
     }
 
-    /* fix req->sig_alg to make it match */
-    /* borrowed/inspired by openssl/crypto/asn1/a_sign.c */
-    if (pkey_type == NID_dsaWithSHA1 ||
-        pkey_type == NID_ecdsa_with_SHA1) {
-      /* special case: RFC 3279 tells us to omit 'parameters'
-       * with id-dsa-with-sha1 and ecdsa-with-SHA1 */
-      ASN1_TYPE_free(a->parameter);
-      a->parameter = NULL;
-    }  else if ((a->parameter == NULL) ||
-                (a->parameter->type != V_ASN1_NULL)) {
-      ASN1_TYPE_free(a->parameter);
-      if ((a->parameter=ASN1_TYPE_new()) == NULL) goto err;
-      a->parameter->type=V_ASN1_NULL;
+    /* next steps are optional, as we do not necessarily have extensions to add */
+    if(ext_ski || sancnt>0) {
+	/* retrieve extention structure */
+	if(!(exts = sk_X509_EXTENSION_new_null())) {
+	    P_ERR();
+	    goto err;
+	}
+
+	/* step 4: add SAN if specified */
+	/* TODO extract and error checking */
+	if(sancnt>0)
+	{
+	    int i;
+	    size_t size=0;
+	    char *sanfield=NULL;
+
+	    for(i=0; i<sancnt; i++) {
+		size += strlen(san[i]) + 1;	/* we add one for the ',' */
+	    }
+	    size++;		/* add a supplementary byte for allowing extra last ',' with strcat() */
+
+	    if((sanfield=OPENSSL_malloc(size))!=NULL) {
+	    sanfield[0]=0;	/* clear first byte */
+	    for(i=0;i<sancnt;i++) {
+		strcat(sanfield,san[i]);
+		strcat(sanfield,",");
+	    }
+
+	    sanfield[strlen(sanfield)-1] = '\0'; /* erase last comma */
+	    req_add_ext(exts, NID_subject_alt_name, sanfield);
+	    OPENSSL_free(sanfield);
+	    }
+	}
+    
+	/* step 5: add SKI if specified */
+	if(ext_ski) {
+	    char *value=NULL;
+	    uint8_t *ski=NULL;
+	    size_t ski_len=0;
+
+	    if((ski_len=pkcs11_new_SKI_value_from_pubk(pk, &ski)) ==0 ) {
+		fprintf(stderr, "Error: could not determine SKI from public key\n");
+		goto err;
+	    }
+	    /* retrieve the value */
+
+	    value=(char *) OPENSSL_zalloc( ski_len * 2  + 1);
+
+	    if(value) {
+		int i;
+
+		for(i=0; i<ski_len; i++) {
+		    sprintf(&value[i*2], "%02.2x", ski[i]);
+		}
+
+		req_add_ext(exts, NID_subject_key_identifier, &value[0]);
+		OPENSSL_free(value);
+	    }
+	    if(ski) { OPENSSL_free(ski); }
+	}
+
+	/* Step 9: add extensions to the PKCS#10 structure */
+	if(!X509_REQ_add_extensions(xreq, exts)) {
+	    P_ERR();
+	    goto err;
+	}
+    }    
+
+    /* step 10: sign PKCS#10 */
+    const EVP_MD *md = EVP_get_digestbynid(X509_REQ_get_signature_nid(xreq));
+    if(!X509_REQ_sign(xreq, pk, md)) {
+	P_ERR();
+	goto err;
     }
-    ASN1_OBJECT_free(a->algorithm);
-    a->algorithm=OBJ_nid2obj(pkey_type);
-    if (a->algorithm == NULL)  {
-      ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_UNKNOWN_OBJECT_TYPE);
-      goto err;
-    }
-    if (OBJ_length(a->algorithm) == 0)  {
-      ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
-      goto err;
-    }
-    /* end of borrow */
+    
+    retval = true;
 
-    /* fix req->signature to contain our stuff  */
-    if (signature->data != NULL) OPENSSL_free(signature->data);
-    signature->data=outbuf;
-    outbuf=NULL;
-    signature->length=outlen;
-    /* In the interests of compatibility, I'll make sure that
-   * the bit string has a 'not-used bits' value of 0
-   */
-  signature->flags&= ~(ASN1_STRING_FLAG_BITS_LEFT|0x07);
-  signature->flags|=ASN1_STRING_FLAG_BITS_LEFT;
+err:
+    /* cleanup */
+    if(exts != NULL) { sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free); exts=NULL; }    if(name != NULL) { X509_NAME_free(name); }
+    /* memory management */
 
-  retval = 1;
-
-  err:
-  /* todo - proper cleanup */
-  
-  if(outbuf) { OPENSSL_free(outbuf); outbuf=NULL; }
-  if(inbuf) { OPENSSL_free(inbuf); inbuf=NULL; }
-
-  return retval;
-
+    return retval;
 }
+
+
+/* EOF */

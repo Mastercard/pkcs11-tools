@@ -19,12 +19,15 @@
 #include <config.h>
 #include <string.h>
 #include <openssl/evp.h>
+#include <openssl/rsa.h>
 #include <openssl/err.h>
 #include "pkcs11lib.h"
+#include "pkcs11_ossl.h"
 
 typedef struct {
     pkcs11Context *p11Context;
     CK_OBJECT_HANDLE hPrivateKey;
+    bool fake;			/* set when we don't really want to sign */
 } local_rsa_method_st ;
 
 
@@ -49,6 +52,7 @@ static int custom_rsasign( EVP_PKEY_CTX *ctx,
     const EVP_MD *md;
     char digestinfo[19+64];	/* the longest supported is SHA512 */
 
+    /* TODO: change this to dynamic build of the object */
     static const char header_sha1[] = {
 	0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e,
 	0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14
@@ -92,18 +96,18 @@ static int custom_rsasign( EVP_PKEY_CTX *ctx,
 	{ NID_sha512, header_sha512, sizeof header_sha512 / sizeof(char) },
     };	
     
-    CK_C_SignInit pC_SignInit = static_st.p11Context->FunctionList.C_SignInit;
-    CK_C_Sign pC_Sign = static_st.p11Context->FunctionList.C_Sign;
-
     CK_MECHANISM mechanism = { CKM_RSA_PKCS, NULL_PTR, 0 };
 
-    rv = pC_SignInit(static_st.p11Context->Session, &mechanism, static_st.hPrivateKey);
-    if(rv!= CKR_OK) {
-	pkcs11_error(rv,"C_SignInit");
-	goto err;
+    if(!static_st.fake) {
+	rv = static_st.p11Context->FunctionList.C_SignInit( static_st.p11Context->Session,
+							    &mechanism,
+							    static_st.hPrivateKey);
+	if(rv!= CKR_OK) {
+	    pkcs11_error(rv,"C_SignInit");
+	    goto err;
+	}
     }
 
-    
     if(EVP_PKEY_CTX_get_signature_md(ctx, &md)<=0) {
 	P_ERR();
 	goto err;
@@ -135,17 +139,27 @@ static int custom_rsasign( EVP_PKEY_CTX *ctx,
     memcpy(&digestinfo[hash_header_map[i].len], tbs, tbslen);
 
     /* step 4: perform signature */
-    rv = pC_Sign(static_st.p11Context->Session,
-		 (CK_BYTE_PTR)digestinfo,
-		 hash_header_map[i].len + EVP_MD_size(md),
-		 sig,
-		 siglen);
+    if(static_st.fake) {
+	/* the buffer that offered to us is in fact oversized, to support DER encoding supplement bytes */
+	/* when invoking C_Sign(), p11siglen gets adjusted to the real value                            */
+	/* we have to do the same for fake_sign: we must also adjust p11siglen,                         */
+	/* so we can encapsulate the fake signature accordingly                                         */
+	const RSA *rsa = EVP_PKEY_get0_RSA(EVP_PKEY_CTX_get0_pkey(ctx)); /* TODO error checking */
+	const BIGNUM *rsa_n = RSA_get0_n(rsa);
+	*siglen = BN_num_bytes(rsa_n); /* the signature size is the size of the modulus */
+	fake_sign(sig,*siglen);
+    } else {
+	rv = static_st.p11Context->FunctionList.C_Sign(static_st.p11Context->Session,
+						       (CK_BYTE_PTR)digestinfo,
+						       hash_header_map[i].len + EVP_MD_size(md),
+						       sig,
+						       siglen);
 
-    if(rv!= CKR_OK) {
-	pkcs11_error(rv,"C_Sign");
-	goto err;
+	if(rv!= CKR_OK) {
+	    pkcs11_error(rv,"C_Sign");
+	    goto err;
+	}
     }
-
     return 1;
 
 err:
@@ -194,8 +208,9 @@ void pkcs11_rsa_method_setup()
 }
 
 
-void pkcs11_rsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey)
+void pkcs11_rsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake)
 {
     static_st.p11Context = p11Context;
     static_st.hPrivateKey = hPrivateKey;
+    static_st.fake = fake;
 }

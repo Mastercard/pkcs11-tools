@@ -174,8 +174,7 @@ int main( int argc, char ** argv )
     func_rc retcode;
     int p11keygenrc = EX_OK;
 
-//    enum keytype { unknown, aes, des, rsa, ec, dsa, dh, generic };
-    enum keytype kt = unknown;
+    key_type_t keytype = unknown;
     CK_ULONG kb=0;
     char *param=NULL;
 
@@ -249,42 +248,42 @@ int main( int argc, char ** argv )
 
 	case 'k':
 	    if(strcasecmp(optarg,"aes")==0) {
-		kt = aes;
+		keytype = aes;
 		kb = 256;
 	    } else if(strcasecmp(optarg,"des")==0) {
-		kt = des;
+		keytype = des;
 		kb = 192;
 	    } else if(strcasecmp(optarg,"rsa")==0) {
-		kt = rsa;
+		keytype = rsa;
 		kb = 2048;
 	    } else if(strcasecmp(optarg,"ec")==0) {
-		kt = ec;
+		keytype = ec;
 		if(param==NULL) { param = "prime256v1"; }
 	    } else if(strcasecmp(optarg,"dsa")==0) {
-		kt = dsa;
+		keytype = dsa;
 	    } else if(strcasecmp(optarg,"dh")==0) {
-		kt = dh;
+		keytype = dh;
 	    }
 #if defined(HAVE_NCIPHER)
 	      else if(strcasecmp(optarg,"hmacsha1")==0) {
-		kt = hmacsha1;
+		keytype = hmacsha1;
 		kb = 160;
 	    } else if(strcasecmp(optarg,"hmacsha224")==0) {
-		kt = hmacsha224;
+		keytype = hmacsha224;
 		kb = 224;
 	    } else if(strcasecmp(optarg,"hmacsha256")==0) {
-		kt = hmacsha256;
+		keytype = hmacsha256;
 		kb = 256;
 	    } else if(strcasecmp(optarg,"hmacsha384")==0) {
-		kt = hmacsha384;
+		keytype = hmacsha384;
 		kb = 384;
 	    } else if(strcasecmp(optarg,"hmacsha512")==0) {
-		kt = hmacsha512;
+		keytype = hmacsha512;
 		kb = 512;
 	    }
 #endif
 	      else if(strcasecmp(optarg,"generic")==0 || strcasecmp(optarg,"hmac")==0) {
-		kt = generic;
+		keytype = generic;
 		kb = 160;
 	    }
 	    break;
@@ -339,7 +338,7 @@ int main( int argc, char ** argv )
 	goto epilog;
     }
 
-    if ( library == NULL || label == NULL || kt == unknown || (kb == 0 && param == NULL) ) {
+    if ( library == NULL || label == NULL || keytype == unknown || (kb == 0 && param == NULL) ) {
 	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
 	retcode = rc_error_usage;
@@ -382,7 +381,7 @@ int main( int argc, char ** argv )
 
 	    printf("Generating, please wait...\n");
 
-	    switch(kt) {
+	    switch(keytype) {
 	    case aes:
 		retcode = pkcs11_genAES( p11Context, label, kb,
 					 attrs,
@@ -401,13 +400,14 @@ int main( int argc, char ** argv )
 		break;
 
 	    case generic:	/* HMAC */
+#if defined(HAVE_NCIPHER)
 	    case hmacsha1:
 	    case hmacsha224:
 	    case hmacsha256:
 	    case hmacsha384:
 	    case hmacsha512:
-
-		retcode = pkcs11_genGeneric( p11Context, label, kt, kb,
+#endif
+		retcode = pkcs11_genGeneric( p11Context, label, keytype, kb,
 					     attrs,
 					     attrs_cnt,
 					     &keyhandle,

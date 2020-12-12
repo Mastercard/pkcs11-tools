@@ -308,7 +308,7 @@ error:
 
 func_rc pkcs11_genGeneric( pkcs11Context * p11ctx,
 			   char *label,
-			   enum keytype kt,
+			   key_type_t kt,
 			   CK_ULONG bits,
 			   CK_ATTRIBUTE attrs[],
 			   CK_ULONG numattrs,

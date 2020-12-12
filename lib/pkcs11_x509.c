@@ -438,21 +438,21 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
     CK_BYTE_PTR cert_ber = NULL;
     CK_BYTE_PTR modulus_hash = NULL;
 
-    CK_BBOOL false = CK_FALSE;
-    CK_BBOOL true = CK_TRUE;
+    CK_BBOOL ck_false = CK_FALSE;
+    CK_BBOOL ck_true = CK_TRUE;
 
     CK_ATTRIBUTE certTemplate[] = {
-	{CKA_CLASS, &certClass, sizeof(certClass)},          /* 0  */
-	{CKA_CERTIFICATE_TYPE, &certType, sizeof(certType)}, /* 1  */
+	{CKA_CLASS, &certClass, sizeof certClass },          /* 0  */
+	{CKA_CERTIFICATE_TYPE, &certType, sizeof certType }, /* 1  */
 	{CKA_ID, NULL, 0},				     /* 2  */
 	{CKA_LABEL, label, strlen(label) },		     /* 3  */
-	{CKA_TOKEN, &true, sizeof(true)},		     /* 4  */
+	{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 4  */
 	{CKA_SUBJECT, NULL, 0 },			     /* 5  */
 	{CKA_ISSUER, NULL, 0 },				     /* 6  */
 	{CKA_VALUE, NULL, 0 },				     /* 7  */
 	{CKA_SERIAL_NUMBER, NULL, 0 },			     /* 8  */
-	{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	     /* 9  */
-	{CKA_TRUSTED, &true, sizeof(CK_BBOOL) },	     /* 10 */
+	{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 9  */
+	{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 10 */
 	/* CKA_TRUSTED set at last position   */
 	/* this flag is FALSE by default      */
 	/* So we don't present it in case     */
@@ -515,7 +515,7 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 
 			    /* if -T is set: we want trusted */
 			    if(trusted) {
-				certTemplate[9].pValue = &false; /* then CKA_MODIFIABLE must be false */
+				certTemplate[9].pValue = &ck_false; /* then CKA_MODIFIABLE must be CK_FALSE */
 			    }
 
 			    retCode = pC_CreateObject(p11Context->Session,

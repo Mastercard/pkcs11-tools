@@ -21,6 +21,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include "pkcs11lib.h"
 
 
@@ -160,7 +161,6 @@ error:
     return retval;
 }
 
-
 void pkcs11_attrlist_assign_context(pkcs11AttrList *attrlist, pkcs11Context *p11Context)
 {
 
@@ -209,6 +209,23 @@ CK_BBOOL pkcs11_set_attr_in_attrlist ( pkcs11AttrList *attrlist,
     return rc;
 }
 
+
+bool pkcs11_attrlist_has_attribute(const pkcs11AttrList *attrlist, CK_ATTRIBUTE_TYPE attrib)
+{
+    bool rv = false;
+
+    if(attrlist) {
+	int i;
+
+	for(i=0; i<attrlist->allocated;i++) {
+	    if(attrib==attrlist->attr_array[i].type) {
+		rv = true;
+		break;		/* exit loop */
+	    }
+	}
+    }
+    return rv;
+}
 
 CK_ATTRIBUTE_PTR pkcs11_get_attr_in_attrlist ( pkcs11AttrList *attrlist,
 					       CK_ATTRIBUTE_TYPE attrib )
@@ -402,7 +419,7 @@ inline CK_ULONG const pkcs11_attrlist_get_attributes_len(pkcs11AttrList *attrlis
 }
 
 
-/* given an exissting attrlist, extend with provided arguments */
+/* given an existing attrlist, extend with provided arguments */
 pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PTR attrs, CK_ULONG numattrs)
 {
     pkcs11AttrList *retval = attrlist;
@@ -425,6 +442,9 @@ pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PT
 		    goto error;
 		}
 
+		/* even if subsequent calls fail, we would keep the extended array */
+		attrlist->attr_array = newlist; /* replace old list with new list */
+
 		int extended_index;
 
 		for(i=0, extended_index=attrlist->allocated; i< numattrs; i++, extended_index++) {
@@ -442,7 +462,6 @@ pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PT
 		    }
 		}
 
-		attrlist->attr_array = newlist; /* replace old list with new list */
 		attrlist->allocated = attrlist->allocated + numattrs - modified_inplace; /* adjust array size */
 	    }
 	}
@@ -451,5 +470,6 @@ pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PT
 error:	/* TODO: fix mem leaks resulting from Error */
     return retval;
 }
+
 
 /* EOF */

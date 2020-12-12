@@ -110,17 +110,16 @@ CK_OBJECT_HANDLE pkcs11_importdata( pkcs11Context * p11Context, char *filename, 
     CK_RV retCode;
     CK_OBJECT_CLASS objClass = CKO_DATA;
 
-    CK_BBOOL false = CK_FALSE;
-    CK_BBOOL true = CK_TRUE;
+    CK_BBOOL ck_false = CK_FALSE;
+    CK_BBOOL ck_true = CK_TRUE;
     
     CK_ATTRIBUTE dataTemplate[] = {
-	{CKA_CLASS, &objClass, sizeof(objClass)},            /* 0  */
+	{CKA_CLASS, &objClass, sizeof objClass},             /* 0  */
 	{CKA_LABEL, label, strlen(label) },		     /* 1  */
-	{CKA_TOKEN, &true, sizeof(true) },		     /* 2  */
-	{CKA_PRIVATE, &true, sizeof(true) },		     /* 3  */
-	{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	     /* 4  */
+	{CKA_TOKEN, &ck_true, sizeof ck_true },		     /* 2  */
+	{CKA_PRIVATE, &ck_true, sizeof ck_true },	     /* 3  */
+	{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 4  */
 	{CKA_VALUE, NULL, 0 },				     /* 5  */
-
     };
 
     DATA * data = NULL;

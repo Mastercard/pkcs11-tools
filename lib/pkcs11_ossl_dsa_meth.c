@@ -22,10 +22,12 @@
 #include <openssl/dsa.h>
 #include <openssl/err.h>
 #include "pkcs11lib.h"
+#include "pkcs11_ossl.h"
 
 typedef struct {
     pkcs11Context *p11Context;
     CK_OBJECT_HANDLE hPrivateKey;
+    bool fake;
 } local_dsa_method_st ;
 
 
@@ -50,8 +52,6 @@ static int custom_dsasign( EVP_PKEY_CTX *ctx,
     CK_RV rv;
     BIGNUM *r = NULL, *s = NULL;
     DSA_SIG *dsasig = NULL;
-    CK_C_SignInit pC_SignInit = static_st.p11Context->FunctionList.C_SignInit;
-    CK_C_Sign pC_Sign = static_st.p11Context->FunctionList.C_Sign;
 
     CK_MECHANISM mechanism = { CKM_DSA, NULL_PTR, 0 };
 
@@ -62,22 +62,35 @@ static int custom_dsasign( EVP_PKEY_CTX *ctx,
 	P_ERR();
 	goto err;
     }
-    
-    rv = pC_SignInit(static_st.p11Context->Session, &mechanism, static_st.hPrivateKey);
-    if(rv!= CKR_OK) {
-	pkcs11_error(rv,"C_SignInit");
-	goto err;
-    }
 
-    rv = pC_Sign(static_st.p11Context->Session,
-		 (CK_BYTE_PTR)tbs,
-		 tbslen,
-		 p11sig,
-		 &p11siglen);
+    if(static_st.fake) {
+	/* the buffer that offered to us is in fact oversized, to support DER encoding supplement bytes */
+	/* when invoking C_Sign(), p11siglen gets adjusted to the real value                            */
+	/* we have to do the same for fake_sign: we must also adjust p11siglen,                         */
+	/* so we can encapsulate the fake signature accordingly                                         */
+	const DSA *dsa = EVP_PKEY_get0_DSA(EVP_PKEY_CTX_get0_pkey(ctx)); /* TODO error checking */
+	const BIGNUM *dsa_q = DSA_get0_q(dsa);
+	p11siglen = BN_num_bytes(dsa_q) * 2;
+	fake_sign(p11sig, p11siglen);
+    } else {
+	rv = static_st.p11Context->FunctionList.C_SignInit(static_st.p11Context->Session,
+							   &mechanism,
+							   static_st.hPrivateKey);
+	if(rv!= CKR_OK) {
+	    pkcs11_error(rv,"C_SignInit");
+	    goto err;
+	}
 
-    if(rv!= CKR_OK) {
-	pkcs11_error(rv,"C_Sign");
-	goto err;
+	rv = static_st.p11Context->FunctionList.C_Sign(static_st.p11Context->Session,
+						       (CK_BYTE_PTR)tbs,
+						       tbslen,
+						       p11sig,
+						       &p11siglen);
+
+	if(rv!= CKR_OK) {
+	    pkcs11_error(rv,"C_Sign");
+	    goto err;
+	}
     }
 
     /* at this point, we must build a DSA_SIG object, using the result of the PKCS#11 computation */
@@ -94,7 +107,7 @@ static int custom_dsasign( EVP_PKEY_CTX *ctx,
     r = BN_bin2bn( &p11sig[0], p11siglen>>1, NULL);
     s = BN_bin2bn( &p11sig[p11siglen>>1], p11siglen>>1, NULL);
 
-    if(r==NULL || r==NULL) {
+    if(r==NULL || s==NULL) {
 	P_ERR();
 	goto err;
     }
@@ -136,22 +149,27 @@ err:
 
 void pkcs11_dsa_method_setup()
 {
+    static bool initialized = false;
     const EVP_PKEY_METHOD *orig_dsamethod;
     EVP_PKEY_METHOD *custom_dsamethod;
 
+    if(initialized) {
+	fprintf(stderr, "Warning: EVP_PKEY_C sign method already customized, skipping setup\n");
+	goto err;
+    }
     /* customizing signing methods */
     /* we are doing SHA1 / DSA signing */
     orig_dsamethod = EVP_PKEY_meth_find(EVP_PKEY_DSA);
     if(orig_dsamethod==NULL) {
-	ERR_print_errors_fp(stderr);
-	exit(1);		/* TODO CHANGE THIS */
+	P_ERR();
+	goto err;
     }
 
     /* create a new EVP_PKEY_METHOD */
     custom_dsamethod = EVP_PKEY_meth_new( EVP_PKEY_DSA, EVP_PKEY_FLAG_AUTOARGLEN);
     if(custom_dsamethod==NULL) {
-	ERR_print_errors_fp(stderr);
-	exit(1);
+	P_ERR();
+	goto err;
     }
   
     /* copy all from the EVP_PKEY_METHOD we want to customize */
@@ -163,20 +181,34 @@ void pkcs11_dsa_method_setup()
     EVP_PKEY_meth_get_sign(orig_dsamethod,
 			   &orig_dsasign_init,
 			   &orig_dsasign );
-
+       
     /* then adapt what we want to, in this case only the sign() fn */
-    
     EVP_PKEY_meth_set_sign(custom_dsamethod,
 			   orig_dsasign_init, /* duplicate it, we don't change it */
-			   custom_dsasign ); /* the new, customized method */
+			   custom_dsasign );  /* the new, customized method */
 
-    EVP_PKEY_meth_add0(custom_dsamethod);
+    if(!EVP_PKEY_meth_add0(custom_dsamethod)) {
+	P_ERR();
+	goto err;
+    }
+    
     custom_dsamethod = NULL;	/* swallowed by EVP_PKEY_meth_add0 */
+    /* now, initialize static member */
+    static_st.p11Context = NULL;
+    static_st.hPrivateKey = NULL_PTR;
+    static_st.fake = false;
+
+    initialized = true;
+
+err:
+    if(custom_dsamethod) { EVP_PKEY_meth_free(custom_dsamethod); }
+   
 }
 
 
-void pkcs11_dsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey)
+void pkcs11_dsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake)
 {
     static_st.p11Context = p11Context;
     static_st.hPrivateKey = hPrivateKey;
+    static_st.fake = fake;
 }

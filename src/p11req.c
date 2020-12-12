@@ -33,42 +33,6 @@
 #define MAX_SAN  1000
 #define WARN_SAN 25
 
-typedef struct {
-    hash_alg_t a;
-    CK_MECHANISM_TYPE h;
-
-} st_hash_alg_map ;
-
-
-
-static const st_hash_alg_map rsa_hash_mech[] = {
-    { sha1, CKM_SHA1_RSA_PKCS },
-    { sha224, CKM_SHA224_RSA_PKCS },
-    { sha256, CKM_SHA256_RSA_PKCS },
-    { sha384, CKM_SHA384_RSA_PKCS },
-    { sha512, CKM_SHA512_RSA_PKCS },
-};
-
-
-static const st_hash_alg_map dsa_hash_mech[] = {
-    { sha1, CKM_DSA_SHA1 },
-    { sha224, CKM_DSA_SHA224 },
-    { sha256, CKM_DSA_SHA256 },
-    { sha384, CKM_DSA_SHA384 },
-    { sha512, CKM_DSA_SHA512 },
-};
-
-
-static const st_hash_alg_map ecdsa_hash_mech[] = {
-    { sha1, CKM_ECDSA_SHA1 },
-    { sha224, CKM_ECDSA_SHA224 },
-    { sha256, CKM_ECDSA_SHA256 },
-    { sha384, CKM_ECDSA_SHA384 },
-    { sha512, CKM_ECDSA_SHA512 },
-};
-
-
-
 /* prototypes */
 void print_version_info(char *progname);
 void print_usage(char *);
@@ -143,10 +107,10 @@ int main( int argc, char ** argv )
     char *dn = NULL;
     char *san[MAX_SAN];
     size_t san_cnt=0;
-    int ski=0;			/* add Subject Key Identifier */
-    int verbose = 0;
-    int fake = 0;
-    int reverse = 0;
+    bool ski=false;			/* add Subject Key Identifier */
+    bool verbose = false;
+    bool fake = false;
+    bool reverse = false;
 
     hash_alg_t hash_alg = sha256; 	/* as of release 0.25.3, sha256 is the default */
 
@@ -232,7 +196,7 @@ int main( int argc, char ** argv )
 	    break;
     
 	case 'd':
-	    if(!pkcs11_X509_REQ_check_DN(optarg)) {
+	    if(!pkcs11_X509_check_DN(optarg)) {
 		fprintf( stderr , "Error: invalid DN field\n");
 		errflag++;
 	    } else {
@@ -241,7 +205,7 @@ int main( int argc, char ** argv )
 	    break;
 
 	case 'r':
-	    reverse=1;
+	    reverse=true;
 	    break;
 	    
 	case 'e':
@@ -260,15 +224,15 @@ int main( int argc, char ** argv )
 
 
 	case 'X':
-	    ski = 1;		/* we want a subject key identifier */
+	    ski = true;		/* we want a subject key identifier */
 	    break;
 
 	case 'v':
-	    verbose = 1;
+	    verbose = true;
 	    break;
 
 	case 'F':
-	    fake = 1;
+	    fake = true;
 	    break;
 
 	case 'h':
@@ -321,7 +285,8 @@ int main( int argc, char ** argv )
 	int rc;
 	CK_OBJECT_HANDLE hPublicKey=NULL_PTR;
 	CK_OBJECT_HANDLE hPrivateKey=NULL_PTR;
-
+	CK_OBJECT_HANDLE handle_for_attributes=NULL_PTR;
+	pkcs11AttrList *attrlist = NULL;
 
 	if( pkcs11_findkeypair(p11Context, label, &hPublicKey, &hPrivateKey)==0 ) {
 	    fprintf(stderr, "Error: Cannot find key pair with label '%s'.\n", label);
@@ -330,197 +295,98 @@ int main( int argc, char ** argv )
 	}
 	    
 	/* at this point, we have a key. Let's see if it is a EC, DSA or RSA. */
-	CK_ATTRIBUTE keytype;
-	keytype.type= CKA_KEY_TYPE;
-	    
-	if( pkcs11_getObjectAttributes( p11Context, hPrivateKey, &keytype, sizeof keytype/sizeof (CK_ATTRIBUTE)) ==CKR_OK ) {
-	    switch( *(CK_KEY_TYPE *) keytype.pValue)  {
+	key_type_t detected_key_type = pkcs11_get_key_type(p11Context, hPrivateKey);
 
-	    case CKK_RSA:
+	switch(detected_key_type) {
+	case rsa:
+	    handle_for_attributes = hPrivateKey;
+	    attrlist = pkcs11_new_attrlist( p11Context,
+					    _ATTR(CKA_MODULUS),
+					    _ATTR(CKA_PUBLIC_EXPONENT),
+					    _ATTR(CKA_ID),
+					    _ATTR_END);
+	    break;
 
-	    {
-		/* get modulus and exponent */
-		CK_ATTRIBUTE attr[2];
+	case dsa:
+	    /* for DSA, we work with the public key, as the public key value is stored into CKA_VALUE */
+	    /* instead of a specific attribute, which maps to the private key value, on the private key */
+	    /* which is forcing us to use the public key object instead. */
+	    if(hPublicKey==NULL_PTR) {
+		fprintf(stderr, "Error: a public key is required in order to generate a DSA certificate request.\n");
+		retcode = rc_error_dsa_missing_public_key;
+		goto err;
+	    }
 
-		attr[0].type = CKA_MODULUS;
-		attr[1].type = CKA_PUBLIC_EXPONENT;
+	    handle_for_attributes = hPublicKey;
+	    attrlist = pkcs11_new_attrlist( p11Context,
+					    _ATTR(CKA_PRIME),
+					    _ATTR(CKA_SUBPRIME),
+					    _ATTR(CKA_BASE),
+					    _ATTR(CKA_VALUE),
+					    _ATTR(CKA_ID),
+					    _ATTR_END);
 
-		if( pkcs11_getObjectAttributes( p11Context, hPrivateKey, attr, sizeof attr/sizeof (CK_ATTRIBUTE) ) == CKR_OK ) {
-		    /* if object is found, CKA_ID is aligned to contain SHA1 of key modulus  */
-		    /* the same CKA_ID is applied to both public key and private key objects */
-		    CK_ATTRIBUTE id_attr = {CKA_ID, NULL_PTR, 0 };
-		    id_attr.ulValueLen = pkcs11_openssl_alloc_and_sha1( attr[0].pValue, attr[0].ulValueLen, &id_attr.pValue);
-		    if(id_attr.ulValueLen>0) {
-			pkcs11_setObjectAttribute( p11Context, hPrivateKey, &id_attr );
-			
-			if(hPublicKey != NULL_PTR) {
-			    pkcs11_setObjectAttribute( p11Context, hPublicKey, &id_attr );
-			}
-			    
-			/* ok, now we are in the req business */
-			
-			{
-			    CK_VOID_PTR x509_req = pkcs11_create_unsigned_X509_REQ(dn, reverse,
-										   san, san_cnt,
-										   ski ? &id_attr : NULL,
-										   &attr[0],
-										   &attr[1]);
-			    
-			    if(x509_req) {
-				CK_MECHANISM_TYPE hash = 0;
-
-				int i;
-
-				for(i=0;i<sizeof rsa_hash_mech/sizeof(st_hash_alg_map); i++) {
-				    if (rsa_hash_mech[i].a == hash_alg) {
-					hash = rsa_hash_mech[i].h;
-					break;
-				    }
-				}
-
-				int keybits = pkcs11_get_rsa_modulus_bits(p11Context, hPrivateKey);
-				int keybytes = (keybits>>3) + (keybits%8 ? 1 : 0);
-				int rv = pkcs11_sign_X509_REQ(p11Context, x509_req, keybytes, hPrivateKey, hash, fake);
-				
-				if(rv==1) {
-				    write_X509_REQ(x509_req, filename, verbose);
-				}
-			    } else {
-				printf("Unable to generate or CSR");
-			    }
-			    
-			    /* free stuff */
-			}
-
-			pkcs11_openssl_free(&id_attr.pValue);
-			id_attr.ulValueLen = 0;
-		    }
-		    pkcs11_freeObjectAttributesValues( attr, sizeof attr/sizeof (CK_ATTRIBUTE));
-		}
+	    if(!attrlist) {
+		fprintf(stderr,"Error: could not create attribute list object\n");
+		retcode = rc_error_other_error;
+		goto err;
 	    }
 	    break;
 
-
-	    case CKK_DSA:
-	    {
-		/* get DSA params + public key */
-		CK_ATTRIBUTE attr[] = {
-		    { CKA_PRIME, NULL, 0L },
-		    { CKA_SUBPRIME, NULL, 0L },
-		    { CKA_BASE, NULL, 0L },
-		    { CKA_VALUE, NULL, 0L },
-		    { CKA_ID, NULL, 0L },
-		};
-
-		if( pkcs11_getObjectAttributes( p11Context, hPublicKey, attr, sizeof attr/sizeof (CK_ATTRIBUTE) ) == CKR_OK ) {
-		    CK_VOID_PTR x509_req = pkcs11_create_unsigned_X509_REQ_DSA(dn, reverse,
-									       san, san_cnt, 
-									       ski ? &attr[4] : NULL, 
-									       &attr[0],
-									       &attr[1],
-									       &attr[2],
-									       &attr[3] );
-		    
-		    if(x509_req) {
-			CK_MECHANISM_TYPE hash = 0;
-			
-			int i;
-			
-			for(i=0;i<sizeof dsa_hash_mech/sizeof(st_hash_alg_map); i++) {
-			    if (dsa_hash_mech[i].a == hash_alg) {
-				hash = dsa_hash_mech[i].h;
-				break;
-			    }
-			}
-			
-			int keybits = pkcs11_get_dsa_pubkey_bits(p11Context, hPublicKey);
-			int keybytes = (keybits>>3) + (keybits%8 ? 1 : 0);
-			int rv = pkcs11_sign_X509_REQ(p11Context, x509_req, keybytes, hPrivateKey, hash, fake);
-			
-			if(rv==1) {
-			    write_X509_REQ(x509_req, filename, verbose);
-			}
-		    } else {
-			printf("Unable to sign CSR\n");
-		    }
-		    
-		    pkcs11_freeObjectAttributesValues( attr, sizeof attr/sizeof (CK_ATTRIBUTE));
-		} else {
-		    printf("Issue with DSA key\n");
-		}
+	case ec:
+	    /* for EC, we work with the public key, as the public key value is stored into CKA_POINT    */
+	    /* which is not present in the private key object */
+	    if(hPublicKey==NULL_PTR) {
+		fprintf(stderr, "Error: a public key is required in order to generate an ECDSA certificate request.\n");
+		retcode = rc_error_dsa_missing_public_key;
+		goto err;
 	    }
+	    handle_for_attributes = hPublicKey;
+	    attrlist = pkcs11_new_attrlist( p11Context,
+					    _ATTR(CKA_EC_PARAMS),
+					    _ATTR(CKA_EC_POINT),
+					    _ATTR(CKA_ID),
+					    _ATTR_END);
 	    break;
 
-	    case CKK_EC:
-	    {
-		/* get modulus and exponent */
-		CK_ATTRIBUTE attr[3];
+	default:
+	    fprintf(stderr, "Error: unsupported key type\n");
+	    retcode = rc_error_unsupported;
+	    goto err;
+	}
 
-		attr[0].type = CKA_EC_PARAMS;
-		attr[1].type = CKA_EC_POINT;
-		attr[2].type = CKA_ID; /* for subject key identifier */
+	if(attrlist && pkcs11_read_attr_from_handle (attrlist, handle_for_attributes)) {
+	    CK_VOID_PTR req = pkcs11_create_X509_REQ(p11Context,
+						     dn,
+						     reverse,
+						     fake,
+						     san,
+						     san_cnt,
+						     ski,
+						     detected_key_type,
+						     hash_alg,
+						     hPrivateKey,
+						     attrlist);
 
-		if( pkcs11_getObjectAttributes( p11Context, hPublicKey, attr, sizeof attr/sizeof (CK_ATTRIBUTE) ) == CKR_OK ) {
-
-		    char curvename[40];
-
-		    pkcs11_ec_oid2curvename(attr[0].pValue, attr[0].ulValueLen, curvename, sizeof curvename);
-		
-		    /* ok, now we are in the req business */
-		    {
-
-			int degree;
-			CK_VOID_PTR x509_req = pkcs11_create_unsigned_X509_REQ_EC(dn, reverse,
-										  san, san_cnt,
-										  ski ? &attr[2] : NULL,
-										  curvename,
-										  &attr[1],
-										  &degree);
-		    
-			if(x509_req) {
-			    CK_MECHANISM_TYPE hash = 0;
-				    
-			    int i;
-			    int keybytes = (degree<<1) + (degree%8 ? 2 : 0); /* if degree is not congruent modulo 8, we need to add */
-			                                                     /* two extra bytes: one per coordinate of the point    */
-
-			    for(i=0;i<sizeof ecdsa_hash_mech/sizeof(st_hash_alg_map); i++) {
-				if (ecdsa_hash_mech[i].a == hash_alg) {
-				    hash = ecdsa_hash_mech[i].h;
-				    break;
-				}
-			    }
-
-			    int rv = pkcs11_sign_X509_REQ(p11Context, x509_req, degree<<1, hPrivateKey, hash, fake);
-			
-			    if(rv==1) {
-				write_X509_REQ(x509_req, filename, verbose);
-			    }
-			} else {
-			    printf("Unable to sign CSR\n");
-			}
-		    
-			/* free stuff */
-		    } 
-		    pkcs11_freeObjectAttributesValues( attr, sizeof attr/sizeof (CK_ATTRIBUTE));
-		} else {
-		    printf("Unknown EC\n");
-		}
+	    if(req) {
+		write_X509_REQ(req, filename, verbose);
+	    } else {
+		fprintf(stderr, "Error: Unable to generate certificate request\n");
 	    }
-	    break;
-
-	    default:
-		fprintf(stderr, "unhandled key type, sorry.\n");
-		break;
-	    }
+	    pkcs11_delete_attrlist(attrlist);
+	} else {
+	    fprintf(stderr,"Error: could not create attribute list object, or read attributes from token\n");
+	    retcode = rc_error_other_error;
+	    /* TODO goto err */
 	}
 	pkcs11_close_session( p11Context );
     }
 
-    pkcs11_finalize( p11Context );
 
     /* free allocated memory */
 err:
+    pkcs11_finalize( p11Context );
+
     release_attributes( argv_attrs, argv_attrs_cnt );
     
     pkcs11_freeContext(p11Context);
