@@ -1196,7 +1196,7 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 
     CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
     CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
-    CK_KEY_TYPE keytype;
+    key_type_t keytype;
     CK_OBJECT_CLASS wrappedkeyobjclass;
     int bytelen;
     int blocklength;
@@ -1301,16 +1301,16 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
 	CK_ULONG wrappedkeybuffersize;
 
 	switch(keytype) {
-	case CKK_AES:
+	case aes:
 	    mechanism.mechanism = CKM_AES_CBC_PAD;
 	    break;
 
-	case CKK_DES:
+	case des:
 	    mechanism.mechanism = CKM_DES_CBC_PAD;
 	    break;
 
-	case CKK_DES2:		/* DES2 and DES3 both use the same mechanism */
-	case CKK_DES3:
+	case des2:		/* DES2 and DES3 both use the same mechanism */
+	case des3:
 	    mechanism.mechanism = CKM_DES3_CBC_PAD;
 	    break;
 
