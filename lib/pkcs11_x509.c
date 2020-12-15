@@ -100,94 +100,91 @@ static CK_ULONG get_X509_subject_der(X509 *hndl, CK_BYTE_PTR * buf)
     return rv;
 }
 
-static CK_ULONG get_X509_issuer_der(X509 *hndl, CK_BYTE_PTR *buf)
-{
+static CK_ULONG get_X509_issuer_der(X509 *hndl, CK_BYTE_PTR *buf) {
 
-    X509_NAME *issuer;
-    CK_ULONG rv=0;
+  X509_NAME *issuer;
+  CK_ULONG rv = 0;
 
-    if( hndl ) {
-	issuer = X509_get_issuer_name(hndl);
-	if(issuer) {
+  if (hndl) {
+    issuer = X509_get_issuer_name(hndl);
+    if (issuer) {
 
-	    rv = i2d_X509_NAME(issuer, NULL);	/* first call to fetch buffer size. */
+      rv = i2d_X509_NAME(issuer, NULL);  /* first call to fetch buffer size. */
 
-	    if( rv>0 ) {
-		CK_BYTE_PTR p;
+      if (rv > 0) {
+        CK_BYTE_PTR p;
 
-		p = *buf = OPENSSL_malloc(rv);
+        p = *buf = OPENSSL_malloc(rv);
 
-		if(*buf) {
-		    rv = i2d_X509_NAME(issuer, &p); /* second call. p is incremented. */
+        if (*buf) {
+          rv = i2d_X509_NAME(issuer, &p); /* second call. p is incremented. */
 
-		    /* if we fail here, we would free up requested memory */
-		    if(rv==0) {
-			OPENSSL_free(*buf);
-		    }
-		}
-	    }
-	}
+          /* if we fail here, we would free up requested memory */
+          if (rv == 0) {
+            OPENSSL_free(*buf);
+          }
+        }
+      }
     }
-    return rv;
+  }
+  return rv;
 }
 
 
-static CK_ULONG get_X509_cert_der(X509 *hndl, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_X509_cert_der(X509 *hndl, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( hndl ) {
-	rv = i2d_X509(hndl, NULL);
+  if (hndl) {
+    rv = i2d_X509(hndl, NULL);
 
-	if( rv>0 ) {
-	    CK_BYTE_PTR p;
+    if (rv > 0) {
+      CK_BYTE_PTR p;
 
-	    p = *buf = OPENSSL_malloc(rv);
+      p = *buf = OPENSSL_malloc(rv);
 
-	    if(*buf) {
-		rv = i2d_X509(hndl, &p);
+      if (*buf) {
+        rv = i2d_X509(hndl, &p);
 
-		/* if we fail here, we would free up requested memory */
-		if(rv==0) {
-		    OPENSSL_free(*buf);
-		}
-	    }
-	}
+        /* if we fail here, we would free up requested memory */
+        if (rv == 0) {
+          OPENSSL_free(*buf);
+        }
+      }
     }
-    return rv;
+  }
+  return rv;
 }
 
 
-static CK_ULONG get_X509_serial_number_hex(X509 *hndl, CK_BYTE_PTR *buf)
-{
+static CK_ULONG get_X509_serial_number_hex(X509 *hndl, CK_BYTE_PTR *buf) {
 
-    ASN1_INTEGER *serialnumber;
-    CK_ULONG rv=0;
+  ASN1_INTEGER *serialnumber;
+  CK_ULONG rv = 0;
 
-    if( hndl ) {
+  if (hndl) {
 
-	serialnumber = X509_get_serialNumber( hndl );
-	if(serialnumber) {
+    serialnumber = X509_get_serialNumber(hndl);
+    if (serialnumber) {
 
-	    rv = i2c_ASN1_INTEGER(serialnumber, NULL);
+      rv = i2d_ASN1_INTEGER(serialnumber, NULL);
 
-	    if(rv>0) {
-		CK_BYTE_PTR p;
+      if (rv > 0) {
+        CK_BYTE_PTR p;
 
-		p = *buf = OPENSSL_malloc(rv);
+        p = *buf = OPENSSL_malloc(rv);
 
-		if(*buf) {
-		    rv = i2c_ASN1_INTEGER(serialnumber, &p);
+        if (*buf) {
+          rv = i2d_ASN1_INTEGER(serialnumber, &p);
 
-		    /* if we fail here, we would free up requested memory */
-		    if(rv==0) {
-			OPENSSL_free(*buf);
-		    }
-		}
-	    }
-	}
+          /* if we fail here, we would free up requested memory */
+          if (rv == 0) {
+            OPENSSL_free(*buf);
+          }
+        }
+      }
     }
-    return rv;
+  }
+  return rv;
 }
 
 
@@ -211,16 +208,18 @@ static CK_ULONG get_X509_pubkey_sha1(X509 *hndl, CK_BYTE_PTR *buf)
 	pubkey = X509_get_pubkey(hndl);
 
 	if(pubkey) {
-	    switch(EVP_PKEY_type(pubkey->type)) {
+	    switch(EVP_PKEY_base_id(pubkey)) {
 		case EVP_PKEY_RSA:
 		{
 		    RSA *rsa;
+		    const BIGNUM *rsa_n;
 
 		    rsa = EVP_PKEY_get1_RSA(pubkey);
 		    if(rsa) {
-			CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(rsa->n)); /* we allocate before converting */
-			if(bn_buf) {
-			    int bn_buf_len = BN_bn2bin(rsa->n, bn_buf);
+		      RSA_get0_key(rsa, &rsa_n, NULL, NULL);
+			    CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(rsa_n)); /* we allocate before converting */
+		  	if(bn_buf) {
+			    int bn_buf_len = BN_bn2bin(rsa_n, bn_buf);
 			    {
 				/* SHA-1 block */
 				EVP_MD_CTX *mdctx;
@@ -249,12 +248,14 @@ static CK_ULONG get_X509_pubkey_sha1(X509 *hndl, CK_BYTE_PTR *buf)
 		case EVP_PKEY_DSA:
 		{
 		    DSA *dsa;
+		    const BIGNUM *dsa_pub;
 
 		    dsa = EVP_PKEY_get1_DSA(pubkey);
 		    if(dsa) {
-			CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(dsa->pub_key)); /* we allocate before converting */
+		      DSA_get0_key(dsa, &dsa_pub, NULL);
+			CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(dsa_pub)); /* we allocate before converting */
 			if(bn_buf) {
-			    int bn_buf_len = BN_bn2bin(dsa->pub_key, bn_buf);
+			    int bn_buf_len = BN_bn2bin(dsa_pub, bn_buf);
 			    {
 				/* SHA-1 block */
 				EVP_MD_CTX *mdctx;
@@ -423,9 +424,8 @@ static void free_X509_handle(X509 * hndl)
 }
 
 
-CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, char *label, int trusted)
+CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, void *x509, char *label, int trusted)
 {
-
     CK_OBJECT_HANDLE hCert = NULL_PTR;
 
     CK_RV retCode;
@@ -438,21 +438,21 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
     CK_BYTE_PTR cert_ber = NULL;
     CK_BYTE_PTR modulus_hash = NULL;
 
-    CK_BBOOL false = CK_FALSE;
-    CK_BBOOL true = CK_TRUE;
+    CK_BBOOL ck_false = CK_FALSE;
+    CK_BBOOL ck_true = CK_TRUE;
 
     CK_ATTRIBUTE certTemplate[] = {
-	{CKA_CLASS, &certClass, sizeof(certClass)},          /* 0  */
-	{CKA_CERTIFICATE_TYPE, &certType, sizeof(certType)}, /* 1  */
+	{CKA_CLASS, &certClass, sizeof certClass },          /* 0  */
+	{CKA_CERTIFICATE_TYPE, &certType, sizeof certType }, /* 1  */
 	{CKA_ID, NULL, 0},				     /* 2  */
 	{CKA_LABEL, label, strlen(label) },		     /* 3  */
-	{CKA_TOKEN, &true, sizeof(true)},		     /* 4  */
+	{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 4  */
 	{CKA_SUBJECT, NULL, 0 },			     /* 5  */
 	{CKA_ISSUER, NULL, 0 },				     /* 6  */
 	{CKA_VALUE, NULL, 0 },				     /* 7  */
 	{CKA_SERIAL_NUMBER, NULL, 0 },			     /* 8  */
-	{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	     /* 9  */
-	{CKA_TRUSTED, &true, sizeof(CK_BBOOL) },	     /* 10 */
+	{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 9  */
+	{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 10 */
 	/* CKA_TRUSTED set at last position   */
 	/* this flag is FALSE by default      */
 	/* So we don't present it in case     */
@@ -468,11 +468,8 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 
     pC_CreateObject = p11Context->FunctionList.C_CreateObject;
 
-    /* now let's create the attributes from file and alias */
-
-
-
-    cert = new_X509_from_file(filename);
+    /* if x509 is not null, use it, otherwise get a cert from the file. */
+    cert = x509 ? (X509 *)x509 : new_X509_from_file(filename);
 
     if(cert) {
 
@@ -518,7 +515,7 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 
 			    /* if -T is set: we want trusted */
 			    if(trusted) {
-				certTemplate[9].pValue = &false; /* then CKA_MODIFIABLE must be false */
+				certTemplate[9].pValue = &ck_false; /* then CKA_MODIFIABLE must be CK_FALSE */
 			    }
 
 			    retCode = pC_CreateObject(p11Context->Session,
@@ -526,7 +523,9 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 						      (trusted ? sizeof(certTemplate) : sizeof(certTemplate)-2) / sizeof(CK_ATTRIBUTE),
 						      &hCert);
 
-			    pkcs11_error( retCode, "CreateObject" );
+			    if(retCode != CKR_OK) {
+				pkcs11_error( retCode, "CreateObject" );
+			    }
 
 			    /* if we are here, we have to free up memory anyway */
 			    free_X509_buf(modulus_hash);
@@ -539,7 +538,7 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 	    }
 	    free_X509_buf(subject);
 	}
-	free_X509_handle(cert);
+	if(filename) { free_X509_handle(cert); } /* we free only if the cert was retrieved from a file */
     }
     return hCert;
 }

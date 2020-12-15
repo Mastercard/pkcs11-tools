@@ -23,6 +23,9 @@
 #include <unistd.h>
 #include "pkcs11lib.h"
 
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
 
 #define COMMAND_SUMMARY \
     "Change attribute(s) of a PKCS#11 token object.\n\n"

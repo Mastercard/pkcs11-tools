@@ -14,7 +14,7 @@ dnl limitations under the License.
 
 
 AC_PREREQ([2.63])
-AC_INIT([pkcs11-tools], [1.2.0], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
+AC_INIT([pkcs11-tools], [2.0.0-devel], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
 AC_CONFIG_MACRO_DIR([m4])
 
 dnl adding AM_MAINTAINER_MODE to address autotools issues with git
@@ -69,7 +69,7 @@ AM_CONDITIONAL([TARGET_OS_MINGW32], [test "$mingw32" = "1"])
 
 PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES([LIBCRYPTO],
-	          [libcrypto < 1.1.0],
+	          [libcrypto >= 1.1.1],
 		  [ ac_save_CPPFLAGS=$CPPFLAGS
 		    CPPFLAGS="${CPPFLAGS} ${LIBCRYPTO_CFLAGS}"
 		    AC_CHECK_DECLS([OPENSSL_NO_RSA, OPENSSL_NO_DSA, OPENSSL_NO_DH, OPENSSL_NO_EC],

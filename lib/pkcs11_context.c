@@ -27,7 +27,7 @@
 
 pkcs11Context * pkcs11_newContext( char *libraryname, char *nssconfigdir )
 {
-    
+
     pkcs11Context * p11Context = NULL;
     char *nssinitparams = NULL;
 
@@ -40,15 +40,15 @@ pkcs11Context * pkcs11_newContext( char *libraryname, char *nssconfigdir )
 
     if(nssconfigdir!=NULL) {
 	nssinitparams = malloc( strlen(nssconfigdir) + 13 ); /* configDir='<stuff>' */
-    
+
 	if(!nssinitparams) {
 	    fprintf(stderr, "Error: Cannot allocate memory\n");
 	    goto err;
 	}
     }
-    
+
     p11Context = calloc(1,sizeof(pkcs11Context)); /* we want it be cleared */
-    
+
     if(p11Context==NULL) {
 	fprintf(stderr, "Error: Cannot allocate memory\n");
 	goto err;
@@ -58,11 +58,11 @@ pkcs11Context * pkcs11_newContext( char *libraryname, char *nssconfigdir )
     if(nssconfigdir!=NULL) {
 	sprintf(nssinitparams, "configDir='%s'", nssconfigdir);
     }
-    
+
     p11Context->nssinitparams = nssinitparams;
     nssinitparams = NULL; 	/* transfer ownership */
 
-    
+
 err:
     if(nssinitparams) free(nssinitparams);
 
@@ -72,7 +72,7 @@ err:
 
 void pkcs11_freeContext( pkcs11Context *p11Context )
 {
-    if(p11Context) {	
+    if(p11Context) {
 	if(p11Context->nssinitparams) { free(p11Context->nssinitparams); p11Context->nssinitparams = NULL; }
 	free(p11Context);
     }
@@ -87,8 +87,8 @@ func_rc pkcs11_initialize( pkcs11Context * p11Context )
     CK_C_Initialize pC_Initialize;
     CK_C_INITIALIZE_ARGS InitArgs;
     CK_NSS_C_INITIALIZE_ARGS NSS_InitArgs;
-    
-    
+
+
     if ( ( p11Context->libhandle = pkcs11_ll_dynlib_open((const char *) p11Context->library) ) == NULL )
     {
 	rc = rc_dlopen_error;
@@ -130,7 +130,7 @@ func_rc pkcs11_initialize( pkcs11Context * p11Context )
 
     if ( ( rv = pC_Initialize( &InitArgs ) ) != CKR_OK )
     {
-	if(p11Context->nssinitparams==NULL) { 
+	if(p11Context->nssinitparams==NULL) {
 	    /* if we don't have NSS parameters, */
 	    /* then show an error */
 	    pkcs11_error( rv, "C_Initialize" );
@@ -141,17 +141,17 @@ func_rc pkcs11_initialize( pkcs11Context * p11Context )
 	else if ( rv == CKR_CRYPTOKI_ALREADY_INITIALIZED ) {
 	    rc = rc_ok;
 	}
-	
+
 	else if ( rv == CKR_ARGUMENTS_BAD )
 	{
 	    rv = pC_Initialize( &NSS_InitArgs );
-		
+
 	    if ( rv == CKR_ARGUMENTS_BAD )
 	    {
 		pkcs11_error( rv, "C_Initialize" );
-		    
+
 		rv = pC_Initialize( NULL_PTR );
-		    
+
 		if ( rv == CKR_ARGUMENTS_BAD ) {
 		    pkcs11_error( rv, "C_Initialize" );
 		    rc = rc_error_pkcs11_api;
@@ -169,9 +169,9 @@ func_rc pkcs11_finalize( pkcs11Context * p11Context )
     func_rc rc = rc_ok;
     CK_RV retCode;
     CK_C_Finalize pC_Finalize;
-    
+
     pC_Finalize = p11Context->FunctionList.C_Finalize;
-    
+
     if ( ( retCode = pC_Finalize( NULL_PTR ) ) != CKR_OK ) {
 	pkcs11_error( retCode, "C_Finalize" );
 	rc = rc_error_pkcs11_api;

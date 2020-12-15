@@ -25,7 +25,13 @@
 #include <search.h>
 #include "pkcs11lib.h"
 
-
+/***********************************************************************/
+/* keys can be created either as token keys (permanent),               */
+/* or as wrappable keys, in which case they are session keys and have  */
+/* CKA_EXTRACTABLE set to true                                         */
+/* this is reflected by the key_generation_t argument:                 */
+/* - when kg_token, the key is a token key                             */
+/* - when kg_session_for_wrapping, it is a session key, for wrapping   */
 /***********************************************************************/
 
 static int compare_CKA( const void *a, const void *b)
@@ -33,15 +39,33 @@ static int compare_CKA( const void *a, const void *b)
     return ((CK_ATTRIBUTE_PTR)a)->type == ((CK_ATTRIBUTE_PTR)b)->type ? 0 : -1;
 }
 
-int pkcs11_genAES( pkcs11Context * p11Context, 
-		   char *label, 
-		   CK_ULONG bits,
-		   CK_ATTRIBUTE attrs[],
-		   CK_ULONG numattrs,
-		   CK_OBJECT_HANDLE_PTR hSecretKey)
+static CK_BBOOL has_extractable(CK_ATTRIBUTE_PTR template, CK_ULONG template_len)
 {
-    
-    CK_RV retCode;
+    CK_ATTRIBUTE extractable[] = {
+	{ CKA_EXTRACTABLE, NULL, 0L }
+    };
+
+    size_t len = (size_t) template_len;
+
+    CK_ATTRIBUTE_PTR match = lfind( &extractable[0],
+				    template,
+				    &len,
+				    sizeof(CK_ATTRIBUTE),
+				    compare_CKA );
+    return match ? *(CK_BBOOL *)match->pValue : CK_FALSE;
+}
+
+
+func_rc pkcs11_genAES( pkcs11Context * p11ctx,
+		       char *label,
+		       CK_ULONG bits,
+		       CK_ATTRIBUTE attrs[],
+		       CK_ULONG numattrs,
+		       CK_OBJECT_HANDLE_PTR seckhandleptr,
+		       key_generation_t gentype)
+{
+    func_rc rc = rc_ok;
+    CK_RV retcode;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
     CK_BYTE id[16];
@@ -51,34 +75,34 @@ int pkcs11_genAES( pkcs11Context * p11Context,
     };
 
     if(bits != 128 && bits !=256 && bits!=192) {
-	fprintf(stderr,"unsupported key length: %d\n", (int)bits);
-	return 0;
-    } else {
-	bytes = bits>>3;
+	fprintf(stderr,"***Error: invalid key length: %d\n", (int)bits);
+	rc = rc_error_invalid_parameter_for_method;
+	goto error;
     }
+
+    bytes = bits>>3;
 
     snprintf((char *)id, sizeof id, "aes%d-%ld", (int)bits, time(NULL));
 
     {
 	int i;
 
-	CK_ATTRIBUTE secretKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
-	    {CKA_PRIVATE, &ck_true, sizeof(ck_true)},
+	CK_ATTRIBUTE secktemplate[] = {
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof(CK_BBOOL)},
+	    {CKA_PRIVATE, &ck_true, sizeof ck_true},
 	    {CKA_VALUE_LEN, &bytes, sizeof(bytes)},
-	    
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
 	    /* what can we do with this key */
-	    {CKA_ENCRYPT, &ck_false, sizeof(ck_false)},
-	    {CKA_DECRYPT, &ck_false, sizeof(ck_false)},
-	    {CKA_SIGN, &ck_false, sizeof(ck_false)},
-	    {CKA_VERIFY, &ck_false, sizeof(ck_false)},
-	    {CKA_WRAP, &ck_false, sizeof(ck_false)},
-	    {CKA_UNWRAP, &ck_false, sizeof(ck_false)},
-	    {CKA_DERIVE, &ck_false, sizeof(ck_false)},
-	    {CKA_SENSITIVE, &ck_true, sizeof(ck_true)},
-	    {CKA_EXTRACTABLE, &ck_false, sizeof(ck_false)},
+	    {CKA_ENCRYPT, &ck_false, sizeof ck_false},
+	    {CKA_DECRYPT, &ck_false, sizeof ck_false},
+	    {CKA_SIGN, &ck_false, sizeof ck_false},
+	    {CKA_VERIFY, &ck_false, sizeof ck_false},
+	    {CKA_WRAP, &ck_false, sizeof ck_false},
+	    {CKA_UNWRAP, &ck_false, sizeof ck_false},
+	    {CKA_DERIVE, &ck_false, sizeof ck_false},
+	    {CKA_SENSITIVE, &ck_true, sizeof ck_true},
+	    {CKA_EXTRACTABLE, gentype != kg_token ? &ck_true : &ck_false, sizeof ck_false},
 	    /* leave room for up to 5 additional attributes */
 	    {0L, NULL, 0L},
 	    {0L, NULL, 0L},
@@ -87,7 +111,7 @@ int pkcs11_genAES( pkcs11Context * p11Context,
 	    {0L, NULL, 0L},
 	};
 
-	size_t template_len_max = (sizeof(secretKeyTemplate)/sizeof(CK_ATTRIBUTE));
+	size_t template_len_max = (sizeof(secktemplate)/sizeof(CK_ATTRIBUTE));
 	size_t template_len_min = template_len_max - 5;
 	size_t num_elems = template_len_min;
 
@@ -95,46 +119,67 @@ int pkcs11_genAES( pkcs11Context * p11Context,
 	{
 	    /* lsearch will add the keys if not found in the template */
 
-	    CK_ATTRIBUTE_PTR match = lsearch( &attrs[i], 
-					      secretKeyTemplate, 
+	    CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+					      secktemplate,
 					      &num_elems,
 					      sizeof(CK_ATTRIBUTE),
 					      compare_CKA );
 
 	    /* if we have a match, take the value from the command line */
 	    /* we are basically stealing the pointer from attrs array   */
-	    if(match && match->ulValueLen == attrs[i].ulValueLen) { 
+	    if(match && match->ulValueLen == attrs[i].ulValueLen) {
 		match->pValue = attrs[i].pValue;
 	    }
 	}
 
-	CK_C_GenerateKey pC_GenerateKey = p11Context->FunctionList.C_GenerateKey;
+	retcode = p11ctx->FunctionList.C_GenerateKey(p11ctx->Session,
+						     &mechanism,
+						     secktemplate, num_elems,
+						     seckhandleptr );
 
-	retCode = pC_GenerateKey(p11Context->Session, 
-				 &mechanism,
-				 secretKeyTemplate, num_elems,
-				 hSecretKey );
-	
-	if (retCode != CKR_OK ) {
-	    pkcs11_error( retCode, "C_GenerateKey" );
-	    return 0;
+	if (retcode != CKR_OK ) {
+	    pkcs11_error( retcode, "C_GenerateKey" );
+	    rc = rc_error_pkcs11_api;
+	    goto error;
+	}
+
+	/* special case: we want to keep a local copy of the wrapped key */
+	if(gentype==kg_token_for_wrapping) {
+	    CK_OBJECT_HANDLE copyhandle=0;
+	    /* we don't want an extractable key, unless specified as an attribute */
+	    /* when invoking the command */
+	    CK_BBOOL ck_extractable = has_extractable(attrs, numattrs);
+
+	    CK_ATTRIBUTE tokentemplate[] = {
+		{ CKA_TOKEN, &ck_true, sizeof ck_true },
+		{ CKA_EXTRACTABLE, &ck_extractable, sizeof ck_extractable }
+	    };
+
+	    retcode = p11ctx->FunctionList.C_CopyObject( p11ctx->Session,
+							 *seckhandleptr,
+							 tokentemplate,
+							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
+							 &copyhandle );
+	    if (retcode != CKR_OK ) {
+		pkcs11_warning( retcode, "C_CopyObject" );
+		fprintf(stderr, "***Warning: could not create a local copy for secret key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
+	    }
 	}
     }
-    
-    return 1;
+error:
+    return rc;
 }
 
-
-
-int pkcs11_genDESX( pkcs11Context * p11Context, 
-		    char *label, 
-		    CK_ULONG bits,
-		    CK_ATTRIBUTE attrs[],
-		    CK_ULONG numattrs,
-		    CK_OBJECT_HANDLE_PTR hSecretKey)
+func_rc pkcs11_genDESX( pkcs11Context * p11ctx,
+			char *label,
+			CK_ULONG bits,
+			CK_ATTRIBUTE attrs[],
+			CK_ULONG numattrs,
+			CK_OBJECT_HANDLE_PTR seckhandleptr,
+			key_generation_t gentype)
 {
-    
-    CK_RV retCode;
+    func_rc rc = rc_ok;
+    CK_RV retcode;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
     CK_BYTE id[16];
@@ -143,48 +188,48 @@ int pkcs11_genDESX( pkcs11Context * p11Context,
 	CKM_DES_KEY_GEN, NULL_PTR, 0
     };
 
-    if(bits != 64 && bits !=128 && bits != 192) {
-	fprintf(stderr,"unsupported key length: %d\n", (int)bits);
-	return 0;
-    } else {
-	bytes = bits>>3;
-	switch(bits) {
+    switch(bits) {
 
-	case 64:
-	    mechanism.mechanism = CKM_DES_KEY_GEN;
-	    break;
+    case 64:
+	mechanism.mechanism = CKM_DES_KEY_GEN;
+	break;
 
-	case 128:
-	    mechanism.mechanism = CKM_DES2_KEY_GEN;
-	    break;
-	    
-	case 192:
-	    mechanism.mechanism = CKM_DES3_KEY_GEN;
-	    break;
-	}
+    case 128:
+	mechanism.mechanism = CKM_DES2_KEY_GEN;
+	break;
+
+    case 192:
+	mechanism.mechanism = CKM_DES3_KEY_GEN;
+	break;
+
+    default:
+	fprintf(stderr,"***Error: invalid key length: %d\n", (int)bits);
+	rc = rc_error_invalid_parameter_for_method;
+	goto error;
     }
+
+    bytes = bits>>3;
 
     snprintf((char *)id, sizeof id, "des%d-%ld", (int)bits, time(NULL));
 
     {
 	int i;
 
-	CK_ATTRIBUTE secretKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
+	CK_ATTRIBUTE secktemplate[] = {
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof(CK_BBOOL)},
 /*	    {CKA_VALUE_LEN, &bytes, sizeof(bytes)}, */ // implicit with DES2/DES3
-	    
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
 	    /* what can we do with this key */
-	    {CKA_ENCRYPT, &ck_false, sizeof(ck_false)},
-	    {CKA_DECRYPT, &ck_false, sizeof(ck_false)},
-	    {CKA_SIGN, &ck_false, sizeof(ck_false)},
-	    {CKA_VERIFY, &ck_false, sizeof(ck_false)},
-	    {CKA_WRAP, &ck_false, sizeof(ck_false)},
-	    {CKA_UNWRAP, &ck_false, sizeof(ck_false)},
-	    {CKA_DERIVE, &ck_false, sizeof(ck_false)},
-	    {CKA_SENSITIVE, &ck_true, sizeof(ck_true)},
-	    {CKA_EXTRACTABLE, &ck_false, sizeof(ck_false)},
+	    {CKA_ENCRYPT, &ck_false, sizeof ck_false},
+	    {CKA_DECRYPT, &ck_false, sizeof ck_false},
+	    {CKA_SIGN, &ck_false, sizeof ck_false},
+	    {CKA_VERIFY, &ck_false, sizeof ck_false},
+	    {CKA_WRAP, &ck_false, sizeof ck_false},
+	    {CKA_UNWRAP, &ck_false, sizeof ck_false},
+	    {CKA_DERIVE, &ck_false, sizeof ck_false},
+	    {CKA_SENSITIVE, &ck_true, sizeof ck_true},
+	    {CKA_EXTRACTABLE, gentype != kg_token ? &ck_true : &ck_false, sizeof ck_false},
 	    /* leave room for up to 5 additional attributes */
 	    {0L, NULL, 0L},
 	    {0L, NULL, 0L},
@@ -193,7 +238,7 @@ int pkcs11_genDESX( pkcs11Context * p11Context,
 	    {0L, NULL, 0L},
 	};
 
-	size_t template_len_max = (sizeof(secretKeyTemplate)/sizeof(CK_ATTRIBUTE));
+	size_t template_len_max = (sizeof(secktemplate)/sizeof(CK_ATTRIBUTE));
 	size_t template_len_min = template_len_max - 5;
 	size_t num_elems = template_len_min;
 
@@ -201,33 +246,55 @@ int pkcs11_genDESX( pkcs11Context * p11Context,
 	{
 	    /* lsearch will add the keys if not found in the template */
 
-	    CK_ATTRIBUTE_PTR match = lsearch( &attrs[i], 
-					      secretKeyTemplate, 
+	    CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+					      secktemplate,
 					      &num_elems,
 					      sizeof(CK_ATTRIBUTE),
 					      compare_CKA );
 
 	    /* if we have a match, take the value from the command line */
 	    /* we are basically stealing the pointer from attrs array   */
-	    if(match && match->ulValueLen == attrs[i].ulValueLen) { 
+	    if(match && match->ulValueLen == attrs[i].ulValueLen) {
 		match->pValue = attrs[i].pValue;
 	    }
 	}
 
-	CK_C_GenerateKey pC_GenerateKey = p11Context->FunctionList.C_GenerateKey;
+	retcode = p11ctx->FunctionList.C_GenerateKey(p11ctx->Session,
+						     &mechanism,
+						     secktemplate, num_elems,
+						     seckhandleptr );
 
-	retCode = pC_GenerateKey(p11Context->Session, 
-				 &mechanism,
-				 secretKeyTemplate, num_elems,
-				 hSecretKey );
+	if (retcode != CKR_OK ) {
+	  pkcs11_error( retcode, "C_GenerateKey" );
+	  rc = rc_error_pkcs11_api;
+	  goto error;
+	}
 
-	if (retCode != CKR_OK ) {
-	  pkcs11_error( retCode, "C_GenerateKey" );
-	  return 0;
+	/* special case: we want to keep a local copy of the wrapped key */
+	if(gentype==kg_token_for_wrapping) {
+	    CK_OBJECT_HANDLE copyhandle=0;
+	    /* we don't want an extractable key, unless specified as an attribute */
+	    /* when invoking the command */
+	    CK_BBOOL ck_extractable = has_extractable(attrs, numattrs);
+
+	    CK_ATTRIBUTE tokentemplate[] = {
+		{ CKA_TOKEN, &ck_true, sizeof ck_true },
+		{ CKA_EXTRACTABLE, &ck_extractable, sizeof ck_extractable }
+	    };
+
+	    retcode = p11ctx->FunctionList.C_CopyObject( p11ctx->Session,
+							 *seckhandleptr,
+							 tokentemplate,
+							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
+							 &copyhandle );
+	    if (retcode != CKR_OK ) {
+		pkcs11_warning( retcode, "C_CopyObject" );
+		fprintf(stderr, "***Warning: could not create a local copy for secret key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
+	    }
 	}
     }
-    
-    return 1;
+error:
+    return rc;
 }
 
 /* Generate Generic/HMAC keys */
@@ -239,16 +306,17 @@ int pkcs11_genDESX( pkcs11Context * p11Context,
 /* nCipher has vendor-defined HMAC key generation methods */
 /* this routine attempts to accomodate for these two implementations */
 
-int pkcs11_genGeneric( pkcs11Context * p11Context, 
-		       char *label, 
-		       enum keytype kt,
-		       CK_ULONG bits,
-		       CK_ATTRIBUTE attrs[],
-		       CK_ULONG numattrs,
-		       CK_OBJECT_HANDLE_PTR hSecretKey)
+func_rc pkcs11_genGeneric( pkcs11Context * p11ctx,
+			   char *label,
+			   key_type_t kt,
+			   CK_ULONG bits,
+			   CK_ATTRIBUTE attrs[],
+			   CK_ULONG numattrs,
+			   CK_OBJECT_HANDLE_PTR seckhandleptr,
+			   key_generation_t gentype)
 {
-    
-    CK_RV retCode;
+    func_rc rc = rc_ok;
+    CK_RV retcode;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
     CK_BYTE id[16];
@@ -258,17 +326,18 @@ int pkcs11_genGeneric( pkcs11Context * p11Context,
     };
 
     if(bits <= 56 ) {
-	fprintf(stderr,"***Error:: insecure generic key length (%d)\n", (int)bits);
-	return 0;
+	fprintf(stderr,"***Error: insecure generic key length (%d)\n", (int)bits);
+	rc = rc_error_insecure;
+	goto error;
     }
 
     if( bits %8 ) {
-	fprintf(stderr, "***Warning:: requested length (%d) is rounded up to (%d)\n", (int)bits, (int) (((bits>>3)+1)<<3) ) ;
+	fprintf(stderr, "***Warning: requested length (%d) is rounded up to (%d)\n", (int)bits, (int) (((bits>>3)+1)<<3) ) ;
     }
 
     /* we round up to the next byte boundary.  */
     bytes = (bits>>3) + ( (bits%8) ? 1 : 0 );
-    
+
     snprintf((char *)id, sizeof id, "gen%d-%ld", (int)bits, time(NULL));
 
     /* choose key generation algorithm */
@@ -300,30 +369,30 @@ int pkcs11_genGeneric( pkcs11Context * p11Context,
 #endif
 
     default:
-	fprintf(stderr,"***Error:: illegal key generation mechanism specified\n");
-	return 0;
-	
+	fprintf(stderr,"***Error: illegal key generation mechanism specified\n");
+	rc = rc_error_invalid_parameter_for_method;
+	goto error;
     }
 
     {
 	int i;
 
-	CK_ATTRIBUTE secretKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
-	    {CKA_VALUE_LEN, &bytes, sizeof(bytes)}, 
-	    
+	CK_ATTRIBUTE secktemplate[] = {
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof(CK_BBOOL)},
+	    {CKA_VALUE_LEN, &bytes, sizeof(bytes)},
+
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
 	    /* what can we do with this key */
-	    {CKA_ENCRYPT, &ck_false, sizeof(ck_false)},
-	    {CKA_DECRYPT, &ck_false, sizeof(ck_false)},
-	    {CKA_SIGN, &ck_false, sizeof(ck_false)},
-	    {CKA_VERIFY, &ck_false, sizeof(ck_false)},
-	    {CKA_WRAP, &ck_false, sizeof(ck_false)},
-	    {CKA_UNWRAP, &ck_false, sizeof(ck_false)},
-	    {CKA_DERIVE, &ck_false, sizeof(ck_false)},
-	    {CKA_SENSITIVE, &ck_true, sizeof(ck_true)},
-	    {CKA_EXTRACTABLE, &ck_false, sizeof(ck_false)},
+	    {CKA_ENCRYPT, &ck_false, sizeof ck_false},
+	    {CKA_DECRYPT, &ck_false, sizeof ck_false},
+	    {CKA_SIGN, &ck_false, sizeof ck_false},
+	    {CKA_VERIFY, &ck_false, sizeof ck_false},
+	    {CKA_WRAP, &ck_false, sizeof ck_false},
+	    {CKA_UNWRAP, &ck_false, sizeof ck_false},
+	    {CKA_DERIVE, &ck_false, sizeof ck_false},
+	    {CKA_SENSITIVE, &ck_true, sizeof ck_true},
+	    {CKA_EXTRACTABLE, gentype != kg_token ? &ck_true : &ck_false, sizeof ck_false},
 	    /* leave room for up to 5 additional attributes */
 	    {0L, NULL, 0L},
 	    {0L, NULL, 0L},
@@ -332,7 +401,7 @@ int pkcs11_genGeneric( pkcs11Context * p11Context,
 	    {0L, NULL, 0L},
 	};
 
-	size_t template_len_max = (sizeof(secretKeyTemplate)/sizeof(CK_ATTRIBUTE));
+	size_t template_len_max = (sizeof(secktemplate)/sizeof(CK_ATTRIBUTE));
 	size_t template_len_min = template_len_max - 5;
 	size_t num_elems = template_len_min;
 
@@ -340,46 +409,68 @@ int pkcs11_genGeneric( pkcs11Context * p11Context,
 	{
 	    /* lsearch will add the keys if not found in the template */
 
-	    CK_ATTRIBUTE_PTR match = lsearch( &attrs[i], 
-					      secretKeyTemplate, 
+	    CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+					      secktemplate,
 					      &num_elems,
 					      sizeof(CK_ATTRIBUTE),
 					      compare_CKA );
 
 	    /* if we have a match, take the value from the command line */
 	    /* we are basically stealing the pointer from attrs array   */
-	    if(match && match->ulValueLen == attrs[i].ulValueLen) { 
+	    if(match && match->ulValueLen == attrs[i].ulValueLen) {
 		match->pValue = attrs[i].pValue;
 	    }
 	}
 
-	CK_C_GenerateKey pC_GenerateKey = p11Context->FunctionList.C_GenerateKey;
+	retcode = p11ctx->FunctionList.C_GenerateKey(p11ctx->Session,
+						     &mechanism,
+						     secktemplate, num_elems,
+						     seckhandleptr );
 
-	retCode = pC_GenerateKey(p11Context->Session, 
-				 &mechanism,
-				 secretKeyTemplate, num_elems,
-				 hSecretKey );
+	if (retcode != CKR_OK ) {
+	  pkcs11_error( retcode, "C_GenerateKey" );
+	  rc = rc_error_pkcs11_api;
+	}
 
-	if (retCode != CKR_OK ) {
-	  pkcs11_error( retCode, "C_GenerateKey" );
-	  return 0;
+	/* special case: we want to keep a local copy of the wrapped key */
+	if(gentype==kg_token_for_wrapping) {
+	    CK_OBJECT_HANDLE copyhandle=0;
+	    /* we don't want an extractable key, unless specified as an attribute */
+	    /* when invoking the command */
+	    CK_BBOOL ck_extractable = has_extractable(attrs, numattrs);
+
+	    CK_ATTRIBUTE tokentemplate[] = {
+		{ CKA_TOKEN, &ck_true, sizeof ck_true },
+		{ CKA_EXTRACTABLE, &ck_extractable, sizeof ck_extractable }
+	    };
+
+	    retcode = p11ctx->FunctionList.C_CopyObject( p11ctx->Session,
+							 *seckhandleptr,
+							 tokentemplate,
+							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
+							 &copyhandle );
+	    if (retcode != CKR_OK ) {
+		pkcs11_warning( retcode, "C_CopyObject" );
+		fprintf(stderr, "***Warning: could not create a local copy for secret key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
+	    }
 	}
     }
-    
-    return 1;
+error:
+    return rc;
 }
 
 
-int pkcs11_genRSA( pkcs11Context * p11Context, 
-		   char *label, 
-		   CK_ULONG bits, 
-		   CK_ATTRIBUTE attrs[],
-		   CK_ULONG numattrs,
-		   CK_OBJECT_HANDLE_PTR hPublicKey, 
-		   CK_OBJECT_HANDLE_PTR hPrivateKey)
+func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
+		       char *label,
+		       CK_ULONG bits,
+		       CK_ATTRIBUTE attrs[],
+		       CK_ULONG numattrs,
+		       CK_OBJECT_HANDLE_PTR pubkhandleptr,
+		       CK_OBJECT_HANDLE_PTR prvkhandleptr,
+		       key_generation_t gentype)
 {
-    
-    CK_RV retCode;
+    func_rc rc = rc_ok;
+    CK_RV retcode;
     int i;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
@@ -392,21 +483,21 @@ int pkcs11_genRSA( pkcs11Context * p11Context,
 
     CK_BYTE id[32];
     snprintf((char *)id, sizeof id, "rsa%d-%ld", (int)bits, time(NULL));
-    
+
     {
-	CK_ATTRIBUTE publicKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
+	CK_ATTRIBUTE pubktemplate[] = {
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof(CK_BBOOL)},
 	    {CKA_MODULUS_BITS, &modulusBits, sizeof(modulusBits)},
 	    {CKA_PUBLIC_EXPONENT, publicExponent, sizeof (publicExponent)},
-	    
+
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
 	    /* what can we do with this key */
-	    {CKA_ENCRYPT, &ck_false, sizeof(ck_false)},
-	    {CKA_WRAP, &ck_false, sizeof(ck_false)},
-	    {CKA_VERIFY, &ck_false, sizeof(ck_false)},
-	    {CKA_VERIFY_RECOVER, &ck_false, sizeof(ck_false)},
-	    {CKA_DERIVE, &ck_false, sizeof(ck_false)},
+	    {CKA_ENCRYPT, &ck_false, sizeof ck_false},
+	    {CKA_WRAP, &ck_false, sizeof ck_false},
+	    {CKA_VERIFY, &ck_false, sizeof ck_false},
+	    {CKA_VERIFY_RECOVER, &ck_false, sizeof ck_false},
+	    {CKA_DERIVE, &ck_false, sizeof ck_false},
 	    /* leave room for up to 5 additional attributes */
 	    {0L, NULL, 0L},
 	    {0L, NULL, 0L},
@@ -415,25 +506,25 @@ int pkcs11_genRSA( pkcs11Context * p11Context,
 	    {0L, NULL, 0L},
 	};
 
-	size_t pubk_template_len_max = (sizeof(publicKeyTemplate)/sizeof(CK_ATTRIBUTE));
+	size_t pubk_template_len_max = (sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE));
 	size_t pubk_template_len_min = pubk_template_len_max - 5;
 	size_t pubk_num_elems = pubk_template_len_min;
 
 
-	CK_ATTRIBUTE privateKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
-	    {CKA_PRIVATE, &ck_true, sizeof(ck_true)},
-	    {CKA_SENSITIVE, &ck_true, sizeof(ck_true)},
-	    {CKA_EXTRACTABLE, &ck_false, sizeof(ck_false)},
-	    
+	CK_ATTRIBUTE prvktemplate[] = {
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof(CK_BBOOL)},
+	    {CKA_PRIVATE, &ck_true, sizeof ck_true},
+	    {CKA_SENSITIVE, &ck_true, sizeof ck_true},
+	    {CKA_EXTRACTABLE, gentype != kg_token ? &ck_true : &ck_false, sizeof ck_false},
+
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
-	    
-	    {CKA_DECRYPT, &ck_false, sizeof(ck_false)},
-	    {CKA_UNWRAP, &ck_false, sizeof(ck_false)},
-	    {CKA_SIGN, &ck_false, sizeof(ck_false)},
-	    {CKA_SIGN_RECOVER, &ck_false, sizeof(ck_false)},
-	    {CKA_DERIVE, &ck_false, sizeof(ck_false)},
+
+	    {CKA_DECRYPT, &ck_false, sizeof ck_false},
+	    {CKA_UNWRAP, &ck_false, sizeof ck_false},
+	    {CKA_SIGN, &ck_false, sizeof ck_false},
+	    {CKA_SIGN_RECOVER, &ck_false, sizeof ck_false},
+	    {CKA_DERIVE, &ck_false, sizeof ck_false},
 	    /* leave room for up to 5 additional attributes */
 	    {0L, NULL, 0L},
 	    {0L, NULL, 0L},
@@ -442,7 +533,7 @@ int pkcs11_genRSA( pkcs11Context * p11Context,
 	    {0L, NULL, 0L},
 	};
 
-	size_t prvk_template_len_max = (sizeof(privateKeyTemplate)/sizeof(CK_ATTRIBUTE));
+	size_t prvk_template_len_max = (sizeof(prvktemplate)/sizeof(CK_ATTRIBUTE));
 	size_t prvk_template_len_min = prvk_template_len_max - 5;
 	size_t prvk_num_elems = prvk_template_len_min;
 
@@ -450,7 +541,6 @@ int pkcs11_genRSA( pkcs11Context * p11Context,
 	/* some attributes are not applicable to private key, so we filter out first */
 	for(i=0; i<numattrs && prvk_num_elems<prvk_template_len_max; i++)
 	{
-
 	    switch(attrs[i].type) {
 	    case CKA_SENSITIVE:
 	    case CKA_EXTRACTABLE:
@@ -464,20 +554,20 @@ int pkcs11_genRSA( pkcs11Context * p11Context,
 	    case CKA_TRUSTED:
 	    case CKA_MODIFIABLE:
 	    {
-		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i], 
-						  privateKeyTemplate, 
+		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+						  prvktemplate,
 						  &prvk_num_elems,
 						  sizeof(CK_ATTRIBUTE),
 						  compare_CKA );
-		
+
 		/* if we have a match, take the value from the command line */
 		/* we are basically stealing the pointer from attrs array   */
-		if(match && match->ulValueLen == attrs[i].ulValueLen) { 
+		if(match && match->ulValueLen == attrs[i].ulValueLen) {
 		    match->pValue = attrs[i].pValue;
 		}
 	    }
 	    break;
-	    
+
 	    default:
 		/* pass */
 		break;
@@ -497,57 +587,92 @@ int pkcs11_genRSA( pkcs11Context * p11Context,
 	    case CKA_VERIFY_RECOVER:
 	    case CKA_DERIVE:
 	    case CKA_TRUSTED:
-	    case CKA_MODIFIABLE:  
+	    case CKA_MODIFIABLE:
 	    {
-		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i], 
-						  publicKeyTemplate, 
+		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+						  pubktemplate,
 						  &pubk_num_elems,
 						  sizeof(CK_ATTRIBUTE),
 						  compare_CKA );
-		
+
 		/* if we have a match, take the value from the command line */
 		/* we are basically stealing the pointer from attrs array   */
-		if(match && match->ulValueLen == attrs[i].ulValueLen) { 
+		if(match && match->ulValueLen == attrs[i].ulValueLen) {
 		    match->pValue = attrs[i].pValue;
 		}
 	    }
 	    break;
-		
+
 	    default:
 		/* pass */
 		break;
 	    }
 	}
 
-	CK_C_GenerateKeyPair pC_GenerateKeyPair = p11Context->FunctionList.C_GenerateKeyPair;
+	retcode = p11ctx->FunctionList.C_GenerateKeyPair(p11ctx->Session,
+							 &mechanism,
+							 pubktemplate, pubk_num_elems,
+							 prvktemplate, prvk_num_elems,
+							 pubkhandleptr, prvkhandleptr);
 
-	retCode = pC_GenerateKeyPair(p11Context->Session, 
-				     &mechanism,
-				     publicKeyTemplate, pubk_num_elems,
-				     privateKeyTemplate, prvk_num_elems,
-				     hPublicKey, hPrivateKey);
+	if (retcode != CKR_OK ) {
+	    pkcs11_error( retcode, "C_GenerateKeyPair" );
+	    rc = rc_error_pkcs11_api;
+	    goto error;
+	}
 
-	if (retCode != CKR_OK ) {
-	  pkcs11_error( retCode, "C_GenerateKeyPair" );
-	  return 0;
+	/* special case: we want to keep a local copy of the wrapped key */
+	if(gentype==kg_token_for_wrapping) {
+	    CK_OBJECT_HANDLE copyhandle=0;
+	    /* we don't want an extractable key, unless specified as an attribute */
+	    /* when invoking the command */
+	    CK_BBOOL ck_extractable = has_extractable(attrs, numattrs);
+
+	    CK_ATTRIBUTE tokentemplate[] = {
+		{ CKA_TOKEN, &ck_true, sizeof ck_true },
+		{ CKA_EXTRACTABLE, &ck_extractable, sizeof ck_extractable }
+	    };
+
+	    /* copy the private key first */
+	    retcode = p11ctx->FunctionList.C_CopyObject( p11ctx->Session,
+							 *prvkhandleptr,
+							 tokentemplate,
+							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
+							 &copyhandle );
+	    if (retcode != CKR_OK ) {
+		pkcs11_warning( retcode, "C_CopyObject" );
+		fprintf(stderr, "***Warning: could not create a local copy for private key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
+	    }
+
+	    /* then the public key */
+	    retcode = p11ctx->FunctionList.C_CopyObject( p11ctx->Session,
+							 *pubkhandleptr,
+							 tokentemplate,
+							 1, /* CKA_EXTRACTABLE is for private/secret keys only, so index is limited to CKA_TOKEN */
+							 &copyhandle );
+	    if (retcode != CKR_OK ) {
+		pkcs11_warning( retcode, "C_CopyObject" );
+		fprintf(stderr, "***Warning: could not create a local copy for public key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
+	    }
 	}
     }
-    
-    return 1;
+error:
+    return rc;
 }
 
 
-int pkcs11_genECDSA( pkcs11Context * p11Context, 
-		     char *label, 
-		     char *param, 
-		     CK_ATTRIBUTE attrs[],
-		     CK_ULONG numattrs,
-		     CK_OBJECT_HANDLE_PTR hPublicKey, 
-		     CK_OBJECT_HANDLE_PTR hPrivateKey)
+func_rc pkcs11_genEC( pkcs11Context * p11ctx,
+		      char *label,
+		      char *param,
+		      CK_ATTRIBUTE attrs[],
+		      CK_ULONG numattrs,
+		      CK_OBJECT_HANDLE_PTR pubkhandleptr,
+		      CK_OBJECT_HANDLE_PTR prvkhandleptr,
+		      key_generation_t gentype)
 {
-    
-    CK_RV retCode;
-    int i, rc=0;
+    func_rc rc = rc_ok;
+    CK_RV retcode;
+    int i;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
 
@@ -565,54 +690,54 @@ int pkcs11_genECDSA( pkcs11Context * p11Context,
     /* adjust EC parameter */
     if( pkcs11_ec_curvename2oid(param, &ec_param, &ec_param_len) == CK_FALSE ) {
 	fprintf(stderr,"***Error: unknown/unsupported elliptic curve parameter name '%s'\n", param);
-	goto cleanup;
+	rc = rc_error_invalid_parameter_for_method;
+	goto error;
     }
-    
+
     {
-	CK_ATTRIBUTE publicKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
+	CK_ATTRIBUTE pubktemplate[] = {
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof(CK_BBOOL)},
 	    {CKA_EC_PARAMS, ec_param, ec_param_len },
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
 	    /* what can we do with this key */
-	    {CKA_ENCRYPT, &ck_false, sizeof(ck_false)},
-	    {CKA_WRAP, &ck_false, sizeof(ck_false)},
-	    {CKA_VERIFY, &ck_false, sizeof(ck_false)},
-	    {CKA_VERIFY_RECOVER, &ck_false, sizeof(ck_false)},
-	    {CKA_DERIVE, &ck_false, sizeof(ck_false)},
+	    {CKA_ENCRYPT, &ck_false, sizeof ck_false},
+	    {CKA_WRAP, &ck_false, sizeof ck_false},
+	    {CKA_VERIFY, &ck_false, sizeof ck_false},
+	    {CKA_VERIFY_RECOVER, &ck_false, sizeof ck_false},
+	    {CKA_DERIVE, &ck_false, sizeof ck_false},
 	};
 
-	CK_ATTRIBUTE privateKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
-	    {CKA_PRIVATE, &ck_true, sizeof(ck_true)},
-	    {CKA_SENSITIVE, &ck_true, sizeof(ck_true)},
-	    {CKA_EXTRACTABLE, &ck_false, sizeof(ck_false)},
-	    
+	CK_ATTRIBUTE prvktemplate[] = {
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof ck_true},
+	    {CKA_PRIVATE, &ck_true, sizeof ck_true},
+	    {CKA_SENSITIVE, &ck_true, sizeof ck_true},
+	    {CKA_EXTRACTABLE, gentype != kg_token ? &ck_true : &ck_false, sizeof ck_false},
+
 	    {CKA_LABEL, label, strlen(label) },
-	    {CKA_ID, id, strlen((const char *)id) },	    
+	    {CKA_ID, id, strlen((const char *)id) },
 	    /* what can we do with this key */
-	    {CKA_DECRYPT, &ck_false, sizeof(ck_false)},
-	    {CKA_UNWRAP, &ck_false, sizeof(ck_false)},
-	    {CKA_SIGN, &ck_false, sizeof(ck_false)},
-	    {CKA_SIGN_RECOVER, &ck_false, sizeof(ck_false)},
-	    {CKA_DERIVE, &ck_false, sizeof(ck_false)},
+	    {CKA_DECRYPT, &ck_false, sizeof ck_false},
+	    {CKA_UNWRAP, &ck_false, sizeof ck_false},
+	    {CKA_SIGN, &ck_false, sizeof ck_false},
+	    {CKA_SIGN_RECOVER, &ck_false, sizeof ck_false},
+	    {CKA_DERIVE, &ck_false, sizeof ck_false},
 	};
 
-	   
 	/* adjust private key */
 	for(i=0; i<numattrs; i++)
 	{
-	    size_t num_elems = sizeof(privateKeyTemplate)/sizeof(CK_ATTRIBUTE);
+	    size_t num_elems = sizeof(prvktemplate)/sizeof(CK_ATTRIBUTE);
 
-	    CK_ATTRIBUTE_PTR match = lfind( &attrs[i], 
-					    privateKeyTemplate, 
+	    CK_ATTRIBUTE_PTR match = lfind( &attrs[i],
+					    prvktemplate,
 					    &num_elems,
 					    sizeof(CK_ATTRIBUTE),
 					    compare_CKA );
-	    
+
 	    /* if we have a match, take the value from the command line */
 	    /* we are basically stealing the pointer from attrs array   */
-	    if(match && match->ulValueLen == attrs[i].ulValueLen) { 
+	    if(match && match->ulValueLen == attrs[i].ulValueLen) {
 		match->pValue = attrs[i].pValue;
 	    }
 	}
@@ -620,47 +745,80 @@ int pkcs11_genECDSA( pkcs11Context * p11Context,
 	/* adjust public key */
 	for(i=0; i<numattrs; i++)
 	{
-	    size_t num_elems = sizeof(publicKeyTemplate)/sizeof(CK_ATTRIBUTE);
+	    size_t num_elems = sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE);
 
-	    CK_ATTRIBUTE_PTR match = lfind( &attrs[i], 
-					    publicKeyTemplate, 
+	    CK_ATTRIBUTE_PTR match = lfind( &attrs[i],
+					    pubktemplate,
 					    &num_elems,
 					    sizeof(CK_ATTRIBUTE),
 					    compare_CKA );
-	    
+
 	    /* if we have a match, take the value from the command line */
 	    /* we are basically stealing the pointer from attrs array   */
-	    if(match && match->ulValueLen == attrs[i].ulValueLen) { 
+	    if(match && match->ulValueLen == attrs[i].ulValueLen) {
 		match->pValue = attrs[i].pValue;
 	    }
 	}
 
-	CK_C_GenerateKeyPair pC_GenerateKeyPair = p11Context->FunctionList.C_GenerateKeyPair;
+	retcode = p11ctx->FunctionList.C_GenerateKeyPair(p11ctx->Session,
+							 &mechanism,
+							 pubktemplate, sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE),
+							 prvktemplate, sizeof(prvktemplate)/sizeof(CK_ATTRIBUTE),
+							 pubkhandleptr, prvkhandleptr);
 
-	retCode = pC_GenerateKeyPair(p11Context->Session, 
-				     &mechanism,
-				     publicKeyTemplate, sizeof(publicKeyTemplate)/sizeof(CK_ATTRIBUTE),
-				     privateKeyTemplate, sizeof(privateKeyTemplate)/sizeof(CK_ATTRIBUTE),
-				     hPublicKey, hPrivateKey);
+	if (retcode != CKR_OK ) {
+	  pkcs11_error( retcode, "C_GenerateKeyPair" );
+	  rc = rc_error_pkcs11_api;
+	  goto error;
+	}
 
-	if (retCode != CKR_OK ) {
-	  pkcs11_error( retCode, "C_GenerateKeyPair" );
-	} else {
-	    rc = 1;
+	/* special case: we want to keep a local copy of the wrapped key */
+	if(gentype==kg_token_for_wrapping) {
+	    CK_OBJECT_HANDLE copyhandle=0;
+	    /* we don't want an extractable key, unless specified as an attribute */
+	    /* when invoking the command */
+	    CK_BBOOL ck_extractable = has_extractable(attrs, numattrs);
+
+	    CK_ATTRIBUTE tokentemplate[] = {
+		{ CKA_TOKEN, &ck_true, sizeof ck_true },
+		{ CKA_EXTRACTABLE, &ck_extractable, sizeof ck_extractable }
+	    };
+
+	    /* copy the private key first */
+	    retcode = p11ctx->FunctionList.C_CopyObject( p11ctx->Session,
+							 *prvkhandleptr,
+							 tokentemplate,
+							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
+							 &copyhandle );
+	    if (retcode != CKR_OK ) {
+		pkcs11_warning( retcode, "C_CopyObject" );
+		fprintf(stderr, "***Warning: could not create a local copy for private key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
+	    }
+
+	    /* then the public key */
+	    retcode = p11ctx->FunctionList.C_CopyObject( p11ctx->Session,
+							 *pubkhandleptr,
+							 tokentemplate,
+							 1, /* CKA_EXTRACTABLE is for private/secret keys only, so index is limited to CKA_TOKEN */
+							 &copyhandle );
+	    if (retcode != CKR_OK ) {
+		pkcs11_warning( retcode, "C_CopyObject" );
+		fprintf(stderr, "***Warning: could not create a local copy for public key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
+	    }
 	}
     }
 
-cleanup:
+error:
     if(ec_param) { pkcs11_ec_freeoid(ec_param); }
 
     return rc;
 }
 
 
-int pkcs11_testgenECDSA_support( pkcs11Context * p11Context, const char *param)
+int pkcs11_testgenEC_support( pkcs11Context * p11ctx, const char *param)
 {
-    
-    CK_RV retCode;
+
+    CK_RV retcode;
     int i, rc=0;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
@@ -672,8 +830,8 @@ int pkcs11_testgenECDSA_support( pkcs11Context * p11Context, const char *param)
 	CKM_EC_KEY_PAIR_GEN, NULL_PTR, 0
     };
 
-    CK_OBJECT_HANDLE hPublicKey;
-    CK_OBJECT_HANDLE hPrivateKey;
+    CK_OBJECT_HANDLE pubkhandle;
+    CK_OBJECT_HANDLE prvkhandle;
 
 
     char id[32];
@@ -686,49 +844,46 @@ int pkcs11_testgenECDSA_support( pkcs11Context * p11Context, const char *param)
 //	fprintf(stderr,"***Error: unknown/unsupported elliptic curve parameter name '%s'\n", param);
 	goto cleanup;
     }
-    
+
     {
-	CK_ATTRIBUTE publicKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
+	CK_ATTRIBUTE pubktemplate[] = {
+	    {CKA_TOKEN, &ck_false, sizeof ck_false},
 	    {CKA_EC_PARAMS, ec_param, ec_param_len },
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
 	    /* what can we do with this key */
-	    {CKA_ENCRYPT, &ck_false, sizeof(ck_false)},
-	    {CKA_WRAP, &ck_false, sizeof(ck_false)},
-	    {CKA_VERIFY, &ck_true, sizeof(ck_false)},
-	    {CKA_VERIFY_RECOVER, &ck_false, sizeof(ck_false)},
-	    {CKA_DERIVE, &ck_false, sizeof(ck_false)},
+	    {CKA_ENCRYPT, &ck_false, sizeof ck_false},
+	    {CKA_WRAP, &ck_false, sizeof ck_false},
+	    {CKA_VERIFY, &ck_true, sizeof ck_false},
+	    {CKA_VERIFY_RECOVER, &ck_false, sizeof ck_false},
+	    {CKA_DERIVE, &ck_false, sizeof ck_false},
 	};
 
-	CK_ATTRIBUTE privateKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
-	    {CKA_PRIVATE, &ck_true, sizeof(ck_true)},
-	    {CKA_SENSITIVE, &ck_true, sizeof(ck_true)},
-	    {CKA_EXTRACTABLE, &ck_false, sizeof(ck_false)},
-	    
+	CK_ATTRIBUTE prvktemplate[] = {
+	    {CKA_TOKEN, &ck_false, sizeof ck_false},
+	    {CKA_PRIVATE, &ck_true, sizeof ck_true},
+	    {CKA_SENSITIVE, &ck_true, sizeof ck_true},
+	    {CKA_EXTRACTABLE, &ck_false, sizeof ck_false},
+
 	    {CKA_LABEL, label, strlen(label) },
-	    {CKA_ID, id, strlen((const char *)id) },	    
+	    {CKA_ID, id, strlen((const char *)id) },
 	    /* what can we do with this key */
-	    {CKA_DECRYPT, &ck_false, sizeof(ck_false)},
-	    {CKA_UNWRAP, &ck_false, sizeof(ck_false)},
-	    {CKA_SIGN, &ck_true, sizeof(ck_false)},
-	    {CKA_SIGN_RECOVER, &ck_false, sizeof(ck_false)},
-	    {CKA_DERIVE, &ck_false, sizeof(ck_false)},
+	    {CKA_DECRYPT, &ck_false, sizeof ck_false},
+	    {CKA_UNWRAP, &ck_false, sizeof ck_false},
+	    {CKA_SIGN, &ck_true, sizeof ck_false},
+	    {CKA_SIGN_RECOVER, &ck_false, sizeof ck_false},
+	    {CKA_DERIVE, &ck_false, sizeof ck_false},
 	};
 
-	
-	CK_C_GenerateKeyPair pC_GenerateKeyPair = p11Context->FunctionList.C_GenerateKeyPair;
-
-	retCode = pC_GenerateKeyPair(p11Context->Session, 
-				     &mechanism,
-				     publicKeyTemplate, sizeof(publicKeyTemplate)/sizeof(CK_ATTRIBUTE),
-				     privateKeyTemplate, sizeof(privateKeyTemplate)/sizeof(CK_ATTRIBUTE),
-				     &hPublicKey, &hPrivateKey);
+	retcode = p11ctx->FunctionList.C_GenerateKeyPair(p11ctx->Session,
+							 &mechanism,
+							 pubktemplate, sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE),
+							 prvktemplate, sizeof(prvktemplate)/sizeof(CK_ATTRIBUTE),
+							 &pubkhandle, &prvkhandle);
 
 	/* not nice, because we *guess* param is not supported only if CKR_DOMAIN_PARAMS_INVALID is returned */
 	/* may vary amongst lib implementations... */
-	if (retCode != CKR_DOMAIN_PARAMS_INVALID)  {
+	if (retcode != CKR_DOMAIN_PARAMS_INVALID)  {
 	    rc = 1;
 	}
     }

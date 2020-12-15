@@ -21,8 +21,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sysexits.h>
 #include "pkcs11lib.h"
 
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
 
 #define COMMAND_SUMMARY \
     "Unwrap a key, using another key on a PKCS#11 token.\n\n"
@@ -36,11 +40,11 @@ int main( int argc, char **argv);
 
 void print_usage(char *progname)
 {
-    fprintf( stderr, 
+    fprintf( stderr,
 	     "USAGE: %s OPTIONS ARGUMENTS\n"
 	     "\n"
 	     COMMAND_SUMMARY
-	     " OPTIONS:\n"	     
+	     " OPTIONS:\n"
 	     "* -l <pkcs#11 library path> : path to PKCS#11 library\n"
 	     "  -m <NSS config dir> ( e.g. '.' or 'sql:.' ) : NSS db directory \n"
 	     "  -s <slot number>\n"
@@ -88,7 +92,7 @@ void print_usage(char *progname)
 	     "\n"
 	     , pkcs11_ll_basename(progname) );
 
-    exit( RC_ERROR_USAGE );
+    exit( EX_USAGE );
 }
 
 int main( int argc, char ** argv )
@@ -109,7 +113,8 @@ int main( int argc, char ** argv )
     char * wrappedkeylabel = NULL;
     char * wrappingkeylabel = NULL;
     pkcs11Context * p11Context = NULL;
-    CK_RV retcode = EXIT_FAILURE;
+    func_rc retcode = rc_ok;
+    int p11unwraprc = EX_OK;
 
     CK_ATTRIBUTE *attrs=NULL;
     size_t attrs_cnt=0;
@@ -117,13 +122,13 @@ int main( int argc, char ** argv )
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
-    tokenlabel = getenv("PKCS11TOKENLABEL");    
+    tokenlabel = getenv("PKCS11TOKENLABEL");
     if(tokenlabel==NULL) {
 	slotenv = getenv("PKCS11SLOT");
 	if (slotenv!=NULL) {
 	    slot=atoi(slotenv);
 	}
-    }	
+    }
     password = getenv("PKCS11PASSWORD");
 
     /* if a slot or a token is given, interactive is null */
@@ -171,7 +176,7 @@ int main( int argc, char ** argv )
 		filename = optarg;
 	    }
 	    break;
-	    
+
 	case 'i':
 	    wrappedkeylabel= optarg;
 	    break;
@@ -198,18 +203,21 @@ int main( int argc, char ** argv )
 	if( (attrs_cnt=get_attributes_from_argv( &attrs, optind , argc, argv)) == 0 ) {
 	    fprintf( stderr, "Attributes passed as argument could not be read.\n"
 		     "Try `%s -h' for more information.\n", argv[0]);
+	    retcode = rc_error_invalid_argument;
 	    goto err;
 	}
     }
-    
+
     if ( errflag ) {
 	fprintf(stderr, "Try `%s -h' for more information.\n", argv[0]);
+	retcode = rc_error_usage;
 	goto err;
     }
 
     if ( library == NULL || filename == NULL ) {
-	fprintf( stderr, "At least one required option or argument is wrong or missing.\n" 
+	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
+	retcode = rc_error_usage;
 	goto err;
     }
 
@@ -221,7 +229,7 @@ int main( int argc, char ** argv )
     if (( retcode = pkcs11_initialize( p11Context ) ) != CKR_OK ) {
 	goto err;
     }
-    
+
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
 
     if ( retcode == rc_ok ) {
@@ -229,14 +237,14 @@ int main( int argc, char ** argv )
 	wrappedKeyCtx *wctx = pkcs11_new_wrapped_key_from_file(p11Context, filename);
 
 	if(wctx) {
-	    retcode = pkcs11_unwrap(p11Context, wctx, wrappingkeylabel, wrappedkeylabel, attrs, attrs_cnt);
+	    retcode = pkcs11_unwrap(p11Context, wctx, wrappingkeylabel, wrappedkeylabel, attrs, attrs_cnt, kg_token);
 
 	    pkcs11_free_wrappedkeycontext( wctx );
 	} else {
 	    retcode = rc_error_parsing; /* set proper retcode, as not returned by pkcs11_new_wrapped_key_from_file() */
 	}
     }
-	
+
     pkcs11_close_session( p11Context );
     pkcs11_finalize( p11Context );
 
@@ -244,7 +252,20 @@ err:
 
     pkcs11_freeContext(p11Context);
 
-    fprintf(stderr, "key unwrapping %s\n", retcode==rc_ok ? "succeeded" : "failed" );
-    
-    return ( retcode );
+    switch(retcode) {
+    case rc_error_usage:
+    case rc_error_invalid_argument:
+	p11unwraprc = EX_USAGE;
+	break;
+
+    case rc_ok:
+	fprintf(stderr, "Key unwrapping operation succeeded\n");
+	p11unwraprc = EX_OK;
+	break;
+	
+    default:
+	p11unwraprc = retcode;
+	fprintf(stderr, "Key wrapping operations failed - returning code %d (0x%04.4x) to calling process\n", p11unwraprc, p11unwraprc);
+    }    
+    return p11unwraprc;
 }

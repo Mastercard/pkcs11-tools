@@ -23,6 +23,10 @@
 #include <unistd.h>
 #include "pkcs11lib.h"
 
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
+
 #define COMMAND_SUMMARY \
     "Import certificate onto PKCS#11 token.\n\n"
 
@@ -34,11 +38,11 @@ int main( int argc, char **argv);
 
 void print_usage(char *progname)
 {
-    fprintf( stderr, 
+    fprintf( stderr,
 	     "USAGE: %s OPTIONS\n"
 	     "\n"
 	     COMMAND_SUMMARY
-	     " OPTIONS:\n"	     
+	     " OPTIONS:\n"
 	     "* -l <pkcs#11 library path> : path to PKCS#11 library\n"
 	     "  -m <NSS config dir> ( e.g. '.' or 'sql:.' ) : NSS db directory \n"
 	     "  -s <slot number>\n"
@@ -58,7 +62,7 @@ void print_usage(char *progname)
              " ENVIRONMENT VARIABLES:\n"
 	     "    PKCS11LIB         : path to PKCS#11 library,\n"
              "                        overriden by option -l\n"
-	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n" 
+	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n"
              "                        overriden by option -m\n"
 	     "    PKCS11SLOT        : token slot (integer)\n"
 	     "                        overriden by PKCS11TOKENLABEL,\n"
@@ -96,13 +100,13 @@ int main( int argc, char ** argv )
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
-    tokenlabel = getenv("PKCS11TOKENLABEL");    
+    tokenlabel = getenv("PKCS11TOKENLABEL");
     if(tokenlabel==NULL) {
 	slotenv = getenv("PKCS11SLOT");
 	if (slotenv!=NULL) {
 	    slot=atoi(slotenv);
 	}
-    }	
+    }
     password = getenv("PKCS11PASSWORD");
 
     /* if a slot or a token is given, interactive is null */
@@ -158,7 +162,7 @@ int main( int argc, char ** argv )
 	case 'h':
 	    print_usage(argv[0]);
 	    break;
-	  
+
 	case 'V':
 	    print_version_info(argv[0]);
 	    break;
@@ -177,7 +181,7 @@ int main( int argc, char ** argv )
     }
 
     if ( library == NULL || label == NULL || filename == NULL ) {
-	fprintf( stderr, "At least one required option or argument is wrong or missing.\n" 
+	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
 	retcode = rc_error_usage;
 	goto err;
@@ -204,22 +208,19 @@ int main( int argc, char ** argv )
 	    goto err;
 	}
 
-	imported_cert = pkcs11_importcert( p11Context, filename, label, trusted);
-	    
+	imported_cert = pkcs11_importcert( p11Context, filename, NULL, label, trusted);
+
 	if ( imported_cert ) {
 	    printf( "%s: importing certificate succeeded.\n", argv[0]);
 	} else {
 	    fprintf( stderr, "%s: importing certificate failed.\n", argv[0]);
 	}
-
 	pkcs11_close_session( p11Context );
     }
-    
     pkcs11_finalize( p11Context );
 
 err:
 
     pkcs11_freeContext(p11Context);
-    
     return retcode;
 }

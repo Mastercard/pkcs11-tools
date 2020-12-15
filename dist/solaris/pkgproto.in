@@ -37,12 +37,13 @@ f commands bin/p11slotinfo
 f commands bin/p11ls
 f commands bin/p11wrap
 f commands bin/p11unwrap
+f commands bin/p11rewrap
 f commands bin/with_nfast
 f commands bin/with_nss
-f docs docs/CHANGELOG.md
-f docs docs/LICENSE.md
-f docs docs/README.md
+f docs CHANGELOG.md
+f docs LICENSE.md
+f docs README.md
+f docs COPYING
 f docs docs/CONTRIBUTING.md
 f docs docs/INSTALL.md
 f docs docs/MANUAL.md
-f docs docs/COPYING

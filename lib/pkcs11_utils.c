@@ -178,49 +178,49 @@ CK_ATTRIBUTE_TYPE get_attribute_type(char *arg)
 {
     CK_ATTRIBUTE_TYPE attrtype = 0xFFFFFFFF;
 
-    if (strcasecmp(arg, "CKA_ID")==0) {
+    if (strcasecmp(arg, "CKA_ID")==0 || strcasecmp(arg, "ID")==0) {
 	attrtype = CKA_ID;
-    } else if (strcasecmp(arg, "CKA_LABEL")==0) {
+    } else if (strcasecmp(arg, "CKA_LABEL")==0 || strcasecmp(arg, "LABEL")==0) {
 	attrtype = CKA_LABEL;
-    } else if (strcasecmp(arg, "CKA_WRAP")==0) {
+    } else if (strcasecmp(arg, "CKA_WRAP")==0 || strcasecmp(arg, "WRAP")==0) {
 	attrtype = CKA_WRAP;
-    } else if (strcasecmp(arg, "CKA_UNWRAP")==0) {
+    } else if (strcasecmp(arg, "CKA_UNWRAP")==0 || strcasecmp(arg, "UNWRAP")==0) {
 	attrtype = CKA_UNWRAP;
-    } else if (strcasecmp(arg, "CKA_ENCRYPT")==0) {
+    } else if (strcasecmp(arg, "CKA_ENCRYPT")==0 || strcasecmp(arg, "ENCRYPT")==0) {
 	attrtype = CKA_ENCRYPT;
-    } else if (strcasecmp(arg, "CKA_DECRYPT")==0) {
+    } else if (strcasecmp(arg, "CKA_DECRYPT")==0 || strcasecmp(arg, "DECRYPT")==0) {
 	attrtype = CKA_DECRYPT;
-    } else if (strcasecmp(arg, "CKA_SIGN")==0) {
+    } else if (strcasecmp(arg, "CKA_SIGN")==0 || strcasecmp(arg, "SIGN")==0) {
 	attrtype = CKA_SIGN;
-    } else if (strcasecmp(arg, "CKA_VERIFY")==0) {
+    } else if (strcasecmp(arg, "CKA_VERIFY")==0 || strcasecmp(arg, "VERIFY")==0) {
 	attrtype = CKA_VERIFY;
-    } else if (strcasecmp(arg, "CKA_SIGN_RECOVER")==0) {
+    } else if (strcasecmp(arg, "CKA_SIGN_RECOVER")==0 || strcasecmp(arg, "SIGN_RECOVER")==0) {
 	attrtype = CKA_SIGN_RECOVER;
-    } else if (strcasecmp(arg, "CKA_VERIFY_RECOVER")==0) {
+    } else if (strcasecmp(arg, "CKA_VERIFY_RECOVER")==0 || strcasecmp(arg, "VERIFY_RECOVER")==0) {
 	attrtype = CKA_VERIFY_RECOVER;
-    } else if (strcasecmp(arg, "CKA_DERIVE")==0) {
+    } else if (strcasecmp(arg, "CKA_DERIVE")==0 || strcasecmp(arg, "DERIVE")==0) {
 	attrtype = CKA_DERIVE;
-    } else if (strcasecmp(arg, "CKA_TRUSTED")==0) {
+    } else if (strcasecmp(arg, "CKA_TRUSTED")==0 || strcasecmp(arg, "TRUSTED")==0) {
 	attrtype = CKA_TRUSTED;
-    } else if (strcasecmp(arg, "CKA_WRAP_WITH_TRUSTED")==0) {
+    } else if (strcasecmp(arg, "CKA_WRAP_WITH_TRUSTED")==0 || strcasecmp(arg, "WRAP_WITH_TRUSTED")==0) {
 	attrtype = CKA_WRAP_WITH_TRUSTED;
-    } else if (strcasecmp(arg, "CKA_MODIFIABLE")==0) {
+    } else if (strcasecmp(arg, "CKA_MODIFIABLE")==0 || strcasecmp(arg, "MODIFIABLE")==0) {
 	attrtype = CKA_MODIFIABLE;
-    } else if (strcasecmp(arg, "CKA_EXTRACTABLE")==0) {
+    } else if (strcasecmp(arg, "CKA_EXTRACTABLE")==0 || strcasecmp(arg, "EXTRACTABLE")==0) {
 	attrtype = CKA_EXTRACTABLE;
-    } else if (strcasecmp(arg, "CKA_SENSITIVE")==0) {
+    } else if (strcasecmp(arg, "CKA_SENSITIVE")==0 || strcasecmp(arg, "SENSITIVE")==0) {
 	attrtype = CKA_SENSITIVE;
 	/* EC attributes */
-    } else if (strcasecmp(arg, "CKA_EC_PARAMS")==0) {
+    } else if (strcasecmp(arg, "CKA_EC_PARAMS")==0 || strcasecmp(arg, "EC_PARAMS")==0) {
 	attrtype = CKA_EC_PARAMS;
     	/* NSS attributes */
-    } else if (strcasecmp(arg, "CKA_TRUST_SERVER_AUTH")==0) {
+    } else if (strcasecmp(arg, "CKA_TRUST_SERVER_AUTH")==0 || strcasecmp(arg, "TRUST_SERVER_AUTH")==0) {
 	attrtype = CKA_TRUST_SERVER_AUTH;
-    } else if (strcasecmp(arg, "CKA_TRUST_CLIENT_AUTH")==0) {
+    } else if (strcasecmp(arg, "CKA_TRUST_CLIENT_AUTH")==0 || strcasecmp(arg, "TRUST_CLIENT_AUTH")==0) {
 	attrtype = CKA_TRUST_CLIENT_AUTH;
-    } else if (strcasecmp(arg, "CKA_TRUST_CODE_SIGNING")==0) {
+    } else if (strcasecmp(arg, "CKA_TRUST_CODE_SIGNING")==0 || strcasecmp(arg, "TRUST_CODE_SIGNING")==0) {
 	attrtype = CKA_TRUST_CODE_SIGNING;
-    } else if (strcasecmp(arg, "CKA_TRUST_EMAIL_PROTECTION")==0) {
+    } else if (strcasecmp(arg, "CKA_TRUST_EMAIL_PROTECTION")==0 || strcasecmp(arg, "TRUST_EMAIL_PROTECTION")==0) {
 	attrtype = CKA_TRUST_EMAIL_PROTECTION;
     }
 
@@ -236,7 +236,7 @@ static CK_ATTRIBUTE_PTR new_attribute_for_bool(CK_ATTRIBUTE_TYPE argattrtype, CK
 
     if ( attr != NULL ) {
 	CK_BBOOL* boolptr = malloc ( sizeof ( CK_BBOOL ) );
-	
+
 	if ( boolptr != NULL ) {
 	    *boolptr = argval;	/* copy the value we received */
 	    attr->type = argattrtype;
@@ -271,7 +271,7 @@ CK_ATTRIBUTE_PTR new_attribute_for_null_term_string(CK_ATTRIBUTE_TYPE argattrtyp
 
     if ( attr != NULL ) {
 	char *strptr = calloc ( strlen(arg)+1, sizeof (char) );
-	
+
 	if ( strptr != NULL ) {
 	    strcpy(strptr, arg);
 
@@ -298,7 +298,7 @@ CK_ATTRIBUTE_PTR new_attribute_for_hex_string(CK_ATTRIBUTE_TYPE argattrtype, cha
     if ( attr != NULL ) {
 	size_t outsize=0;
 	char *hexstr = hex2bin_new( arg, strlen(arg), &outsize);
-	
+
 	if ( hexstr != NULL ) {
 
 	    char *dupstr = malloc(outsize);
@@ -315,7 +315,7 @@ CK_ATTRIBUTE_PTR new_attribute_for_hex_string(CK_ATTRIBUTE_TYPE argattrtype, cha
 		free(attr);
 	    }
 	    hex2bin_free(hexstr);	       /* free buf in any case */
-	    
+
 	} else {
 	    fprintf( stderr, "Error: lack of memory\n");
 	    free(attr);
@@ -352,7 +352,7 @@ char * hex2bin_new(char *label, size_t size, size_t *outsize)
 	if( !isxdigit(label[i]) ) {
 	    /* TODO: check if we indeed have a decorator character */
 	    /*       to detect hex strings containing other alphabet letters */
-	    ws_cnt++; 
+	    ws_cnt++;
 	}
     }
 
@@ -360,7 +360,7 @@ char * hex2bin_new(char *label, size_t size, size_t *outsize)
     len = (size-ws_cnt)+ ((size-ws_cnt)%2);
     tmpbuf = malloc(len);
 
-    tmpbuf_s=tmpbuf;	
+    tmpbuf_s=tmpbuf;
 
     if((size-ws_cnt)%2) {		/* odd length, we need to prepend with a '0' */
 	*tmpbuf_s++='0';
@@ -368,7 +368,7 @@ char * hex2bin_new(char *label, size_t size, size_t *outsize)
 
     /* #3: copy characters, but skip whitespaces */
     for (i=0; i<size; i++) {
-	if( isxdigit(label[i]) ) { 
+	if( isxdigit(label[i]) ) {
 	    *tmpbuf_s++=label[i];
 	}
     }
@@ -376,9 +376,9 @@ char * hex2bin_new(char *label, size_t size, size_t *outsize)
     /* #4: output buffer determination */
     *outsize = len >> 1;
     target = malloc( *outsize );
-    
+
     /* #5: scan resulting set and conversion */
-    for( initpos = pos = tmpbuf; *pos && (pos-initpos < len); ++pos) 
+    for( initpos = pos = tmpbuf; *pos && (pos-initpos < len); ++pos)
     {
 	unsigned int x;
 	if( !((pos-initpos)&1) ) {
@@ -399,19 +399,16 @@ char * hex2bin_new(char *label, size_t size, size_t *outsize)
 
 void hex2bin_free(char *ptr)
 {
-    if(ptr) { 
+    if(ptr) {
 	free(ptr);
     }
 }
 
 CK_ATTRIBUTE_PTR get_attribute_for_type_and_value(CK_ATTRIBUTE_TYPE argattrtype, char *arg )
 {
-    
     CK_ATTRIBUTE_PTR attr = NULL;
 
-    
     switch(argattrtype) {
-	
     case CKA_WRAP:
     case CKA_UNWRAP:
     case CKA_ENCRYPT:
@@ -427,17 +424,17 @@ CK_ATTRIBUTE_PTR get_attribute_for_type_and_value(CK_ATTRIBUTE_TYPE argattrtype,
     case CKA_EXTRACTABLE:
     case CKA_SENSITIVE:
 	/* NSS-specific */
-    case CKA_TRUST_SERVER_AUTH:     
-    case CKA_TRUST_CLIENT_AUTH:     
-    case CKA_TRUST_CODE_SIGNING:    
+    case CKA_TRUST_SERVER_AUTH:
+    case CKA_TRUST_CLIENT_AUTH:
+    case CKA_TRUST_CODE_SIGNING:
     case CKA_TRUST_EMAIL_PROTECTION:
-    {	
+    {
 	CK_BBOOL val;
-	
-	if ( strcasecmp(arg, "true")==0 ) {
+
+	if ( strcasecmp(arg, "true")==0 || strcasecmp(arg, "yes")==0 || strcasecmp(arg, "1")==0 ) {
 	    val = CK_TRUE;
 	    attr = new_attribute_for_bool( argattrtype, val);
-	} else if ( strcasecmp(arg, "false")==0 ) {
+	} else if ( strcasecmp(arg, "false")==0 || strcasecmp(arg, "no")==0 || strcasecmp(arg,"0")==0) {
 	    val = CK_FALSE;
 	    attr = new_attribute_for_bool( argattrtype, val);
 	} else {
@@ -491,8 +488,7 @@ int get_attributes_from_argv( CK_ATTRIBUTE *attrs[] , int pos, int argc, char **
     char *cpy = NULL;
     int rv = 0;
     int cnt = 0;
-    
- 
+
     for (i=pos; i<argc; ++i) {
 	char *a, *v;
 	CK_ATTRIBUTE_TYPE typ;
@@ -503,7 +499,7 @@ int get_attributes_from_argv( CK_ATTRIBUTE *attrs[] , int pos, int argc, char **
 	    goto err;
 	}
 	strcpy(cpy, argv[i]);
-	
+
 	a = strtok(cpy, ":=");
 	if(a==NULL) {
 	    fprintf(stderr, "Error: argument ""%s"" contains no separator ( : or = )\n", argv[i]);
@@ -516,9 +512,9 @@ int get_attributes_from_argv( CK_ATTRIBUTE *attrs[] , int pos, int argc, char **
 	    goto err;
 
 	}
-	
+
 	v = strtok(NULL, ":=");
-	
+
 	if(v==NULL) {
 	    fprintf(stderr, "Error: argument ""%s"" has no value\n", argv[i]);
 	    goto err;
@@ -529,10 +525,10 @@ int get_attributes_from_argv( CK_ATTRIBUTE *attrs[] , int pos, int argc, char **
 	    fprintf(stderr, "Error: wrong attribute value ""%s""\n", v);
 	    goto err;
 	}
-	
+
 	release_attribute(val); val=NULL;
 	free(cpy); cpy=NULL;
-	
+
 	cnt++;
     }
 

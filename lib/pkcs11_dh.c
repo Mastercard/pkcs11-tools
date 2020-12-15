@@ -34,6 +34,22 @@ static int compare_CKA( const void *a, const void *b)
     return ((CK_ATTRIBUTE_PTR)a)->type == ((CK_ATTRIBUTE_PTR)b)->type ? 0 : -1;
 }
 
+static CK_BBOOL has_extractable(CK_ATTRIBUTE_PTR template, CK_ULONG template_len)
+{
+    CK_ATTRIBUTE extractable[] = {
+	{ CKA_EXTRACTABLE, NULL, 0L }
+    };
+
+    size_t len = (size_t) template_len;
+
+    CK_ATTRIBUTE_PTR match = lfind( &extractable[0],
+				    template,
+				    &len,
+				    sizeof(CK_ATTRIBUTE),
+				    compare_CKA );
+    return match ? *(CK_BBOOL *)match->pValue : CK_FALSE;
+}
+
 
 /* A few words about these pragmas:
    Openssl macro system seems flawed when it comes to use d2i_xxxx_fp function. And GCC/CLANG are reporting
@@ -44,8 +60,8 @@ static int compare_CKA( const void *a, const void *b)
 
 #if defined(__GNUC__) || defined(__MINGW32__)
 /* Show no warning in case incompatible pointer types are used. */
-#define GCC_VERSION                                                            \
-	(__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+#define GCC_VERSION							\
+    (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
 #if GCC_VERSION >= 40500
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
@@ -127,7 +143,7 @@ static inline void free_OPENSSL_bytes(CK_BYTE_PTR buf)
 }
 
 
-static CK_ULONG get_OPENSSL_bytes_for_BIGNUM(BIGNUM *b, CK_BYTE_PTR *buf)
+static CK_ULONG get_OPENSSL_bytes_for_BIGNUM(const BIGNUM *b, CK_BYTE_PTR *buf)
 {
     CK_ULONG rv=0;
 
@@ -154,23 +170,28 @@ static CK_ULONG get_OPENSSL_bytes_for_BIGNUM(BIGNUM *b, CK_BYTE_PTR *buf)
 
 
 static inline CK_ULONG get_DHparam_p(DH *hndl, CK_BYTE_PTR *buf) {
-    return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(hndl->p, buf) : 0L;
+  const BIGNUM *dh_p;
+  DH_get0_pqg(hndl, &dh_p, NULL, NULL);
+  return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(dh_p, buf) : 0L;
 }
 
 static inline CK_ULONG get_DHparam_g(DH *hndl, CK_BYTE_PTR *buf) {
-    return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(hndl->g, buf) : 0L;
+  const BIGNUM *dh_g;
+  DH_get0_pqg(hndl, NULL, NULL, &dh_g);
+  return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(dh_g, buf) : 0L;
 }
 
-int pkcs11_genDH (pkcs11Context * p11Context,
+func_rc pkcs11_genDH (pkcs11Context * p11ctx,
 		      char *label,
 		      char *param,
 		      CK_ATTRIBUTE attrs[],
 		      CK_ULONG numattrs,
-		      CK_OBJECT_HANDLE_PTR hPublicKey,
-		      CK_OBJECT_HANDLE_PTR hPrivateKey)
+		      CK_OBJECT_HANDLE_PTR pubkhandleptr,
+		      CK_OBJECT_HANDLE_PTR prvkhandleptr,
+		      key_generation_t gentype )
 {
-    int rc=0;
-    CK_RV retCode;
+    func_rc rc = rc_ok;
+    CK_RV retcode;
     int i;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
@@ -186,8 +207,9 @@ int pkcs11_genDH (pkcs11Context * p11Context,
     dh = new_dhparam_from_file(param);
 
     if(dh==NULL) {
-	fprintf(stderr,"have no parameter file, exiting\n");
-	goto cleanup;
+	fprintf(stderr,"***Error: no parameter file\n");
+	rc = rc_error_invalid_parameter_for_method;
+	goto error;
     }
 
     dh_p_len = get_DHparam_p(dh, &dh_p);
@@ -195,8 +217,9 @@ int pkcs11_genDH (pkcs11Context * p11Context,
 
 
     if(dh_p_len==0 || dh_p_len==0 || dh_p_len==0) {
-	fprintf(stderr,"something wrong with DH params, exiting\n");
-	goto cleanup;
+	fprintf(stderr,"***Error: something wrong with DH params, exiting\n");
+	rc = rc_error_invalid_parameter_for_method;
+	goto error;
     }
 
 
@@ -205,8 +228,8 @@ int pkcs11_genDH (pkcs11Context * p11Context,
 	    CKM_DH_PKCS_KEY_PAIR_GEN, NULL_PTR, 0
 	};
 
-	CK_ATTRIBUTE publicKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
+	CK_ATTRIBUTE pubktemplate[] = {
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof ck_true},
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
 
@@ -218,24 +241,24 @@ int pkcs11_genDH (pkcs11Context * p11Context,
 	    {CKA_VERIFY, &ck_false, sizeof(ck_false)},
 	};
 
-	CK_ATTRIBUTE privateKeyTemplate[] = {
-	    {CKA_TOKEN, &ck_true, sizeof(ck_true)},
-	    {CKA_PRIVATE, &ck_true, sizeof(ck_true)},
-	    {CKA_SENSITIVE, &ck_true, sizeof(ck_true)},
-	    {CKA_EXTRACTABLE, &ck_false, sizeof(ck_false)},
+	CK_ATTRIBUTE prvktemplate[] = {
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof ck_true},
+	    {CKA_PRIVATE, &ck_true, sizeof ck_true},
+	    {CKA_SENSITIVE, &ck_true, sizeof ck_true},
+	    {CKA_EXTRACTABLE, gentype == kg_session_for_wrapping ? &ck_true : &ck_false, sizeof ck_false},
 
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
-	    {CKA_SIGN, &ck_false, sizeof(ck_false)},
+	    {CKA_SIGN, &ck_false, sizeof ck_false },
 	};
 
 	/* adjust private key */
 	for(i=0; i<numattrs; i++)
 	{
-	    size_t num_elems = sizeof(privateKeyTemplate)/sizeof(CK_ATTRIBUTE);
+	    size_t num_elems = sizeof prvktemplate /sizeof(CK_ATTRIBUTE);
 
 	    CK_ATTRIBUTE_PTR match = lfind( &attrs[i],
-					    privateKeyTemplate,
+					    prvktemplate,
 					    &num_elems,
 					    sizeof(CK_ATTRIBUTE),
 					    compare_CKA );
@@ -250,10 +273,10 @@ int pkcs11_genDH (pkcs11Context * p11Context,
 	/* adjust public key */
 	for(i=0; i<numattrs; i++)
 	{
-	    size_t num_elems = sizeof(publicKeyTemplate)/sizeof(CK_ATTRIBUTE);
+	    size_t num_elems = sizeof pubktemplate / sizeof(CK_ATTRIBUTE);
 
 	    CK_ATTRIBUTE_PTR match = lfind( &attrs[i],
-					    publicKeyTemplate,
+					    pubktemplate,
 					    &num_elems,
 					    sizeof(CK_ATTRIBUTE),
 					    compare_CKA );
@@ -267,26 +290,58 @@ int pkcs11_genDH (pkcs11Context * p11Context,
 
 	/* generate here */
 
-	retCode = p11Context->FunctionList.C_GenerateKeyPair (
-	    p11Context->Session,
+	retcode = p11ctx->FunctionList.C_GenerateKeyPair (
+	    p11ctx->Session,
 	    &mechanism,
-	    publicKeyTemplate, sizeof(publicKeyTemplate)/sizeof(CK_ATTRIBUTE),
-	    privateKeyTemplate, sizeof(privateKeyTemplate)/sizeof(CK_ATTRIBUTE),
-	    hPublicKey, hPrivateKey
+	    pubktemplate, sizeof pubktemplate /sizeof(CK_ATTRIBUTE),
+	    prvktemplate, sizeof prvktemplate /sizeof(CK_ATTRIBUTE),
+	    pubkhandleptr, prvkhandleptr
 	    );
 
-	if (retCode != CKR_OK ) {
-	    pkcs11_error( retCode, "C_GenerateKeyPair" );
-	    goto cleanup;
+	if (retcode != CKR_OK ) {
+	    pkcs11_error( retcode, "C_GenerateKeyPair" );
+	    rc = rc_error_pkcs11_api;
+	    goto error;
 	}
 
-	rc = 1;
+	/* special case: we want to keep a local copy of the wrapped key */
+	if(gentype==kg_token_for_wrapping) {
+	    CK_OBJECT_HANDLE copyhandle=0;
+	    /* we don't want an extractable key, unless specified as an attribute */
+	    /* when invoking the command */
+	    CK_BBOOL ck_extractable = has_extractable(attrs, numattrs);
+
+	    CK_ATTRIBUTE tokentemplate[] = {
+		{ CKA_TOKEN, &ck_true, sizeof ck_true },
+		{ CKA_EXTRACTABLE, &ck_extractable, sizeof ck_extractable }
+	    };
+
+	    /* copy the private key first */
+	    retcode = p11ctx->FunctionList.C_CopyObject( p11ctx->Session,
+							 *prvkhandleptr,
+							 tokentemplate,
+							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
+							 &copyhandle );
+	    if (retcode != CKR_OK ) {
+		pkcs11_warning( retcode, "C_CopyObject" );
+		fprintf(stderr, "***Warning: could not create a local copy for private key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
+	    }
+
+	    /* then the public key */
+	    retcode = p11ctx->FunctionList.C_CopyObject( p11ctx->Session,
+							 *pubkhandleptr,
+							 tokentemplate,
+							 1, /* CKA_EXTRACTABLE is for private/secret keys only, so index is limited to CKA_TOKEN */
+							 &copyhandle );
+	    if (retcode != CKR_OK ) {
+		pkcs11_warning( retcode, "C_CopyObject" );
+		fprintf(stderr, "***Warning: could not create a local copy for public key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
+	    }
+	}
     }
-
-cleanup:
-
-    free_OPENSSL_bytes(dh_p);
-    free_OPENSSL_bytes(dh_g);
-    free_DHparam_handle(dh);
+error:
+    if(dh_p) free_OPENSSL_bytes(dh_p);
+    if(dh_g) free_OPENSSL_bytes(dh_g);
+    if(dh) free_DHparam_handle(dh);
     return rc;
 }

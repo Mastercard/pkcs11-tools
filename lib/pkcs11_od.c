@@ -107,6 +107,8 @@ static attrib_repr list[] = {
     { CKA_KEY_GEN_MECHANISM, "CKA_KEY_GEN_MECHANISM", as_mech_type },
 
     { CKA_MODIFIABLE, "CKA_MODIFIABLE", as_bool },
+    { CKA_COPYABLE, "CKA_COPYABLE", as_bool },
+    { CKA_DESTROYABLE, "CKA_DESTROYABLE", as_bool },
 
     { CKA_EC_PARAMS, "CKA_EC_PARAMS", no_cast },
 
@@ -580,11 +582,6 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len) {
 }
 
 
-
-
-
-
-
 /* high-level search functions */
 
 func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
@@ -687,6 +684,8 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 					    _ATTR(CKA_KEY_GEN_MECHANISM),
 
 					    _ATTR(CKA_MODIFIABLE),
+					    _ATTR(CKA_COPYABLE),
+					    _ATTR(CKA_DESTROYABLE),
 
 					    _ATTR(CKA_EC_PARAMS),
 

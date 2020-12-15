@@ -23,6 +23,9 @@
 #include <unistd.h>
 #include "pkcs11lib.h"
 
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
 
 #define COMMAND_SUMMARY \
     "Print slot information/available methods of a PKCS#11 slot or token.\n\n"

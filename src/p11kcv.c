@@ -23,6 +23,9 @@
 #include <unistd.h>
 #include "pkcs11lib.h"
 
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
 
 #define COMMAND_SUMMARY \
     "Computes key check value for a symmetric key on PKCS#11 token.\n\n"
@@ -109,13 +112,13 @@ int main( int argc, char ** argv )
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
-    tokenlabel = getenv("PKCS11TOKENLABEL");    
+    tokenlabel = getenv("PKCS11TOKENLABEL");
     if(tokenlabel==NULL) {
 	slotenv = getenv("PKCS11SLOT");
 	if (slotenv!=NULL) {
 	    slot=atoi(slotenv);
 	}
-    }	
+    }
     password = getenv("PKCS11PASSWORD");
 
     /* get the command-line arguments */
@@ -130,7 +133,7 @@ int main( int argc, char ** argv )
 	case 'm':
 	    nsscfgdir = optarg;
 	    break;
-	    
+
 	case 'p' :
 	    password = optarg;
 	    break;
@@ -172,7 +175,7 @@ int main( int argc, char ** argv )
 
 
     if ( library == NULL || optind==argc ) {
-	fprintf( stderr, "At least one required option or argument is wrong or missing.\n" 
+	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
 	goto err;
     }
@@ -188,14 +191,14 @@ int main( int argc, char ** argv )
 
 
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
-	
+
     if ( retcode == rc_ok )
     {
 	char *label;
 	for(label=argv[optind];optind<argc; optind++) {
 	    pkcs11_display_kcv(p11Context, argv[optind]);
 	}
-	
+
 	pkcs11_close_session( p11Context );
     }
 

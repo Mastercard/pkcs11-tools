@@ -24,7 +24,7 @@
 #include "pkcs11lib.h"
 
 #define COMMAND_SUMMARY							\
-    "Generate and output a PKCS#10 Certification Signing Request (CSR) using a key stored on PKCS#11 token.\n\n"
+    "Generate and output a self-signed certificate using a key stored on PKCS#11 token.\n\n"
 
 #ifdef _WIN32
 #include <openssl/applink.c>
@@ -32,6 +32,7 @@
 
 #define MAX_SAN  1000
 #define WARN_SAN 25
+
 
 /* prototypes */
 void print_version_info(char *progname);
@@ -42,7 +43,8 @@ int main( int argc, char **argv);
 
 void print_usage(char *progname)
 {
-    fprintf( stderr, "USAGE: %s OPTIONS\n"
+    fprintf( stderr,
+	     "USAGE: %s OPTIONS\n"
 	     "\n"
 	     COMMAND_SUMMARY
 	     "OPTIONS:\n"
@@ -54,6 +56,8 @@ void print_usage(char *progname)
 	     "* -i <key_alias>: label/alias of the key\n"
 	     "* -d <SubjectDN>: subject DN, OpenSSL formatted, e.g. /CN=mysite.net/O=My Org/C=BE\n"
 	     "  -r reverse order of subject DN (for compatibility with previous versions)\n"
+	     "  -u <days> : validity (in days, default is 365)\n"
+	     "  -j : import certificate to PKCS#11 token\n"
 	     "  -o <file> : output file for PKCS#10 request (stdout if not specified)\n"
 	     "  -H sha1|sha224|sha2 or sha256|sha384|sha512: hash algorithm (default is sha256)\n"
 	     "+ -e <SANField> : Subject Alternative Name field, OpenSSL formatted.\n"
@@ -61,9 +65,8 @@ void print_usage(char *progname)
 	     "                  - DNS:[host name]\n"
 	     "                  - email:[rfc822 compatible mail address]\n"
 	     "                  - IP:[IPv4 address]\n"
-	     "  -X : add Subject Key Identifier X509v3 to request (value is SHA1 of key modulus)\n"
-	     "  -F : fake signing, do not sign and put dummy information in signature\n"
-             "  -v : be verbose, output content of generated PKCS#10 to standard output\n"	    
+	     "  -X : add Subject Key Identifier X509v3 extension (value is SHA1 of key modulus)\n"
+             "  -v : be verbose, output content of generated certificate to standard output\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
 	     "|\n"
@@ -74,7 +77,7 @@ void print_usage(char *progname)
              " ENVIRONMENT VARIABLES:\n"
 	     "    PKCS11LIB         : path to PKCS#11 library,\n"
              "                        overriden by option -l\n"
-	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n" 
+	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n"
              "                        overriden by option -m\n"
 	     "    PKCS11SLOT        : token slot (integer)\n"
 	     "                        overriden by PKCS11TOKENLABEL,\n"
@@ -107,10 +110,11 @@ int main( int argc, char ** argv )
     char *dn = NULL;
     char *san[MAX_SAN];
     size_t san_cnt=0;
-    bool ski=false;			/* add Subject Key Identifier */
-    bool verbose = false;
-    bool fake = false;
+    bool ski=false;		/* add Subject Key Identifier and Authority Key Identifier */
+    int verbose = false;
+    int days = 365;		/* default is one year */
     bool reverse = false;
+    bool import = false;		/* by default, no import to token */
 
     hash_alg_t hash_alg = sha256; 	/* as of release 0.25.3, sha256 is the default */
 
@@ -125,22 +129,22 @@ int main( int argc, char ** argv )
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
-    tokenlabel = getenv("PKCS11TOKENLABEL");    
+    tokenlabel = getenv("PKCS11TOKENLABEL");
     if(tokenlabel==NULL) {
 	slotenv = getenv("PKCS11SLOT");
 	if (slotenv!=NULL) {
 	    slot=atoi(slotenv);
 	}
-    }	
+    }
     password = getenv("PKCS11PASSWORD");
 
     /* if a slot or a token is given, interactive is null */
     if(slotenv!=NULL || tokenlabel!=NULL) {
 	interactive=0;
     }
-    
+
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:o:i:s:t:d:re:p:XH:vFhV" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:o:i:s:t:d:rje:p:u:XH:vhV" ) ) != -1 )
     {
 	switch ( argnum )
 	{
@@ -177,24 +181,22 @@ int main( int argc, char ** argv )
 	    break;
 
 	case 'H':
-	    if(strcasecmp(optarg,"sha1")==0 || strcasecmp(optarg,"sha")==0 ) { 
+	    if(strcasecmp(optarg,"sha1")==0 || strcasecmp(optarg,"sha")==0 ) {
 		hash_alg = sha1;
-	    } else if (strcasecmp(optarg,"sha224")==0) { 
+	    } else if (strcasecmp(optarg,"sha224")==0) {
 		hash_alg = sha224;
-	    } else if (strcasecmp(optarg,"sha256")==0) { 
+	    } else if (strcasecmp(optarg,"sha2")==0 || strcasecmp(optarg,"sha256")==0) {
 		hash_alg = sha256;
-	    } else if (strcasecmp(optarg,"sha2")==0) { /* alias for sha256 */
-		hash_alg = sha256;
-	    } else if (strcasecmp(optarg,"sha384")==0) { 
+	    } else if (strcasecmp(optarg,"sha384")==0) {
 		hash_alg = sha384;
-	    } else if (strcasecmp(optarg,"sha512")==0) { 
+	    } else if (strcasecmp(optarg,"sha512")==0) {
 		hash_alg = sha512;
 	    } else {
 		fprintf( stderr, "Error: unknown hash algorithm (%s)\n", optarg);
 		++errflag;
 	    }
 	    break;
-    
+
 	case 'd':
 	    if(!pkcs11_X509_check_DN(optarg)) {
 		fprintf( stderr , "Error: invalid DN field\n");
@@ -207,7 +209,11 @@ int main( int argc, char ** argv )
 	case 'r':
 	    reverse=true;
 	    break;
-	    
+
+	case 'j':
+	    import=true;
+	    break;
+
 	case 'e':
 	    if(san_cnt>MAX_SAN) {
 		fprintf( stderr , "Error: too many SAN fields (max %d)\n", MAX_SAN);
@@ -222,17 +228,16 @@ int main( int argc, char ** argv )
 	    }
 	    break;
 
+	case 'u':
+	    days = atoi(optarg);
+	    break;
 
 	case 'X':
-	    ski = true;		/* we want a subject key identifier */
+	    ski = true;		/* we want a subject key identifier and an authority key identifier */
 	    break;
 
 	case 'v':
 	    verbose = true;
-	    break;
-
-	case 'F':
-	    fake = true;
 	    break;
 
 	case 'h':
@@ -263,7 +268,7 @@ int main( int argc, char ** argv )
 
 
     if ( library == NULL || label == NULL || dn == NULL ) {
-	fprintf( stderr, "At least one required option or argument is wrong or missing.\n" 
+	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
 	goto err;
     }
@@ -277,7 +282,7 @@ int main( int argc, char ** argv )
 	goto err;
     }
 
-	
+
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, 0, interactive);
 
     if ( retcode == rc_ok )
@@ -289,12 +294,17 @@ int main( int argc, char ** argv )
 	pkcs11AttrList *attrlist = NULL;
 
 	if( pkcs11_findkeypair(p11Context, label, &hPublicKey, &hPrivateKey)==0 ) {
-	    fprintf(stderr, "Error: Cannot find key pair with label '%s'.\n", label);
+	    fprintf(stderr, "Error: cannot find key pair with label '%s'.\n", label);
 	    retcode = rc_error_object_not_found;
 	    goto err;
 	}
-	    
-	/* at this point, we have a key. Let's see if it is a EC, DSA or RSA. */
+
+	if(import && pkcs11_certificate_exists(p11Context, label)) {
+	    fprintf(stderr, "Error: cannot import, there is already a certificate with the label '%s' on the token.\n", label);
+	    retcode = rc_error_object_exists;
+	    goto err;
+	}
+
 	key_type_t detected_key_type = pkcs11_get_key_type(p11Context, hPrivateKey);
 
 	switch(detected_key_type) {
@@ -312,7 +322,7 @@ int main( int argc, char ** argv )
 	    /* instead of a specific attribute, which maps to the private key value, on the private key */
 	    /* which is forcing us to use the public key object instead. */
 	    if(hPublicKey==NULL_PTR) {
-		fprintf(stderr, "Error: a public key is required in order to generate a DSA certificate request.\n");
+		fprintf(stderr, "Error: a public key is required in order to generate a DSA certificate.\n");
 		retcode = rc_error_dsa_missing_public_key;
 		goto err;
 	    }
@@ -337,7 +347,7 @@ int main( int argc, char ** argv )
 	    /* for EC, we work with the public key, as the public key value is stored into CKA_POINT    */
 	    /* which is not present in the private key object */
 	    if(hPublicKey==NULL_PTR) {
-		fprintf(stderr, "Error: a public key is required in order to generate an ECDSA certificate request.\n");
+		fprintf(stderr, "Error: a public key is required in order to generate an ECDSA certificate.\n");
 		retcode = rc_error_dsa_missing_public_key;
 		goto err;
 	    }
@@ -356,40 +366,46 @@ int main( int argc, char ** argv )
 	}
 
 	if(attrlist && pkcs11_read_attr_from_handle (attrlist, handle_for_attributes)) {
-	    CK_VOID_PTR req = pkcs11_create_X509_REQ(p11Context,
-						     dn,
-						     reverse,
-						     fake,
-						     san,
-						     san_cnt,
-						     ski,
-						     detected_key_type,
-						     hash_alg,
-						     hPrivateKey,
-						     attrlist);
+	    CK_VOID_PTR x509 = pkcs11_create_X509_CERT(p11Context,
+						       dn,
+						       reverse,
+						       days,
+						       san,
+						       san_cnt,
+						       ski,
+						       detected_key_type,
+						       hash_alg,
+						       hPrivateKey,
+						       attrlist);
 
-	    if(req) {
-		write_X509_REQ(req, filename, verbose);
+	    if(x509) {
+		write_X509_CERT(x509, filename, verbose);
+		
+		if(import) {
+		    if(!pkcs11_importcert( p11Context, NULL, x509, label, 0)) {
+			fprintf(stderr, "Warning: unable to import the certificate to the PKCS#11 token\n");
+		    } else {
+			fprintf(stderr, "importing certificate succeeded.\n");
+		    }
+		}
 	    } else {
-		fprintf(stderr, "Error: Unable to generate certificate request\n");
+		fprintf(stderr, "Error: Unable to generate certificate\n");
 	    }
 	    pkcs11_delete_attrlist(attrlist);
 	} else {
 	    fprintf(stderr,"Error: could not create attribute list object, or read attributes from token\n");
 	    retcode = rc_error_other_error;
 	    /* TODO goto err */
-	}
+	}	
 	pkcs11_close_session( p11Context );
     }
 
-
-    /* free allocated memory */
 err:
     pkcs11_finalize( p11Context );
 
     release_attributes( argv_attrs, argv_attrs_cnt );
-    
+
     pkcs11_freeContext(p11Context);
-    
+
     return retcode;
 }

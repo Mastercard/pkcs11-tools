@@ -34,18 +34,48 @@
 
 #include "pkcs11lib.h"
 
+/* prototypes */
+
+typedef enum e_pubk_source_type {
+    source_file,
+    source_buffer
+} pubk_source_type;
+
+static int compare_CKA( const void *a, const void *b);
+static EVP_PKEY * new_pubk_from_file(char *filename);
+static EVP_PKEY * new_pubk_from_buffer(unsigned char *buffer, size_t len);
+static CK_ULONG get_RSA_modulus(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_RSA_public_exponent(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DH_prime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DH_base(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DH_pubkey(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DSA_prime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DSA_subprime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DSA_base(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_DSA_pubkey(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_EC_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_EC_params(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
+				     char *filename,
+				     unsigned char *buffer,
+				     size_t len,
+				     char *label,
+				     int trusted,
+				     CK_ATTRIBUTE attrs[],
+				     CK_ULONG numattrs,
+				     pubk_source_type source);
+
+
 /* comparison function for attributes */
 static int compare_CKA( const void *a, const void *b)
 {
     return ((CK_ATTRIBUTE_PTR)a)->type == ((CK_ATTRIBUTE_PTR)b)->type ? 0 : -1;
 }
 
-
 static EVP_PKEY * new_pubk_from_file(char *filename)
 {
-
     EVP_PKEY * rv = NULL;
-
     FILE *fp = NULL;
 
     fp = fopen(filename,"rb"); /* open in binary mode */
@@ -82,72 +112,89 @@ static EVP_PKEY * new_pubk_from_file(char *filename)
     return rv;
 }
 
-/* RSA */
-
-static CK_ULONG get_RSA_modulus(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
+static EVP_PKEY * new_pubk_from_buffer(unsigned char *buffer, size_t len)
 {
-    CK_ULONG rv=0;
+    EVP_PKEY * pubk = NULL;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_RSA  ) {
-	RSA * rsa = EVP_PKEY_get1_RSA(pubkey);
-	CK_BYTE_PTR p = NULL;
+    BIO *mem = BIO_new_mem_buf(buffer, len);
 
-	if(rsa==NULL) {
-	    P_ERR();
-	    goto error;
-	}
+    pubk = d2i_PUBKEY_bio(mem, NULL);
 
-	p = *buf = OPENSSL_malloc( BN_num_bytes(rsa->n) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(rsa->n, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if(!pubk) {
+	perror("Error when parsing public key");
     }
-error:
-    return rv;
+
+    BIO_free(mem);
+
+    return pubk;
 }
 
-static CK_ULONG get_RSA_public_exponent(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+/* RSA */
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_RSA  ) {
-	RSA * rsa = EVP_PKEY_get1_RSA(pubkey);
-	CK_BYTE_PTR p = NULL;
+static CK_ULONG get_RSA_modulus(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-	if(rsa==NULL) {
-	    P_ERR();
-	    goto error;
-	}
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_RSA) {
+    RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
+    const BIGNUM *rsa_n;
+    CK_BYTE_PTR p = NULL;
 
-	p = *buf = OPENSSL_malloc( BN_num_bytes(rsa->e) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(rsa->e, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (rsa == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    RSA_get0_key(rsa, &rsa_n, NULL, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(rsa_n));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(rsa_n, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
+}
+
+static CK_ULONG get_RSA_public_exponent(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
+
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_RSA) {
+    RSA *rsa = EVP_PKEY_get1_RSA(pubkey);
+    const BIGNUM *rsa_e;
+    CK_BYTE_PTR p = NULL;
+
+    if (rsa == NULL) {
+      P_ERR();
+      goto error;
+    }
+    RSA_get0_key(rsa, NULL, &rsa_e, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(rsa_e));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(rsa_e, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
 
@@ -155,238 +202,238 @@ error:
 
 /* DH */
 
-static CK_ULONG get_DH_prime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DH_prime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DH  ) {
-	DH * dh = EVP_PKEY_get1_DH(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DH) {
+    DH *dh = EVP_PKEY_get1_DH(pubkey);
+    const BIGNUM *dh_p;
+    CK_BYTE_PTR p = NULL;
 
-	if(dh==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dh->p) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dh->p, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dh == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DH_get0_pqg(dh, &dh_p, NULL, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dh_p));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dh_p, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
 
-static CK_ULONG get_DH_base(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DH_base(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DH  ) {
-	DH * dh = EVP_PKEY_get1_DH(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DH) {
+    DH *dh = EVP_PKEY_get1_DH(pubkey);
+    const BIGNUM *dh_g;
+    CK_BYTE_PTR p = NULL;
 
-	if(dh==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dh->g) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dh->g, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dh == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DH_get0_pqg(dh, NULL, NULL, &dh_g);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dh_g));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dh_g, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
-static CK_ULONG get_DH_pubkey(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DH_pubkey(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DH  ) {
-	DH * dh = EVP_PKEY_get1_DH(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DH) {
+    DH *dh = EVP_PKEY_get1_DH(pubkey);
+    const BIGNUM *dh_pub;
+    CK_BYTE_PTR p = NULL;
 
-	if(dh==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dh->pub_key) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dh->pub_key, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dh == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DH_get0_key(dh, &dh_pub, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dh_pub));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dh_pub, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
 /* DSA */
 
-static CK_ULONG get_DSA_prime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DSA_prime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DSA  ) {
-	DSA * dsa = EVP_PKEY_get1_DSA(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DSA) {
+    DSA *dsa = EVP_PKEY_get1_DSA(pubkey);
+    const BIGNUM *dsa_p;
+    CK_BYTE_PTR p = NULL;
 
-	if(dsa==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dsa->p) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dsa->p, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dsa == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DSA_get0_pqg(dsa, &dsa_p, NULL, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dsa_p));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dsa_p, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
-static CK_ULONG get_DSA_subprime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DSA_subprime(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DSA  ) {
-	DSA * dsa = EVP_PKEY_get1_DSA(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DSA) {
+    DSA *dsa = EVP_PKEY_get1_DSA(pubkey);
+    const BIGNUM *dsa_q;
+    CK_BYTE_PTR p = NULL;
 
-	if(dsa==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dsa->q) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dsa->q, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dsa == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DSA_get0_pqg(dsa, NULL, &dsa_q, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dsa_q));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dsa_q, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
-static CK_ULONG get_DSA_base(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DSA_base(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DSA  ) {
-	DSA * dsa = EVP_PKEY_get1_DSA(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DSA) {
+    DSA *dsa = EVP_PKEY_get1_DSA(pubkey);
+    const BIGNUM *dsa_g;
+    CK_BYTE_PTR p = NULL;
 
-	if(dsa==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dsa->g) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dsa->g, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dsa == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DSA_get0_pqg(dsa, NULL, NULL, &dsa_g);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dsa_g));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dsa_g, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
-static CK_ULONG get_DSA_pubkey(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
-    CK_ULONG rv=0;
+static CK_ULONG get_DSA_pubkey(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+  CK_ULONG rv = 0;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_DSA  ) {
-	DSA * dsa = EVP_PKEY_get1_DSA(pubkey);
-	CK_BYTE_PTR p = NULL;
+  if (pubkey && EVP_PKEY_base_id(pubkey) == EVP_PKEY_DSA) {
+    DSA *dsa = EVP_PKEY_get1_DSA(pubkey);
+    const BIGNUM *dsa_pubkey;
+    CK_BYTE_PTR p = NULL;
 
-	if(dsa==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	p = *buf = OPENSSL_malloc( BN_num_bytes(dsa->pub_key) );
-
-	if(*buf==NULL) {
-	    P_ERR();
-	    goto error;
-	}
-
-	rv = BN_bn2bin(dsa->pub_key, p);
-
-	/* if we fail here, we would free up requested memory */
-	if(rv==0) {
-	    OPENSSL_free(*buf);
-	    P_ERR();
-	    goto error;
-	}
+    if (dsa == NULL) {
+      P_ERR();
+      goto error;
     }
-error:
-    return rv;
+    DSA_get0_key(dsa, &dsa_pubkey, NULL);
+    p = *buf = OPENSSL_malloc(BN_num_bytes(dsa_pubkey));
+
+    if (*buf == NULL) {
+      P_ERR();
+      goto error;
+    }
+
+    rv = BN_bn2bin(dsa_pubkey, p);
+
+    /* if we fail here, we would free up requested memory */
+    if (rv == 0) {
+      OPENSSL_free(*buf);
+      P_ERR();
+      goto error;
+    }
+  }
+  error:
+  return rv;
 }
 
 
@@ -399,7 +446,7 @@ static CK_ULONG get_EC_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
     int i2dlen=0;
     unsigned char *octp = NULL, *octbuf = NULL;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_EC  ) {
+    if ( pubkey && EVP_PKEY_base_id(pubkey)==EVP_PKEY_EC  ) {
 
 	ec = EVP_PKEY_get1_EC_KEY(pubkey);
 
@@ -508,7 +555,7 @@ static CK_ULONG get_EC_params(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
     CK_LONG rv=0;
     EC_KEY* ec=NULL;
 
-    if ( pubkey && EVP_PKEY_type(pubkey->type)==EVP_PKEY_EC  ) {
+    if ( pubkey && EVP_PKEY_base_id(pubkey)==EVP_PKEY_EC  ) {
 
 	ec = EVP_PKEY_get1_EC_KEY(pubkey);
 	CK_BYTE_PTR p = NULL;
@@ -554,247 +601,249 @@ error:
 */
 
 
-static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
-{
+static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
 
-    CK_ULONG rv=0;
-    if(pubkey) {
-	switch(EVP_PKEY_type(pubkey->type)) {
+  CK_ULONG rv = 0;
+  if (pubkey && buf) {
+    switch (EVP_PKEY_base_id(pubkey)) {
 
-	case EVP_PKEY_RSA:
-	{
-	    RSA *rsa;
+      case EVP_PKEY_RSA: {
+        RSA *rsa;
+        const BIGNUM *rsa_n;
 
-	    rsa = EVP_PKEY_get1_RSA(pubkey);
-	    if(rsa) {
-		CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(rsa->n)); /* we allocate before converting */
-		if(bn_buf) {
-		    int bn_buf_len = BN_bn2bin(rsa->n, bn_buf);
-		    {
-			/* SHA-1 block */
-			EVP_MD_CTX *mdctx;
-			const EVP_MD *md;
-			unsigned int md_len, i;
+        rsa = EVP_PKEY_get1_RSA(pubkey);
+        if (rsa) {
+          RSA_get0_key(rsa, &rsa_n, NULL, NULL);
+          CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(rsa_n)); /* we allocate before converting */
+          if (bn_buf) {
+            int bn_buf_len = BN_bn2bin(rsa_n, bn_buf);
+            {
+              /* SHA-1 block */
+              EVP_MD_CTX *mdctx;
+              const EVP_MD *md;
+              unsigned int md_len, i;
 
-			*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
+              *buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
 
-			if(*buf) {
-			    md = EVP_sha1();
-			    mdctx = EVP_MD_CTX_create();
-			    EVP_DigestInit_ex(mdctx, md, NULL);
-			    EVP_DigestUpdate(mdctx, bn_buf, bn_buf_len);
-			    EVP_DigestFinal_ex(mdctx, *buf, &md_len);
-			    EVP_MD_CTX_destroy(mdctx);
-			    rv = md_len;
-			}
-		    }
-		    OPENSSL_free(bn_buf);
-		}
-	    }
-	}
-	break;
-
-
-	case EVP_PKEY_DSA:
-	{
-	    DSA *dsa;
-
-	    dsa = EVP_PKEY_get1_DSA(pubkey);
-	    if(dsa) {
-		CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(dsa->pub_key)); /* we allocate before converting */
-		if(bn_buf) {
-		    int bn_buf_len = BN_bn2bin(dsa->pub_key, bn_buf);
-		    {
-			/* SHA-1 block */
-			EVP_MD_CTX *mdctx;
-			const EVP_MD *md;
-			unsigned int md_len, i;
-
-			*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
-
-			if(*buf) {
-			    md = EVP_sha1();
-			    mdctx = EVP_MD_CTX_create();
-			    EVP_DigestInit_ex(mdctx, md, NULL);
-			    EVP_DigestUpdate(mdctx, bn_buf, bn_buf_len);
-			    EVP_DigestFinal_ex(mdctx, *buf, &md_len);
-			    EVP_MD_CTX_destroy(mdctx);
-			    rv = md_len;
-			}
-		    }
-		    OPENSSL_free(bn_buf);
-		}
-	    }
-	}
-	break;
-
-	/* for EC, we need to retrieve the points (uncompressed), then encapsulate into an OCTETSTRING */
-	/* which corresponds to the encoding on PKCS#11 */
-	case EVP_PKEY_EC:
-	{
-	    EC_KEY *ec;
-
-	    ec = EVP_PKEY_get1_EC_KEY(pubkey);
-	    if(ec==NULL) {
-		P_ERR();
-	    } else {
-		const EC_POINT *ec_point = EC_KEY_get0_public_key(ec);
-		const EC_GROUP *ec_group = EC_KEY_get0_group(ec);
+              if (*buf) {
+                md = EVP_sha1();
+                mdctx = EVP_MD_CTX_create();
+                EVP_DigestInit_ex(mdctx, md, NULL);
+                EVP_DigestUpdate(mdctx, bn_buf, bn_buf_len);
+                EVP_DigestFinal_ex(mdctx, *buf, &md_len);
+                EVP_MD_CTX_destroy(mdctx);
+                rv = md_len;
+              }
+            }
+            OPENSSL_free(bn_buf);
+          }
+        }
+      }
+        break;
 
 
-		if(ec_point==NULL) {
-		    P_ERR();
-		}else if (ec_group==NULL) {
-		    P_ERR();
-		} else {
+      case EVP_PKEY_DSA: {
+        DSA *dsa;
+        const BIGNUM *dsa_pub_key;
 
-		    /* first call to assess length of target buffer */
-		    size_t ec_buflen = EC_POINT_point2oct(ec_group, ec_point,
-							  POINT_CONVERSION_UNCOMPRESSED,
-							  NULL, 0, NULL);
+        dsa = EVP_PKEY_get1_DSA(pubkey);
+        if (dsa) {
+          DSA_get0_key(dsa, &dsa_pub_key, NULL);
+          CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(dsa_pub_key)); /* we allocate before converting */
+          if (bn_buf) {
+            int bn_buf_len = BN_bn2bin(dsa_pub_key, bn_buf);
+            {
+              /* SHA-1 block */
+              EVP_MD_CTX *mdctx;
+              const EVP_MD *md;
+              unsigned int md_len, i;
 
-		    if(ec_buflen==0) {
-			P_ERR();
-		    } else {
+              *buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
 
-			unsigned char *p, *ec_buf;
+              if (*buf) {
+                md = EVP_sha1();
+                mdctx = EVP_MD_CTX_create();
+                EVP_DigestInit_ex(mdctx, md, NULL);
+                EVP_DigestUpdate(mdctx, bn_buf, bn_buf_len);
+                EVP_DigestFinal_ex(mdctx, *buf, &md_len);
+                EVP_MD_CTX_destroy(mdctx);
+                rv = md_len;
+              }
+            }
+            OPENSSL_free(bn_buf);
+          }
+        }
+      }
+        break;
 
-			p = ec_buf = OPENSSL_malloc( ec_buflen );
+        /* for EC, we need to retrieve the points (uncompressed), then encapsulate into an OCTETSTRING */
+        /* which corresponds to the encoding on PKCS#11 */
+      case EVP_PKEY_EC: {
+        EC_KEY *ec;
 
-			if(ec_buf==NULL) {
-			    P_ERR();
-			} else {
-			    /* second call to obtain DER-encoded point */
-			    rv = (CK_ULONG) EC_POINT_point2oct(ec_group, ec_point,
-							       POINT_CONVERSION_UNCOMPRESSED,
-							       p, ec_buflen, NULL);
-			    if(rv==0) {
-				P_ERR();
-			    } else {
-
-				/* now start the wrapping to OCTET STRING business */
-
-				ASN1_OCTET_STRING *wrapped = ASN1_OCTET_STRING_new();
-
-				if(wrapped==NULL) {
-				    P_ERR();
-				} else {
-				    if( ASN1_STRING_set(wrapped, ec_buf, ec_buflen) == 0 ) {
-					P_ERR();
-				    } else {
-					/* wrapped contains the data we need to set into buf */
-
-					/* determine length of buffer */
-					int i2dlen = i2d_ASN1_OCTET_STRING(wrapped, NULL);
-
-					if(i2dlen<0) {
-					    P_ERR();
-					} else {
-
-					    CK_BYTE_PTR p = NULL, wrapbuf = NULL;
-
-					    wrapbuf = OPENSSL_malloc(i2dlen);
-
-					    if(wrapbuf==NULL) {
-						P_ERR();
-					    } else {
-
-						p = wrapbuf;
-
-						i2dlen = i2d_ASN1_OCTET_STRING(wrapped, &p);
-
-						if(i2dlen<0) {
-						    P_ERR();
-						} else {
-
-						    /* SHA-1 block */
-						    EVP_MD_CTX *mdctx;
-						    const EVP_MD *md;
-						    unsigned int md_len, i;
-
-						    *buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
-
-						    if(*buf ==NULL) {
-							P_ERR();
-						    } else {
-							md = EVP_sha1();
-							mdctx = EVP_MD_CTX_create();
-							EVP_DigestInit_ex(mdctx, md, NULL);
-							EVP_DigestUpdate(mdctx, wrapbuf, i2dlen);
-							EVP_DigestFinal_ex(mdctx, *buf, &md_len);
-							EVP_MD_CTX_destroy(mdctx);
-							rv = md_len;
-						    }
-						}
-					    }
-					    OPENSSL_free(wrapbuf);
-					}
-				    }
-				    ASN1_OCTET_STRING_free(wrapped);
-				}
-
-			    }
-			    OPENSSL_free(ec_buf);
-			}
-		    }
-		    /* get0 on ec_point & ec_group, we can safely forget */
-		}
-		EC_KEY_free(ec);
-	    }
-	}
-	break;
+        ec = EVP_PKEY_get1_EC_KEY(pubkey);
+        if (ec == NULL) {
+          P_ERR();
+        } else {
+          const EC_POINT *ec_point = EC_KEY_get0_public_key(ec);
+          const EC_GROUP *ec_group = EC_KEY_get0_group(ec);
 
 
-	case EVP_PKEY_DH:
-	{
-	    DH *dh;
+          if (ec_point == NULL) {
+            P_ERR();
+          } else if (ec_group == NULL) {
+            P_ERR();
+          } else {
 
-	    dh = EVP_PKEY_get1_DH(pubkey);
-	    if(dh) {
-		CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(dh->pub_key)); /* we allocate before converting */
-		if(bn_buf) {
-		    int bn_buf_len = BN_bn2bin(dh->pub_key, bn_buf);
-		    {
-			/* SHA-1 block */
-			EVP_MD_CTX *mdctx;
-			const EVP_MD *md;
-			unsigned int md_len, i;
+            /* first call to assess length of target buffer */
+            size_t ec_buflen = EC_POINT_point2oct(ec_group, ec_point,
+                                                  POINT_CONVERSION_UNCOMPRESSED,
+                                                  NULL, 0, NULL);
 
-			*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
+            if (ec_buflen == 0) {
+              P_ERR();
+            } else {
 
-			if(*buf) {
-			    md = EVP_sha1();
-			    mdctx = EVP_MD_CTX_create();
-			    EVP_DigestInit_ex(mdctx, md, NULL);
-			    EVP_DigestUpdate(mdctx, bn_buf, bn_buf_len);
-			    EVP_DigestFinal_ex(mdctx, *buf, &md_len);
-			    EVP_MD_CTX_destroy(mdctx);
-			    rv = md_len;
-			}
-		    }
-		    OPENSSL_free(bn_buf);
-		}
-	    }
-	}
-	break;
+              unsigned char *p, *ec_buf;
 
-	default:
-	    break;
+              p = ec_buf = OPENSSL_malloc(ec_buflen);
 
-	}
+              if (ec_buf == NULL) {
+                P_ERR();
+              } else {
+                /* second call to obtain DER-encoded point */
+                rv = (CK_ULONG) EC_POINT_point2oct(ec_group, ec_point,
+                                                   POINT_CONVERSION_UNCOMPRESSED,
+                                                   p, ec_buflen, NULL);
+                if (rv == 0) {
+                  P_ERR();
+                } else {
+
+                  /* now start the wrapping to OCTET STRING business */
+
+                  ASN1_OCTET_STRING *wrapped = ASN1_OCTET_STRING_new();
+
+                  if (wrapped == NULL) {
+                    P_ERR();
+                  } else {
+                    if (ASN1_STRING_set(wrapped, ec_buf, ec_buflen) == 0) {
+                      P_ERR();
+                    } else {
+                      /* wrapped contains the data we need to set into buf */
+
+                      /* determine length of buffer */
+                      int i2dlen = i2d_ASN1_OCTET_STRING(wrapped, NULL);
+
+                      if (i2dlen < 0) {
+                        P_ERR();
+                      } else {
+
+                        CK_BYTE_PTR p = NULL, wrapbuf = NULL;
+
+                        wrapbuf = OPENSSL_malloc(i2dlen);
+
+                        if (wrapbuf == NULL) {
+                          P_ERR();
+                        } else {
+
+                          p = wrapbuf;
+
+                          i2dlen = i2d_ASN1_OCTET_STRING(wrapped, &p);
+
+                          if (i2dlen < 0) {
+                            P_ERR();
+                          } else {
+
+                            /* SHA-1 block */
+                            EVP_MD_CTX *mdctx;
+                            const EVP_MD *md;
+                            unsigned int md_len, i;
+
+                            *buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
+
+                            if (*buf == NULL) {
+                              P_ERR();
+                            } else {
+                              md = EVP_sha1();
+                              mdctx = EVP_MD_CTX_create();
+                              EVP_DigestInit_ex(mdctx, md, NULL);
+                              EVP_DigestUpdate(mdctx, wrapbuf, i2dlen);
+                              EVP_DigestFinal_ex(mdctx, *buf, &md_len);
+                              EVP_MD_CTX_destroy(mdctx);
+                              rv = md_len;
+                            }
+                          }
+                        }
+                        OPENSSL_free(wrapbuf);
+                      }
+                    }
+                    ASN1_OCTET_STRING_free(wrapped);
+                  }
+
+                }
+                OPENSSL_free(ec_buf);
+              }
+            }
+            /* get0 on ec_point & ec_group, we can safely forget */
+          }
+          EC_KEY_free(ec);
+        }
+      }
+        break;
+
+
+      case EVP_PKEY_DH: {
+        DH *dh;
+        const BIGNUM *dh_pub_key;
+
+        dh = EVP_PKEY_get1_DH(pubkey);
+        if (dh) {
+          DH_get0_key(dh, &dh_pub_key, NULL);
+          CK_BYTE_PTR bn_buf = OPENSSL_malloc(BN_num_bytes(dh_pub_key)); /* we allocate before converting */
+          if (bn_buf) {
+            int bn_buf_len = BN_bn2bin(dh_pub_key, bn_buf);
+            {
+              /* SHA-1 block */
+              EVP_MD_CTX *mdctx;
+              const EVP_MD *md;
+              unsigned int md_len, i;
+
+              *buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
+
+              if (*buf) {
+                md = EVP_sha1();
+                mdctx = EVP_MD_CTX_create();
+                EVP_DigestInit_ex(mdctx, md, NULL);
+                EVP_DigestUpdate(mdctx, bn_buf, bn_buf_len);
+                EVP_DigestFinal_ex(mdctx, *buf, &md_len);
+                EVP_MD_CTX_destroy(mdctx);
+                rv = md_len;
+              }
+            }
+            OPENSSL_free(bn_buf);
+          }
+        }
+      }
+        break;
+
+      default:
+        break;
+
     }
-    return rv;
+  }
+  return rv;
 }
 
-
-
-
-CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
-				    char *filename,
-				    char *label,
-				    int trusted,
-				    CK_ATTRIBUTE attrs[],
-				    CK_ULONG numattrs )
+static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
+				     char *filename,
+				     unsigned char *buffer,
+				     size_t len,
+				     char *label,
+				     int trusted,
+				     CK_ATTRIBUTE attrs[],
+				     CK_ULONG numattrs,
+				     pubk_source_type source
+    )
 {
 
     CK_OBJECT_HANDLE hPubk = NULL_PTR;
@@ -803,22 +852,37 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
     CK_OBJECT_CLASS pubkClass = CKO_PUBLIC_KEY;
     CK_KEY_TYPE pubkType;
 
-    CK_BBOOL false = CK_FALSE;
-    CK_BBOOL true = CK_TRUE;
+    CK_BBOOL ck_false = CK_FALSE;
+    CK_BBOOL ck_true = CK_TRUE;
 
     EVP_PKEY *pubk = NULL;
 
-    /* now let's create the attributes from file and alias */
+    switch(source) {
+    case source_file:
+	if(!filename) {
+	    fprintf(stderr, "***Filename not specified for public key\n");
+	    break;
+	}
+	pubk = new_pubk_from_file(filename);
+	break;
 
-    pubk = new_pubk_from_file(filename);
+    case source_buffer:
+	if(!buffer) {
+	    fprintf(stderr, "***no buffer provided for public key\n");
+	    break;
+	}
+	pubk = new_pubk_from_buffer(buffer, len);
+	break;
+
+    default:
+	fprintf(stderr, "***internal error\n");
+    };
 
     if(pubk) {
 
-	switch( EVP_PKEY_type(pubk->type) ) {
+	switch( EVP_PKEY_base_id(pubk) ) {
 
 	case EVP_PKEY_RSA: {
-
-
 	    CK_BYTE_PTR pubkey_hash = NULL;
 	    CK_ULONG pubkey_hash_len = 0;
 
@@ -829,21 +893,21 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	    CK_ULONG rsa_public_exponent_len =0;
 
 	    CK_ATTRIBUTE pubkTemplate[] = {
-		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},          /* 0  */
-		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},	     /* 1  */
-		{CKA_ID, NULL, 0},				     /* 2  */
-		{CKA_LABEL, label, strlen(label) },		     /* 3  */
-		{CKA_ENCRYPT, &true, sizeof(true) },		     /* 4  */
-		{CKA_WRAP, &true, sizeof(true) },		     /* 5  */
-		{CKA_VERIFY, &true, sizeof(true) },		     /* 6  */
-		{CKA_VERIFY_RECOVER, &true, sizeof(true) },	     /* 7  */
-		{CKA_TOKEN, &true, sizeof(true)},		     /* 8  */
-		{CKA_MODULUS, NULL, 0 },                             /* 9  */
-		{CKA_PUBLIC_EXPONENT, NULL, 0 },                     /* 10 */
-		{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	     /* 11 */
-		{CKA_TRUSTED, &true, sizeof(CK_BBOOL) },	     /* 12 */
+		{CKA_CLASS, &pubkClass, sizeof pubkClass},       /* 0  */
+		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},      /* 1  */
+		{CKA_ID, NULL, 0},				 /* 2  */
+		{CKA_LABEL, label, label ? strlen(label) : 0 },	 /* 3  */
+		{CKA_ENCRYPT, &ck_true, sizeof ck_true },	 /* 4  */
+		{CKA_WRAP, &ck_true, sizeof ck_true },		 /* 5  */
+		{CKA_VERIFY, &ck_true, sizeof ck_true },	 /* 6  */
+		{CKA_VERIFY_RECOVER, &ck_true, sizeof ck_true }, /* 7  */
+		{CKA_TOKEN, &ck_true, sizeof ck_true },		 /* 8  */
+		{CKA_MODULUS, NULL, 0 },                         /* 9  */
+		{CKA_PUBLIC_EXPONENT, NULL, 0 },                 /* 10 */
+		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	 /* 11 */
+		{CKA_TRUSTED, &ck_true, sizeof ck_true },	 /* 12 */
 		/* CKA_TRUSTED set at last position   */
-		/* this flag is FALSE by default      */
+		/* this flag is CK_FALSE by default      */
 		/* So we don't present it in case     */
 		/* library does not support attribute */
 		/* if trust flag is needed, then we expand */
@@ -852,11 +916,14 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 	    pubkType = CKK_RSA;
 
-	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    if(source == source_file) {
+		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    }
+
 	    rsa_modulus_len = get_RSA_modulus( pubk, &rsa_modulus);
 	    rsa_public_exponent_len = get_RSA_public_exponent( pubk, &rsa_public_exponent);
 
-	    if( pubkey_hash_len >0 && rsa_modulus_len>0 && rsa_public_exponent_len>0) {
+	    if( (source == source_buffer || pubkey_hash_len >0) && rsa_modulus_len>0 && rsa_public_exponent_len>0) {
 
 		/* we have everything, let's fill in the template */
 
@@ -876,7 +943,7 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 		/* CKA_VERIFY                                 */
 		/* CKA_VERIFY_RECOVER                         */
 		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to true */
+		/* by default, all these attributes are set to ck_true */
 		/* note that CKA_TRUSTED is handled separately  */
 		int i;
 
@@ -893,33 +960,46 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 		    /* do we have a match in the template list? */
 		    if(match) {
-			switch(match->type) {
-			case CKA_ENCRYPT:
-			case CKA_WRAP:
-			case CKA_VERIFY:
-			case CKA_VERIFY_RECOVER:
-			case CKA_MODIFIABLE:
-			    match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-			    break;
+			/* if source_buffer, we apply ALL matches except label, if it is non-null */
+			if(source==source_buffer) {
+			    if(match->type!=CKA_LABEL || label==NULL) {
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+			    }
+			} else {
+			    switch(match->type) {
+			    case CKA_ENCRYPT:
+			    case CKA_WRAP:
+			    case CKA_VERIFY:
+			    case CKA_VERIFY_RECOVER:
+			    case CKA_MODIFIABLE:
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+				break;
 
-			default:
-			    break;
-			    /* we do nothing */
+			    default:
+				break;
+				/* we do nothing */
+			    }
 			}
 		    }
 		}
 
 		/* if -T is set: we want trusted */
 		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &false; /* then CKA_MODIFIABLE must be false */
+		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
 		}
 
+		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
+		/* and as such we are not messing up with the template, we take it as it is */
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
 								  pubkTemplate,
 								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
 								  &hPubk);
 
-		pkcs11_error( retCode, "CreateObject" );
+		if(retCode!=CKR_OK) {
+		    pkcs11_error( retCode, "CreateObject" );
+		}
 
 		/* if we are here, we have to free up memory anyway */
 	    }
@@ -927,12 +1007,10 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	    if(pubkey_hash) { OPENSSL_free(pubkey_hash); }
 	    if(rsa_modulus) { OPENSSL_free(rsa_modulus); }
 	    if(rsa_public_exponent) { OPENSSL_free(rsa_public_exponent); }
-
 	}
 	    break;
 
 	case EVP_PKEY_DSA: {
-
 	    CK_BYTE_PTR pubkey_hash = NULL;
 	    CK_ULONG pubkey_hash_len = 0;
 
@@ -950,20 +1028,20 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 
 	    CK_ATTRIBUTE pubkTemplate[] = {
-		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},          /* 0  */
-		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},	     /* 1  */
+		{CKA_CLASS, &pubkClass, sizeof pubkClass},           /* 0  */
+		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
-		{CKA_LABEL, label, strlen(label) },		     /* 3  */
-		{CKA_VERIFY, &true, sizeof(true) },		     /* 4  */
-		{CKA_TOKEN, &true, sizeof(true)},		     /* 5  */
+		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
+		{CKA_VERIFY, &ck_true, sizeof ck_true },		     /* 4  */
+		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 5  */
 		{CKA_PRIME, NULL, 0 },                               /* 6  */
 		{CKA_SUBPRIME, NULL, 0 },                            /* 7  */
 		{CKA_BASE, NULL, 0 },                                /* 8  */
 		{CKA_VALUE, NULL, 0 },                               /* 9  */
-		{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	     /* 10 */
-		{CKA_TRUSTED, &true, sizeof(CK_BBOOL) },	     /* 11 */
+		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 10 */
+		{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 11 */
 		/* CKA_TRUSTED set at last position   */
-		/* this flag is FALSE by default      */
+		/* this flag is CK_FALSE by default      */
 		/* So we don't present it in case     */
 		/* library does not support attribute */
 		/* if trust flag is needed, then we expand */
@@ -972,15 +1050,16 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 	    pubkType = CKK_DSA;
 
-
-	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    if(source == source_file) {
+		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    }
 
 	    dsa_prime_len = get_DSA_prime( pubk, &dsa_prime);          /* p */
 	    dsa_subprime_len = get_DSA_subprime( pubk, &dsa_subprime); /* q */
 	    dsa_base_len = get_DSA_base( pubk, &dsa_base);             /* g */
 	    dsa_pubkey_len = get_DSA_pubkey( pubk, &dsa_pubkey);       /* public key */
 
-	    if( pubkey_hash_len >0 &&
+	    if( (source == source_buffer || pubkey_hash_len >0) &&
 		dsa_prime_len > 0 &&
 		dsa_subprime_len > 0 &&
 		dsa_base_len > 0 &&
@@ -1007,7 +1086,7 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 		/* we consider only the following attributes: */
 		/* CKA_VERIFY                                 */
 		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to true */
+		/* by default, all these attributes are set to ck_true */
 		/* note that CKA_TRUSTED is handled separately  */
 		int i;
 
@@ -1024,25 +1103,36 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 		    /* do we have a match in the template list? */
 		    if(match) {
-			switch(match->type) {
-			case CKA_VERIFY:
-			case CKA_MODIFIABLE:
-			    match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-			    break;
+			/* if source_buffer, we apply ALL matches except label, if it is non-null */
+			if(source==source_buffer) {
+			    if(match->type!=CKA_LABEL || label==NULL) {
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+			    }
+			} else {
+			    switch(match->type) {
+			    case CKA_VERIFY:
+			    case CKA_VERIFY_RECOVER:
+			    case CKA_MODIFIABLE:
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+				break;
 
-			default:
-			    break;
-			    /* we do nothing */
+			    default:
+				break;
+				/* we do nothing */
+			    }
 			}
 		    }
 		}
 
-
 		/* if -T is set: we want trusted */
 		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &false; /* then CKA_MODIFIABLE must be false */
+		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
 		}
 
+		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
+		/* and as such we are not messing up with the template, we take it as it is */
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
 								  pubkTemplate,
 								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
@@ -1063,7 +1153,6 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	    break;
 
 	case EVP_PKEY_DH: {
-
 	    CK_BYTE_PTR pubkey_hash = NULL;
 	    CK_ULONG pubkey_hash_len = 0;
 
@@ -1076,21 +1165,20 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	    CK_BYTE_PTR dh_pubkey = NULL;
 	    CK_ULONG dh_pubkey_len = 0;
 
-
 	    CK_ATTRIBUTE pubkTemplate[] = {
-		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},          /* 0  */
-		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},	     /* 1  */
+		{CKA_CLASS, &pubkClass, sizeof pubkClass},           /* 0  */
+		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
-		{CKA_LABEL, label, strlen(label) },		     /* 3  */
-		{CKA_DERIVE, &true, sizeof(true) },		     /* 4  */
-		{CKA_TOKEN, &true, sizeof(true)},		     /* 5  */
+		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
+		{CKA_DERIVE, &ck_true, sizeof ck_true },		     /* 4  */
+		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 5  */
 		{CKA_PRIME, NULL, 0 },                               /* 6  */
 		{CKA_BASE, NULL, 0 },                                /* 7  */
 		{CKA_VALUE, NULL, 0 },                               /* 8  */
-		{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	     /* 9  */
-		{CKA_TRUSTED, &true, sizeof(CK_BBOOL) },	     /* 10 */
+		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 9  */
+		{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 10 */
 		/* CKA_TRUSTED set at last position   */
-		/* this flag is FALSE by default      */
+		/* this flag is CK_FALSE by default      */
 		/* So we don't present it in case     */
 		/* library does not support attribute */
 		/* if trust flag is needed, then we expand */
@@ -1099,12 +1187,13 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 	    pubkType = CKK_DH;
 
-
-	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    if( source == source_file) {
+		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    }
 
 	    dh_prime_len = get_DH_prime( pubk, &dh_prime);          /* p */
-	    dh_base_len = get_DH_base( pubk, &dh_base);              /* g */
-	    dh_pubkey_len = get_DH_pubkey( pubk, &dh_pubkey);        /* public key */
+	    dh_base_len = get_DH_base( pubk, &dh_base);             /* g */
+	    dh_pubkey_len = get_DH_pubkey( pubk, &dh_pubkey);       /* public key */
 
 	    if( pubkey_hash_len >0 &&
 		dh_prime_len > 0 &&
@@ -1129,7 +1218,7 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 		/* we consider only the following attributes: */
 		/* CKA_DERIVE                                 */
 		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to true */
+		/* by default, all these attributes are set to ck_true */
 		/* note that CKA_TRUSTED is handled separately  */
 		int i;
 
@@ -1146,24 +1235,35 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 		    /* do we have a match in the template list? */
 		    if(match) {
-			switch(match->type) {
-			case CKA_DERIVE:
-			case CKA_MODIFIABLE:
-			    match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-			    break;
+			/* if source_buffer, we apply ALL matches except label, if it is non-null */
+			if(source==source_buffer) {
+			    if(match->type!=CKA_LABEL || label==NULL) {
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+			    }
+			} else {
+			    switch(match->type) {
+			    case CKA_DERIVE:
+			    case CKA_MODIFIABLE:
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+				break;
 
-			default:
-			    break;
-			    /* we do nothing */
+			    default:
+				break;
+				/* we do nothing */
+			    }
 			}
 		    }
 		}
 
 		/* if -T is set: we want trusted */
 		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &false; /* then CKA_MODIFIABLE must be false */
+		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
 		}
 
+		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
+		/* and as such we are not messing up with the template, we take it as it is */
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
 								  pubkTemplate,
 								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
@@ -1178,13 +1278,10 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	    if(dh_prime)    { OPENSSL_free(dh_prime); }
 	    if(dh_base)     { OPENSSL_free(dh_base); }
 	    if(dh_pubkey)   { OPENSSL_free(dh_pubkey); }
-
 	}
 	    break;
 
-
 	case EVP_PKEY_EC: {
-
 	    CK_BYTE_PTR pubkey_hash = NULL;
 	    CK_ULONG pubkey_hash_len = 0;
 
@@ -1195,19 +1292,19 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	    CK_ULONG ec_point_len = 0;
 
 	    CK_ATTRIBUTE pubkTemplate[] = {
-		{CKA_CLASS, &pubkClass, sizeof(pubkClass)},          /* 0  */
-		{CKA_KEY_TYPE, &pubkType, sizeof(pubkType)},	     /* 1  */
+		{CKA_CLASS, &pubkClass, sizeof pubkClass },          /* 0  */
+		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
-		{CKA_LABEL, label, strlen(label) },		     /* 3  */
-		{CKA_VERIFY, &true, sizeof(true) },		     /* 4  */
-		{CKA_DERIVE, &false, sizeof(false)},                 /* 5  */
-		{CKA_TOKEN, &true, sizeof(true)},		     /* 6  */
+		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
+		{CKA_VERIFY, &ck_true, sizeof ck_true },             /* 4  */
+		{CKA_DERIVE, &ck_false, sizeof ck_false},            /* 5  */
+		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 6  */
 		{CKA_EC_PARAMS, NULL, 0 },                           /* 7  */
 		{CKA_EC_POINT, NULL, 0 },                            /* 8  */
-		{CKA_MODIFIABLE, &true, sizeof(CK_BBOOL) },	     /* 9  */
-		{CKA_TRUSTED, &true, sizeof(CK_BBOOL) },	     /* 10 */
+		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 9  */
+		{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 10 */
 		/* CKA_TRUSTED set at last position   */
-		/* this flag is FALSE by default      */
+		/* this flag is CK_FALSE by default      */
 		/* So we don't present it in case     */
 		/* library does not support attribute */
 		/* if trust flag is needed, then we expand */
@@ -1216,13 +1313,14 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 	    pubkType = CKK_EC;
 
-
-	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    if(source == source_file) {
+		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+	    }
 
 	    ec_params_len = get_EC_params( pubk, &ec_params);           /* curve parameters */
 	    ec_point_len  = get_EC_point( pubk, &ec_point);             /* curve point */
 
-	    if( pubkey_hash_len >0 &&
+	    if( (source == source_buffer || pubkey_hash_len >0) &&
 		ec_params_len > 0 &&
 		ec_point_len > 0 ) {
 
@@ -1242,7 +1340,7 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 		/* CKA_VERIFY                                 */
 		/* CKA_DERIVE                                 */
 		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to true */
+		/* by default, all these attributes are set to ck_true */
 		/* note that CKA_TRUSTED is handled separately  */
 		int i;
 
@@ -1259,31 +1357,45 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 
 		    /* do we have a match in the template list? */
 		    if(match) {
-			switch(match->type) {
-			case CKA_VERIFY:
-			case CKA_DERIVE:
-			case CKA_MODIFIABLE:
-			    match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-			    break;
+			/* if source_buffer, we apply ALL matches except label, if it is non-null */
+			if(source==source_buffer) {
+			    if(match->type!=CKA_LABEL || label==NULL) {
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+			    }
+			} else {
+			    switch(match->type) {
+			    case CKA_VERIFY:
+			    case CKA_VERIFY_RECOVER:
+			    case CKA_DERIVE:
+			    case CKA_MODIFIABLE:
+				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
+				match->ulValueLen = attrs[i].ulValueLen;
+				break;
 
-			default:
-			    break;
-			    /* we do nothing */
+			    default:
+				break;
+				/* we do nothing */
+			    }
 			}
 		    }
 		}
 
 		/* if -T is set: we want trusted */
 		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &false; /* then CKA_MODIFIABLE must be false */
+		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
 		}
 
+		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
+		/* and as such we are not messing up with the template, we take it as it is */
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
 								  pubkTemplate,
 								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
 								  &hPubk);
 
-		pkcs11_error( retCode, "CreateObject" );
+		if(retCode != CKR_OK) {
+		    pkcs11_error( retCode, "CreateObject" );
+		}
 
 		/* if we are here, we have to free up memory anyway */
 	    }
@@ -1293,7 +1405,6 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 	    if(ec_point)     { OPENSSL_free(ec_point); }
 	}
 	    break;
-
 
 	default:
 	    fprintf(stderr, "***ERROR - public key type not supported\n");
@@ -1305,3 +1416,30 @@ CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
     }
     return hPubk;
 }
+
+/* public interface */
+
+inline CK_ULONG pkcs11_new_SKI_value_from_pubk(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
+    return get_EVP_PKEY_sha1(pubkey, buf);
+}
+
+
+inline CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
+					   char *filename,
+					   char *label,
+					   int trusted,
+					   CK_ATTRIBUTE attrs[],
+					   CK_ULONG numattrs ) {
+    return _importpubk(p11Context, filename, NULL, 0, label, trusted, attrs, numattrs, source_file);
+}
+
+inline CK_OBJECT_HANDLE pkcs11_importpubk_from_buffer( pkcs11Context * p11Context,
+						       unsigned char *buffer,
+						       size_t len,
+						       char *label,
+						       int trusted,
+						       CK_ATTRIBUTE attrs[],
+						       CK_ULONG numattrs ) {
+    return _importpubk(p11Context, NULL, buffer, len, label, trusted, attrs, numattrs, source_buffer);
+}
+

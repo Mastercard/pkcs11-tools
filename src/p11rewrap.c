@@ -28,8 +28,8 @@
 #include <openssl/applink.c>
 #endif
 
-#define COMMAND_SUMMARY \
-    "Wrap a key, using one or more wrapping key(s) on a PKCS#11 token.\n\n"
+#define COMMAND_SUMMARY							\
+    "Unwrap a key, and rewrap it under (an)other wrapping key(s), on a PKCS#11 token.\n\n"
 
 typedef struct
 {
@@ -62,10 +62,14 @@ void print_usage(char *progname)
 	     "  -s <slot number>\n"
 	     "  -t <token label> : if present, -s option is ignored\n"
 	     "  -p <token PIN> | :::exec:<command> | :::nologin\n"
-	     "* -i <key_alias>: label/alias of key to wrap\n"
-	     "* -w <key_alias>: label/alias of a wrapping key, must have CKA_WRAP=true attribute\n"
-	     "  -o <file> : write wrapped key to <file> (default is standard output)\n"
-	     "  -a <algorithm>: wrapping algorithm (default: oaep)\n"
+	     "* -f <file> : path to a wrapped key file\n"
+	     "  -i <key_alias>: label/alias of key to wrap (not mandatory)\n"
+	     "  -w <key_alias>: label/alias of a wrapping key, must have CKA_WRAP=true attribute\n"
+	     "                  when present, overrides the Wrapping-Key value from wrapped key file\n"
+	     "> -W wrappingkey=\"<label>\"[,algorithm=<algorithm>][,filename=\"<path>\"]\n"
+	     "     a specifier for wrapping the key, with the following parameters:\n"
+	     "   \"<label>\"    : the label of the wrapping key (double quotes are mandatory)\n"
+	     "   <algorithm>  : wrapping algorithm (default: oaep)\n"
 	     "                  - pkcs1          : PKCS#1 1.5\n"
 	     "                  - oaep(args...)  : PKCS#1 OAEP\n"
 	     "                    args... can be one or several of the following parameters\n"
@@ -93,16 +97,29 @@ void print_usage(char *progname)
 	     "                      outer=[ALGORITHM], where ALGORITHM can be pkcs1 or oaep\n"
 	     "                      note that algoritms can be specified with their parameters\n"
 	     "                      default: envelope(inner=cbcpad,outer=oaep)\n"
-	     "+ -W wrappingkey=\"<label>\"[,algorithm=<algorithm>][,file=\"<file>\"]\n"
-	     "     a specifier for wrapping the key\n"
-	     "     combines -w, -a and -o altogether, mutually exclusive with -a,-o and -w\n"
+	     "   \"<path>\"     : path to the output file (double quotes are mandatory)\n"
 	     "  -S : login with SO privilege\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
 	     "|\n"
 	     "+-> arguments marked with an asterix(*) are mandatory\n"
              "|   (except if environment variable sets the value)\n"
-	     "+-> arguments marked with a plus sign(+) can be repeated\n"
+	     "+-> arguments marked with a greater than sign(>) are mandatory and can be repeated\n"
+	     "\n"
+	     " ARGUMENTS: ATTRIBUTE=VALUE pairs\n"
+	     "   supported attributes:\n"
+	     "                 CKA_LABEL, CKA_ID,\n"
+             "                 CKA_WRAP, CKA_UNWRAP,\n"
+             "                 CKA_DECRYPT, CKA_ENCRYPT,\n"
+	     "                 CKA_SIGN, CKA_VERIFY,\n"
+	     "                 CKA_SIGN_RECOVER, CKA_VERIFY_RECOVER,\n"
+	     "                 CKA_DERIVE,\n"
+             "                 CKA_TRUSTED, CKA_MODIFIABLE,\n"
+             "                 CKA_EXTRACTABLE, CKA_SENSITIVE\n"
+	     "                 CKA_WRAP_WITH_TRUSTED\n"
+	     "   supported values:\n"
+	     "                 true / false / [ASCII-string]\n"
+	     "\n"
 	     "\n"
              " ENVIRONMENT VARIABLES:\n"
 	     "    PKCS11LIB         : path to PKCS#11 library,\n"
@@ -137,14 +154,21 @@ int main( int argc, char ** argv )
     int slot = -1;
     int interactive = 1;
     char * tokenlabel = NULL;
+    char * filename = NULL;
+    char * wrappingkeylabel = NULL;
     char * wrappedkeylabel = NULL;
+    CK_OBJECT_HANDLE keyhandle = 0, pubkhandle = 0;
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_ok;
-    int p11wraprc = EX_OK;
+    int p11rewraprc = EX_OK;
     wrappedKeyCtx *wctx = NULL;
     wrappingjob_t wrappingjob[MAX_WRAPPINGJOB];
     int numjobs = 0;
     int numfailed = 0;
+    CK_ATTRIBUTE *attrs=NULL;
+    size_t attrs_cnt=0;
+    FILE *fp=NULL;
+
 
     int i;
     for(i=0; i<MAX_WRAPPINGJOB;i++) {
@@ -180,7 +204,7 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:w:a:o:ShVW:" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:f:ShVW:w:" ) ) != -1 )
     {
 	switch ( argnum )
 	{
@@ -212,45 +236,20 @@ int main( int argc, char ** argv )
 	    slot = -1;
 	    break;
 
+	case 'f':
+	    if( access(optarg, R_OK) != 0 ) {
+		perror("Error accessing file");
+	    } else {
+		filename = optarg;
+	    }
+	    break;
+
 	case 'i':
 	    wrappedkeylabel= optarg;
 	    break;
 
 	case 'w':
-	    if(option==option_combined) {
-		fprintf(stderr, "***Error: you cannot use -W and -w, -a or -o together\n");
-		option = option_separate;
-		errflag++;
-	    } else {
-		wrappingjob[0].wrappingkeylabel = optarg;
-		numjobs = 1;
-	    }
-	    break;
-
-	case 'a':
-	    /* as we can, for some of the wrapping algorithms below, support parameters */
-	    /* we just check for now the name. */
-	    /* the whole string is kept apart, and is parsed through the same parsing rules */
-	    /* than in wrappedkey_parser.y  */
-	    if(option==option_combined) {
-		fprintf(stderr, "***Error: you cannot use -W and -w, -a or -o together\n");
-		errflag++;
-	    } else {
-		wrappingjob[0].algorithm = optarg;
-		option = option_separate;
-		numjobs = 1;
-	    }
-	    break;
-
-	case 'o':
-	    if(option==option_combined) {
-		fprintf(stderr, "***Error: you cannot use -W and -w, -a or -o together\n");
-		errflag++;
-	    } else {
-		wrappingjob[0].filename = optarg;
-		option = option_separate;
-		numjobs = 1;
-	    }
+	    wrappingkeylabel = optarg;
 	    break;
 
 	case 'h':
@@ -262,18 +261,13 @@ int main( int argc, char ** argv )
 	    break;
 
 	case 'W':
-	    if(option==option_separate) {
-		fprintf(stderr, "***Error: you cannot use -W and -w, -a or -o together\n");
+	    if(numjobs==MAX_WRAPPINGJOB) {
+		fprintf(stderr, "***Error: too many wrapping jobs requested\n");
 		errflag++;
 	    } else {
-		if(numjobs==MAX_WRAPPINGJOB) {
-		    fprintf(stderr, "***Error: too many wrapping jobs requested\n");
-		    errflag++;
-		} else {
-		    wrappingjob[numjobs].fullstring = optarg;
-		    option = option_combined;
-		    numjobs++;
-		}
+		wrappingjob[numjobs].fullstring = optarg;
+		option = option_combined;
+		numjobs++;
 	    }
 	    break;
 
@@ -283,22 +277,26 @@ int main( int argc, char ** argv )
 	}
     }
 
+    if(optind<argc) {
+	if( (attrs_cnt=get_attributes_from_argv( &attrs, optind , argc, argv)) == 0 ) {
+	    fprintf( stderr, "Attributes passed as argument could not be read.\n"
+		     "Try `%s -h' for more information.\n", argv[0]);
+	    retcode = rc_error_invalid_argument;
+	    goto epilog;
+	}
+    }
+
     if ( errflag ) {
 	fprintf(stderr, "Try `%s -h' for more information.\n", argv[0]);
-	p11wraprc = rc_error_usage;
+	retcode = rc_error_usage;
 	goto epilog;
     }
 
-    if ( library == NULL || wrappedkeylabel == NULL ||
-	 option == option_unknown || (option == option_separate && wrappingjob[0].wrappingkeylabel==NULL) ) {
+    if ( library == NULL || filename == NULL || numjobs == 0 ) {
 	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
-	p11wraprc = rc_error_usage;
+	retcode = rc_error_usage;
 	goto epilog;
-    }
-
-    if(numjobs>1) {
-	fprintf(stderr, "There are %d wrapping jobs to perform.\n", numjobs);
     }
 
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
@@ -316,101 +314,88 @@ int main( int argc, char ** argv )
 
     if ( retcode == rc_ok ) {
 
-	for(i=0; i<numjobs; i++) {
-	    /* allocate wrapping context */
-	    if(( wctx = pkcs11_new_wrappedkeycontext(p11Context))==NULL) {
-		fprintf(stderr, "***Error: memory allocation error while processing wrapping job #%d\n", i+1);
-		retcode = rc_error_memory;
-		continue;
+	/* first step is to recover the key */
+	wrappedKeyCtx *wctx = pkcs11_new_wrapped_key_from_file(p11Context, filename);
+
+	if(wctx) {
+	    retcode = pkcs11_unwrap(p11Context, wctx, wrappingkeylabel, wrappedkeylabel, attrs, attrs_cnt, kg_session_for_wrapping);
+	    if(retcode == rc_ok) {
+		keyhandle = pkcs11_get_wrappedkeyhandle(wctx);
+		pubkhandle = pkcs11_get_publickeyhandle(wctx);
+		pkcs11_free_wrappedkeycontext( wctx );
+	    } else {
+		retcode = rc_error_parsing; /* set proper retcode, as not returned by pkcs11_new_wrapped_key_from_file() */
+		goto epilog;
 	    }
 
-	    /* if we specified arguments separately, we are building a string to parse */
-	    /* as if we were using -W optional argument */
-	    if(option==option_separate) {
-		size_t stringsize = strlen(wrappingjob[i].wrappingkeylabel)
-		    + strlen(wrappingjob[i].algorithm)
-		    + (wrappingjob[i].filename ? strlen(wrappingjob[i].filename) : 0) /* filename is not mandatory */
-		    + 40; /* 39 is the length of "@wrappingkey=\"\",algorithm=,filename=\"\"\0"   */
-		          /*                      1234567890123 4 5678901234567890123456 7 8 9    */
-		          /* adding one extra byte                                                */
+	    if(numjobs>1) {
+		fprintf(stderr, "There are %d rewrapping jobs to perform.\n", numjobs);
+	    }
 
-		wrappingjob[i].fullstring = malloc(stringsize);
-		if(!wrappingjob[i].fullstring) {
-		    fprintf(stderr, "***Error: memory allocation error while processing wrapping job #%d\n", i+1);
-		    wrappingjob[i].retcode = rc_error_memory;
-		    pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
+	    int i;
+
+	    for(i=0; i<numjobs; i++) {
+		/* allocate wrapping context */
+		if(( wctx = pkcs11_new_wrappedkeycontext(p11Context))==NULL) {
+		    fprintf(stderr, "***Error: memory allocation error while processing rewrapping job #%d\n", i+1);
+		    retcode = rc_error_memory;
 		    continue;
 		}
 
-		wrappingjob[i].fullstring_allocated = 1;
-
-		if(wrappingjob[i].filename) { /* if we have a filename specified */
-		    snprintf( wrappingjob[i].fullstring,
-			      stringsize,
-			      "@wrappingkey=\"%s\",algorithm=%s,filename=\"%s\"",
-			      wrappingjob[i].wrappingkeylabel,
-			      wrappingjob[i].algorithm,
-			      wrappingjob[i].filename);
-		} else{		/* for stdout */
-		    snprintf( wrappingjob[i].fullstring,
-			      stringsize,
-			      "@wrappingkey=\"%s\",algorithm=%s",
-			      wrappingjob[i].wrappingkeylabel,
-			      wrappingjob[i].algorithm);
-		}
-	    } else {		/* option_combined */
 		/* we are good to go, but we must prefix the fullstring with a "@" character */
 		size_t stringsize = strlen(wrappingjob[i].fullstring) + 2; /* one for the '@' and one for the \0 */
 		char *tmp = wrappingjob[i].fullstring; /* remember it */
 
 		wrappingjob[i].fullstring = malloc(stringsize);
 		if(!wrappingjob[i].fullstring) {
-		    fprintf(stderr, "***Error: memory allocation error while processing wrapping job #%d\n", i+1);
+		    fprintf(stderr, "***Error: memory allocation error while processing rewrapping job #%d\n", i+1);
 		    wrappingjob[i].retcode = rc_error_memory;
 		    pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
 		    continue;
 		}
+
 		wrappingjob[i].fullstring_allocated = 1;
 		snprintf( wrappingjob[i].fullstring, stringsize, "@%s", tmp);
-	    }
 
-	    /* parsing will recognize this as a wrappingjob, thanks to the leading "@" character */
-	    if(( wrappingjob[i].retcode = pkcs11_prepare_wrappingctx(wctx, wrappingjob[i].fullstring))!=rc_ok) {
-		fprintf(stderr, "***Error: parsing of '%s' failed.\nHint: wrapping key label and filename must be surrounded with double quotes\n", wrappingjob[i].fullstring);
+		/* parsing will recognize this as a wrappingjob, thanks to the leading "@" character */
+		if(( wrappingjob[i].retcode = pkcs11_prepare_wrappingctx(wctx, wrappingjob[i].fullstring))!=rc_ok) {
+		    fprintf(stderr, "***Error: parsing of '%s' failed.\nHint: wrapping key label and filename must be surrounded with double quotes\n", wrappingjob[i].fullstring);
+		    pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
+		    continue;
+		}
+
+		/* wrap */
+		fprintf(stderr, ">>> job #%d: rewrapping key with parameters '%s'\n",
+			i+1,
+			&wrappingjob[i].fullstring[1] );
+		if(( wrappingjob[i].retcode = pkcs11_wrap_from_handle(wctx, keyhandle, pubkhandle)) != rc_ok) {
+		    fprintf(stderr, "***Error: rewrapping operation failed for wrapping job #%d\n", i+1);
+		    pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
+		    numfailed++;
+		    continue;
+		}
+
+		if(( wrappingjob[i].retcode = pkcs11_output_wrapped_key(wctx)) != rc_ok ) {
+		    fprintf(stderr, "***Error: could not output/save wrapped key for rewrapping job #%d\n", i+1);
+		    numfailed++;
+		}
 		pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
-		continue;
 	    }
-
-	    /* wrap */
-	    fprintf(stderr, ">>> job #%d: wrapping key '%s' with parameters '%s'\n",
-		    i+1,
-		    wrappedkeylabel,
-		    &wrappingjob[i].fullstring[1] );
-	    if(( wrappingjob[i].retcode = pkcs11_wrap_from_label(wctx, wrappedkeylabel)) != rc_ok) {
-		fprintf(stderr, "***Error: wrapping operation failed for wrapping job #%d\n", i+1);
-		pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
-		continue;
-	    }
-
-	    if(( wrappingjob[i].retcode = pkcs11_output_wrapped_key(wctx)) != rc_ok ) {
-		fprintf(stderr, "***Error: could not output/save wrapped key for wrapping job #%d\n", i+1);
-	    }
-	    pkcs11_free_wrappedkeycontext(wctx); wctx = NULL;
+	    pkcs11_close_session( p11Context );
 	}
-	pkcs11_close_session( p11Context );
-    }
-    pkcs11_finalize( p11Context );
+	pkcs11_finalize( p11Context );
 
-    for(i=0; i<numjobs; i++) {
-	fprintf(stderr, "wrapping job #%d return code: %d\n", i+1, wrappingjob[i].retcode);
-	if(wrappingjob[i].retcode != rc_ok) { numfailed++; }
+	for(i=0; i<numjobs; i++) {
+	    fprintf(stderr, "rewrapping job #%d return code: %d\n", i+1, wrappingjob[i].retcode);
+	    if(wrappingjob[i].retcode != rc_ok) { numfailed++; }
+	}
     }
-
 epilog:
+
     /* free wrappingjob built strings */
     for(i=0; i<numjobs;i++) {
-	if(wrappingjob[i].fullstring_allocated==1) { free(wrappingjob[i].fullstring); }
-    }
+	    if(wrappingjob[i].fullstring_allocated==1) { free(wrappingjob[i].fullstring); }
+	}
 
     if(wctx) { pkcs11_free_wrappedkeycontext(wctx); wctx = NULL; }
     if(p11Context) { pkcs11_freeContext(p11Context); p11Context = NULL; }
@@ -418,22 +403,22 @@ epilog:
     switch(retcode) {
     case rc_ok:
 	if(numfailed>0) {
-	    p11wraprc = numfailed;
-	    fprintf(stderr, "Some (%d) wrapping jobs failed - returning code %d (0x%04.4x) to calling process\n", numfailed, p11wraprc, p11wraprc);
+	    p11rewraprc = numfailed;
+	    fprintf(stderr, "Some (%d) rewrapping jobs failed - returning code %d (0x%04.4x) to calling process\n", numfailed, p11rewraprc, p11rewraprc);
 	} else {
-	    p11wraprc = EX_OK;
-	    fprintf(stderr, "Key wrapping operations succeeded\n");
+	    fprintf(stderr, "Key rewrapping operations succeeded\n");
+	    p11rewraprc = EX_OK;
 	}
 	break;
 
     case rc_error_usage:
     case rc_error_invalid_argument:
-	p11wraprc = EX_USAGE;
+	p11rewraprc = EX_USAGE;
 	break;
 
     default:
-	p11wraprc = retcode;
-	fprintf(stderr, "Key wrapping operations failed - returning code %d (0x%04.4x) to calling process\n", p11wraprc, p11wraprc);
+	p11rewraprc = retcode;
+	fprintf(stderr, "Key rewrapping operations failed - returning code %d (0x%04.4x) to calling process\n", p11rewraprc, p11rewraprc);
     }
-    return p11wraprc;
+    return p11rewraprc;
 }

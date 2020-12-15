@@ -37,9 +37,9 @@ int pkcs11_rm_objects_with_label(pkcs11Context *p11Context, char *label, int int
 
 
     pkcs11IdTemplate *idtmpl=NULL;
-    
+
     idtmpl = pkcs11_make_idtemplate(label);
-    
+
     if(idtmpl && pkcs11_sizeof_idtemplate(idtmpl)>0) {
 
         search = pkcs11_new_search_from_idtemplate( p11Context, idtmpl );
@@ -97,12 +97,11 @@ int pkcs11_rm_objects_with_label(pkcs11Context *p11Context, char *label, int int
 			    }
 
 			    fprintf(stderr,
-				    "delete %s%s ? (y/N)", 
+				    "delete %s%s ? (y/N)",
 				    prefixptr,
 				    label_or_id( olabel, oid, labelorid, 256)
 				);
-				    
-		    
+
 			    fflush(stderr);
 
 			    choice = getchar();
@@ -124,7 +123,7 @@ int pkcs11_rm_objects_with_label(pkcs11Context *p11Context, char *label, int int
 			pkcs11_error( rc, "C_DestroyObject" );
 		    }
 		}
-	    
+
 	    }
 	    pkcs11_delete_search(search);
 	}

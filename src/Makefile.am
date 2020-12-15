@@ -18,6 +18,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/include/cryptoki
 
+AM_CFLAGS = $(LIBCRYPTO_CFLAGS)
+
 if HAS_LIBCRYPTO_RPATH
 AM_LDFLAGS = -rpath $(LIBCRYPTO_RPATH)
 endif
@@ -31,11 +33,6 @@ endif
 noinst_LTLIBRARIES = libcommon.la
 libcommon_la_SOURCES = version.c
 
-# special treat for minw32/windows build
-if TARGET_OS_MINGW32
-libcommon_la_SOURCES += win_applink.c
-endif
-
 libcommon_la_CFLAGS = $(LIBCRYPTO_CFLAGS)
 libcommon_la_LDFLAGS = -static
 
@@ -43,7 +40,7 @@ libcommon_la_LDFLAGS = -static
 # p11 toolkit
 
 # the actual list of programs being compiled
-bin_PROGRAMS = p11wrap p11unwrap p11cp p11ls p11cat p11more p11od p11rm p11mv p11slotinfo p11req p11importcert p11importpubk p11importdata p11keycomp p11setattr masqreq p11keygen p11kcv
+bin_PROGRAMS = p11mkcert p11rewrap p11wrap p11unwrap p11cp p11ls p11cat p11more p11od p11rm p11mv p11slotinfo p11req p11importcert p11importpubk p11importdata p11keycomp p11setattr masqreq p11keygen p11kcv
 
 
 SOURCES = $(bin_PROGRAMS:%=%.c)

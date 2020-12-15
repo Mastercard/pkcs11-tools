@@ -28,39 +28,7 @@
 #define LABEL_WIDTH 32
 #endif
 
-/* typedef struct { */
-/*     CK_ATTRIBUTE_TYPE key, */
-/*     char *name_true; */
-/*     char *longname_true; */
-/*     char *name_false; */
-/*     char *longname_false; */
-/*     char *name_unknown; */
-/*     char *longname_unknown; */
-/* } attrname; */
-
-/* static const attrname[] = */
-/* { */
-/*     { CKA_TOKEN, "tok", "token", "ses", "session", "", "" }, */
-/*     { CKA_PRIVATE, "pri", "private", "pub", "public", "", "" }, */
-/*     { CKA_MODIFIABLE, "r/w", "modifiable", "r/o", "read-only", "", "" }, */
-/*     { CKA_DERIVE, "drv", "+derive", "", "-derive", "", "" }, */
-/*     { CKA_LOCAL, "loc", "local", "imp", "imported", "", "" }, */
-/*     { CKA_ENCRYPT, "enc", "+encrypt", "", "-encrypt", "", "" }, */
-/*     { CKA_DECRYPT, "dec", "+decrypt", "", "-decrypt", "", "" }, */
-/*     { CKA_SIGN, "vfy", "+verify", "", "-verify", "", "" }, */
-/*     { CKA_SIGN_RECOVER, "vfy", "+verify", "", "-verify", "", "" }, */
-/*     { CKA_VERIFY, "vfy", "+verify", "", "-verify", "", "" }, */
-/*     { CKA_VERIFY_RECOVER, "vre", "+verify_recover", "", "-verify_recover", "", "" }, */
-/*     { CKA_WRAP, "wra", "+wrap", "", "-wrap", "", "" }, */
-/*     { CKA_UNWRAP, "unw", "+unwrap", "", "-unwrap", "", "" }, */
-/*     { CKA_TRUSTED, "tru", "+trusted", "", "-trusted", "", "" }, */
-/*     { CKA_SENSITIVE, "sen,", "+sensitive", "", "-sensitive", "", "" }, */
-/*     { CKA_ALWAYS_SENSITIVE, "SEN,", "+always_sensitive", "", "-always_sensitive", "", "" }, */
-/*     { CKA_EXTRACTABLE, "xtr", "+extractable", "", "-extractable", "", "" }, */
-/*     { CKA_NEVER_EXTRACTABLE, "NVX", "+never_extractable", "", "-never_extractable", "", ""}, */
-/*     { CKA_WRAP_WITH_TRUSTED, "wwt", "+wrap_with_trusted", "", "+wrap_with_trusted", "" "" }, */
-/* }; */
-
+#define LABELORID_MAXLEN 129
 
 static char* value_for_boolattr( pkcs11AttrList *attrlist,
 				 CK_ATTRIBUTE_TYPE attrtype,
@@ -226,7 +194,7 @@ static int ls_cert(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
     if( attrs!=NULL) {
 	if(pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
 	    CK_ATTRIBUTE_PTR id, label;
-	    char buffer[81];
+	    char buffer[LABELORID_MAXLEN];
 	    int buffer_len = sizeof buffer;
 	    
 	    label      = pkcs11_get_attr_in_attrlist ( attrs, CKA_LABEL );
@@ -295,7 +263,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
     if( attrs!=NULL) {
 	if (pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
 	    CK_ATTRIBUTE_PTR label, id, modulus, keytype, ec_params, prime;
-	    char buffer[81];
+	    char buffer[LABELORID_MAXLEN];
 	    int  buffer_len = sizeof buffer;
 	    char keykind[41];
 	    char ecname[37];
@@ -413,7 +381,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
     if(attrs!=NULL) {
 	if (pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
 	    CK_ATTRIBUTE_PTR label, id, modulus, keytype, ec_params, prime;
-	    char buffer[81];
+	    char buffer[LABELORID_MAXLEN];
 	    int  buffer_len = sizeof buffer;
 	    char keykind[41];
 	    char ecname[37];
@@ -527,7 +495,7 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
     if( attrs!=NULL) { 
 	if(pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
 	    CK_ATTRIBUTE_PTR label, id, bytes;
-	    char buffer[81];
+	    char buffer[LABELORID_MAXLEN];
 	    int buffer_len = sizeof buffer;
 
 	    id         = pkcs11_get_attr_in_attrlist ( attrs, CKA_ID );
@@ -588,7 +556,7 @@ static int ls_data(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
     if(attrs!=NULL) {
 	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
 	    CK_ATTRIBUTE_PTR label, applic, objid;
-	    char buffer[81];
+	    char buffer[LABELORID_MAXLEN];
 	    int  buffer_len = sizeof buffer;
 	    
 	    label      = pkcs11_get_attr_in_attrlist ( attrs, CKA_LABEL );

@@ -14,10 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PKCS11LIB=/usr/lib/x86_64-linux-gnu/nss/libsoftokn3.so
-PKCS11NSSDIR=sql:/home/eric/work/pkcs11/pkcs11-tools/tok-src
+PKCS11LIB=/usr/local/opt/nss/lib/libsoftokn3.dylib
+PKCS11NSSDIR=sql:.
 PKCS11SLOT=1
-PKCS11PASSWORD=changeit
+PKCS11PASSWORD=ch@nge1t
 
 PKCS11LIB=$PKCS11LIB PKCS11NSSDIR=$PKCS11NSSDIR PKCS11SLOT=$PKCS11SLOT PKCS11PASSWORD=$PKCS11PASSWORD "$@"
 

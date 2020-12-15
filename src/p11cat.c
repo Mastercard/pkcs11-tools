@@ -23,6 +23,9 @@
 #include <unistd.h>
 #include "pkcs11lib.h"
 
+#ifdef _WIN32
+#include <openssl/applink.c>
+#endif
 
 #define COMMAND_SUMMARY \
     "Extract in PEM format non-sensitive content of PKCS#11 token object(s).\n\n"
@@ -36,7 +39,7 @@ int main( int argc, char **argv);
 
 void print_usage(char *progname)
 {
-    fprintf( stderr, 
+    fprintf( stderr,
 	     "USAGE: %s OPTIONS FILTERS\n"
 	     "\n"
 	     COMMAND_SUMMARY
@@ -114,13 +117,13 @@ int main( int argc, char ** argv )
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
-    tokenlabel = getenv("PKCS11TOKENLABEL");    
+    tokenlabel = getenv("PKCS11TOKENLABEL");
     if(tokenlabel==NULL) {
 	slotenv = getenv("PKCS11SLOT");
 	if (slotenv!=NULL) {
 	    slot=atoi(slotenv);
 	}
-    }	
+    }
     password = getenv("PKCS11PASSWORD");
 
     /* get the command-line arguments */
@@ -135,7 +138,7 @@ int main( int argc, char ** argv )
 	case 'm':
 	    nsscfgdir = optarg;
 	    break;
-	    
+
 	case 'p' :
 	    password = optarg;
 	    break;
@@ -181,7 +184,7 @@ int main( int argc, char ** argv )
 
 
     if ( library == NULL || optind==argc ) {
-	fprintf( stderr, "At least one required option or argument is wrong or missing.\n" 
+	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
 	goto err;
     }
@@ -197,14 +200,14 @@ int main( int argc, char ** argv )
 
 
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
-	
+
     if ( retcode == rc_ok )
     {
 	char *label;
 	for(label=argv[optind];optind<argc; optind++) {
-	    pkcs11_cat_object_with_label(p11Context, argv[optind], openssl_native);
+	    pkcs11_cat_object_with_label(p11Context, argv[optind], openssl_native, NULL);
 	}
-	
+
 	pkcs11_close_session( p11Context );
     }
 
