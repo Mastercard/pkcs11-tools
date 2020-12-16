@@ -82,9 +82,9 @@ for v in ${variables[@]}; do
 done
 
 quoted=
-for item in $@; do
+for item in "$@"; do
     quoted+=($(printf "%q" $item))
 done
 
-eval "${environment[@]} ${quoted[@]}"
+eval ${environment[@]} ${quoted[@]}
 exit $?
