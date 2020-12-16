@@ -4,17 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [2.0.0] - 2020-07-07
+# [2.0.0] - 2020-12-15
 ### Added
 - implemented envelope wrapping (combining a symmetric key and a private key to wrap anything)
 - `p11keygen`: implemented wrapping under one or more keys
 - `p11wrap` : implemented wrapping underone or more keys
 - added `p11rewrap` command, allowing to rewrap wrapped keys under other keys
+- added `p11mkcert` command, to create self-signed certificates usable with JVMs
+
+### Changed
+- support for OpenSSL 1.1 ( OpenSSL 1.1.1+ required)
+- major refactoring of `p11req` and `masqreq` to leverage OpenSSL algoritm method subsystem
 
 ### Fixed
 - fixed `p11kcv` to work on SoftHSM
 - fixed packaging for Solaris
-
 
 # [1.2.0] - 2020-04-10
 ### Enhanced
@@ -57,6 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release
 
+[2.0.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.0.0
+[1.2.0]: https://github.com/Mastercard/pkcs11-tools/tree/v1.2.0
 [1.1.0]: https://github.com/Mastercard/pkcs11-tools/tree/v1.1.0
 [1.0.3]: https://github.com/Mastercard/pkcs11-tools/tree/v1.0.3
 [1.0.2]: https://github.com/Mastercard/pkcs11-tools/tree/v1.0.2

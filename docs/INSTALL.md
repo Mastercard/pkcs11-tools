@@ -1,54 +1,59 @@
 # Installation instructions
 ----
 ## Important Notes
- * While a prefix can be specified at configuration time, the toolkit utility make no use of any hardcoded path.  Using `--prefix=$PWD`will deploy the binaries into a `bin` subdir, inside the current directory.
- if that option is omitted, the default is to deploy in `/usr/local`, when invoking `make install`. In which case, you might need to use `su` or `sudo` when invoking `make install`.
- * Currently, **only OpenSSL 1.0 is supported**. Conversion to OpenSSL 1.1+ in ongoing. In the meantime, you will have to deploy OpenSSL 1.0.2, if you are using a recent/updated platform. Please refer to [OpenSSL 1.0](#openssl-10) for details how to deploy it on your system.
+ * While a prefix can be specified at configuration time, the toolkit utility make no use of any hardcoded path.  Using `--prefix=$PWD`will deploy the binaries into a `bin` subdir, relative to the current directory.
+ if that option is omitted, the default is to deploy in `/usr/local`, when invoking `make install`. In which case, you will need to be a `root` user when `make install` (or to use `su` or `sudo`) .
+ * OpenSSL v1.1.1 or above is required to compile the toolkit. Please refer to [OpenSSL 1.1.1](#openssl-111) for details how to deploy it on your system.
  * Windows 64 bits is currently not supported. See [Note on 64 bits executables](#note-on-64-bits-executables) for more information.
 
 ## Pre-requisites
 In order to build the project from scratch, you will need
  - a C compiler (tested with `gcc`, `clang`, `xlc` on `AIX`)
- - the autotools suite: `autoconf`, `automake`, `libtool`, and `autoconf-archive`
+ - the autotools suite: `autoconf`, `automake`, `libtool`, and `autoconf-archive`. If your system is Debian-based (e.g. Ubuntu), you can execute the following command:
+   ```bash
+   $ sudo apt-get install autoconf-archive autoconf automake libtool pkg-config
+   ```
+   If the autotools suite is not available or obsolete on your platform, or if the build host has no connection to Internet, please check [this section](#when-autotools-utils-are-not-available-on-my-platform) for an alternative way to build.
  - optionally, `lex`/`flex` and `yacc`/`bison`
  - a connection to Internet (to checkout `gnulib`)
 
-If the autotools suite is not available or obsolete on your platform, or if the build host has no connection to Internet, please check [this section](#when-autotools-utils-are-not-available-on-my-platform) for an alternative way to build.
 
-### OpenSSL 1.0
-To install OpenSSL 1.0, proceed as follows:
+### OpenSSL 1.1.1
+The vast majority of recent distros (FreeBSD and Linux) have OpenSSL 1.1.1 by default.
 
- 1. Clone OpenSSL [from GitHub](https://github.com/openssl/openssl.git), and checkout the latest OpenSSL 1.0.2 release. (To date, it is tagged `OpenSSL_1_0_2u`). Alternatively, you can directly download it from [here](https://github.com/openssl/openssl/archive/OpenSSL_1_0_2u.tar.gz)
- 2. Configure and build. In the examples below, we assume that OpenSSL will be deployed at `/opt/openssl@1.0.2`, change the location to match your preference.
- 
+If your platform does not have it, proceed as follows:
+
+ 1. Clone OpenSSL [from GitHub](https://github.com/openssl/openssl.git), and checkout the latest OpenSSL 1.1.1 release. (To date, it is tagged `OpenSSL_1_1_1i`). Alternatively, you can directly download it from [here](https://github.com/openssl/openssl/archive/OpenSSL_1_1_1i.tar.gz)
+ 2. Configure and build. In the examples below, we assume that OpenSSL will be deployed at `/opt/openssl-1.1.1`, change the location to match your preference.
+
     - A typical build on linux look as follows:
       ```bash
-      $ ./config zlib shared --openssldir=/opt/openssl@1.0.2 linux-x86_64
+      $ ./config zlib shared --openssldir=/opt/openssl-1.1.1 linux-x86_64
       $ make
       $ sudo make install
       ```
-      
-    - If you need static libraries instead of dynamic ones, use the following instructions instead:
+
+    - If you want static libraries instead of dynamic ones, use the following instructions instead:
       ```bash
-      $ ./config zlib no-shared --openssldir=/opt/openssl@1.0.2 linux-x86_64
+      $ ./config zlib no-shared --openssldir=/opt/openssl-1.1.1 linux-x86_64
       $ make
       $ sudo make install
       ```
-      
+
     - for other platforms, change `linux-x86_x64` to the relevant value:
-    
-      | platform               	| value                 		|
-      | ------------------------	| -----------------------	|
+
+      | platform               	| value                 	|
+      | ------------------------| -----------------------	|
       | Linux/amd64            	| `linux-x86_64`          	|
-      | Freebsd/amd64           	| `BSD-x86_64`            	|
+      | Freebsd/amd64           | `BSD-x86_64`            	|
       | MacOS                  	| `darwin64-x86_64-cc`    	|
       | AIX with XLC           	| `aix64-cc`              	|
       | Windows 32 bits        	| `mingw`                 	|
       | Solaris/Intel, 32 bits 	| `solaris-x86-gcc`       	|
       | Solaris/sparc, 32 bits 	| `solaris-sparcv9-gcc `  	|
       | Solaris/sparc, 64 bits 	| `solaris64-sparcv9-gcc` 	|
-    
-Note: building OpenSSL requires `zlib`development package to be present on your system. If you can't have it deployed on your platform, remove the `zlib` parameter from the command line, or change it to `no-zlib` 
+
+Note: building OpenSSL requires `zlib` development package to be present on your system. If you can't have it deployed on your platform, remove the `zlib` parameter from the command line, or change it to `no-zlib`
 
 ## Installation
 ### Bootstrapping the environment
@@ -77,16 +82,17 @@ $ make
 $ sudo make install
 ```
 
-If OpenSSL 1.0 is no more available as a package on your platform, you will have to specify where it can be found by using the `PKG_CONFIG_PATH` environment variable and pointing it to the location of your OpenSSL installation:
+If OpenSSL 1.1.1 is not available as a package on your platform, you will have to specify where it can be found by using the `PKG_CONFIG_PATH` environment variable and pointing it to the location of your OpenSSL installation. 
+In addition, you might want to set the `LIBCRYPTO_RPATH` variable, if the location of OpenSSL libraries is not in the default library path.
 ```bash
-$ ./configure PKG_CONFIG_PATH=/opt/openssl@1.0.2/lib/pkgconfig
+$ ./configure PKG_CONFIG_PATH=/opt/openssl-1.1.1/lib/pkgconfig LIBCRYPTO_RPATH=/opt/openssl-1.1.1/lib
 $ make
 $ sudo make install
 ```
 
-Alternatively, if you do not have [`pkg-config`](https://www.freedesktop.org/wiki/Software/pkg-config/) installed on your system, you can use `LIBCRYPTO_CFLAGS` and `LIBCRYPTO_LIBS` variables to point to libraries and includes:
+Alternatively, if you do not have [`pkg-config`](https://www.freedesktop.org/wiki/Software/pkg-config/) installed on your system, you can use `LIBCRYPTO_CFLAGS` and `LIBCRYPTO_LIBS` variables to point to libraries and includes. Again, `LIBCRYPTO_RPATH` can optionally be specified (see 
 ```bash
-$ ./configure LIBCRYPTO_CFLAGS='-I/opt/openssl@1.0.2/include' LIBCRYPTO_LIBS='-L/opt/openssl@1.0.2/lib -lcrypto'
+$ ./configure LIBCRYPTO_CFLAGS='-I/opt/openssl-1.1.1i/include' LIBCRYPTO_LIBS='-L/opt/openssl-1.1.1/lib -lcrypto' LIBCRYPTO_RPATH=/opt/openssl-1.1.1/lib
 $ make
 $ sudo make install
 ```
@@ -94,12 +100,12 @@ $ sudo make install
 ### Linux, with OpenSSL statically linked
 In case you need to deploy the tooklit on target environments where OpenSSL is not installed, you have the option to statically link the OpenSSL library functions into the binaries. This results, obviously, into larger executables, but you get portable binaries that do not depend upon OpenSSL libraries to run.
 
-To achieve this, please refer to section [OpenSSL 1.0](#openssl-1.0), to compile OpenSSL statically. the process to build the toolkit itself remains the same.
+To achieve this, please refer to section [OpenSSL 1.1.1](#openssl-1.1.1), to compile OpenSSL statically. the process to build the toolkit itself remains the same.
 
 ### FreeBSD
 On FreeBSD, proceed as with Linux. If you had to install OpenSSL locally, and if the path to OpenSSL libraries is not configured on the system, you need to specify an additional parameter when configuring the pkcs11-tools package, to adjust run path to the libraries. See [rtld(1)](https://www.freebsd.org/cgi/man.cgi?query=rtld&apropos=0&sektion=1&manpath=FreeBSD+12.0-RELEASE&arch=default&format=html) for more information.
 ```bash
-$ ./configure PKG_CONFIG_PATH=/opt/openssl@1.0.2/lib/pkgconfig LIBCRYPTO_RPATH=/opt/openssl@1.0.2/lib
+$ ./configure PKG_CONFIG_PATH=/opt/openssl-1.1.1/lib/pkgconfig LIBCRYPTO_RPATH=/opt/openssl-1.1.1/lib
 $ make
 $ sudo make install
 ```
@@ -108,7 +114,7 @@ $ sudo make install
 Use the following commands to build the  toolkit:
 ```bash
 $ PATH=/usr/vac/bin:$PATH
-$ AR='ar -X64' CFLAGS='-q64 -qlanglvl=extc99 -I/opt/openssl@1.0.2/include' LDFLAGS=-L/opt/openssl@1.0.2/lib ./configure --prefix=$PWD -C
+$ AR='ar -X64' CFLAGS='-q64 -qlanglvl=extc99 -I/opt/openssl-1.1.1/include' LDFLAGS=-L/opt/openssl-1.1.1/lib ./configure --prefix=$PWD -C
 $ make
 $ sudo make install
 ```
@@ -120,11 +126,11 @@ You need to have GCC deployed on your computer. You can obtain and deploy GCC on
 #### static build
  * To buill 32 bits binaries (both sparc and intel):
    ```bash
-   $ CFLAGS='-I$HOME/openssl/include' LDFLAGS=-L$HOME/openssl ./configure --prefix=$PWD
+   $ CFLAGS='-I/opt/openssl-1.1.1/include' LDFLAGS=-L/opt/openssl-1.1.1/lib ./configure --prefix=$PWD
    ```
  * To build sparcv9 64 bits binaries:
    ```bash
-   $ CFLAGS='-m64 -mcpu=ultrasparc3 -I$HOME/openssl/include' LDFLAGS=-L$HOME/openssl ./configure --prefix=$PWD
+   $ CFLAGS='-m64 -mcpu=ultrasparc3 -I/opt/openssl-1.1.1/include' LDFLAGS=-L/opt/openssl-1.1.1/lib ./configure --prefix=$PWD
    ```
 Compile and deploy using `make install`
 ```bash
@@ -139,6 +145,9 @@ When building with OpenCSW, you may have to change your path to point to `/opt/c
 $ export PATH=/opt/csw/gnu:$PATH
 ```
 Then proceed as documented for [FreeBSD](#freebsd).
+
+#### Notes
+Building OpenSSL 1.1.1 on Solaris 10 may prove to be challenging. Please refer to [https://github.com/openssl/openssl/issues/6333](https://github.com/openssl/openssl/issues/6333) for additional information.
 
 ### Windows (cross-compiling)
 Cross-compilation works with mingw32-gcc under linux. [Debian](https://www.debian.org/) distros are offering off-the-shelf cross-compilers, so the examples below are assuming [Debian](https://www.debian.org/) as the build platform.
@@ -164,9 +173,9 @@ $ make install
 ```
 
 ### MacOS
-This expects that brew is installed on MacOS. check out https://brew.sh for more information.
+This expects that brew be installed on your system, and the formula `openssl@1.1` be deployed. check out https://brew.sh for more information.
 ```bash
-$ ./configure PKG_CONFIG_PATH=/opt/openssl@1.0.2/lib/pkginfo
+$ ./configure PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig LIBCRYPTO_RPATH=/usr/local/opt/openssl@1.1/lib
 $ make
 $ sudo make install
 ```
@@ -187,7 +196,7 @@ $ make dist-solaris
 
 ### RPM
 To build an RPM package:
-(this assumes that `rpmbuild` is installed and properly configured for the user)
+(this assumes that `rpmbuild` is installed and properly configured for the user; it also assumes that OpenSSL 1.1.1 is the default on your platform)
 ```bash
 $ ./configure [...] --prefix=$PWD
 $ make dist

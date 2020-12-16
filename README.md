@@ -3,7 +3,16 @@
 pkcs11-tools is a toolkit containing a bunch of small utilities to perform key management tasks on cryptographic tokens implementing a PKCS\#11 interface.
 It features a number of commands similar to the unix CLI utilities, such as `ls`, `mv`, `rm`, `od`, and `more`. It also has specific commands to generate keys, generate CSRs, import certificates and other files, in a fashion compatible with most implementations, including both IBM and Oracle JVMs.
 
-It is also able to interface with NSS libraries from [mozilla.org](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS)
+Amongst other things, it is also able to interface with NSS libraries from [mozilla.org](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS)
+
+## News
+The toolkit has reached v2.0. It features several major changes:
+ - it supports (and requires) OpenSSL v1.1.1+
+ - signing commands (`p11mkcert`, `p11req` and `masqreq`) implement OpenSSL algorithm methods. This will enable supporting more algorithms in the future.
+ - major overhaul of the wrapping/unwrapping system: it is now possible to perform double wrapping (aka enveloppe wrapping) with a single command, in a secure fashion
+ - `p11keygen` can now generate a session key and wrap it under one or several wrapping keys
+ - a new command, `p11rewrap`, allows to unwrap a key and immediately rewrap in under one or several wrapping keys, in a secure fashion.
+
 
 ## Introduction
 
