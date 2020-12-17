@@ -18,11 +18,12 @@ EXTRA_DIST = \
 	m4/ax_with_dmalloc.m4	 \
 	include/cryptoki         \
 	include/pkcs11lib.h      \
-	with_nss                 \
-	with_nfast               \
 	with_beid	         \
+	with_luna	         \
+	with_nfast               \
+	with_nss                 \
 	with_softhsm             \
-	with_gemalto	         \
+	with_utimaco	         \
 	docs/INSTALL.md	         \
 	docs/CONTRIBUTING.md     \
 	docs/MANUAL.md           \

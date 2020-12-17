@@ -37,20 +37,11 @@
 #
 # Note that SPY mode does not support NSS.
 
-PKCS11SLOT=0
-# no PKCS11PASSWORD set
+PKCS11PASSWORD=${PKCS11PASSWORD:-changeit}
 
 #specific to vendor
-case $(uname -s) in
-    Darwin)
-	PKCS11_LIBNAME=libbeidpkcs11.dylib
-	;;
-    *)
-	PKCS11_LIBNAME=libbeidpkcs11.so
-	;;
-esac
-PKCS11_LIBPATHS=( /usr/lib /usr/lib/$(uname -m)-linux-gnu /usr/local/lib /usr/local/lib/pkcs11 )
-
+PKCS11_LIBNAME=libCryptoki2_64.so
+PKCS11_LIBPATHS=(/usr/lib /usr/safenet/lunaclient/lib /opt/safenet/lunaclient/lib)
 LIB_ENVVARS=()
 
 ########################################################################
@@ -211,4 +202,3 @@ done
 
 eval ${environment[@]} ${quoted[@]}
 exit $?
-
