@@ -120,11 +120,7 @@ function find_shim_lib()
 function find_spy_lib()
 {
     lib=pkcs11-spy.so
-    case "$(uname -s)" in
-	Linux)
-	    paths=( /usr/lib/$(uname -m)-linux-gnu/pkcs11 /usr/lib64 /usr/local/lib )
-	    ;;
-    esac
+    paths=( /usr/lib/$(uname -m)-linux-gnu/pkcs11 /usr/lib64 /usr/local/lib /usr/local/opt/opensc/lib )
 
     for path in ${paths[@]}; do
 	if [ -e $path/$lib ]; then
