@@ -18,11 +18,12 @@ EXTRA_DIST = \
 	m4/ax_with_dmalloc.m4	 \
 	include/cryptoki         \
 	include/pkcs11lib.h      \
-	with_nss                 \
-	with_nfast               \
 	with_beid	         \
+	with_luna	         \
+	with_nfast               \
+	with_nss                 \
 	with_softhsm             \
-	with_gemalto	         \
+	with_utimaco	         \
 	docs/INSTALL.md	         \
 	docs/CONTRIBUTING.md     \
 	docs/MANUAL.md           \
@@ -38,7 +39,14 @@ ACLOCAL_AMFLAGS = -I m4
 
 
 install-exec-hook:
-	$(INSTALL) $(srcdir)/with_nss $(srcdir)/with_nfast $(srcdir)/with_beid $(srcdir)/with_softhsm $(DESTDIR)$(bindir)
+	$(INSTALL) 	               \
+		$(srcdir)/with_beid    \
+		$(srcdir)/with_luna    \
+		$(srcdir)/with_nfast   \
+		$(srcdir)/with_nss     \
+		$(srcdir)/with_softhsm \
+		$(srcdir)/with_utimaco \
+		$(DESTDIR)$(bindir)
 
 dist-hook:
 	-rm -rf $$(find $(distdir)/include -type d -name .svn)

@@ -37,19 +37,12 @@
 #
 # Note that SPY mode does not support NSS.
 
-PKCS11SLOT=1			# OCS is the second slot, after accelerator slot
 PKCS11PASSWORD=${PKCS11PASSWORD:-changeit}
 
 #specific to vendor
-PKCS11_LIBNAME=libcknfast.so
-PKCS11_LIBPATHS=( /opt/nfast/toolkits/pkcs11 )
-LIB_ENVVARS=(CKNFAST_LOADSHARING CKNFAST_FAKE_ACCELERATOR_LOGIN CKNFAST_DEBUG CKNFAST_DEBUGDIR CKNFAST_OVERRIDE_SECURITY_ASSURANCES)
-
-CKNFAST_LOADSHARING=1
-CKNFAST_FAKE_ACCELERATOR_LOGIN=1
-# CKNFAST_DEBUG=9
-# CKNFAST_DEBUGDIR=/var/tmp
-# CKNFAST_OVERRIDE_SECURITY_ASSURANCES=all
+PKCS11_LIBNAME=libCryptoki2_64.so
+PKCS11_LIBPATHS=(/usr/lib /usr/safenet/lunaclient/lib /opt/safenet/lunaclient/lib)
+LIB_ENVVARS=()
 
 ########################################################################
 
@@ -75,7 +68,7 @@ function find_cfg_file()
 {
     file=$1			# file name in $1
     paths=${@:2}		# paths is an array ($2, $3, ...)
-
+    
     for path in ${paths[@]}; do
 	if [ -e $path/$lib ]; then
 	    echo $path/$lib
@@ -109,6 +102,21 @@ function find_shim_lib()
 }
 
 # find_spy_lib: find pkcs11-spy.so from OpenSC
+function find_spy_lib()
+{
+    lib=pkcs11-spy.so
+    paths=( /usr/lib/$(uname -m)-linux-gnu/pkcs11 /usr/lib64 /usr/local/lib /usr/local/opt/opensc/lib )
+
+    for path in ${paths[@]}; do
+	if [ -e $path/$lib ]; then
+	    echo $path/$lib
+	    return 0
+	fi
+    done
+
+    echo "NOT FOUND"
+    return 1
+}
 function find_spy_lib()
 {
     lib=pkcs11-spy.so

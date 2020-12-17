@@ -170,16 +170,19 @@ func_rc pkcs11_finalize( pkcs11Context * p11Context )
     CK_RV retCode;
     CK_C_Finalize pC_Finalize;
 
-    pC_Finalize = p11Context->FunctionList.C_Finalize;
+    if(p11Context) {
+	if( p11Context->FunctionList.C_Finalize ) {
+	    if ( ( retCode = p11Context->FunctionList.C_Finalize( NULL_PTR ) ) != CKR_OK ) {
+		pkcs11_error( retCode, "C_Finalize" );
+		rc = rc_error_pkcs11_api;
+	    }
+	}
 
-    if ( ( retCode = pC_Finalize( NULL_PTR ) ) != CKR_OK ) {
-	pkcs11_error( retCode, "C_Finalize" );
-	rc = rc_error_pkcs11_api;
+	if(p11Context->libhandle) {
+	    pkcs11_ll_dynlib_close(p11Context->libhandle);
+	    p11Context->libhandle=NULL;
+	}
     }
-
-    pkcs11_ll_dynlib_close(p11Context->libhandle);
-    p11Context->libhandle=NULL;
-
     return rc;
 }
 

@@ -1,6 +1,5 @@
-#!/bin/bash
-
-# Copyright (c) 2018 Mastercard
+#!/usr/bin/env bash
+# Copyright (c) 2020 Mastercard
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,10 +13,204 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PKCS11LIB=/usr/local/opt/nss/lib/libsoftokn3.dylib
-PKCS11NSSDIR=sql:.
-PKCS11SLOT=1
-PKCS11PASSWORD=ch@nge1t
+#
+# Usage: with_xxxx p11command args... ==> execute the command using presets for the token
+#
+# each platform has its defaults.
+#
+# if not otherwise specified:
+# - default slot is set to 0 (define PKCS11SLOT or PKCS11TOKENLABEL to override)
+# - default password is generally set to 'changeit' (define PKCS11PASSWORD to override)
+#
+# You can set all the PKCS11XXXX variables in a configuration file (sourced by this script).
+# Two possibilites:
+# - $PWD/.pkcs11rc for a setup bound to a directory
+# - $HOME/.pkcs11rc for a user-wide setup
+#
+# alternate invocations:
+#
+# SPY=/dev/sdtout with_xxxx p11command args... ==> to interface with pkcs11-spy.so (from OpenSC) and print to stdout
+# SPY=p11.log with_xxxx p11command args... ==> to interface with pkcs11-spy.so (from OpenSC) and write logs to p11.log
+# NOSLOT with_xxxx p11command args... ==> unset slot and token variables, useful to force interactive mode
+# PKCS11TOKENLABEL="abc" with_xxxx p11command args... ==> you can set all PKCS11 variables you like,
+#                                                         including those that are vendor-specific
+#
+# Note that SPY mode does not support NSS.
 
-PKCS11LIB=$PKCS11LIB PKCS11NSSDIR=$PKCS11NSSDIR PKCS11SLOT=$PKCS11SLOT PKCS11PASSWORD=$PKCS11PASSWORD "$@"
+PKCS11SLOT=1
+PKCS11PASSWORD=${PKCS11PASSWORD:-changeit}
+# by default, we are looking for an NSS db inside the current directory
+PKCS11NSSDIR=sql:.
+
+# to create your NSS token:
+# $ modutil -dbdir sql:. -create
+# $ modutil -dbdir sql:. -changepw "NSS Certificate DB"
+
+#specific to vendor
+case $(uname -s) in
+    Darwin)
+	PKCS11_LIBNAME=libsoftokn3.dylib
+	;;
+    *)
+	PKCS11_LIBNAME=libsoftokn3.so
+	;;
+esac
+PKCS11_LIBPATHS=( /usr/lib /usr/lib/$(uname -m)-linux-gnu/nss /usr/local/lib /usr/local/opt/nss/lib )
+
+LIB_ENVVARS=()
+
+########################################################################
+
+# find_p11_lib: a trivial function to find a library.
+function find_p11_lib()
+{
+    lib=${PKCS11_LIBNAME}
+    paths=${PKCS11_LIBPATHS[@]}
+
+    for path in ${paths[@]}; do
+	if [ -e $path/$lib ]; then
+	    echo $path/$lib
+	    return 0
+	fi
+    done
+
+    echo "NOT FOUND"
+    return 1
+}
+
+# find a configuration file, provided a file name and paths
+function find_cfg_file()
+{
+    file=$1			# file name in $1
+    paths=${@:2}		# paths is an array ($2, $3, ...)
+    
+    for path in ${paths[@]}; do
+	if [ -e $path/$lib ]; then
+	    echo $path/$lib
+	    return 0
+	fi
+    done
+
+    echo "NOT FOUND"
+    return 1
+}
+
+# find_shim_lib: find libpkcs11shim.so
+function find_shim_lib()
+{
+    lib=libpkcs11shim.so
+    case "$(uname -s)" in
+	*)
+	    paths=( /usr/local/lib /usr/lib )
+	    ;;
+    esac
+
+    for path in ${paths[@]}; do
+	if [ -e $path/$lib ]; then
+	    echo $path/$lib
+	    return 0
+	fi
+    done
+
+    echo "NOT FOUND"
+    return 1
+}
+
+# find_spy_lib: find pkcs11-spy.so from OpenSC
+function find_spy_lib()
+{
+    lib=pkcs11-spy.so
+    paths=( /usr/lib/$(uname -m)-linux-gnu/pkcs11 /usr/lib64 /usr/local/lib /usr/local/opt/opensc/lib )
+
+    for path in ${paths[@]}; do
+	if [ -e $path/$lib ]; then
+	    echo $path/$lib
+	    return 0
+	fi
+    done
+
+    echo "NOT FOUND"
+    return 1
+}
+
+
+# source .pkcs11rc from local directory, and if not, from $HOME directory
+if [ -z "$NORC" ]; then
+    if [ -e ./.pkcs11rc ]; then
+	source ./.pkcs11rc
+    elif [ -e $HOME/.pkcs11rc ]; then
+	source $HOME/.pkcs11rc
+    fi
+fi
+
+################################################################################
+
+# library
+PKCS11LIB=${PKCS11LIB:-$(find_p11_lib)}
+
+if [ "$PKCS11LIB" == "NOT FOUND" ]; then
+    echo "***Error: PKCS#11 Library not found, please set PKCS11LIB accordingly."
+    exit 1
+fi
+
+# if SHIM is set, we want to use the libpkcs11shim
+#
+if [ -n "$SHIM" ]; then
+    echo "SHIM set, trying to hook libpkcs11shim.so, output goes to $SHIM"
+    PKCS11SHIM=$PKCS11LIB
+    PKCS11SHIM_OUTPUT=$SHIM
+    PKCS11LIB=$(find_shim_lib)
+    if [ "$PKCS11LIB" == "NOT FOUND" ]; then
+	echo "***Error: libpkcs11shim.so Library not found, can't use SHIM option"
+	exit 1
+    fi
+elif [ -n "$SPY" ]; then
+    echo "SPY set, trying to hook pkcs11-spy.so, output goes to $SPY"
+    PKCS11SPY=$PKCS11LIB
+    PKCS11SPY_OUTPUT=$SPY
+    PKCS11LIB=$(find_spy_lib)
+    if [ "$PKCS11LIB" == "NOT FOUND" ]; then
+	echo "***Error: pkcs11-spy.so Library not found, can't use SPY option"
+	exit 1
+    fi
+fi
+    
+    
+#if NOSLOT is defined, or if PKCS11TOKENLABEL is defined we skip PKCS11SLOT
+#(useful for p11slotinfo invocation)
+if [ -z "$NOSLOT" -a -z "$PKCS11TOKENLABEL" ]; then
+    PKCS11SLOT=${PKCS11SLOT:-0}
+fi
+
+# also, if NOSLOT is defined, we unset PKCS11TOKENLABEL and PKCS11SLOT
+if [ -n "$NOSLOT" ]; then
+    unset PKCS11TOKENLABEL PKCS11SLOT
+fi
+
+# Note: there is no default value for PKCS11TOKENLABEL
+
+################################################################################
+variables=(PKCS11LIB PKCS11NSSDIR PKCS11SLOT PKCS11TOKENLABEL PKCS11PASSWORD \
+		     PKCS11SHIM PKCS11SHIM_OUTPUT PKCS11SPY PKCS11SPY_OUTPUT)
+
+environment=
+for v in ${variables[@]}; do
+    if [ -n "${!v}" ]; then
+	environment+=("$v=${!v}")
+    fi
+done
+
+for v in ${LIB_ENVVARS[@]}; do
+    if [ -n "${!v}" ]; then
+	environment+=("$v=${!v}")
+    fi
+done
+
+quoted=
+for item in "$@"; do
+    quoted+=($(printf "%q" "$item"))
+done
+
+eval ${environment[@]} ${quoted[@]}
+exit $?
 
