@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - added `p11mkcert` command, to create self-signed certificates usable with JVMs
 
 ### Changed
-- support for OpenSSL 1.1 ( OpenSSL 1.1.1+ required)
+- support for OpenSSL 1.1 ( OpenSSL 1.1.1+ required) - Contribution from Ian Norton (@inorton)
 - major refactoring of `p11req` and `masqreq` to leverage OpenSSL algoritm method subsystem
 
 ### Fixed
