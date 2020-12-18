@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.0.1] - 2020-12-18
+### Fixed
+- fixed cross-compilation issues for mingw32
+
 # [2.0.0] - 2020-12-15
 ### Added
 - implemented envelope wrapping (combining a symmetric key and a private key to wrap anything)
@@ -61,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release
 
+[2.0.1]: https://github.com/Mastercard/pkcs11-tools/tree/v2.0.1
 [2.0.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.0.0
 [1.2.0]: https://github.com/Mastercard/pkcs11-tools/tree/v1.2.0
 [1.1.0]: https://github.com/Mastercard/pkcs11-tools/tree/v1.1.0
