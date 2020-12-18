@@ -34,19 +34,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/bn.h>
 #include <openssl/bio.h>
-#include <openssl/err.h>
 #include <openssl/pem.h>
-#include <openssl/conf.h>
-#include <openssl/evp.h>
-#include <openssl/ec.h>
-#include <openssl/dsa.h>
-#include <openssl/ecdsa.h>
-#include <openssl/objects.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-#include <openssl/asn1.h>
 
 #include "pkcs11lib.h"
 

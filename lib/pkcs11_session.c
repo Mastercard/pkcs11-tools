@@ -27,8 +27,8 @@
 
 /* prototypes and small/inline functions */
 static int tokenlabelcmp(const char *label, const char *reflabel, size_t reflabel_maxlen);
-static int min(const int a, const int b);
-static int max(const int a, const int b);
+static int _min(const int a, const int b);
+static int _max(const int a, const int b);
 
 static int compare_mech_type(const void *a, const void *b)
 {
@@ -36,11 +36,11 @@ static int compare_mech_type(const void *a, const void *b)
 }
 
 
-static inline int min(const int a, const int b) {
+static inline int _min(const int a, const int b) {
     return a<b ? a : b;
 }
 
-static inline int max(const int a, const int b) {
+static inline int _max(const int a, const int b) {
     return a>b ? a : b;
 }
 
@@ -81,7 +81,7 @@ static int tokenlabelcmp(const char *label, const char *reflabel, size_t reflabe
 
     /* return a string compare, using the longest chain, but limiting it to the max length of reflabel */
     /* (32 in our case) */
-    return strncasecmp(label, reflabel, min(reflabel_maxlen, max(label_len, reflabel_real_end)));
+    return strncasecmp(label, reflabel, _min(reflabel_maxlen, _max(label_len, reflabel_real_end)));
 }
 
 func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenlabel, char * password, int so, int interactive )

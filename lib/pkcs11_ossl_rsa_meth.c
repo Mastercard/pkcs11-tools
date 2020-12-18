@@ -17,10 +17,13 @@
  */
 
 #include <config.h>
+#include <stdio.h>
 #include <string.h>
-#include <openssl/evp.h>
+
 #include <openssl/rsa.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
+
 #include "pkcs11lib.h"
 #include "pkcs11_ossl.h"
 
@@ -153,7 +156,7 @@ static int custom_rsasign( EVP_PKEY_CTX *ctx,
 						       (CK_BYTE_PTR)digestinfo,
 						       hash_header_map[i].len + EVP_MD_size(md),
 						       sig,
-						       siglen);
+						       (CK_ULONG_PTR)siglen);
 
 	if(rv!= CKR_OK) {
 	    pkcs11_error(rv,"C_Sign");

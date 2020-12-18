@@ -154,7 +154,10 @@ Cross-compilation works with mingw32-gcc under linux. [Debian](https://www.debia
 
 #### To create 32 bits executables:
 ##### Note on 64 bits executables
-the creation of Windows-compatible 64 bits executable is not supported through GCC, as objects are not binary-compatible with those created with Visual Studio, see [this page](https://software.intel.com/en-us/articles/size-of-long-integer-type-on-different-architecture-and-os) for more information. Until the toolkit can be compiled under Visual Studio, no 64 bits executable for Windows can be created.
+The creation of Windows-compatible 64 bits executable is not supported through GCC, as objects are not binary-compatible with those created with Visual Studio, see [this page](https://software.intel.com/en-us/articles/size-of-long-integer-type-on-different-architecture-and-os) for more information. Until the toolkit can be compiled under Visual Studio, no 64 bits executable for Windows can be created.
+
+In theory, producing Win64 executable can be achieved through compiling with Visual C++ platform. Any volunteering welcome :-)
+
 
 ##### Prerequisites
 - install cross-compiler (Debian package: `gcc-mingw-w64-i686`)
@@ -168,9 +171,13 @@ $ ln -s $HOME/.wine/drive_c/OpenSSL-Win32 openssl-win32
 
 ##### compilation:
 ```bash
-$ ./configure --host=i686-w64-mingw32 --prefix=$PWD LIBCRYPTO_LIBS="-L$(pwd)/openssl-win32 -leay32" LIBCRYPTO_CFLAGS="-I$(pwd)/openssl-win32/include"
+$ ./configure --host=i686-w64-mingw32 --prefix=$PWD LIBCRYPTO_LIBS="-L$(pwd)/openssl-win32/lib -lcrypto" LIBCRYPTO_CFLAGS="-I$(pwd)/openssl-win32/include"
 $ make install
 ```
+
+binaries can be found inside the `bin` directory. Don't forget to join the following DLLs:
+ - `libcrypto_1_1.dll` from `OpenSSL-Win32` directory
+ - `libwinpthread-1.dll` from the cross-compiling environment ( on Debian, this can be found at `/usr/i686-w64-mingw32/lib/libwinpthread-1.dll`)
 
 ### MacOS
 This expects that brew be installed on your system, and the formula `openssl@1.1` be deployed. check out https://brew.sh for more information.

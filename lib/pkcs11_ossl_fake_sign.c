@@ -17,9 +17,8 @@
  */
 
 #include <config.h>
+#include <stdio.h>
 #include <string.h>
-#include <openssl/evp.h>
-#include <openssl/err.h>
 #include "pkcs11lib.h"
 
 void fake_sign(unsigned char *sig, size_t siglen)

@@ -17,10 +17,13 @@
  */
 
 #include <config.h>
+#include <stdio.h>
 #include <string.h>
-#include <openssl/evp.h>
+
 #include <openssl/dsa.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
+
 #include "pkcs11lib.h"
 #include "pkcs11_ossl.h"
 
@@ -85,7 +88,7 @@ static int custom_dsasign( EVP_PKEY_CTX *ctx,
 						       (CK_BYTE_PTR)tbs,
 						       tbslen,
 						       p11sig,
-						       &p11siglen);
+						       (CK_ULONG_PTR)&p11siglen);
 
 	if(rv!= CKR_OK) {
 	    pkcs11_error(rv,"C_Sign");
