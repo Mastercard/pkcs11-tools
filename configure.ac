@@ -68,15 +68,27 @@ AS_IF([test "x$host_os" == "xmingw32"],[mingw32=1],[mingw32=0])
 AM_CONDITIONAL([TARGET_OS_MINGW32], [test "$mingw32" = "1"])
 
 PKG_PROG_PKG_CONFIG
+dnl for libcrypto, we are first detecting libcrypo11,
+dnl as older distros may still run on top of openssl 1.0,
+dnl but have v1.1.x accessible through libcrypto11.pc file
 PKG_CHECK_MODULES([LIBCRYPTO],
-	          [libcrypto >= 1.1.1],
+	          [libcrypto11 >= 1.1.1],
 		  [ ac_save_CPPFLAGS=$CPPFLAGS
 		    CPPFLAGS="${CPPFLAGS} ${LIBCRYPTO_CFLAGS}"
 		    AC_CHECK_DECLS([OPENSSL_NO_RSA, OPENSSL_NO_DSA, OPENSSL_NO_DH, OPENSSL_NO_EC],
 		                  [AC_MSG_FAILURE([The OpenSSL crypto library is missing features/algorithm to allow compilation])],
     				  [],
-				  [[#include <openssl/opensslconf.h>]])
-		    CPPFLAGS=${ac_save_CPPFLAGS} ])
+				  [[ #include <openssl/opensslconf.h> ]])
+		    CPPFLAGS=${ac_save_CPPFLAGS} ],
+		    [ PKG_CHECK_MODULES([LIBCRYPTO],
+					[libcrypto >= 1.1.1],
+				    	[ ac_save_CPPFLAGS=$CPPFLAGS
+				      	  CPPFLAGS="${CPPFLAGS} ${LIBCRYPTO_CFLAGS}"
+				      	  AC_CHECK_DECLS([OPENSSL_NO_RSA, OPENSSL_NO_DSA, OPENSSL_NO_DH, OPENSSL_NO_EC],
+		                      	  	     	 [AC_MSG_FAILURE([The OpenSSL crypto library is missing features/algorithm to allow compilation])],
+						     	 [],
+						     	 [[ #include <openssl/opensslconf.h> ]])
+					  CPPFLAGS=${ac_save_CPPFLAGS} ])])
 
 dnl on UNIX platforms, check for dynamic loader lib
 AM_COND_IF( [TARGET_OS_MINGW32],
