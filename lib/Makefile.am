@@ -23,6 +23,7 @@ AM_CPPFLAGS = \
 	-I$(top_builddir)/gl \
 	-I$(top_srcdir)/gl \
 	-I$(top_srcdir)/include \
+	-I$(top_srcdir)/include/oasis-pkcs11/working/3-00-current \
 	-I$(top_srcdir)/include/cryptoki
 
 noinst_LTLIBRARIES = libp11.la
@@ -80,6 +81,7 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_ossl_rsa_meth.c \
 	pkcs11_ossl_dsa_meth.c \
 	pkcs11_ossl_ecdsa_meth.c \
+	pkcs11_ossl_eddsa_meth.c \
 	pkcs11_ossl_fake_sign.c
 
 
@@ -95,11 +97,17 @@ wrappedkey_helper.c pkcs11_wrap.c pkcs11_unwrap.c pkcs11_wctx.c: wrappedkey_lexe
 pkcs11_mechanism.$(OBJEXT): _mechinfo.h
 
 _mechinfo.h: Makefile gen_mechinfo_h.pl
-	$(AM_V_GEN) $(PERL) $(srcdir)/gen_mechinfo_h.pl $(top_srcdir)/include/cryptoki/*.h >$@
+	$(AM_V_GEN) $(PERL) $(srcdir)/gen_mechinfo_h.pl \
+				$(top_srcdir)/include/cryptoki/*.h \
+				$(top_srcdir)/include/oasis-pkcs11/working/3-00-current/*.h \
+				>$@
 
 pkcs11_attrdesc.$(OBJEXT): _attrinfo.h
 
 _attrinfo.h: Makefile gen_attrinfo_h.pl
-	$(AM_V_GEN) $(PERL) $(srcdir)/gen_attrinfo_h.pl $(top_srcdir)/include/cryptoki/*.h >$@
+	$(AM_V_GEN) $(PERL) $(srcdir)/gen_attrinfo_h.pl  \
+				$(top_srcdir)/include/cryptoki/*.h \
+				$(top_srcdir)/include/oasis-pkcs11/working/3-00-current/*.h \
+				>$@
 
 

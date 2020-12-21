@@ -89,7 +89,7 @@ typedef enum e_func_rc {
     rc_error_other_error,
     rc_error_insecure,
     rc_error_dsa_missing_public_key,
-    rc_error_ec_missing_public_key,
+    rc_error_ec_or_ed_missing_public_key,
 } func_rc;
 
 #define AES_WRAP_MECH_SIZE_MAX 8 /* for both rfc3394 and rfc5496, remember the compatible */
@@ -181,18 +181,19 @@ typedef enum {
     des2,			/* des3 double length */
     des3,			/* des3 triple length */
     rsa,
-    ec,
+    ec,				/* Regular EC */
+    ed,				/* Edwards EC */
     dsa,
     dh,
     generic,
-#if defined(HAVE_NCIPHER)    
+#if defined(HAVE_NCIPHER)
     hmacsha1,
     hmacsha224,
     hmacsha256,
     hmacsha384,
     hmacsha512
 #endif
-} key_type_t; 
+} key_type_t;
 
 /* supported wrapping methods */
 enum wrappingmethod { w_unknown,     /* unidentified alg */
@@ -415,9 +416,15 @@ CK_OBJECT_HANDLE pkcs11_importdata( pkcs11Context * p11Context,
 
 /* pkcs11_ec.c */
 
-CK_BBOOL pkcs11_ec_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len);
+bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_type_t keytype);
+
+bool pkcs11_ec_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len);
 char * pkcs11_ec_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *where, size_t maxlen);
 void pkcs11_ec_freeoid(CK_BYTE_PTR buf);
+
+bool pkcs11_ed_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len);
+char * pkcs11_ed_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *where, size_t maxlen);
+void pkcs11_ed_freeoid(CK_BYTE_PTR buf);
 
 /* pkcs11_keygen.c */
 typedef enum {
@@ -461,8 +468,16 @@ func_rc pkcs11_genRSA( pkcs11Context * p11Context,
 		       CK_OBJECT_HANDLE_PTR hPrivateKey,
 		       key_generation_t gentype);
 
-
 func_rc pkcs11_genEC( pkcs11Context * p11Context,
+		      char *label,
+		      char *param,
+		      CK_ATTRIBUTE attrs[],
+		      CK_ULONG numattrs,
+		      CK_OBJECT_HANDLE_PTR hPublicKey,
+		      CK_OBJECT_HANDLE_PTR hPrivateKey,
+		      key_generation_t gentype);
+
+func_rc pkcs11_genED( pkcs11Context * p11Context,
 		      char *label,
 		      char *param,
 		      CK_ATTRIBUTE attrs[],
@@ -494,11 +509,11 @@ func_rc pkcs11_genDH(pkcs11Context * p11Context,
 /* pkcs11_cert_common.c */
 X509_NAME *pkcs11_DN_new_from_string(char *subject, long chtype, bool multirdn, bool reverse);
 bool pkcs11_X509_check_DN(char *subject);
-const EVP_MD *pkcs11_get_EVP_MD(hash_alg_t hash_alg);
+const EVP_MD *pkcs11_get_EVP_MD(key_type_t key_type, hash_alg_t hash_alg);
 EVP_PKEY *pkcs11_SPKI_from_RSA(pkcs11AttrList *attrlist );
 EVP_PKEY *pkcs11_SPKI_from_DSA(pkcs11AttrList *attrlist );
 EVP_PKEY *pkcs11_SPKI_from_EC(pkcs11AttrList *attrlist );
-
+EVP_PKEY *pkcs11_SPKI_from_ED(pkcs11AttrList *attrlist );
 
 
 /* pkcs11_req.c */
@@ -616,6 +631,10 @@ void pkcs11_dsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HAND
 /* pkcs11_ossl_ecdsa_meth.c */
 void pkcs11_ecdsa_method_setup();
 void pkcs11_ecdsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
+
+/* pkcs11_ossl_eddsa_meth.c */
+void pkcs11_eddsa_method_setup();
+void pkcs11_eddsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
 
 
 /* list functions */

@@ -41,19 +41,19 @@ static char* value_for_boolattr( pkcs11AttrList *attrlist,
     CK_BBOOL * val;
 
     attr = pkcs11_get_attr_in_attrlist ( attrlist, attrtype );
-    
+
     if(attr!=NULL_PTR && attr->pValue!=NULL_PTR) {
 	val = (CK_BBOOL *) attr->pValue;
 	switch( *val ) {
-	    
+
 	case CK_TRUE:
 	    rv = ck_true;
 	    break;
-	    
+
 	case CK_FALSE:
 	    rv = ck_false;
 	    break;
-	    
+
 	}
     }
     return rv;
@@ -66,11 +66,11 @@ static char* value_for_keytype( pkcs11AttrList *attrlist )
     char *rv="";
 
     attr_kt = pkcs11_get_attr_in_attrlist ( attrlist, CKA_KEY_TYPE );
-    
+
     if(attr_kt!=NULL_PTR && attr_kt->pValue!=NULL_PTR) {
 	CK_KEY_TYPE *val = (CK_KEY_TYPE *) attr_kt->pValue;
 	switch( *val ) {
-	    
+
 	case CKK_RSA:
 	    rv = "rsa";
 	    {
@@ -80,22 +80,22 @@ static char* value_for_keytype( pkcs11AttrList *attrlist )
 		    case 1024/8:
 			rv = "rsa(1024)";
 			break;
-			
+
 		    case 2048/8:
 			rv = "rsa(2048)";
 			break;
-			
+
 		    case 4096/8:
 			rv = "rsa(4096)";
 			break;
-			
+
 		    default:
 			rv = "rsa";
 		    }
 		}
 	    }
 	    break;
-	    
+
 	case CKK_DES:
 	    rv = "des(64)";
 	    break;
@@ -118,15 +118,15 @@ static char* value_for_keytype( pkcs11AttrList *attrlist )
 		    case 128/8:
 			rv = "aes(128)";
 			break;
-			
+
 		    case 192/8:
 			rv = "aes(192)";
 			break;
-			
+
 		    case 256/8:
 			rv = "aes(256)";
 			break;
-			
+
 		    default:
 			rv = "aes";
 		    }
@@ -141,7 +141,7 @@ static char* value_for_keytype( pkcs11AttrList *attrlist )
 	case CKK_SHA_1_HMAC:
 	    rv = "hmac-sha1";
 	    break;
-	    
+
 	case CKK_SHA224_HMAC:
 	    rv = "hmac-sha224";
 	    break;
@@ -162,7 +162,6 @@ static char* value_for_keytype( pkcs11AttrList *attrlist )
 	    rv = "generic";
 	    break;
 
-
 	default:
 	    rv = "unknown";
 	}
@@ -177,7 +176,7 @@ static int ls_cert(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
     int rv=0;
     pkcs11AttrList *attrs;
 
-    attrs = pkcs11_new_attrlist(p11Context, 
+    attrs = pkcs11_new_attrlist(p11Context,
 				/* storage object attributes */
 				_ATTR(CKA_TOKEN),
 				_ATTR(CKA_PRIVATE),
@@ -190,19 +189,19 @@ static int ls_cert(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_VALUE),
 				_ATTR(CKA_TRUSTED), /* NSS: unknown */
 				_ATTR_END);
-    
+
     if( attrs!=NULL) {
 	if(pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
 	    CK_ATTRIBUTE_PTR id, label;
 	    char buffer[LABELORID_MAXLEN];
 	    int buffer_len = sizeof buffer;
-	    
+
 	    label      = pkcs11_get_attr_in_attrlist ( attrs, CKA_LABEL );
 	    id         = pkcs11_get_attr_in_attrlist ( attrs, CKA_ID );
-	    
+
 	    label_or_id(label, id, buffer, buffer_len);
-	    
-	    printf("cert/%-*s %s%s%s%s\n", 
+
+	    printf("cert/%-*s %s%s%s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs, CKA_TOKEN, "tok,", "ses,", ""),
@@ -210,7 +209,7 @@ static int ls_cert(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		   value_for_boolattr(attrs, CKA_MODIFIABLE, "r/w,", "r/o,", ""),
 		   value_for_boolattr(attrs, CKA_TRUSTED, "tru,", "", "")
 		);
-	}    
+	}
 	pkcs11_delete_attrlist(attrs);
     }
     return rv;
@@ -223,13 +222,13 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
     int rv=0;
     pkcs11AttrList *attrs;
 
-    attrs = pkcs11_new_attrlist(p11Context, 
+    attrs = pkcs11_new_attrlist(p11Context,
 				/* storage object attributes */
 				_ATTR(CKA_TOKEN),
 				_ATTR(CKA_PRIVATE),
 				_ATTR(CKA_MODIFIABLE),
 				_ATTR(CKA_LABEL),
-				
+
 				/* KEY attributes */
 				_ATTR(CKA_ID),
 				_ATTR(CKA_START_DATE),
@@ -238,7 +237,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_LOCAL),
 				_ATTR(CKA_KEY_TYPE),
 				_ATTR(CKA_KEY_GEN_MECHANISM), /* NSS: unknown? */
-				
+
 				/* Public Key attributes */
 				_ATTR(CKA_SUBJECT),
 				_ATTR(CKA_ENCRYPT),
@@ -246,18 +245,18 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_VERIFY_RECOVER),
 				_ATTR(CKA_WRAP),
 				_ATTR(CKA_TRUSTED), /* NSS: unknown */
-				
+
 				/* RSA Public Key attributes */
 				_ATTR(CKA_MODULUS),
 				_ATTR(CKA_PUBLIC_EXPONENT),
-				
+
 				/* EC Public Key attribute */
 				_ATTR(CKA_EC_PARAMS),
 				_ATTR(CKA_EC_POINT),
-				
+
 				/* DH/DSA Public Key attribute - for key length determ. */
 				_ATTR(CKA_PRIME),
-				
+
 				_ATTR_END );
 
     if( attrs!=NULL) {
@@ -267,51 +266,56 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 	    int  buffer_len = sizeof buffer;
 	    char keykind[41];
 	    char ecname[37];
-	
+
 	    id         = pkcs11_get_attr_in_attrlist ( attrs, CKA_ID );
 	    label      = pkcs11_get_attr_in_attrlist ( attrs, CKA_LABEL );
 	    keytype    = pkcs11_get_attr_in_attrlist ( attrs, CKA_KEY_TYPE );
-	
+
 	    switch( *((CK_KEY_TYPE *)(keytype->pValue)) ) {
 	    case CKK_RSA:
 		modulus = pkcs11_get_attr_in_attrlist ( attrs, CKA_MODULUS );
 		sprintf(keykind, "rsa(%d)", (int) ((modulus->ulValueLen)<<3));
 		break;
-	    
+
 	    case CKK_EC:
 		ec_params = pkcs11_get_attr_in_attrlist ( attrs, CKA_EC_PARAMS );
-		sprintf(keykind, "ec(%s)", pkcs11_ec_oid2curvename( (CK_BYTE*)(ec_params->pValue), 
+		sprintf(keykind, "ec(%s)", pkcs11_ec_oid2curvename( (CK_BYTE*)(ec_params->pValue),
 								    ec_params->ulValueLen,
-								    ecname, 
+								    ecname,
 								    sizeof ecname ));
 		break;
-	    
+
+	    case CKK_EC_EDWARDS:
+		ec_params = pkcs11_get_attr_in_attrlist ( attrs, CKA_EC_PARAMS );
+		sprintf(keykind, "ed(%s)", pkcs11_ed_oid2curvename( (CK_BYTE*)(ec_params->pValue),
+								    ec_params->ulValueLen,
+								    ecname,
+								    sizeof ecname ));
+		break;
+
 	    case CKK_DSA:
 		prime = pkcs11_get_attr_in_attrlist ( attrs, CKA_PRIME );
 		sprintf(keykind, "dsa(%d)", (int) ((prime->ulValueLen)<<3));
 		break;
-	    
+
 	    case CKK_DH:
 		prime = pkcs11_get_attr_in_attrlist ( attrs, CKA_PRIME );
 		sprintf(keykind, "dh(%d)", (int) ((prime->ulValueLen)<<3));
 		break;
-	    
-	    
-	    
+
 	    default:
 		sprintf(keykind, "unknown(\?\?\?)");
 	    }
-	
-	
+
 	    label_or_id(label, id, buffer, buffer_len);
-	
-	    printf("pubk/%-*s %s%s%s%s%s%s%s%s%s%s%s\n", 
+
+	    printf("pubk/%-*s %s%s%s%s%s%s%s%s%s%s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs,CKA_TOKEN, "tok,", "ses,", ""),
 		   value_for_boolattr(attrs,CKA_PRIVATE, "prv,", "pub,", ""),
 		   value_for_boolattr(attrs,CKA_MODIFIABLE, "r/w,", "r/o,", ""),
-	       
+
 		   value_for_boolattr(attrs,CKA_LOCAL, "loc,", "imp,", ""),
 		   value_for_boolattr(attrs,CKA_DERIVE, "drv,", "", ""),
 		   value_for_boolattr(attrs,CKA_ENCRYPT, "enc,", "", ""),
@@ -324,7 +328,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 	}
 	pkcs11_delete_attrlist(attrs);
     }
-    
+
     return rv;
 
 }
@@ -336,7 +340,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
     int rv=0;
     pkcs11AttrList *attrs;
 
-    attrs = pkcs11_new_attrlist(p11Context, 
+    attrs = pkcs11_new_attrlist(p11Context,
 				/* storage object attributes */
 				_ATTR(CKA_TOKEN),
 				_ATTR(CKA_PRIVATE),
@@ -377,7 +381,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_PRIME),
 
 				_ATTR_END );
-	    
+
     if(attrs!=NULL) {
 	if (pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
 	    CK_ATTRIBUTE_PTR label, id, modulus, keytype, ec_params, prime;
@@ -398,12 +402,20 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 	    case CKK_EC:
 		ec_params = pkcs11_get_attr_in_attrlist ( attrs, CKA_EC_PARAMS );
-		sprintf(keykind, "ec(%s)", pkcs11_ec_oid2curvename( (CK_BYTE*)(ec_params->pValue), 
+		sprintf(keykind, "ec(%s)", pkcs11_ec_oid2curvename( (CK_BYTE*)(ec_params->pValue),
 								    ec_params->ulValueLen,
-								    ecname, 
+								    ecname,
 								    sizeof ecname ));
 		break;
-		    
+
+	    case CKK_EC_EDWARDS:
+		ec_params = pkcs11_get_attr_in_attrlist ( attrs, CKA_EC_PARAMS );
+		sprintf(keykind, "ed(%s)", pkcs11_ed_oid2curvename( (CK_BYTE*)(ec_params->pValue),
+								    ec_params->ulValueLen,
+								    ecname,
+								    sizeof ecname ));
+		break;
+
 	    case CKK_DSA:
 		prime = pkcs11_get_attr_in_attrlist ( attrs, CKA_PRIME );
 		sprintf(keykind, "dsa(%d)", (int) ((prime->ulValueLen)<<3));
@@ -420,13 +432,13 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 	    label_or_id(label, id, buffer, buffer_len);
 
-	    printf("prvk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", 
+	    printf("prvk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs,CKA_TOKEN, "tok,", "ses,", ""),
 		   value_for_boolattr(attrs,CKA_PRIVATE, "prv,", "pub,", ""),
 		   value_for_boolattr(attrs,CKA_MODIFIABLE, "r/w,", "r/o,", ""),
-														     
+
 		   value_for_boolattr(attrs,CKA_LOCAL, "loc,", "imp,", ""),
 		   value_for_boolattr(attrs,CKA_DERIVE, "drv,", "", ""),
 		   value_for_boolattr(attrs,CKA_DECRYPT, "dec,", "", ""),
@@ -455,7 +467,7 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
     int rv=0;
     pkcs11AttrList *attrs;
 
-    attrs = pkcs11_new_attrlist(p11Context, 
+    attrs = pkcs11_new_attrlist(p11Context,
 				/* storage object attributes */
 				_ATTR(CKA_TOKEN),
 				_ATTR(CKA_PRIVATE),
@@ -491,8 +503,8 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_CHECK_VALUE),
 
 				_ATTR_END );
-	    
-    if( attrs!=NULL) { 
+
+    if( attrs!=NULL) {
 	if(pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
 	    CK_ATTRIBUTE_PTR label, id, bytes;
 	    char buffer[LABELORID_MAXLEN];
@@ -503,13 +515,13 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 	    label_or_id(label, id, buffer, buffer_len);
 
-	    printf("seck/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", 
+	    printf("seck/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs,CKA_TOKEN, "tok,", "ses,", ""),
 		   value_for_boolattr(attrs,CKA_PRIVATE, "prv,", "pub,", ""),
 		   value_for_boolattr(attrs,CKA_MODIFIABLE, "r/w,", "r/o,", ""),
-														     
+
 		   value_for_boolattr(attrs,CKA_LOCAL, "loc,", "imp,", ""),
 		   value_for_boolattr(attrs,CKA_DERIVE, "drv,", "", ""),
 		   value_for_boolattr(attrs,CKA_ENCRYPT, "enc,", "", ""),
@@ -540,13 +552,13 @@ static int ls_data(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
     int rv=0;
     pkcs11AttrList *attrs;
 
-    attrs = pkcs11_new_attrlist(p11Context, 
+    attrs = pkcs11_new_attrlist(p11Context,
 				/* storage object attributes */
 				_ATTR(CKA_TOKEN),
 				_ATTR(CKA_PRIVATE),
 				_ATTR(CKA_MODIFIABLE),
 				_ATTR(CKA_LABEL),
-				
+
 				/* OBJECT attributes */
 //				_ATTR(CKA_APPLICATION),
 //				_ATTR(CKA_OBJECT_ID),
@@ -558,20 +570,18 @@ static int ls_data(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 	    CK_ATTRIBUTE_PTR label, applic, objid;
 	    char buffer[LABELORID_MAXLEN];
 	    int  buffer_len = sizeof buffer;
-	    
+
 	    label      = pkcs11_get_attr_in_attrlist ( attrs, CKA_LABEL );
 //	    objid      = pkcs11_get_attr_in_attrlist ( attrs, CKA_OBJECT_ID );
 //	    applic     = pkcs11_get_attr_in_attrlist ( attrs, CKA_APPLICATION );
 
-	    
 	    label_or_id(label, NULL, buffer, buffer_len);
-	    
-	    printf("data/%-*s %s%s\n", 
+
+	    printf("data/%-*s %s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs,CKA_TOKEN, "tok,", "ses,", ""),
 		   value_for_boolattr(attrs,CKA_PRIVATE, "prv,", "pub,", "")
-		   
 		);
 	}
 
@@ -586,7 +596,7 @@ static int ls_data(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 func_rc pkcs11_ls( pkcs11Context *p11Context, char *label)
 {
     func_rc frc = rc_ok;
-    
+
     pkcs11IdTemplate * idtmpl=NULL;
     pkcs11Search *search=NULL;
 
@@ -608,58 +618,56 @@ func_rc pkcs11_ls( pkcs11Context *p11Context, char *label)
 	    idtmpl = pkcs11_make_idtemplate(label);
 	}
     }
-    
+
     if(idtmpl) {
 	search = pkcs11_new_search_from_idtemplate( p11Context, idtmpl );
-	
+
 	if(search) {		/* we just need one hit */
-	    
+
 	    CK_OBJECT_HANDLE hndl=0;
 	    int objcnt = 0;
-	    
+
 	    while( (hndl = pkcs11_fetch_next(search))!=0 ) {
-		
+
 		pkcs11AttrList *attrs;
-		
+
 		++objcnt;
-		
+
 		attrs = pkcs11_new_attrlist(p11Context, _ATTR(CKA_CLASS), _ATTR_END);
-		
+
 		if(attrs) {
-		    
-		    if( pkcs11_read_attr_from_handle_ext (attrs, hndl, 
+
+		    if( pkcs11_read_attr_from_handle_ext (attrs, hndl,
 							  CKR_ATTRIBUTE_SENSITIVE, /* we skip over sensitive attributes */
 							  CKR_FUNCTION_FAILED,     /* workaround for nCipher bug 30966 */
 							  0L) == CK_TRUE) {
-			
+
 			CK_ATTRIBUTE_PTR objclass = pkcs11_get_attr_in_attrlist(attrs, CKA_CLASS);
-			
+
 			switch( *((CK_OBJECT_CLASS *)objclass->pValue) ) {
 			case CKO_DATA:
 			    ls_data(p11Context, hndl);
 			    break;
-			    
+
 			case CKO_CERTIFICATE:
 			    ls_cert(p11Context, hndl);
 			    break;
-			    
+
 			case CKO_PUBLIC_KEY:
 			    ls_pubk(p11Context, hndl);
 			    break;
-			    
+
 			case CKO_PRIVATE_KEY:
 			    ls_prvk(p11Context, hndl);
 			    break;
-			    
+
 			case CKO_SECRET_KEY:
 			    ls_seck(p11Context, hndl);
 			    break;
-			    
+
 			default:
 			    break;
 			}
-			
-
 		    }
 		    pkcs11_delete_attrlist(attrs);
 		}
@@ -673,3 +681,5 @@ func_rc pkcs11_ls( pkcs11Context *p11Context, char *label)
 
     return frc;
 }
+
+/* EOF */

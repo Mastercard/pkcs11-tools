@@ -19,7 +19,6 @@
 #ifndef PKCS11_EXTRA_H
 #define PKCS11_EXTRA_H
 
-#include "pkcs11-v3backport.h"	/* backport of PKCS#11 v3.0 mechanisms (preview) */
 #include "nss.h"		/* Nescape Security Services */
 
 #if defined(HAVE_NCIPHER)

@@ -341,6 +341,10 @@ static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, CK_B
 	value = "CKK_EC";
 	break;
 
+    case CKK_EC_EDWARDS:
+	value = "CKK_EC_EDWARDS";
+	break;
+
     default:
 	value = "unsupported";
     }

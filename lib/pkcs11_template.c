@@ -127,6 +127,7 @@ static void idtemplate_setclass(pkcs11IdTemplate *idtmpl, CK_OBJECT_CLASS cl)
 pkcs11IdTemplate * pkcs11_make_idtemplate(char *resourceid)
 {
     pkcs11IdTemplate * idtmpl = NULL;
+    pkcs11IdTemplate * rv = NULL;
 
     CK_OBJECT_CLASS objectclass;
     int has_class = 0;
@@ -171,7 +172,8 @@ pkcs11IdTemplate * pkcs11_make_idtemplate(char *resourceid)
     regex_t regex;
 
     regmatch_t regex_group[groupcnt];
-    int regi;
+
+    int regi=-1;
 
 
     /* allocate structure */
@@ -297,13 +299,15 @@ pkcs11IdTemplate * pkcs11_make_idtemplate(char *resourceid)
 	    idlbllen = 0;
 	}
     }
-    return idtmpl;
+    
+    rv = idtmpl;		/* transfer idtmpl to rv */
+    idtmpl = NULL;
 
-    /* error management */
 err:
+    if(regi==0) { regfree(&regex); } /* if regi==0, regcomp() was successful */
     if (idtmpl) { delete_idtemplate(idtmpl); idtmpl=NULL; }
 
-    return idtmpl;
+    return rv;
 }
 
 

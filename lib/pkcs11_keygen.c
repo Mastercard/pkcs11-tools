@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <search.h>
+#include <assert.h>
+#include <openssl/objects.h>
 #include "pkcs11lib.h"
 
 /***********************************************************************/
@@ -661,35 +663,53 @@ error:
 }
 
 
-func_rc pkcs11_genEC( pkcs11Context * p11ctx,
-		      char *label,
-		      char *param,
-		      CK_ATTRIBUTE attrs[],
-		      CK_ULONG numattrs,
-		      CK_OBJECT_HANDLE_PTR pubkhandleptr,
-		      CK_OBJECT_HANDLE_PTR prvkhandleptr,
-		      key_generation_t gentype)
+static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
+			     key_type_t keytype,
+			     char *label,
+			     char *param,
+			     CK_ATTRIBUTE attrs[],
+			     CK_ULONG numattrs,
+			     CK_OBJECT_HANDLE_PTR pubkhandleptr,
+			     CK_OBJECT_HANDLE_PTR prvkhandleptr,
+			     key_generation_t gentype)
 {
     func_rc rc = rc_ok;
     CK_RV retcode;
     int i;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
+    int nid = NID_undef;
 
-    CK_BYTE  *ec_param;
-    CK_ULONG ec_param_len;
+    CK_BYTE  *ex_param;
+    CK_ULONG ex_param_len;
 
     CK_MECHANISM mechanism = {
-	CKM_EC_KEY_PAIR_GEN, NULL_PTR, 0
+	0 , NULL_PTR, 0
     };
 
     CK_BYTE id[32];
-    snprintf((char *)id, sizeof id, "ecdsa-%s-%ld", param, time(NULL));
 
+    switch(keytype) {
+    case ec:
+	mechanism.mechanism = CKM_EC_KEY_PAIR_GEN;
+	snprintf((char *)id, sizeof id, "ec-%s-%ld", param, time(NULL));
+	break;
+
+    case ed:
+	mechanism.mechanism = CKM_EC_EDWARDS_KEY_PAIR_GEN;
+	snprintf((char *)id, sizeof id, "ed-%s-%ld", param, time(NULL));
+	break;
+
+    default:
+	fprintf(stderr, "***Error: unmanaged keytype\n");
+	assert(0);
+    }
 
     /* adjust EC parameter */
-    if( pkcs11_ec_curvename2oid(param, &ec_param, &ec_param_len) == CK_FALSE ) {
-	fprintf(stderr,"***Error: unknown/unsupported elliptic curve parameter name '%s'\n", param);
+    if( pkcs11_ex_curvename2oid(param, &ex_param, &ex_param_len, keytype) == false) {
+	fprintf(stderr,"***Error: unknown/unsupported %s curve parameter name '%s'\n",
+		keytype == ed ? "Edwards" : "elliptic",
+		param);
 	rc = rc_error_invalid_parameter_for_method;
 	goto error;
     }
@@ -697,7 +717,7 @@ func_rc pkcs11_genEC( pkcs11Context * p11ctx,
     {
 	CK_ATTRIBUTE pubktemplate[] = {
 	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof(CK_BBOOL)},
-	    {CKA_EC_PARAMS, ec_param, ec_param_len },
+	    {CKA_EC_PARAMS, ex_param, ex_param_len },
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
 	    /* what can we do with this key */
@@ -809,10 +829,35 @@ func_rc pkcs11_genEC( pkcs11Context * p11ctx,
     }
 
 error:
-    if(ec_param) { pkcs11_ec_freeoid(ec_param); }
+    if(ex_param) { pkcs11_ec_freeoid(ex_param); }
 
     return rc;
 }
+
+inline func_rc pkcs11_genEC( pkcs11Context * p11ctx,
+			     char *label,
+			     char *param,
+			     CK_ATTRIBUTE attrs[],
+			     CK_ULONG numattrs,
+			     CK_OBJECT_HANDLE_PTR pubkhandleptr,
+			     CK_OBJECT_HANDLE_PTR prvkhandleptr,
+			     key_generation_t gentype) {
+    return pkcs11_genEX(p11ctx, ec, label, param, attrs, numattrs, pubkhandleptr, prvkhandleptr, gentype);
+}
+
+
+inline func_rc pkcs11_genED( pkcs11Context * p11ctx,
+			     char *label,
+			     char *param,
+			     CK_ATTRIBUTE attrs[],
+			     CK_ULONG numattrs,
+			     CK_OBJECT_HANDLE_PTR pubkhandleptr,
+			     CK_OBJECT_HANDLE_PTR prvkhandleptr,
+			     key_generation_t gentype) {
+    return pkcs11_genEX(p11ctx, ed, label, param, attrs, numattrs, pubkhandleptr, prvkhandleptr, gentype);
+}
+
+
 
 
 int pkcs11_testgenEC_support( pkcs11Context * p11ctx, const char *param)
@@ -822,6 +867,7 @@ int pkcs11_testgenEC_support( pkcs11Context * p11ctx, const char *param)
     int i, rc=0;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
+    int nid = NID_undef;
 
     CK_BYTE  *ec_param;
     CK_ULONG ec_param_len;
@@ -840,7 +886,7 @@ int pkcs11_testgenEC_support( pkcs11Context * p11ctx, const char *param)
 
 
     /* adjust EC parameter */
-    if( pkcs11_ec_curvename2oid((char *)param, &ec_param, &ec_param_len) == CK_FALSE ) {
+    if( pkcs11_ec_curvename2oid((char *)param, &ec_param, &ec_param_len) == false ) {
 //	fprintf(stderr,"***Error: unknown/unsupported elliptic curve parameter name '%s'\n", param);
 	goto cleanup;
     }

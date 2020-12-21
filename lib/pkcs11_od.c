@@ -326,6 +326,10 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len) {
 	    info = "CKK_EC";
 	    break;
 
+	case CKK_EC_EDWARDS:
+	    info = "CKK_EC_EDWARDS";
+	    break;
+
 	case CKK_X9_42_DH:
 	    info = "CKK_X9_42_DH";
 	    break;

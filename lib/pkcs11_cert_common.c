@@ -267,34 +267,38 @@ bool pkcs11_X509_check_DN(char *subject)
     return true;
 }
 
-const EVP_MD *pkcs11_get_EVP_MD(hash_alg_t hash_alg)
+const EVP_MD *pkcs11_get_EVP_MD(key_type_t key_type, hash_alg_t hash_alg)
 {
     const EVP_MD *rv;
-    
-    switch(hash_alg) {
 
-    case sha1:
-	rv = EVP_sha1();
-	break;
+    if(key_type == ed ) {	
+	rv = EVP_md_null(); /* PureEdDSA has no pre-hash */
+    } else {
+	switch(hash_alg) {
+
+	case sha1:
+	    rv = EVP_sha1();
+	    break;
 	
-    case sha224:
-	rv = EVP_sha224();
-	break;
+	case sha224:
+	    rv = EVP_sha224();
+	    break;
 	
-    case sha256:
-	rv = EVP_sha256();
-	break;
+	case sha256:
+	    rv = EVP_sha256();
+	    break;
 	
-    case sha384:
-	rv = EVP_sha384();
-	break;
+	case sha384:
+	    rv = EVP_sha384();
+	    break;
 	
-    case sha512:
-	rv = EVP_sha512();
-	break;
+	case sha512:
+	    rv = EVP_sha512();
+	    break;
 	
-    default:
-	rv = NULL;
+	default:
+	    rv = NULL;
+	}
     }
     return rv;
 }
@@ -579,6 +583,85 @@ err:
     if(ec_group) { EC_GROUP_free(ec_group); ec_group = NULL; }
     if(ec_point) { EC_POINT_free(ec_point); ec_point = NULL; }
     
+    return pk;
+}
+
+
+/* create an EVP_PKEY from DER-encoded key information */
+EVP_PKEY *pkcs11_SPKI_from_ED(pkcs11AttrList *attrlist )
+{
+
+    /* Edwards curve are not defined in OpenSSL like any other EC alg  */
+    /* More specifically, there is no EC_GROUP() associated            */
+    /* therefore these cannot be constructed as regular EC keys        */
+    /* The trick is to create an X509_PUBKEY object, then DER-encode   */
+    /* and DER-decode into an EVP_PKEY object.                         */
+    /* Ugly but works. If anyone has a better idea, please share!      */
+		    
+    ASN1_OCTET_STRING *ed_point = NULL;
+    ASN1_OBJECT * ed_oid = NULL;
+    X509_PUBKEY *x509pk = NULL;
+    EVP_PKEY *pk = NULL;
+    CK_ATTRIBUTE_PTR oecparams = NULL;
+    CK_ATTRIBUTE_PTR oecpoint  = NULL;
+    uint8_t *output = NULL;
+    size_t outputlen = 0;
+    const uint8_t * pp ;
+		    
+    oecparams = pkcs11_get_attr_in_attrlist(attrlist, CKA_EC_PARAMS);
+    oecpoint  = pkcs11_get_attr_in_attrlist(attrlist, CKA_EC_POINT);
+
+    if(oecparams==NULL || oecpoint==NULL) {
+	fprintf(stderr, "Error: object missing attribute(s) CKA_EC_PARAMS and/or CKA_EC_POINT\n");
+	goto key_ed_error;
+    }
+		    
+    /* extract point into octet string */
+    pp = oecpoint->pValue;
+    if( (ed_point = d2i_ASN1_OCTET_STRING(NULL, &pp, oecpoint->ulValueLen)) == NULL ) {
+	P_ERR();
+	goto key_ed_error;
+    }
+
+    /* extract param into OID */
+    pp = oecparams->pValue;
+    if( (ed_oid = d2i_ASN1_OBJECT(NULL, &pp, oecparams->ulValueLen)) == NULL ) {
+	P_ERR();
+	goto key_ed_error;
+    }
+
+    /* create new X509_PUBKEY object and assign point and params */
+    if( (x509pk = X509_PUBKEY_new()) ==NULL ) {
+	P_ERR();
+	goto key_ed_error;
+    }
+
+    if(!X509_PUBKEY_set0_param(x509pk, ed_oid, V_ASN1_UNDEF, NULL, ed_point->data, ed_point->length)) {
+	P_ERR();
+	goto key_ed_error;
+    }
+    ed_oid = NULL; ed_point = NULL; /* ownership transferred to x509pk */
+
+    /* convert to DER */
+    if( (outputlen = i2d_X509_PUBKEY(x509pk, &output)) == 0 ) {
+	P_ERR();
+	goto key_ed_error;
+    }
+
+    /* now the magic: convert that back to an EVP_PKEY object */
+    pp = output;
+    if( (pk = d2i_PUBKEY(NULL, &pp, outputlen)) == NULL ) {
+	P_ERR();
+	goto key_ed_error;
+    }
+
+key_ed_error:
+    if(ed_point) { ASN1_OCTET_STRING_free(ed_point); }
+    if(ed_oid) { ASN1_OBJECT_free(ed_oid); }
+    if(x509pk) { X509_PUBKEY_free(x509pk); }
+    if(output) { OPENSSL_free(output); }
+    /* free stuff */
+
     return pk;
 }
 

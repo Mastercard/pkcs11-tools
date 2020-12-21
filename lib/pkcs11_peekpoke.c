@@ -212,8 +212,9 @@ func_rc pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hP
 	    attr = pkcs11_get_attr_in_attrlist ( attrs, CKA_MODULUS );
 	    break;
 
-	    /* if EC, we hash the point */
+	    /* if EC or Edwards, we hash the point */
 	case CKK_EC:
+	case CKK_EC_EDWARDS:
 	    attr = pkcs11_get_attr_in_attrlist ( attrs, CKA_EC_POINT );
 	    break;
 
@@ -392,10 +393,11 @@ key_type_t pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 	{ CKK_DES3, des3, },	/* des3 triple length */
 	{ CKK_RSA, rsa, },
 	{ CKK_EC, ec, },
+	{ CKK_EC_EDWARDS, ed },
 	{ CKK_DSA, dsa, },
 	{ CKK_DH, dh, },
 	{ CKK_GENERIC_SECRET, generic, },
-#if defined(HAVE_NCIPHER)    
+#if defined(HAVE_NCIPHER)
 	{ CKK_SHA_1_HMAC, hmacsha1, },
 	{ CKK_SHA224_HMAC, hmacsha224, },
 	{ CKK_SHA256_HMAC, hmacsha256, },
@@ -403,7 +405,7 @@ key_type_t pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 	{ CKK_SHA512_HMAC, hmacsha512 },
 #endif
     };
-    
+
     /* extract object class from provided handle */
     attrs = pkcs11_new_attrlist(p11Context, _ATTR(CKA_KEY_TYPE), _ATTR_END );
 

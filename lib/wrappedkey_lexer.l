@@ -110,6 +110,7 @@ CKK_RSA            { yylval.val_key = CKK_RSA           ; return KEYTYPE; }
 CKK_DH             { yylval.val_key = CKK_DH            ; return KEYTYPE; }
 CKK_DSA            { yylval.val_key = CKK_DSA           ; return KEYTYPE; }
 CKK_EC             { yylval.val_key = CKK_EC            ; return KEYTYPE; }
+CKK_EC_EDWARDS     { yylval.val_key = CKK_EC_EDWARDS    ; return KEYTYPE; }
 
 CKO_DATA           { yylval.val_cls = CKO_DATA ; return OCLASS; }
 CKO_CERTIFICATE    { yylval.val_cls = CKO_CERTIFICATE ; return OCLASS; }

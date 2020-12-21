@@ -90,7 +90,17 @@ static void write_pubk(EVP_PKEY* pk, int openssl_native_flag, BIO *sink)
 	case EVP_PKEY_EC:
 	    PEM_write_bio_ECPKParameters(sink ? sink : bio_stdout, EC_KEY_get0_group(EVP_PKEY_get1_EC_KEY(pk)));
 	    break;
+	    
+	case EVP_PKEY_X25519:
+	case EVP_PKEY_ED25519:
+	    fprintf(stderr,"***WARNING: Edwards 25519 elliptic curves have no usable curve parameters\n");
+	    break;
 
+	case EVP_PKEY_X448:
+	case EVP_PKEY_ED448:
+	    fprintf(stderr,"***WARNING: Edwards 448 elliptic curves have no usable curve parameters\n");
+	    break;
+	    
 	default:
 	    PEM_write_bio_PUBKEY(sink ? sink : bio_stdout,pk); /* encapsulated format */
 	    break;
@@ -170,8 +180,8 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
 				_ATTR(CKA_PRIME), /* DSA/DH */
 				_ATTR(CKA_SUBPRIME), /* DSA */
 				_ATTR(CKA_BASE), /* DSA/DH */
-				_ATTR(CKA_EC_PARAMS), /* EC */
-				_ATTR(CKA_EC_POINT),  /* EC */
+				_ATTR(CKA_EC_PARAMS), /* EC/ED */
+				_ATTR(CKA_EC_POINT),  /* EC/ED */
 				_ATTR_END );
 
     if( pkcs11_read_attr_from_handle_ext (attrs, hndl,
@@ -453,11 +463,91 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
 		}
 		    break;
 		    /* end of case_CKK_EC */
+		case CKK_EC_EDWARDS: {
+		    /* Edwards curve are not defined in OpenSSL like any other EC alg  */
+		    /* More specifically, there is no EC_GROUP() associated            */
+		    /* therefore these cannot be constructed as regular EC keys        */
+		    /* The trick is to create an X509_PUBKEY object, then DER-encode   */
+		    /* and DER-decode into an EVP_PKEY object.                         */
+		    /* Ugly but works. If anyone has a better idea, please share!      */
+		    
+		    ASN1_OCTET_STRING *ed_point = NULL;
+		    ASN1_OBJECT * ed_oid = NULL;
+		    X509_PUBKEY *x509pk = NULL;
+		    EVP_PKEY *pk = NULL;
+		    CK_ATTRIBUTE_PTR oecparams = NULL;
+		    CK_ATTRIBUTE_PTR oecpoint  = NULL;
+		    uint8_t *output = NULL;
+		    size_t outputlen = 0;
+		    const uint8_t * pp ;
+		    
 
+		    oecparams = pkcs11_get_attr_in_attrlist(attrs, CKA_EC_PARAMS);
+		    oecpoint  = pkcs11_get_attr_in_attrlist(attrs, CKA_EC_POINT);
+
+		    if(oecparams==NULL || oecpoint==NULL) {
+			fprintf(stderr, "Error: object missing attribute(s) CKA_EC_PARAMS and/or CKA_EC_POINT\n");
+			goto key_ed_error;
+		    }
+		    
+		    /* extract point into octet string */
+		    pp = oecpoint->pValue;
+		    if( (ed_point = d2i_ASN1_OCTET_STRING(NULL, &pp, oecpoint->ulValueLen)) == NULL ) {
+			P_ERR();
+			goto key_ed_error;
+		    }
+
+		    /* extract param into OID */
+		    pp = oecparams->pValue;
+		    if( (ed_oid = d2i_ASN1_OBJECT(NULL, &pp, oecparams->ulValueLen)) == NULL ) {
+			P_ERR();
+			goto key_ed_error;
+		    }
+
+		    /* create new X509_PUBKEY object and assign point and params */
+		    if( (x509pk = X509_PUBKEY_new()) ==NULL ) {
+			P_ERR();
+			goto key_ed_error;
+		    }
+
+		    if(!X509_PUBKEY_set0_param(x509pk, ed_oid, V_ASN1_UNDEF, NULL, ed_point->data, ed_point->length)) {
+			P_ERR();
+			goto key_ed_error;
+		    }
+		    ed_oid = NULL; ed_point = NULL; /* ownership transferred to x509pk */
+
+		    /* convert to DER */
+		    if( (outputlen = i2d_X509_PUBKEY(x509pk, &output)) == 0 ) {
+			P_ERR();
+			goto key_ed_error;
+		    }
+
+		    /* now the magic: convert that back to an EVP_PKEY object */
+		    pp = output;
+		    if( (pk = d2i_PUBKEY(NULL, &pp, outputlen)) == 0 ) {
+			P_ERR();
+			goto key_ed_error;
+		    }
+
+		    write_pubk(pk, openssl_native_flag, sink);
+
+		    key_ed_error:
+		    if(ed_point) { ASN1_OCTET_STRING_free(ed_point); }
+		    if(ed_oid) { ASN1_OBJECT_free(ed_oid); }
+		    if(x509pk) { X509_PUBKEY_free(x509pk); }
+		    if(pk) { EVP_PKEY_free(pk); }
+		    if(output) { OPENSSL_free(output); }
+		    /* free stuff */
+
+		}
+		    break;
+		    /* end of case_CKK_EC_EDWARDS */
+		    
 		default:
 		    fprintf(stderr, "Sorry, (yet) unsupported key type\n");
 		    break;
 		}
+		break;
 
 	    case CKO_CERTIFICATE: {
 		CK_ATTRIBUTE_PTR ovalue = pkcs11_get_attr_in_attrlist(attrs, CKA_VALUE);

@@ -20,32 +20,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+#include <stddef.h>
 #include <unistd.h>
+#include <assert.h>
 #include "pkcs11lib.h"
 
 #include <openssl/objects.h>
 #include <openssl/err.h>
 
-
-/*
-CK_BYTE ec_x9_62_param_prime192v1[] = { 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x01 };
-CK_BYTE ec_x9_62_param_prime192v2[] = { 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x02 };
-CK_BYTE ec_x9_62_param_prime192v3[] = { 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x03 };
-CK_BYTE ec_x9_62_param_prime239v1[] = { 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x04 };
-CK_BYTE ec_x9_62_param_prime239v2[] = { 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x05 };
-CK_BYTE ec_x9_62_param_prime239v3[] = { 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x06 };
-CK_BYTE ec_x9_62_param_prime256v1[] = { 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07 };
-*/
-
-
-CK_BBOOL pkcs11_ec_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len)
+bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_type_t keytype)
 {
-
-    CK_BBOOL rc = CK_FALSE;
-    ASN1_OBJECT *obj = NULL;
+    bool rc = false;
+    ASN1_OBJECT *obj;
 
     unsigned char *pp = NULL;
     char repr[80];
+    char uname[80]; 		/* to uppercase the name. Limited to 80 chars */
     int i2dlen;
 
     /* first we try to convert string to ASN.1 object */
@@ -53,75 +44,109 @@ CK_BBOOL pkcs11_ec_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len)
     *where = NULL;
     *len = 0;
 
-    obj = OBJ_txt2obj(name, 0);
-    
-    if(obj==NULL) {
-	P_ERR();
-	goto err;
-    }
+    if(name && where && len ) {
+	/* For Edwards, we expect to have an uppercase string */
+	strncpy(uname, name, sizeof uname); uname[sizeof uname -1]=0;
+	int i;
+	for(i=0; i<strlen(uname); i++) {
+	    uname[i] = toupper(uname[i]);
+	}
 
-    /* then we convert back to an OID in order to compare the prefix */
-    /* with well-known OID for elliptic curves */
+	if ( (obj = OBJ_txt2obj(name, 0)) == NULL && (obj = OBJ_txt2obj(uname, 0)) == NULL ) {
+	    P_ERR();
+	    goto err;
+	}
+
+	/* we convert back to an OID in order to compare the prefix */
+	/* with well-known OID for elliptic curves */
 
 #define ANSI_X9_62_CURVES "1.2.840.10045.3"
 #define CERTICOM_CURVES   "1.3.132.0"
 #define WAP_WSG_CURVES    "2.23.43.1.4"
 
-    OBJ_obj2txt(repr, 80, obj, 1);
-    
-    if(strncmp(ANSI_X9_62_CURVES, repr, strlen(ANSI_X9_62_CURVES)) == 0 
-       ||
-       strncmp(CERTICOM_CURVES, repr, strlen(CERTICOM_CURVES)) == 0 
-       ||
-       strncmp(WAP_WSG_CURVES, repr, strlen(WAP_WSG_CURVES)) == 0 
-	) {
+#define ED25519           "1.3.101.112"
+#define ED448             "1.3.101.113"
 
-	/* if it is EC, we allocate the DER space onto target pointer */
-	i2dlen = i2d_ASN1_OBJECT(obj, NULL);
-	if(i2dlen<0) {
-	    P_ERR();
-	    goto err;
-	} else {
-	    *where = OPENSSL_malloc(i2dlen);
-	    
-	    if(*where==NULL) {
+	OBJ_obj2txt(repr, sizeof repr - 1, obj, 1);
+
+	/* TODO do a better job at doing this */
+	if( ( keytype == ec && ( strncmp(ANSI_X9_62_CURVES, repr, strlen(ANSI_X9_62_CURVES)) == 0
+				 ||
+				 strncmp(CERTICOM_CURVES, repr, strlen(CERTICOM_CURVES)) == 0
+				 ||
+				 strncmp(WAP_WSG_CURVES, repr, strlen(WAP_WSG_CURVES)) == 0 ) )
+	    || ( keytype == ed && ( strncmp(ED25519, repr, strlen(ED25519)) == 0
+				    || strncmp(ED448, repr, strlen(ED448)) == 0 ) ) ) {
+
+	    /* if it is EC, we allocate the DER space onto target pointer */
+	    i2dlen = i2d_ASN1_OBJECT(obj, NULL);
+	    if(i2dlen<0) {
 		P_ERR();
 		goto err;
+	    } else {
+		*where = OPENSSL_malloc(i2dlen);
+
+		if(*where==NULL) {
+		    P_ERR();
+		    goto err;
+		}
+
+		pp = *where;
+
+		i2dlen = i2d_ASN1_OBJECT(obj, &pp);
+
+		if(len<0) {
+		    P_ERR();
+		    goto err;
+		}
+
+		*len = i2dlen;
+		rc = true;
 	    }
-	    
-	    pp = *where;
-	    
-	    i2dlen = i2d_ASN1_OBJECT(obj, &pp);
-	    
-	    if(len<0) {
-		P_ERR();
-		goto err;
-	    }
-	    
-	    *len = i2dlen;
-	    rc = CK_TRUE;
 	}
     }
-    
+
 err:
-    if(rc==CK_FALSE) {
+    if(rc==false) {
 	if(*where!=NULL) { OPENSSL_free(*where); *where = NULL; *len=0; }
     }
 
     if(obj) { ASN1_OBJECT_free(obj); }
-
     return rc;
 }
 
-void pkcs11_ec_freeoid(CK_BYTE_PTR buf)
+
+
+/* aliases for EC and ED  */
+
+inline bool pkcs11_ec_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len) {
+    return pkcs11_ex_curvename2oid(name, where, len, ec);
+}
+
+inline bool pkcs11_ed_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len) {
+    return pkcs11_ex_curvename2oid(name, where, len, ed);
+}
+
+
+static void pkcs11_ex_freeoid(CK_BYTE_PTR buf)
 {
     if(buf) {
 	OPENSSL_free(buf);
     }
 }
 
+/* aliases for EC and ED  */
 
-char * pkcs11_ec_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *where, size_t maxlen)
+void pkcs11_ec_freeoid(CK_BYTE_PTR buf) {
+    pkcs11_ex_freeoid(buf);
+}
+
+void pkcs11_ed_freeoid(CK_BYTE_PTR buf) {
+    pkcs11_ex_freeoid(buf);
+}
+
+
+static char * pkcs11_ex_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *where, size_t maxlen, key_type_t keytype)
 {
 
     ASN1_OBJECT *obj = NULL;
@@ -130,32 +155,74 @@ char * pkcs11_ec_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *where, 
 
 	const unsigned char *pp = param;
 
-	obj = d2i_ASN1_OBJECT(NULL, &pp, param_len);
+	switch(keytype) {
+	case ec:
+	    if( (obj = d2i_ASN1_OBJECT(NULL, &pp, param_len)) == NULL ) {
+		P_ERR();
+		strncpy(where, "unknown(\?\?\?)", maxlen);
+		where[maxlen-1]=0;
+		goto cleanup;
+	    }
 
-	if(obj == NULL) {
-	    P_ERR();
-	    goto cleanup;
-	}    
-	
+	    if( OBJ_obj2txt(where, maxlen, obj, 0) == 0 ) {
+		P_ERR();
+		strncpy(where, "unknown(\?\?\?)", maxlen);
+		where[maxlen-1]=0;
+	    }
+	    break;
 
-	if( OBJ_obj2txt(where, maxlen, obj, 0) == 0 ) {
-	    /* we have got an error */
-	    P_ERR();
-	    
-	    strncpy(where, "unknown(\?\?\?)", maxlen);
-	    where[maxlen-1]=0;
+	case ed:
+	    /* if we have public keys, it will be a regular OID */
+	    /* if we have private keys, params may be one of the forms */
+	    /*
+	       13 0c 65 64 77 61 72 64 73 32 35 35 31 39        ..edwards25519
+	       13 0a 65 64 77 61 72 64 73 34 34 38              ..edwards448
+	     */
+	{
+	    static const uint8_t id_edwards25519[] = { 0x13, 0x0C, 'e', 'd', 'w', 'a', 'r', 'd', 's', '2', '5', '5', '1', '9' };
+	    static const uint8_t id_edwards448[] = { 0x13, 0x0A, 'e', 'd', 'w', 'a', 'r', 'd', 's', '4', '4', '8' };
+
+	    if( ( obj = d2i_ASN1_OBJECT(NULL, &pp, param_len) ) != NULL) { /* case 1: OID - from public key */
+		if( OBJ_obj2txt(where, maxlen, obj, 0) == 0 ) {
+		    P_ERR();
+		    strncpy(where, "unknown(\?\?\?)", maxlen);
+		    where[maxlen-1]=0;
+		}
+		/* happy path here */
+	    } else {
+		if(param_len == sizeof id_edwards25519 && memcmp(id_edwards25519, param, sizeof id_edwards25519)==0 ) {
+		    strncpy(where, "ED25519", maxlen);
+		    where[maxlen-1]=0;
+		} else if(param_len == sizeof id_edwards448 && memcmp(id_edwards448, param, sizeof id_edwards448)==0) {
+		    strncpy(where, "ED448", maxlen);
+		    where[maxlen-1]=0;
+		} else {
+		    strncpy(where, "unknown(\?\?\?)", maxlen);
+		    where[maxlen-1]=0;
+		}
+	    }
 	}
+	break;
 
+	default:
+	    assert(0);
+	}
     }
-    
+
 cleanup:
     if(obj) { ASN1_OBJECT_free(obj); }
 
     return where;
 }
 
-/*
- *--------------------------------------------------------------------------------
- * $Log$
- *--------------------------------------------------------------------------------
- */
+/* aliases for EC and ED  */
+
+inline char * pkcs11_ec_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *where, size_t maxlen) {
+    return pkcs11_ex_oid2curvename(param, param_len, where, maxlen, ec);
+}
+
+inline char * pkcs11_ed_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *where, size_t maxlen) {
+    return pkcs11_ex_oid2curvename(param, param_len, where, maxlen, ed);
+}
+
+/* EOF */

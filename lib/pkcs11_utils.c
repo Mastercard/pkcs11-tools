@@ -380,12 +380,8 @@ char * hex2bin_new(char *label, size_t size, size_t *outsize)
     /* #5: scan resulting set and conversion */
     for( initpos = pos = tmpbuf; *pos && (pos-initpos < len); ++pos)
     {
-	unsigned int x;
 	if( !((pos-initpos)&1) ) {
-	    /* because sscanf returns the value as an unsigned int, */
-	    /* we must pass through type casting to avoid memory/stack overflow */
-	    sscanf(pos,"%2x", &x);
-	    target[(pos-initpos)>>1]= (unsigned char)x;
+	    sscanf(pos,"%hhx", &target[(pos-initpos)>>1]);
 	}
     }
 

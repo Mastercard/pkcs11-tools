@@ -334,11 +334,12 @@ int main( int argc, char ** argv )
 	    break;
 
 	case ec:
-	    /* for EC, we work with the public key, as the public key value is stored into CKA_POINT    */
+	case ed:
+	    /* for EC and ED, we work with the public key, as the public key value is stored into CKA_POINT    */
 	    /* which is not present in the private key object */
 	    if(hPublicKey==NULL_PTR) {
-		fprintf(stderr, "Error: a public key is required in order to generate an ECDSA certificate request.\n");
-		retcode = rc_error_dsa_missing_public_key;
+		fprintf(stderr, "Error: a public key is required in order to generate an ECDSA/EDDSA certificate request.\n");
+		retcode = rc_error_ec_or_ed_missing_public_key;
 		goto err;
 	    }
 	    handle_for_attributes = hPublicKey;
@@ -349,6 +350,7 @@ int main( int argc, char ** argv )
 					    _ATTR_END);
 	    break;
 
+	    
 	default:
 	    fprintf(stderr, "Error: unsupported key type\n");
 	    retcode = rc_error_unsupported;

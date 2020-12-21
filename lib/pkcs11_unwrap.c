@@ -602,6 +602,7 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 		case CKK_DH:
 		case CKK_RSA:
 		case CKK_EC:
+		case CKK_EC_EDWARDS:
 		    if(pkcs11_privatekey_exists(p11Context, label)) {
 			fprintf(stderr,"***Error: private key with label '%s' already exists\n", label);
 			rc = rc_error_object_exists;
@@ -898,6 +899,7 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 		case CKK_DH:
 		case CKK_RSA:
 		case CKK_EC:
+		case CKK_EC_EDWARDS:
 		    if(pkcs11_privatekey_exists(p11Context, label)) {
 			fprintf(stderr,"***Error: private key with label '%s' already exists\n", label);
 			rc = rc_error_object_exists;

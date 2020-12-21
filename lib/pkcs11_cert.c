@@ -134,6 +134,17 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 	pkcs11_ecdsa_method_pkcs11_context(p11Context, hprivkey, false);
 	break;
 
+    case ed:
+	/* get SPKI */
+	if((pk = pkcs11_SPKI_from_ED( attrlist )) == NULL ) {
+	    fprintf(stderr, "Error: unable to build SPKI structure\n");
+	    goto err;
+	}
+	/* hook our crypto to OpenSSL methods */
+	pkcs11_eddsa_method_setup();
+	pkcs11_eddsa_method_pkcs11_context(p11Context, hprivkey, false);
+	break;
+
     default:
 	fprintf(stderr, "Error: unsupported signing algorithm\n");
 	goto err;
@@ -250,7 +261,7 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 
     /* step 12: sign certificate */
 
-    if(!X509_sign(crt, pk, pkcs11_get_EVP_MD(hash_alg))) {
+    if(!X509_sign(crt, pk, pkcs11_get_EVP_MD(key_type, hash_alg))) {
 	P_ERR();
 	goto err;
     }

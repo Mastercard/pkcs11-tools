@@ -63,9 +63,12 @@ void print_usage(char *progname)
 	     "  -t <token label> : if present, -s option is ignored\n"
 	     "  -p <token PIN> | :::exec:<command> | :::nologin\n"
 	     "* -i <key_alias>: label/alias of the key\n"
-	     "* -k <key type> : aes, des, rsa, dsa, dh, ec, generic or hmac,\n"
+	     "* -k <key type> : aes, des, rsa, dsa, dh, ec, ed, generic / hmac"
 #if defined(HAVE_NCIPHER)
+	     ",\n"
              "                  hmacsha1, hmacsha224, hmacsha256, hmacsha384, hmacsha512\n"
+#else
+	     "\n"
 #endif
 	     "  -b <key length>: key length in bits. supported values:\n"
 	     "                   - 128, 192, 256 for AES\n"
@@ -78,10 +81,10 @@ void print_usage(char *progname)
 	     "                   - 2048 for RSA\n"
 	     "                   - 160 for Generic/HMAC\n"
 	     "                   - ignored for DH/DSA (taken out from parameter file)\n"
-	     "  -q <curve param>: curve parameter\n"
-	     "                    if unspecified, default is prime256v1\n"
-	     "                    check out `openssl ecparam -list_curves` for a list of supported values\n"
-	     "                    PKCS#11 libraries typically support prime256v1, secp384r1 and secp521r1\n"
+	     "  -q <curve param>: EC curve parameter or ED kind\n"
+	     "                    for EC: prime256v1, secp384r1 and secp521r1\n"
+	     "                            (default: prime256v1)\n"
+	     "                    for ED: ED25519 or ED448 (default: ED25519)\n"
 	     "  -d <dh/dsa param>  : DH or DSA parameter file\n"
 	     "  -W wrappingkey=\"<label>\"[,algorithm=<algorithm>][,filename=\"<path>\"]\n"
 	     "     a specifier for wrapping the key, with the following parameters:\n"
@@ -258,7 +261,8 @@ int main( int argc, char ** argv )
 		kb = 2048;
 	    } else if(strcasecmp(optarg,"ec")==0) {
 		keytype = ec;
-		if(param==NULL) { param = "prime256v1"; }
+	    } else if(strcasecmp(optarg,"ed")==0) {
+		keytype = ed;
 	    } else if(strcasecmp(optarg,"dsa")==0) {
 		keytype = dsa;
 	    } else if(strcasecmp(optarg,"dh")==0) {
@@ -338,7 +342,7 @@ int main( int argc, char ** argv )
 	goto epilog;
     }
 
-    if ( library == NULL || label == NULL || keytype == unknown || (kb == 0 && param == NULL) ) {
+    if ( library == NULL || label == NULL || keytype == unknown ) {
 	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
 	retcode = rc_error_usage;
@@ -429,7 +433,20 @@ int main( int argc, char ** argv )
 		break;
 
 	    case ec:
-		retcode = pkcs11_genEC( p11Context, label, param,
+		retcode = pkcs11_genEC( p11Context, label, param ? param : "prime256v1" ,
+					attrs,
+					attrs_cnt,
+					&pubkhandle,
+					&keyhandle,
+					keygentype);
+
+		if(retcode==rc_ok) {
+		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
+		}
+		break;
+
+	    case ed:
+		retcode = pkcs11_genED( p11Context, label, param ? param : "ED25519" ,
 					attrs,
 					attrs_cnt,
 					&pubkhandle,
