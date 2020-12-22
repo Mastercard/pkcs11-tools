@@ -83,7 +83,7 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_ossl_fake_sign.c
 
 
-dist_libp11_la_SOURCES = gen_attrinfo_h.pl gen_mechinfo_h.pl wrappedkey_parser.y wrappedkey_lexer.l wrappedkey_lexer.h
+dist_libp11_la_SOURCES = gen_attrinfo_h.pl gen_mechinfo_h.pl wrappedkey_parser.y wrappedkey_lexer.l wrappedkey_lexer.h pkcs11_ossl.h
 
 CLEANFILES = _mechinfo.h _attrinfo.h
 BUILT_SOURCES = _mechinfo.h _attrinfo.h wrappedkey_parser.h wrappedkey_lexer.h

@@ -208,7 +208,7 @@ To build an RPM package:
 $ ./configure [...] --prefix=$PWD
 $ make dist
 $ cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS
-$ cp pkcs11-tools-[VERSION].tar.gz $HOME/rpmbuild/SRPMS
+$ cp pkcs11-tools-[VERSION].tar.gz $HOME/rpmbuild/SOURCES
 $ rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec
 ```
 

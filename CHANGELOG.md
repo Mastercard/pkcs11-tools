@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.0.2] - 2020-12-22
+### Fixed
+- include file `lib/pkcs11_ossl.h` to the source distribution (Issue #24)
+- typo in documentation (Issue #24)
+- compilation on older RedHat derivatives that use `openssl11-dev` instead of `openssl-dev`
+
 # [2.0.1] - 2020-12-18
 ### Fixed
 - fixed cross-compilation issues for mingw32
