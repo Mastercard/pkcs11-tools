@@ -164,7 +164,7 @@ fi
 #if NOSLOT is defined, or if PKCS11TOKENLABEL is defined we skip PKCS11SLOT
 #(useful for p11slotinfo invocation)
 if [ -z "$NOSLOT" -a -z "$PKCS11TOKENLABEL" ]; then
-    PKCS11SLOT=${PKCS11SLOT:-1}
+    PKCS11SLOT=${PKCS11SLOT:-0}
 fi
 
 # also, if NOSLOT is defined, we unset PKCS11TOKENLABEL and PKCS11SLOT
