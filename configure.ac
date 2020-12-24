@@ -13,8 +13,8 @@ dnl See the License for the specific language governing permissions and
 dnl limitations under the License.
 
 
-AC_PREREQ([2.63])
-AC_INIT([pkcs11-tools], [2.0.2], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
+AC_PREREQ([2.64])
+AC_INIT([pkcs11-tools], [2.0.2-devel], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
 AC_CONFIG_MACRO_DIR([m4])
 
 dnl adding AM_MAINTAINER_MODE to address autotools issues with git
@@ -36,6 +36,10 @@ AC_PROG_CC
 dnl we enforce C99
 AC_PROG_CC_C99
 AS_IF([test "x$ac_cv_prog_cc_c99" == "no"],[AC_MSG_FAILURE([The C compiler '$CC' does not supports C99 standard.])],[])
+gl_EARLY		dnl GNULIB early macro init
+			dnl must be right after AC_PROG_CC_C99
+			dnl according to domumentation
+
 
 AC_PATH_PROG([PERL],[perl])	dnl needed to execute scripts in lib directory
 AC_PROG_MKDIR_P			dnl needed for dist/solaris build
@@ -53,7 +57,6 @@ AS_VAR_COPY([BISON], [YACC])
 AX_PROG_BISON([],[AC_MSG_WARN([GNU bison is required to regenerate parser. Generated source code is provided, so it should be OK, until you change the parser source file.])])
 AX_PROG_BISON_VERSION([3.0.0],[],[AC_MSG_WARN([GNU bison v3+ is required to regenerate parser. Generated source code is provided, so it should be OK, until you change the parser source file. Hint: use YACC variable to point to bison on your system.])])
 
-gl_EARLY			dnl GNULIB early macro init
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
