@@ -191,7 +191,7 @@ static func_rc fprintf_wrapping_algorithm_full(FILE *fp, wrappedKeyCtx *wctx, ch
 	} else {		/* standalone */
 	    char alone[256];
 
-	    if( fprintf_wrapping_algorithm_full(NULL, wctx, alone, sizeof alone, WRAPPEDKEYCTX_LONE_KEY_INDEX ) != rc_ok ) {
+	    if( (rc = fprintf_wrapping_algorithm_full(NULL, wctx, alone, sizeof alone, WRAPPEDKEYCTX_LONE_KEY_INDEX )) != rc_ok ) {
 		return rc;
 	    } /* exit prematurely */
 	    fprintf(fp, "Wrapping-Algorithm: %s\n", alone );
@@ -1037,7 +1037,7 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
     CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
     CK_OBJECT_CLASS wrappedkeyobjclass;
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
-    CK_ATTRIBUTE_PTR o_wrappingkey_bytes, o_wrappedkey_bytes, o_modulus;
+    CK_ATTRIBUTE_PTR o_wrappedkey_bytes, o_modulus;
     BIGNUM *bn_wrappingkey_bytes = NULL;
     BIGNUM *bn_wrappedkey_bytes = NULL;
     int bytelen;
@@ -1202,7 +1202,6 @@ static func_rc _wrap_cbcpad(wrappedKeyCtx *wctx)
     CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
     key_type_t keytype;
     CK_OBJECT_CLASS wrappedkeyobjclass;
-    int bytelen;
     int blocklength;
 
     /* keyindex: in case of envelope wrapping, the index shall always be the outer */
@@ -1544,7 +1543,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
     CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
     CK_OBJECT_CLASS wrappedkeyobjclass;
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
-    CK_ATTRIBUTE_PTR o_wrappingkey_bytes, o_wrappedkey_bytes, o_modulus, o_keytype;
+    CK_ATTRIBUTE_PTR o_wrappedkey_bytes, o_modulus, o_keytype;
     BIGNUM *bn_wrappingkey_bytes = NULL;
     BIGNUM *bn_wrappedkey_bytes = NULL;
     int bytelen;
@@ -1777,6 +1776,15 @@ static func_rc _wrap_envelope(wrappedKeyCtx *wctx)
     CK_OBJECT_HANDLE wrappingkeyhandle=NULL_PTR;
     CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
     CK_OBJECT_CLASS wrappedkeyobjclass;
+    CK_OBJECT_HANDLE tempaes_handle=0;
+    CK_BBOOL ck_true = CK_TRUE;
+
+    CK_ATTRIBUTE tempaes_attrs[] = {
+	{ CKA_WRAP, &ck_true, sizeof(ck_true) },
+	{ CKA_EXTRACTABLE, &ck_true, sizeof(ck_true) }
+    };
+
+    char tempaes_label[32];
 
     if (!pkcs11_findpublickey(wctx->p11Context, wctx->wrappingkeylabel, &wrappingkeyhandle)) {
 	fprintf(stderr,"Error: could not find a public key with label '%s'\n", wctx->wrappingkeylabel);
@@ -1814,16 +1822,6 @@ static func_rc _wrap_envelope(wrappedKeyCtx *wctx)
     /* step 2: generate the intermediate temporary key */
     /* will be an AES for now */
 
-    CK_BBOOL ck_false = CK_FALSE;
-    CK_BBOOL ck_true = CK_TRUE;
-    CK_OBJECT_HANDLE tempaes_handle=0;
-
-    CK_ATTRIBUTE tempaes_attrs[] = {
-	{ CKA_WRAP, &ck_true, sizeof(ck_true) },
-	{ CKA_EXTRACTABLE, &ck_true, sizeof(ck_true) }
-    };
-
-    char tempaes_label[32];
     snprintf((char *)tempaes_label, sizeof tempaes_label, "tempaes-%ld", time(NULL));
 
     /* TODO - adapt to support other symmetric types - detect on wrapping alg */

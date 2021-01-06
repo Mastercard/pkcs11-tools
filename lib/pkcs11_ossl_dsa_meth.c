@@ -167,8 +167,8 @@ static int custom_dsa_sign( EVP_PKEY_CTX *ctx,
 void pkcs11_dsa_method_setup()
 {
     static bool initialized = false;
-    const EVP_PKEY_METHOD *orig_dsamethod;
-    EVP_PKEY_METHOD *custom_dsamethod;
+    const EVP_PKEY_METHOD *orig_dsamethod = NULL;
+    EVP_PKEY_METHOD *custom_dsamethod = NULL;
 
     if(initialized) {
 	fprintf(stderr, "Warning: EVP_PKEY_C sign method already customized, skipping setup\n");

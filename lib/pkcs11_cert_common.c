@@ -43,7 +43,6 @@
 #include "pkcs11lib.h"
 
 static X509_NAME *parse_name(char *subject, long chtype, bool multirdn, bool reverse);
-static bool add_ext(X509 *cert, int nid, char *value);
 
 
 /*----------------------------------------------------------------------*/
@@ -312,7 +311,6 @@ EVP_PKEY *pkcs11_SPKI_from_RSA(pkcs11AttrList *attrlist )
     BIGNUM *bn_modulus = NULL;
     BIGNUM *bn_exponent = NULL;
     CK_ATTRIBUTE_PTR attr;
-    const unsigned char *ptr;
 
     /* do we have everything we need? */
     if( !pkcs11_attrlist_has_attribute(attrlist, CKA_MODULUS) ||
@@ -385,7 +383,6 @@ EVP_PKEY *pkcs11_SPKI_from_DSA(pkcs11AttrList *attrlist )
     BIGNUM *bn_base = NULL;
     BIGNUM *bn_pubkey = NULL;
     CK_ATTRIBUTE_PTR attr;
-    const unsigned char *ptr;
 
     /* do we have everything we need? */
     if( !pkcs11_attrlist_has_attribute(attrlist, CKA_PRIME) ||

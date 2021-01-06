@@ -32,7 +32,7 @@
 bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_type_t keytype)
 {
     bool rc = false;
-    ASN1_OBJECT *obj;
+    ASN1_OBJECT *obj=NULL;
 
     unsigned char *pp = NULL;
     char repr[80];

@@ -561,7 +561,6 @@ static CK_ULONG get_EC_params(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
     if ( pubkey && EVP_PKEY_base_id(pubkey)==EVP_PKEY_EC  ) {
 
 	ec = EVP_PKEY_get0_EC_KEY(pubkey);
-	CK_BYTE_PTR p = NULL;
 
 	if(ec==NULL) {
 	    P_ERR();
@@ -704,7 +703,7 @@ static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
 			/* SHA-1 block */
 			EVP_MD_CTX *mdctx;
 			const EVP_MD *md;
-			unsigned int md_len, i;
+			unsigned int md_len;
 
 			*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
 
@@ -739,7 +738,7 @@ static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
 			/* SHA-1 block */
 			EVP_MD_CTX *mdctx;
 			const EVP_MD *md;
-			unsigned int md_len, i;
+			unsigned int md_len;
 
 			*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
 
@@ -840,7 +839,7 @@ static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
 						    /* SHA-1 block */
 						    EVP_MD_CTX *mdctx;
 						    const EVP_MD *md;
-						    unsigned int md_len, i;
+						    unsigned int md_len;
 
 						    *buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
 
@@ -884,7 +883,7 @@ static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
 		/* SHA-1 block */
 		EVP_MD_CTX *mdctx;
 		const EVP_MD *md;
-		unsigned int md_len, i;
+		unsigned int md_len;
 
 		*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
 
@@ -919,7 +918,7 @@ static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
 			/* SHA-1 block */
 			EVP_MD_CTX *mdctx;
 			const EVP_MD *md;
-			unsigned int md_len, i;
+			unsigned int md_len;
 
 			*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
 

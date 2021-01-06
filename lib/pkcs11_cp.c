@@ -210,8 +210,7 @@ int pkcs11_cp_objects(pkcs11Context *p11Context, char *src, char *dest, int inte
 
 		if(ok_to_copy) {		    
 		    CK_RV rc;
-		    CK_OBJECT_HANDLE tmp, target;
-		    CK_BBOOL ck_true = CK_TRUE;
+		    CK_OBJECT_HANDLE tmp;
 
 		    CK_ATTRIBUTE destattr[1] = {
 			{ CKA_LABEL, NULL, 0L },

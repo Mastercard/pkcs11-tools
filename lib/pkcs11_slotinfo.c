@@ -196,8 +196,6 @@ func_rc pkcs11_info_ecsupport(pkcs11Context *p11Context)
     func_rc rc=rc_ok;
 
     if(p11Context) {
-
-	CK_RV rv;
 	size_t crv_len = 0, n;
 	EC_builtin_curve *curves = NULL;
 		

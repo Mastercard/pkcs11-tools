@@ -506,7 +506,7 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
     if( attrs!=NULL) {
 	if(pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
-	    CK_ATTRIBUTE_PTR label, id, bytes;
+	    CK_ATTRIBUTE_PTR label, id;
 	    char buffer[LABELORID_MAXLEN];
 	    int buffer_len = sizeof buffer;
 
@@ -567,7 +567,7 @@ static int ls_data(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
     if(attrs!=NULL) {
 	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
-	    CK_ATTRIBUTE_PTR label, applic, objid;
+	    CK_ATTRIBUTE_PTR label;
 	    char buffer[LABELORID_MAXLEN];
 	    int  buffer_len = sizeof buffer;
 
@@ -676,8 +676,6 @@ func_rc pkcs11_ls( pkcs11Context *p11Context, char *label)
 	}
 	pkcs11_delete_idtemplate(idtmpl);
     }
-
-    err:
 
     return frc;
 }

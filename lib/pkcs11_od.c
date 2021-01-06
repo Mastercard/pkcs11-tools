@@ -785,7 +785,6 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 	}
 	pkcs11_delete_idtemplate(idtmpl);
     }
-    err:
 
     return rc;
 }

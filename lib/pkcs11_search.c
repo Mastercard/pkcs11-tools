@@ -158,13 +158,8 @@ static int pkcs11_object_with_class_exists(pkcs11Context *p11Context, char *labe
 
 
     if(search) {		/* we just need one hit */
-
-	CK_OBJECT_HANDLE hndl=0;
-	
 	rv = pkcs11_fetch_next(search)!=0 ? 1 : 0 ;
-    
 	pkcs11_delete_search(search);
-
     }
 
     return rv;
@@ -210,13 +205,8 @@ int pkcs11_label_exists(pkcs11Context *p11Context, char *label)
 
 
     if(search) {		/* we just need one hit */
-
-	CK_OBJECT_HANDLE hndl=0;
-	
 	rv = pkcs11_fetch_next(search)!=0 ? 1 : 0 ;
-    
 	pkcs11_delete_search(search);
-
     }
 
     return rv;

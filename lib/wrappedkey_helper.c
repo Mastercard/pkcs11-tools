@@ -267,7 +267,6 @@ static func_rc _wrappedkey_parser_append_from_b64(wrappedKeyCtx *wctx, unsigned 
     BIO *bmem = NULL, *b64 = NULL;
     size_t inlen=0, totallen=0;
     unsigned char inbuf[64];
-    FILE *fp = NULL;
     int readlen=0;
 
     CK_BYTE_PTR *dest_buffer;

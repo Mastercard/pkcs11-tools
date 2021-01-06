@@ -678,7 +678,6 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
     int i;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
-    int nid = NID_undef;
 
     CK_BYTE  *ex_param;
     CK_ULONG ex_param_len;
@@ -864,10 +863,9 @@ int pkcs11_testgenEC_support( pkcs11Context * p11ctx, const char *param)
 {
 
     CK_RV retcode;
-    int i, rc=0;
+    int rc=0;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
-    int nid = NID_undef;
 
     CK_BYTE  *ec_param;
     CK_ULONG ec_param_len;

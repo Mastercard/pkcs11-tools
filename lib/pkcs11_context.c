@@ -168,7 +168,6 @@ func_rc pkcs11_finalize( pkcs11Context * p11Context )
 {
     func_rc rc = rc_ok;
     CK_RV retCode;
-    CK_C_Finalize pC_Finalize;
 
     if(p11Context) {
 	if( p11Context->FunctionList.C_Finalize ) {

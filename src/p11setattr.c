@@ -119,7 +119,7 @@ int main( int argc, char ** argv )
     int ask_confirm = 1;
     char * label = NULL;
     pkcs11Context * p11Context = NULL;
-    func_rc retcode;
+    func_rc retcode = rc_error_usage;
 
     CK_ATTRIBUTE *attrs=NULL;
     size_t attrs_cnt=0;

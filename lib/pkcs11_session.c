@@ -95,7 +95,7 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
     CK_SESSION_HANDLE hSession;
     CK_ULONG ulSlotCount=0;
     long s;
-    int i, x, y;
+    int i;
     int passLen = 0;
     char * tmpSlot = NULL;
     char * pass = NULL;

@@ -105,10 +105,9 @@ int main( int argc, char ** argv )
     int interactive = 1;
     char * tokenlabel = NULL;
     int so=0;
-    int verbose=0;
 
     pkcs11Context * p11Context = NULL;
-    func_rc retcode;
+    func_rc retcode = rc_error_usage;
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");

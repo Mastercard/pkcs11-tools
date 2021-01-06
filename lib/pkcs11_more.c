@@ -140,7 +140,6 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 
 		    CK_ATTRIBUTE_PTR oclass = pkcs11_get_attr_in_attrlist(attrs, CKA_CLASS);
 		    CK_ATTRIBUTE_PTR oktype = pkcs11_get_attr_in_attrlist(attrs, CKA_KEY_TYPE);
-		    CK_ATTRIBUTE_PTR olabel = pkcs11_get_attr_in_attrlist(attrs, CKA_LABEL);
 
 		    if(oclass) {
 			switch(*(CK_OBJECT_CLASS *)(oclass->pValue)) {

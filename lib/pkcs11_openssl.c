@@ -66,7 +66,7 @@ CK_ULONG pkcs11_openssl_alloc_and_sha1(CK_BYTE_PTR data, CK_ULONG datalen, CK_VO
     if(data!=NULL && datalen>0 && *buf==NULL) {
 	EVP_MD_CTX *mdctx = NULL;
 	const EVP_MD *md = NULL;
-	unsigned int md_len, i;
+	unsigned int md_len;
 
 	if( (*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH)) == NULL ) {
 		P_ERR();

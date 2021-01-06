@@ -124,9 +124,6 @@ int main( int argc, char ** argv )
     CK_ATTRIBUTE *argv_attrs=NULL;
     size_t argv_attrs_cnt=0;
 
-    CK_ATTRIBUTE *default_attrs=NULL;
-    size_t default_attrs_cnt=0;
-
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
     tokenlabel = getenv("PKCS11TOKENLABEL");
@@ -287,7 +284,6 @@ int main( int argc, char ** argv )
 
     if ( retcode == rc_ok )
     {
-	int rc;
 	CK_OBJECT_HANDLE hPublicKey=NULL_PTR;
 	CK_OBJECT_HANDLE hPrivateKey=NULL_PTR;
 	CK_OBJECT_HANDLE handle_for_attributes=NULL_PTR;

@@ -171,8 +171,8 @@ static int custom_ecdsa_sign( EVP_PKEY_CTX *ctx,
 void pkcs11_ecdsa_method_setup()
 {
     static bool initialized = false;
-    const EVP_PKEY_METHOD *orig_ecdsamethod;
-    EVP_PKEY_METHOD *custom_ecdsamethod;
+    const EVP_PKEY_METHOD *orig_ecdsamethod = NULL;
+    EVP_PKEY_METHOD *custom_ecdsamethod = NULL;
 
     if(initialized) {
 	fprintf(stderr, "Warning: EVP_PKEY_C sign method already customized, skipping setup\n");

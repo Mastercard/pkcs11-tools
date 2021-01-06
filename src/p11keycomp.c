@@ -87,7 +87,6 @@ int main( int argc, char ** argv )
     int num_components = -1;
     char * library = NULL;
     char * nsscfgdir = NULL;
-    char * filename = NULL;
     char * password = NULL;
     int so=0;
     char * slotenv = NULL;

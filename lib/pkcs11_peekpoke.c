@@ -36,8 +36,6 @@ CK_OBJECT_HANDLE pkcs11_getObjectHandle( pkcs11Context * p11Context, CK_OBJECT_C
     CK_ULONG tokenLen = sizeof( CK_BBOOL );
     CK_ULONG searchTemplateLen;
     CK_OBJECT_HANDLE hObject;
-    CK_OBJECT_HANDLE_PTR hObjectPtr;
-    CK_OBJECT_CLASS_PTR keyClass;
 
     CK_C_FindObjectsInit pC_FindObjectsInit;
     CK_C_FindObjects pC_FindObjects;
@@ -111,7 +109,6 @@ void pkcs11_adjust_des_key_parity(CK_BYTE* pucKey, int nKeyLen)
 int pkcs11_getObjectAttributes( pkcs11Context * p11Context, CK_OBJECT_HANDLE objectHandle, CK_ATTRIBUTE attr[], int attrlen )
 {
     CK_RV rc;
-    CK_ULONG getTemplateLen;
     int i;
 
     for(i=0; i<attrlen; i++) {
@@ -175,7 +172,6 @@ CK_RV pkcs11_setObjectAttribute( pkcs11Context * p11Context, CK_OBJECT_HANDLE ob
 CK_RV pkcs11_setObjectAttributes( pkcs11Context * p11Context, CK_OBJECT_HANDLE objectHandle, CK_ATTRIBUTE *attr, size_t cnt )
 {
     CK_RV rc;
-    CK_ULONG setTemplateLen;
 
     rc = p11Context->FunctionList.C_SetAttributeValue( p11Context->Session, objectHandle, attr, cnt );
 

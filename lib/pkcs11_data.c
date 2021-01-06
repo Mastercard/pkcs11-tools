@@ -29,22 +29,20 @@ typedef struct {
     CK_ULONG l;
 } DATA;
 
-static DATA * new_data_from_file(char *filename)
+static DATA * new_DATA_from_file(char *filename)
 {
-
     DATA * rv = NULL;
-    
     FILE *fp = NULL;
 
     fp = fopen(filename,"rb"); /* open in binary mode */
     
     if(fp==NULL) {
-	perror("***file Error");
+	perror("***File error");
 	goto cleanup;
     }
 
     if(fseek(fp, 0L, SEEK_END)<0) {
-	perror("***file Error");
+	perror("***File error");
 	goto cleanup;
     }	
 
@@ -90,7 +88,7 @@ cleanup:
 
 
 
-static void free_DATA_buf(DATA *data)
+static void free_DATA(DATA *data)
 {
     if(data) {
 	if(data->l>0 && data->d) {
@@ -98,6 +96,7 @@ static void free_DATA_buf(DATA *data)
 	    data->d=NULL;
 	    data->l=0;
 	}
+	free(data);
     }
 }
 
@@ -110,7 +109,6 @@ CK_OBJECT_HANDLE pkcs11_importdata( pkcs11Context * p11Context, char *filename, 
     CK_RV retCode;
     CK_OBJECT_CLASS objClass = CKO_DATA;
 
-    CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
     
     CK_ATTRIBUTE dataTemplate[] = {
@@ -122,12 +120,9 @@ CK_OBJECT_HANDLE pkcs11_importdata( pkcs11Context * p11Context, char *filename, 
 	{CKA_VALUE, NULL, 0 },				     /* 5  */
     };
 
-    DATA * data = NULL;
-
-    data = new_data_from_file(filename);
+    DATA * data = new_DATA_from_file(filename);
     
     if(data) {
-
 	/* point to buffer */
 	dataTemplate[5].pValue = data->d;
 	dataTemplate[5].ulValueLen = data->l;
@@ -141,7 +136,7 @@ CK_OBJECT_HANDLE pkcs11_importdata( pkcs11Context * p11Context, char *filename, 
 	    pkcs11_error( retCode, "CreateObject" );
 	}
 	
-	free(data);
+	free_DATA(data);
     }
     return hDATA;
 }

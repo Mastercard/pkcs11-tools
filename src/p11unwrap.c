@@ -118,7 +118,6 @@ int main( int argc, char ** argv )
 
     CK_ATTRIBUTE *attrs=NULL;
     size_t attrs_cnt=0;
-    FILE *fp=NULL;
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");

@@ -167,7 +167,6 @@ int main( int argc, char ** argv )
     int numfailed = 0;
     CK_ATTRIBUTE *attrs=NULL;
     size_t attrs_cnt=0;
-    FILE *fp=NULL;
 
 
     int i;

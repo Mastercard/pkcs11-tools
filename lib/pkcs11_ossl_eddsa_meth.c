@@ -152,8 +152,8 @@ static int custom_ed448_digestsign( EVP_MD_CTX *ctx,
 
 static void eddsa_method_setup(int nid, fn_digestsign_ptr *orig_fn_ptr, fn_digestsign_ptr custom_fn_ptr)
 {
-    const EVP_PKEY_METHOD *orig_ed_method;
-    EVP_PKEY_METHOD *custom_ed_method;
+    const EVP_PKEY_METHOD *orig_ed_method = NULL;
+    EVP_PKEY_METHOD *custom_ed_method = NULL;
 
     /* customizing signing methods */
     orig_ed_method = EVP_PKEY_meth_find(nid);

@@ -176,7 +176,6 @@ func_rc pkcs11_import_component(KeyImportCtx *kctx, unsigned char * comp, size_t
 	    CK_RV rv;
 	    CK_BBOOL ck_false = CK_FALSE;
 	    CK_BBOOL ck_true = CK_TRUE;
-	    CK_ULONG bytes = len;
 	    CK_MECHANISM mechanism = { CKM_RSA_PKCS, NULL_PTR, 0 };/* PKCS #1 1.5 unwrap */
 	    CK_OBJECT_CLASS keyclass = CKO_SECRET_KEY;
 	    CK_KEY_TYPE keytype = CKK_DES2;
@@ -216,7 +215,6 @@ func_rc pkcs11_import_component(KeyImportCtx *kctx, unsigned char * comp, size_t
 	CK_RV rv;
 	CK_BBOOL ck_false = CK_FALSE;
 	CK_BBOOL ck_true = CK_TRUE;
-	CK_ULONG bytes = len;
 	CK_OBJECT_HANDLE newkey;
 	CK_MECHANISM mechanism = { CKM_XOR_BASE_AND_DATA, &derivation_data, sizeof derivation_data };
 	CK_OBJECT_CLASS keyclass = CKO_SECRET_KEY;
@@ -294,7 +292,7 @@ CK_OBJECT_HANDLE pkcs11_import_component_final(KeyImportCtx *kctx)
 	    { CKA_TOKEN, &ck_true, sizeof(ck_true) },
 	};
 
-	pkcs11AttrList *kcv_attrs;
+	pkcs11AttrList *kcv_attrs = NULL;
 
 	comp = calloc( _kctx->wrappedkeylen, sizeof(CK_BYTE));
 

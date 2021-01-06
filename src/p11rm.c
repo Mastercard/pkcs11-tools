@@ -100,7 +100,7 @@ int main( int argc, char ** argv )
     int verbose=0;
 
     pkcs11Context * p11Context = NULL;
-    func_rc retcode;
+    func_rc retcode = rc_error_usage;
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");

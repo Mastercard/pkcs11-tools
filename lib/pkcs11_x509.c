@@ -224,7 +224,7 @@ static CK_ULONG get_X509_pubkey_sha1(X509 *hndl, CK_BYTE_PTR *buf)
 				/* SHA-1 block */
 				EVP_MD_CTX *mdctx;
 				const EVP_MD *md;
-				unsigned int md_len, i;
+				unsigned int md_len;
 
 				*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
 
@@ -260,7 +260,7 @@ static CK_ULONG get_X509_pubkey_sha1(X509 *hndl, CK_BYTE_PTR *buf)
 				/* SHA-1 block */
 				EVP_MD_CTX *mdctx;
 				const EVP_MD *md;
-				unsigned int md_len, i;
+				unsigned int md_len;
 
 				*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
 
@@ -362,7 +362,7 @@ static CK_ULONG get_X509_pubkey_sha1(X509 *hndl, CK_BYTE_PTR *buf)
 							/* SHA-1 block */
 							EVP_MD_CTX *mdctx;
 							const EVP_MD *md;
-							unsigned int md_len, i;
+							unsigned int md_len;
 
 							*buf = OPENSSL_malloc(SHA_DIGEST_LENGTH); /* we allocate the buffer, and return it. */
 

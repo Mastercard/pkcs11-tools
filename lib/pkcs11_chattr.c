@@ -130,7 +130,6 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
 	}
 	pkcs11_delete_idtemplate(idtmpl);
     }
-    err:
 
     return rv;
 }

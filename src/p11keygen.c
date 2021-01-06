@@ -371,8 +371,6 @@ int main( int argc, char ** argv )
 	if ( retcode == rc_ok )
 	{
 	    CK_OBJECT_HANDLE keyhandle=0, pubkhandle=0; /* keyhandle will receive either private or secret key handle */
-	    CK_BBOOL ck_true = CK_TRUE;
-	    CK_BBOOL ck_false = CK_FALSE;
 	    key_generation_t keygentype;
 
 	    if(pkcs11_label_exists(p11Context, label)) {

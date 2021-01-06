@@ -121,7 +121,7 @@ error:
 func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappingkeylabel, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen, key_generation_t keygentype)
 {
     func_rc rc;
-    pkcs11AttrList *extended_attrs;
+    pkcs11AttrList *extended_attrs=NULL;
 
     if(ctx && p11Context) {
 	CK_BBOOL cka_token = keygentype == kg_token ? CK_TRUE : CK_FALSE;
@@ -979,7 +979,6 @@ error:
 static func_rc _unwrap_envelope(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char *wrappedkeylabel, CK_ATTRIBUTE attrlist[], CK_ULONG attrlen)
 {
     func_rc rc = rc_ok;
-    int i;
     char *label = NULL;
 
     CK_OBJECT_HANDLE wrappingkeyhandle=0, tempaes_handle=0;
