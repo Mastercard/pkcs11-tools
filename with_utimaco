@@ -41,7 +41,9 @@ PKCS11PASSWORD=${PKCS11PASSWORD:-changeit}
 
 #specific to vendor
 PKCS11_LIBNAME=libcs_pkcs11_R2.so
-PKCS11_LIBPATHS=( /usr/lib /usr/local/lib /opt/utimaco/lib )
+
+# since there is no standard install, we are making a few guesses
+PKCS11_LIBPATHS=( /usr/lib/pkcs11 /usr/lib /usr/local/lib/pkcs11 /usr/local/lib /opt/utimaco/lib $HOME/utimaco/pkcs11/lib $HOME/utimaco/lib )
 LIB_ENVVARS=( CS_PKCS11_R2_CFG )
 
 # setup of CS_PKCS11_R2_CFG
@@ -50,7 +52,7 @@ LIB_ENVVARS=( CS_PKCS11_R2_CFG )
 function find_utimaco_cfg_file()
 {
     file=cs_pkcs11_R2.cfg               
-    paths=( /opt/utimaco /usr/local/etc $HOME/utimaco/pkcs11 $HOME/utimaco )	# possible locations
+    paths=( /opt/utimaco /usr/local/etc /etc $HOME/utimaco/pkcs11 $HOME/utimaco )	# possible locations
     
     for path in ${paths[@]}; do
 	if [ -e $path/$lib ]; then
