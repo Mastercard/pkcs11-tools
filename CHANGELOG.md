@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [2.1.0] - 2021-01-06
+### Added
+- support for Edwards curve based keys ( ED448 and ED25519 ), for all commands (closing issue #11).
+
 # [2.0.2] - 2020-12-22
 ### Fixed
 - include file `lib/pkcs11_ossl.h` to the source distribution (Issue #24)
@@ -71,6 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release
 
+[2.1.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.1.0
+[2.0.2]: https://github.com/Mastercard/pkcs11-tools/tree/v2.0.2
 [2.0.1]: https://github.com/Mastercard/pkcs11-tools/tree/v2.0.1
 [2.0.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.0.0
 [1.2.0]: https://github.com/Mastercard/pkcs11-tools/tree/v1.2.0
