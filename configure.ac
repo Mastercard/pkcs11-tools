@@ -69,6 +69,7 @@ gl_INIT				dnl GNULIB init
 dnl detect if we are cross-compiling for mingw32
 AS_IF([test "x$host_os" == "xmingw32"],[mingw32=1],[mingw32=0])
 AM_CONDITIONAL([TARGET_OS_MINGW32], [test "$mingw32" = "1"])
+AM_CONDITIONAL([TARGET_OS_SOLARIS], [test "x$host_os" == "xsolaris2.10"])
 
 PKG_PROG_PKG_CONFIG
 dnl for libcrypto, we are first detecting libcrypo11,
@@ -98,11 +99,15 @@ AM_COND_IF( [TARGET_OS_MINGW32],
 	    [],
 	    dnl UNIXish platforms
 	    [	dnl find dynamic linker library
-		AC_SEARCH_LIBS([dlopen], [dl dld], [], [AC_MSG_ERROR([unable to find the dlopen() function]) ])
-		] )
+		AC_SEARCH_LIBS([dlopen], [dl dld], [], [AC_MSG_ERROR([unable to find the dlopen() function]) ]) ] )
+
+AM_COND_IF( [TARGET_OS_SOLARIS],
+	    [  dnl on Solaris, OpenSSL needs librt.so, and it is not advertised properly
+	       AC_CHECK_LIB([rt], [clock_gettime]) ] )
 
 AX_LIB_SOCKET_NSL		dnl needed on Solaris hosts, to add proper library nsl and socket
 AX_WITH_DMALLOC			dnl the project can be compiled with dmalloc for memory debugging
+
 
 dnl check if nCipher extensions can be compiled. If requested, specific file
 AC_ARG_WITH([ncipher],
