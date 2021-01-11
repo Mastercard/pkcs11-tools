@@ -381,7 +381,7 @@ char * hex2bin_new(char *label, size_t size, size_t *outsize)
     for( initpos = pos = tmpbuf; *pos && (pos-initpos < len); ++pos)
     {
 	if( !((pos-initpos)&1) ) {
-	    sscanf(pos,"%hhx", &target[(pos-initpos)>>1]);
+	    sscanf(pos,"%2hhx", &target[(pos-initpos)>>1]);
 	}
     }
 
