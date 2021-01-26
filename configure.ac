@@ -1,4 +1,4 @@
-dnl Copyright (c) 2018 Mastercard
+dnl Copyright (c) 2018-2021 Mastercard
 
 dnl Licensed under the Apache License, Version 2.0 (the "License");
 dnl you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ dnl limitations under the License.
 
 
 AC_PREREQ([2.64])
-AC_INIT([pkcs11-tools], [2.1.0], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
+AC_INIT([pkcs11-tools], [2.1.1], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
 AC_CONFIG_MACRO_DIR([m4])
 
 dnl adding AM_MAINTAINER_MODE to address autotools issues with git
