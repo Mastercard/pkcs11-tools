@@ -545,7 +545,6 @@ static CK_ULONG get_EC_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
 	rv = i2dlen;
     }
 error:
-    if(ec != NULL) { EC_KEY_free(ec); }
     if(octbuf != NULL) { OPENSSL_free(octbuf); }
 
     return rv;
@@ -586,8 +585,6 @@ static CK_ULONG get_EC_params(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
 
     }
 error:
-    if(ec != NULL) { EC_KEY_free(ec); }
-
     return rv<0 ? 0 : rv ;
 }
 
