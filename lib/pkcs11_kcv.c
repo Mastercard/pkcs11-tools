@@ -168,6 +168,7 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label )
 			    break;
 
 			case CKK_SHA256_HMAC:
+			case CKK_GENERIC_SECRET:
 			    mechanism = &sha256_hmac;
 			    cleartext_len = 0L;
 			    encrypted_len = 32L;
