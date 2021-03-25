@@ -1037,10 +1037,11 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
     CK_OBJECT_HANDLE wrappedkeyhandle=NULL_PTR;
     CK_OBJECT_CLASS wrappedkeyobjclass;
     pkcs11AttrList *wrappedkey_attrs = NULL, *wrappingkey_attrs = NULL;
-    CK_ATTRIBUTE_PTR o_wrappedkey_bytes, o_modulus;
+    CK_ATTRIBUTE_PTR o_wrappedkey_bytes, o_modulus, o_keytype;
     BIGNUM *bn_wrappingkey_bytes = NULL;
     BIGNUM *bn_wrappedkey_bytes = NULL;
     int bytelen;
+    unsigned long keysizeinbytes;
 
     /* keyindex: in case of envelope wrapping, the index shall always be the outer */
     int keyindex = wctx->is_envelope ? WRAPPEDKEYCTX_OUTER_KEY_INDEX : WRAPPEDKEYCTX_LONE_KEY_INDEX;
@@ -1107,6 +1108,7 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 
     /* retrieve length of wrapped key */
     wrappedkey_attrs = pkcs11_new_attrlist(wctx->p11Context,
+					    _ATTR(CKA_KEY_TYPE), /* for DES/DES2/DES3 */
 					    _ATTR(CKA_VALUE_LEN), /* caution: value in bytes */
 					    _ATTR_END );
 
@@ -1117,22 +1119,60 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
     }
 
     o_wrappedkey_bytes = pkcs11_get_attr_in_attrlist(wrappedkey_attrs, CKA_VALUE_LEN);
+    /* pkcs11_get_attr_in_attrlist returns the attribute, but we need to check */
+    /* if there is actually a value attached to it */
 
-    /* BN_bin2bn works only with big endian, so we must alter data */
-    /* if architecture is LE */
+    if(o_wrappedkey_bytes && o_wrappedkey_bytes->pValue) {
 
-    *((CK_ULONG *)o_wrappedkey_bytes->pValue) = pkcs11_ll_bigendian_ul( *((CK_ULONG *)(o_wrappedkey_bytes->pValue))); /* transform if required */
 
-    if ( (bn_wrappedkey_bytes = BN_bin2bn( o_wrappedkey_bytes->pValue, o_wrappedkey_bytes->ulValueLen, NULL)  ) == NULL ) {
-	P_ERR();
-	goto error;
+	/* BN_bin2bn works only with big endian, so we must alter data */
+	/* if architecture is LE */
+
+	*((CK_ULONG *)o_wrappedkey_bytes->pValue) = pkcs11_ll_bigendian_ul( *((CK_ULONG *)(o_wrappedkey_bytes->pValue))); /* transform if required */
+
+	if ( (bn_wrappedkey_bytes = BN_bin2bn( o_wrappedkey_bytes->pValue, o_wrappedkey_bytes->ulValueLen, NULL)  ) == NULL ) {
+	    P_ERR();
+	    goto error;
+	}
+    } else { /* can be the case for CKK_DES, CKK_DES2 and CKK_DES3 family */
+	     /* as these keys have no CKA_VALUE_LEN attribute */
+
+	o_keytype = pkcs11_get_attr_in_attrlist(wrappedkey_attrs, CKA_KEY_TYPE);
+
+	switch(*(CK_KEY_TYPE *)(o_keytype->pValue)) {
+	case CKK_DES:
+	    keysizeinbytes=8;
+	    break;
+
+	case CKK_DES2:
+	    keysizeinbytes=16;
+	    break;
+
+	case CKK_DES3:
+	    keysizeinbytes=24;
+	    break;
+
+	default:
+	    fprintf(stderr,"***Error: unsupported key type for wrapping key\n");
+	    rc = rc_error_unsupported;
+	    goto error;}
+
+	/* allocate BN */
+	if ( (bn_wrappedkey_bytes = BN_new()) == NULL ) {
+	    P_ERR();
+	    goto error;
+	}
+
+	if ( BN_set_word(bn_wrappedkey_bytes, keysizeinbytes) == 0) {
+	    P_ERR();
+	    goto error;
+	}
     }
-
+    
+    
     /* now check that len(wrapped_key) < len(wrapping_key) - 11 */
     /* !! lengths being expressed in bytes */
-
-    /* then add 11 to this value */
-
+    
     if(! BN_add_word( bn_wrappedkey_bytes, 11L) ) {
 	P_ERR();
 	goto error;
