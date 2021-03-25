@@ -14,7 +14,7 @@ dnl limitations under the License.
 
 
 AC_PREREQ([2.64])
-AC_INIT([pkcs11-tools], [2.1.2], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
+AC_INIT([pkcs11-tools], [2.1.3], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
 AC_CONFIG_MACRO_DIR([m4])
 
 dnl adding AM_MAINTAINER_MODE to address autotools issues with git
@@ -76,7 +76,7 @@ dnl for libcrypto, we are first detecting libcrypo11,
 dnl as older distros may still run on top of openssl 1.0,
 dnl but have v1.1.x accessible through libcrypto11.pc file
 PKG_CHECK_MODULES([LIBCRYPTO],
-	          [libcrypto11 >= 1.1.1],
+	          [libcrypto11 >= 1.1.1e],
 		  [ ac_save_CPPFLAGS=$CPPFLAGS
 		    CPPFLAGS="${CPPFLAGS} ${LIBCRYPTO_CFLAGS}"
 		    AC_CHECK_DECLS([OPENSSL_NO_RSA, OPENSSL_NO_DSA, OPENSSL_NO_DH, OPENSSL_NO_EC],
@@ -85,7 +85,7 @@ PKG_CHECK_MODULES([LIBCRYPTO],
 				  [[ #include <openssl/opensslconf.h> ]])
 		    CPPFLAGS=${ac_save_CPPFLAGS} ],
 		    [ PKG_CHECK_MODULES([LIBCRYPTO],
-					[libcrypto >= 1.1.1],
+					[libcrypto >= 1.1.1e],
 				    	[ ac_save_CPPFLAGS=$CPPFLAGS
 				      	  CPPFLAGS="${CPPFLAGS} ${LIBCRYPTO_CFLAGS}"
 				      	  AC_CHECK_DECLS([OPENSSL_NO_RSA, OPENSSL_NO_DSA, OPENSSL_NO_DH, OPENSSL_NO_EC],
@@ -107,6 +107,9 @@ AM_COND_IF( [TARGET_OS_SOLARIS],
 
 AX_LIB_SOCKET_NSL		dnl needed on Solaris hosts, to add proper library nsl and socket
 AX_WITH_DMALLOC			dnl the project can be compiled with dmalloc for memory debugging
+
+dnl support for pthread is needed if we link with a statically-linked version of OpenSSL
+AX_PTHREAD( [], [ AC_MSG_WARN(Caution: no pthread library found, might be an issue when linking)] )
 
 
 dnl check if nCipher extensions can be compiled. If requested, specific file
@@ -179,10 +182,10 @@ AX_CREATE_TARGET_H([include/target.h])
 
 AC_MSG_NOTICE([------------------------------------------------------------------------])
 AC_MSG_NOTICE([compiler       : $CC])
-AC_MSG_NOTICE([compiler flags : ${LIBCRYPTO_CFLAGS} $CFLAGS])
+AC_MSG_NOTICE([compiler flags : ${LIBCRYPTO_CFLAGS} ${PTHREAD_CFLAGS} $CFLAGS])
 AC_MSG_NOTICE([linker         : $LD])
 AC_MSG_NOTICE([linker flags   : $LDFLAGS])
-AC_MSG_NOTICE([libraries      : ${LIBCRYPTO_LIBS} $LIBS])
+AC_MSG_NOTICE([libraries      : ${LIBCRYPTO_LIBS} ${PTHREAD_LIBS} $LIBS])
 AC_MSG_NOTICE([lexer          : $LEX])
 AC_MSG_NOTICE([parser         : $YACC])
 AC_MSG_NOTICE([parser flags   : $YFLAGS])

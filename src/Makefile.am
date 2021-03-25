@@ -19,7 +19,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/include/oasis-pkcs11/working/3-00-current \
 	-I$(top_srcdir)/include/cryptoki
 
-AM_CFLAGS = $(LIBCRYPTO_CFLAGS)
+AM_CFLAGS = $(LIBCRYPTO_CFLAGS) $(PTHREAD_CFLAGS)
+AM_LIBS = $(PTHREAD_LIBS)
 
 if HAS_LIBCRYPTO_RPATH
 AM_LDFLAGS = -rpath $(LIBCRYPTO_RPATH)

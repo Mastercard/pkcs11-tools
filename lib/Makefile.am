@@ -27,8 +27,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/include/cryptoki
 
 noinst_LTLIBRARIES = libp11.la
-libp11_la_CFLAGS = $(LIBCRYPTO_CFLAGS)
-libp11_la_LIBADD = $(LIBCRYPTO_LIBS)
+libp11_la_CFLAGS = $(LIBCRYPTO_CFLAGS) $(PTHREAD_CFLAGS)
+libp11_la_LIBADD = $(LIBCRYPTO_LIBS) $(PTHREAD_LIBS)
 
 # pick appropriate low-level routines file
 
