@@ -128,7 +128,8 @@ func_rc pkcs11_initialize( pkcs11Context * p11Context )
 
     pC_Initialize = pFunctionList->C_Initialize;
 
-    if ( ( rv = pC_Initialize( &InitArgs ) ) != CKR_OK )
+    rv = pC_Initialize( &InitArgs );
+    if ( rv!=CKR_OK && rv!=CKR_CRYPTOKI_ALREADY_INITIALIZED )
     {
 	if(p11Context->nssinitparams==NULL) {
 	    /* if we don't have NSS parameters, */
@@ -138,28 +139,24 @@ func_rc pkcs11_initialize( pkcs11Context * p11Context )
 	    goto err;
 	}
 
-	else if ( rv == CKR_CRYPTOKI_ALREADY_INITIALIZED ) {
-	    rc = rc_ok;
-	}
-
 	else if ( rv == CKR_ARGUMENTS_BAD )
 	{
 	    rv = pC_Initialize( &NSS_InitArgs );
-
 	    if ( rv == CKR_ARGUMENTS_BAD )
 	    {
 		pkcs11_error( rv, "C_Initialize" );
 
 		rv = pC_Initialize( NULL_PTR );
-
 		if ( rv == CKR_ARGUMENTS_BAD ) {
 		    pkcs11_error( rv, "C_Initialize" );
 		    rc = rc_error_pkcs11_api;
+		    goto err;
 		}
 	    }
 	}
     }
 
+    p11Context->initialized = CK_TRUE;
 err:
     return rc;
 }
@@ -169,7 +166,7 @@ func_rc pkcs11_finalize( pkcs11Context * p11Context )
     func_rc rc = rc_ok;
     CK_RV retCode;
 
-    if(p11Context) {
+    if(p11Context && p11Context->initialized) {
 	if( p11Context->FunctionList.C_Finalize ) {
 	    if ( ( retCode = p11Context->FunctionList.C_Finalize( NULL_PTR ) ) != CKR_OK ) {
 		pkcs11_error( retCode, "C_Finalize" );
@@ -177,6 +174,8 @@ func_rc pkcs11_finalize( pkcs11Context * p11Context )
 	    }
 	}
 
+	p11Context->initialized = CK_FALSE;
+	
 	if(p11Context->libhandle) {
 	    pkcs11_ll_dynlib_close(p11Context->libhandle);
 	    p11Context->libhandle=NULL;

@@ -103,6 +103,7 @@ typedef struct s_p11_ctx {
     CK_SLOT_ID slot;
     int slotindex;
     CK_SESSION_HANDLE Session;
+    CK_BBOOL initialized;
     CK_BBOOL logged_in;
 
     /* in support to rfc3394: */
@@ -675,6 +676,7 @@ CK_OBJECT_HANDLE pkcs11_import_component_final(KeyImportCtx *kctx);
 const char *get_mechanism_name(CK_MECHANISM_TYPE mech); /* pkcs11_mechanism.c */
 CK_ATTRIBUTE_TYPE get_attribute_type_from_name(char *name); /* pkcs11_attrdesc.c */
 
+func_rc pkcs11_info_library(pkcs11Context *p11Context);
 func_rc pkcs11_info_slot(pkcs11Context *p11Context);
 func_rc pkcs11_info_ecsupport(pkcs11Context *p11Context);
 

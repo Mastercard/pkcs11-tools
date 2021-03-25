@@ -58,6 +58,7 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_kcv.c \
 	pkcs11_keycomp.c \
 	pkcs11_keygen.c \
+	pkcs11_libinfo.c \
 	pkcs11_ls.c \
 	pkcs11_masq.c \
 	pkcs11_mechanism.c \
