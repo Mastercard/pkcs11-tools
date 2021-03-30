@@ -29,6 +29,9 @@
 #include <openssl/objects.h>
 #include <openssl/err.h>
 
+static const uint8_t id_edwards25519[] = { 0x13, 0x0C, 'e', 'd', 'w', 'a', 'r', 'd', 's', '2', '5', '5', '1', '9' };
+static const uint8_t id_edwards448[] = { 0x13, 0x0A, 'e', 'd', 'w', 'a', 'r', 'd', 's', '4', '4', '8' };
+
 bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_type_t keytype)
 {
     bool rc = false;
@@ -70,13 +73,11 @@ bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_typ
 	OBJ_obj2txt(repr, sizeof repr - 1, obj, 1);
 
 	/* TODO do a better job at doing this */
-	if( ( keytype == ec && ( strncmp(ANSI_X9_62_CURVES, repr, strlen(ANSI_X9_62_CURVES)) == 0
-				 ||
-				 strncmp(CERTICOM_CURVES, repr, strlen(CERTICOM_CURVES)) == 0
-				 ||
-				 strncmp(WAP_WSG_CURVES, repr, strlen(WAP_WSG_CURVES)) == 0 ) )
-	    || ( keytype == ed && ( strncmp(ED25519, repr, strlen(ED25519)) == 0
-				    || strncmp(ED448, repr, strlen(ED448)) == 0 ) ) ) {
+	if( keytype == ec && ( strncmp(ANSI_X9_62_CURVES, repr, strlen(ANSI_X9_62_CURVES)) == 0
+			       ||
+			       strncmp(CERTICOM_CURVES, repr, strlen(CERTICOM_CURVES)) == 0
+			       ||
+			       strncmp(WAP_WSG_CURVES, repr, strlen(WAP_WSG_CURVES)) == 0 ) ) {
 
 	    /* if it is EC, we allocate the DER space onto target pointer */
 	    i2dlen = i2d_ASN1_OBJECT(obj, NULL);
@@ -103,6 +104,36 @@ bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_typ
 		*len = i2dlen;
 		rc = true;
 	    }
+	}
+	/* although we could use the OID for key generation,                       */
+	/* it seems like HSM implementtions prefer using the curve strings instead */
+	/* note that PKCS#11 3.0 requires to support both ways.                    */
+	if ( keytype == ed ) {
+	    size_t wanted_len;
+
+	    if (strncmp(ED25519, repr, strlen(ED25519)) == 0) {
+		wanted_len = sizeof id_edwards25519;
+		pp = (uint8_t *)id_edwards25519;
+	    }
+	    else if (strncmp(ED448, repr, strlen(ED448)) == 0 ) {
+		wanted_len = sizeof id_edwards448;
+		pp = (uint8_t *)id_edwards448;
+	    }
+	    else {
+		fprintf(stderr, "Error: unsupported edwards curve");
+		goto err;
+	    }
+
+	    *where = OPENSSL_malloc(wanted_len);
+
+	    if(*where==NULL) {
+		P_ERR();
+		goto err;
+	    }
+	    memcpy(*where,pp,wanted_len);
+
+	    *len = wanted_len;
+	    rc = true;
 	}
     }
 
@@ -179,9 +210,6 @@ static char * pkcs11_ex_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *
 	       13 0a 65 64 77 61 72 64 73 34 34 38              ..edwards448
 	     */
 	{
-	    static const uint8_t id_edwards25519[] = { 0x13, 0x0C, 'e', 'd', 'w', 'a', 'r', 'd', 's', '2', '5', '5', '1', '9' };
-	    static const uint8_t id_edwards448[] = { 0x13, 0x0A, 'e', 'd', 'w', 'a', 'r', 'd', 's', '4', '4', '8' };
-
 	    if( ( obj = d2i_ASN1_OBJECT(NULL, &pp, param_len) ) != NULL) { /* case 1: OID - from public key */
 		if( OBJ_obj2txt(where, maxlen, obj, 0) == 0 ) {
 		    P_ERR();

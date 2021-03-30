@@ -176,17 +176,21 @@ int main( int argc, char ** argv )
     }
 
     {
-	
-	retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
-	
+	retcode = pkcs11_info_library(p11Context);
+
 	if( retcode == rc_ok ) {
-	    pkcs11_info_slot(p11Context);
 
-	    if(ec_support==1) {
-		pkcs11_info_ecsupport(p11Context);
+	    retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
+
+	    if( retcode == rc_ok ) {
+		pkcs11_info_slot(p11Context);
+
+		if(ec_support==1) {
+		    pkcs11_info_ecsupport(p11Context);
+		}
+
+		pkcs11_close_session( p11Context );
 	    }
-
-	    pkcs11_close_session( p11Context );
 	}
     }
     

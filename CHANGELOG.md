@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+=======
+# [2.2.0]
+### Added
+- p11kcv will compute a Key Check Value on `CK_GENERIC_SECRET` keys as well. These are mapped to HMAC-SHA256.
+- p11slotinfo now prints library version
+- support for FreeBSD ports and packaging
+- for Edwards curve based keys, allow providing curve name instead of OID when generating a key
+
 # [2.1.3] - 2021-03-25
 ### Fixed
 - ensure that openssl 1.1.1e or above is used, issue #27
