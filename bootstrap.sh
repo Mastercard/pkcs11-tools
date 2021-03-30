@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/bin/sh
 
 # Copyright (c) 2021 Mastercard
 
@@ -36,7 +36,7 @@ cd ${oldpath}
 # detect if we are in a git repo
 if [ -d .git ]; then
     # pull submodule stuff
-    git submodule foreach --recursive git submodule update --init
+    git submodule update --init
     #    git submodule update --init .gnulib
     #    git submodule update --init include/oasis-pkcs11
 else
