@@ -28,14 +28,14 @@ If your platform does not have it, proceed as follows:
 
     - A typical build on linux look as follows:
       ```bash
-      $ ./config zlib shared --openssldir=/opt/openssl-1.1.1 linux-x86_64
+      $ ./config no-zlib shared --prefix=/opt/openssl-1.1.1 linux-x86_64
       $ make
       $ sudo make install
       ```
 
     - If you want static libraries instead of dynamic ones, use the following instructions instead:
       ```bash
-      $ ./config zlib no-shared --openssldir=/opt/openssl-1.1.1 linux-x86_64
+      $ ./config no-zlib no-shared --prefix=/opt/openssl-1.1.1 linux-x86_64
       $ make
       $ sudo make install
       ```
@@ -53,10 +53,12 @@ If your platform does not have it, proceed as follows:
       | Solaris/sparc, 32 bits 	| `solaris-sparcv9-gcc `  	|
       | Solaris/sparc, 64 bits 	| `solaris64-sparcv9-gcc` 	|
 
-Note: building OpenSSL requires `zlib` development package to be present on your system. If you can't have it deployed on your platform, remove the `zlib` parameter from the command line, or change it to `no-zlib`
+    If you encounter issue, your platform may require to use `./Configure` instead. In whichc case, please follow instructions provided by OpenSSL.
+    
+Note: Usually, building OpenSSL requires `zlib` development package to be present on your system. This option is not useful to `pkcs11-tools`. However, if you wish to have it (in case you also want to use that version of OpenSSL for other purposes), change the `no-zlib` option by `zlib`.
 
 ## Installation
-### Bootstrapping the environment
+### Bootstrapping the environment from GitHub
 In order to create the autotools and libtool environment, and before being able to execute the `configure`script, you must execute these steps:
 ```bash
 $ git clone https://github.com/Mastercard/pkcs11-tools.git
@@ -65,7 +67,11 @@ $ ./bootstrap.sh
 ```
 
 ### When autotools utils are not available on my platform
-In this case, you will need to:
+#### The short way (for releases 2.2.0 and beyond)
+ 1. a tarball is available in the assets section of the release page, on GitHub. Just download the file named `pkcs11-tools-X.Y.Z.tar.gz` on your host.
+ 2. follow the build process. You can skip the ["Bootstrapping the environment"](#bootstrapping-the-environment) section.
+
+#### The long way (for releases before 2.2.0)
  1. build the package on a platform where the tools are available (Linux, FreeBSD)
  2. create a source distribution tarball:
     ```bash
@@ -74,6 +80,8 @@ In this case, you will need to:
     This will create a `pkcs11-tools-X.Y.Z.tar.gz` file in your build directory.
  3. Transfer the file to the target host
  4. follow the build process. You can skip the ["Bootstrapping the environment"](#bootstrapping-the-environment) section.
+
+
 ### Linux, typical install
 To build the toolkit, use the following instructions:
 ```bash
@@ -102,22 +110,33 @@ In case you need to deploy the tooklit on target environments where OpenSSL is n
 
 To achieve this, please refer to section [OpenSSL 1.1.1](#openssl-1.1.1), to compile OpenSSL statically. the process to build the toolkit itself remains the same.
 
+
 ### FreeBSD
-On FreeBSD, proceed as with Linux. If you had to install OpenSSL locally, and if the path to OpenSSL libraries is not configured on the system, you need to specify an additional parameter when configuring the pkcs11-tools package, to adjust run path to the libraries. See [rtld(1)](https://www.freebsd.org/cgi/man.cgi?query=rtld&apropos=0&sektion=1&manpath=FreeBSD+12.0-RELEASE&arch=default&format=html) for more information.
+On FreeBSD12, deploy first the OpenSSL package from ports, either using `pkg`, or through the port subsystem:
+```bash
+$ pkg install openssl
+```
+Then proceed as with Linux. 
+
+If you had to install OpenSSL diffrently (e.g. older versions of FreeBSD), and if the path to OpenSSL libraries is not configured on the system, you need to specify an additional parameter when configuring the pkcs11-tools package, to adjust run path to the libraries. See [rtld(1)](https://www.freebsd.org/cgi/man.cgi?query=rtld&apropos=0&sektion=1&manpath=FreeBSD+12.0-RELEASE&arch=default&format=html) for more information.
 ```bash
 $ ./configure PKG_CONFIG_PATH=/opt/openssl-1.1.1/lib/pkgconfig LIBCRYPTO_RPATH=/opt/openssl-1.1.1/lib
 $ make
 $ sudo make install
 ```
 
-### AIX 7.1, 64 bits, IBM XLC compiler, statically linked to OpenSSL
+### AIX 7.1, 64 bits, IBM XLC compiler
+On AIX, do not try to use the GCC compiler, It won't work.
+
 Use the following commands to build the  toolkit:
 ```bash
 $ PATH=/usr/vac/bin:$PATH
-$ AR='ar -X64' CFLAGS='-q64 -qlanglvl=extc99 -I/opt/openssl-1.1.1/include' LDFLAGS=-L/opt/openssl-1.1.1/lib ./configure --prefix=$PWD -C
+$ ./configure --prefix=$PWD -C AR='ar -X64' CFLAGS='-q64' PKG_CONFIG_PATH=/opt/openssl-1.1.1/lib/pkgconfig
 $ make
 $ sudo make install
 ```
+
+Note that the same command can be used for both statically and dynamically-linked versions, on this platform.
 
 ### Solaris
 #### Pre-requisites
