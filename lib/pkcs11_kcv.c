@@ -33,13 +33,17 @@
 
 /* target must point to a location with at least 3 bytes left */
 
-void pkcs11_display_kcv( pkcs11Context *p11Context, char *label )
+void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacdatasize )
 {
 
     pkcs11Search *search=NULL;
     pkcs11IdTemplate *idtmpl=NULL;
     CK_OBJECT_HANDLE *hndl_array=NULL;
 
+
+    if(hmacdatasize>MAX_KCV_CLEARTEXT_SIZE) {
+	fprintf(stderr, "Invalid HMAC block size specified (%d), must be between 0 and %d\n", hmacdatasize, MAX_KCV_CLEARTEXT_SIZE );
+    }
     /* trick: we treat "cert", "pubk", "prvk", "seck" and "data" in front of the templating system */
     /* so these specific labels can be used as shortcut for the corresponding object classes       */
 
@@ -91,9 +95,9 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label )
 		if( attrs!=NULL) {
 		    if (pkcs11_read_attr_from_handle (attrs, hndl_array[j]) == CK_TRUE) {
 			CK_RV rv;
-			CK_BYTE cleartext[16];
-			CK_BYTE encrypted[64];
-			CK_ULONG cleartext_len, encrypted_len;
+			CK_BYTE cleartext[MAX_KCV_CLEARTEXT_SIZE];
+			CK_BYTE processed[64];
+			CK_ULONG cleartext_len, processed_len;
 
 			CK_MECHANISM des_ecb = { CKM_DES_ECB, NULL_PTR, 0 };
 			CK_MECHANISM des3_ecb = { CKM_DES3_ECB, NULL_PTR, 0 };
@@ -130,7 +134,7 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label )
 			case CKK_DES:
 			    mechanism = &des_ecb;
 			    cleartext_len = 8L;
-			    encrypted_len = 8L;
+			    processed_len = 8L;
 			    keytypestr = "DES, single length";
 			    whattodo=encrypt;
 			    break;
@@ -138,7 +142,7 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label )
 			case CKK_DES2:
 			    mechanism = &des3_ecb;
 			    cleartext_len = 8L;
-			    encrypted_len = 8L;
+			    processed_len = 8L;
 			    keytypestr = "3DES, double length";
 			    whattodo=encrypt;
 			    break;
@@ -146,7 +150,7 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label )
 			case CKK_DES3:
 			    mechanism = &des3_ecb;
 			    cleartext_len = 8L;
-			    encrypted_len = 8L;
+			    processed_len = 8L;
 			    keytypestr = "3DES, triple length";
 			    whattodo=encrypt;
 			    break;
@@ -154,15 +158,15 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label )
 			case CKK_AES:
 			    mechanism = &aes_ecb;
 			    cleartext_len = 16L;
-			    encrypted_len = 16L;
+			    processed_len = 16L;
 			    keytypestr = "AES";
 			    whattodo=encrypt;
 			    break;
 
 			case CKK_SHA_1_HMAC:
 			    mechanism = &sha1_hmac;
-			    cleartext_len = 0L;
-			    encrypted_len = 20L;
+			    cleartext_len = hmacdatasize;
+			    processed_len = 20L;
 			    keytypestr = "HMAC(SHA1)";
 			    whattodo=sign;
 			    break;
@@ -170,24 +174,24 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label )
 			case CKK_SHA256_HMAC:
 			case CKK_GENERIC_SECRET:
 			    mechanism = &sha256_hmac;
-			    cleartext_len = 0L;
-			    encrypted_len = 32L;
+			    cleartext_len = hmacdatasize;
+			    processed_len = 32L;
 			    keytypestr = "HMAC(SHA256)";
 			    whattodo=sign;
 			    break;
 
 			case CKK_SHA384_HMAC:
 			    mechanism = &sha384_hmac;
-			    cleartext_len = 0L;
-			    encrypted_len = 48L;
+			    cleartext_len = hmacdatasize;
+			    processed_len = 48L;
 			    keytypestr = "HMAC(SHA384)";
 			    whattodo=sign;
 			    break;
 
 			case CKK_SHA512_HMAC:
 			    mechanism = &sha512_hmac;
-			    cleartext_len = 0L;
-			    encrypted_len = 64L;
+			    cleartext_len = hmacdatasize;
+			    processed_len = 64L;
 			    keytypestr = "HMAC(SHA384)";
 			    whattodo=sign;
 			    break;
@@ -220,13 +224,13 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label )
 			    p11Context->FunctionList.C_Encrypt ( p11Context->Session,
 								 cleartext,
 								 cleartext_len,
-								 encrypted,
-								 &encrypted_len	) :
+								 processed,
+								 &processed_len	) :
 			    p11Context->FunctionList.C_Sign ( p11Context->Session,
 							      cleartext,
 							      cleartext_len,
-							      encrypted,
-							      &encrypted_len );
+							      processed,
+							      &processed_len );
 			if(rv!=CKR_OK) {
 			    pkcs11_error(rv, whattodo == encrypt ? "C_Encrypt" : "C_Sign");
 			    pkcs11_delete_attrlist(attrs);
@@ -237,9 +241,9 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label )
 			printf("%-*s: KCV = %02.2x%02.2x%02.2x (%s)\n",
 			       LABEL_WIDTH,
 			       buffer,
-			       encrypted[0],
-			       encrypted[1],
-			       encrypted[2],
+			       processed[0],
+			       processed[1],
+			       processed[2],
 			       keytypestr);
 		    }
 		    pkcs11_delete_attrlist(attrs);

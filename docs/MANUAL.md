@@ -518,7 +518,12 @@ For generating HMAC key on nCipher, you need to use one of the following key typ
 using `p11keygen`, it is possible to generate a session key and wrap it immediately under one or several wrapping keys. To achieve this, you simply need to add the `-W` optional parameter, followed by the wrapping parameters string, as explained in `p11wrap`. Note that by default, `p11keygen` will attempt to store a copy of the session key on the token. To prevent this (some PKCS\#11 library do not support this), add the `-r` optional parameter.
 
 ## p11kcv
-Computes the key check value of a symmetric key and prints it. This will work only on symmetric keys (`des` and `aes` keys).
+Computes the key check value of a symmetric key and prints it. This will work only on secret keys, i.e. DES, AES and HMAC keys.
+
+The key check value is computed as follows:
+- For DES keys, it performs a a signature (MACing) or an encryption on a block of 8 zeroized bytes, and outputting the 3 first ones.
+- For AES keys, it performs a a signature (MACing) or an encryption on a block of 16 zeroized bytes, and outputting the 3 first ones.
+- For HMAC keys, the key check value is computed by HMACing a null-length buffer. Alternatively, it is possible to specify a length, using the `-b` optional argument, in which case a zeroized buffer of the specified lenght is used as input to the HMAC.
 
 ## p11req
 Generate a PKCS\#10 CSR. Important options are:

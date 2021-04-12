@@ -37,6 +37,8 @@ void print_usage(char *);
 int main( int argc, char **argv);
 
 
+
+
 void print_usage(char *progname)
 {
     fprintf( stderr, 
@@ -50,6 +52,7 @@ void print_usage(char *progname)
 	     "  -t <token label> : if present, -s option is ignored\n"
 	     "  -p <token PIN> | :::exec:<command> | :::nologin\n"
 	     "  -S : login with SO privilege\n"
+	     "  -b <len>: size of buffer to HMAC, for HMAC keys (max: %d, default: 0)\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
 	     "|\n"
@@ -86,7 +89,8 @@ void print_usage(char *progname)
 	     "    PKCS11PASSWORD    : password\n"
              "                        overriden by option -p\n"
 	     "\n"
-	     , pkcs11_ll_basename(progname) );
+	     , pkcs11_ll_basename(progname),
+	     MAX_KCV_CLEARTEXT_SIZE);
 
     exit( RC_ERROR_USAGE );
 }
@@ -105,6 +109,7 @@ int main( int argc, char ** argv )
     int interactive = 1;
     char * tokenlabel = NULL;
     int so=0;
+    unsigned hmacdatasize = 0;
 
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_error_usage;
@@ -121,7 +126,7 @@ int main( int argc, char ** argv )
     password = getenv("PKCS11PASSWORD");
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:p:s:t:ShV" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:p:s:t:Sb:hV" ) ) != -1 )
     {
 	switch ( argnum )
 	{
@@ -147,6 +152,10 @@ int main( int argc, char ** argv )
 	    tokenlabel = optarg;
 	    interactive = 0;
 	    slot = -1;
+	    break;
+
+	case 'b':
+	    hmacdatasize=strtoul(optarg, NULL, 10);
 	    break;
 
 	case 'S':
@@ -195,7 +204,7 @@ int main( int argc, char ** argv )
     {
 	char *label;
 	for(label=argv[optind];optind<argc; optind++) {
-	    pkcs11_display_kcv(p11Context, argv[optind]);
+	    pkcs11_display_kcv(p11Context, argv[optind], hmacdatasize);
 	}
 
 	pkcs11_close_session( p11Context );

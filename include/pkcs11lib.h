@@ -684,7 +684,8 @@ func_rc pkcs11_info_ecsupport(pkcs11Context *p11Context);
 func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, CK_ATTRIBUTE *attr, size_t cnt, int interactive );
 
 /* kcv functions */
-void pkcs11_display_kcv( pkcs11Context *p11Context, char *label );
+#define MAX_KCV_CLEARTEXT_SIZE 256
+void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacdatasize );
 
 /* wrap/unwrap functions */
 func_rc pkcs11_prepare_wrappingctx(wrappedKeyCtx *wctx, char *wrappingjob);

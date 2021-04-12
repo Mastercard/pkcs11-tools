@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 =======
+# [2.3.0]
+### Added
+- added the ability to specify a buffer length, when performing HMAC key check values (default is 0).
+
 # [2.2.0]
 ### Added
 - p11kcv will compute a Key Check Value on `CK_GENERIC_SECRET` keys as well. These are mapped to HMAC-SHA256.
