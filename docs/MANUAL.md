@@ -1,6 +1,6 @@
 # Introduction
 ## Motivations for this project
-Cryptographic tokens (smart cards, HSMs, software crypto libraries) implementing the [PKCS\#11 standard](https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=pkcs11) have taken an increasingly important place in daily key management, for various reasons:
+Cryptographic tokens (smart cards, HSMs, software crypto libraries) implementing the [PKCS\#11 standard](https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=pkcs11) have taken an increasingly important place in key management and operation, for various reasons:
 -   Virtually all HSM and smart card vendors support this interface
 -   Software libraries, such a [SoftHSM](https://www.opendnssec.org/softhsm/) supports it; [NSS](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS) also exposes a PKCS\#11 interface, although it requires specific API call to initialize
 -   Java platforms ([IBM](https://www.ibm.com/support/knowledgecenter/SSYKE2_8.0.0/com.ibm.java.security.component.80.doc/security-component/pkcs11implDocs/ibmpkcs11.html) and [Oracle](https://docs.oracle.com/en/java/javase/11/security/pkcs11-reference-guide1.html)) both support, through JCE providers, access to PKCS\#11-protected keys and certificates
@@ -15,9 +15,9 @@ Moreover, setting up a JVM for using PKCS\#11 keys and certs is cumbersome. Also
 Finally, HSM vendors provides tools to deal with PKCS\#11 tokens, but they are proprietary and not interoperable.
 
 For these reasons, this toolkit was created in order to bring the following functionalities:
--   basic key management primitives
+-   unified basic key management primitives
 -   support for certificate management (generation of CSR, import of certificates)
--   support different OS ( Linux, BSD, Solaris, AIX, Windows)
+-   support different OS (Linux, BSD, Solaris, AIX, Windows)
 -   Generate key pairs and certificates in a fashion that makes them interoperable between IBM and Sun JVM
 -   Whenever possible, "unix"-like style commands
 -   support for advanced key management techniques (key exchange among tokens via key wrapping)
@@ -29,7 +29,7 @@ The `CKA_ID` attribute being central in the way how some JVMs are managing their
 -   If the key is of type DSA or DH, `CKA_ID` is the SHA-1 of the public key (stored in `CKA_VALUE` attribute)
 -   if the key is of type EC/ECDSA, `CKA_ID` is the SHA-1 of the curve point, uncompressed, in its octet-string representation (stored in `CKA_EC_POINT` attribute)
 
- |Key type   |`CKA_ID` is the sha-1 of                                                       |
+ |Key type   |`CKA_ID` is the SHA1 of                                                        |
  |-----------|-------------------------------------------------------------------------------|
  |RSA        |The public key modulus stored in `CKA_MODULUS`                                 |
  |DSA or DH  |The public key stored in `CKA_VALUE`                                           |
@@ -46,25 +46,25 @@ The following commands are supported:
 |`p11kcv`        |computes a key check value                                                        |
 |`p11od`         |object dumper, dumps all attributes of an object                                  |
 |`p11setattr`    |sets attribute of an object                                                       |
-|`p11importcert` |imports a certificate and binds it accordingly with key pair if any               |
+|`p11importcert` |imports a certificate and binds it to a corresponding private key, if found       |
 |`p11importpubk` |imports a public key                                                              |
 |`p11importdata` |imports a data file                                                               |
 |`p11ls`         |lists token contents                                                              |
-|`p11req`        |generate CSR                                                                      |
+|`p11req`        |generates PKCS#10 CSR                                                             |
 |`p11slotinfo`   |prints slot information, including mechanisms                                     |
 |`p11mv`         |"moves" (i.e. renames) object                                                     |
 |`p11rm`         |deletes  an object                                                                |
 |`p11wrap`       |wraps a key using one or several wrapping key(s)                                  |
-|`p11unwrap`     |unwraps a key using another key                                                   |
+|`p11unwrap`     |unwraps a key                                                                     |
 |`p11rewrap`     |unwraps a key, and wrap it again under one or several wrapping key(s)             |
 |`masqreq`       |tunes a CSR to adjust DN and other fields (without re-signing)                    |
-|`p11mkcert`     |generate a self-signed certificate, suitable for Java JCA                         |
+|`p11mkcert`     |generates a self-signed certificate, suitable for Java JCA                        |
 
 ## common arguments
 The following arguments are common to almost every command:
 * `-l <pkcs#11 library path>` allows to specify a path to the PKCS\#11 library to use
 * `-m <NSS config dir>` ( e.g. `'.'` or `'sql:.'` ) is used to locate the NSS db directory, for NSS keystores, see [below](#working-with-nss-library) for more details.
-* `-s <slot number>` specifies the slot index number, starting from `0`. Caution: this is NOT the slot number itself!
+* `-s <slot index>` specifies the slot index number, starting from `0`. *Caution:* The slot index is the order into which the slot appears, when fetched from the library, it is NOT the slot _number_. Don't use a slot _number_ with `pkcs11-tools`.
 * `-t <token label>` speficies the token label. If both a slot index and a token label are specified, the token label takes precedence.
 * `-p <token PIN | :::exec:<command> | :::nologin >` specified the password used to access the token, see [below](#fetching-password-from-a-subprocess) for more details. Optionally, a command to execute can be specified when prefixed with `:::exec:`; to use token public objects only, (i.e. without invoking `C_Login()`) use `:::nologin` value. See [below](#accessing-public-objects) for
 * `-S` will login to the token with Security Officer privilege
@@ -73,11 +73,11 @@ The following arguments are common to almost every command:
 
 ## Interfacing with NSS tokens
 NSS has a comprehensive set of mechanisms implemented in software, and given certain conditions, its keystores can be turned into FIPS 140-2 level 2 containers. However, there is one API call that is not compliant with the PKCS\#11 standard, it's the call to `C_Initialize`. NSS requires to use a supplementary member in the structure passed as an argument, to contain (amongst other things) the location of the NSS database.
-In order to use NSS library, there are two ways to specify where to find the key and cert databases
--   either set the `PKCS11NSSDIR` environment variable
--   or use the `-m` argument.
+`pkcs11-tools` can interface with NSS tokens. There are two ways to specify where to find the key and cert databases:
+-   either by setting the `PKCS11NSSDIR` environment variable
+-   or by using the `-m` optional argument.
 
-The argument value contains the path to the directory where the NSS database is located (where you will find `key3.db`, `cert8.db` and `secmod.db`); It can be prefixed with `sql:` if you are using SQLite-style NSS database (`key4.db`, `cert9.db` and `pkcs11.txt`)
+For both the environment variable and the optional argument, when used, it must contain the path to the directory where the NSS database is located (where you will find `key3.db`, `cert8.db` and `secmod.db`); It can be prefixed with `sql:` if you are using SQLite-style NSS database (`key4.db`, `cert9.db` and `pkcs11.txt`).
 
 ## Interactive mode
 If not token label or slot index number is specified, then the utility will present a list of slots with token information and ask to choose one. Then password entry will happen interactively.
@@ -124,12 +124,12 @@ Some commands accept attributes. These attributes can be entered in different wa
 
 # Commands details
 ## p11slotinfo
-This command provides basic information about slots and tokens connected to a library.
-SLot and token features and flags are described, and all lechanisms are listed, together with their allowed mechanism family.
+This command provides basic information about library, slots and tokens, given a library.
+Slot and token features and flags are described, and all mechanisms are listed, along with their enabled function(s).
 
 The following table lists the meaning of abbreviations:
 
- |abbreviation|capability meaning          |
+ |abbreviation|corresponding function      |
  |------------|----------------------------|
  |`enc`       |Encryption                  |
  |`dec`       |Decryption                  |
@@ -144,7 +144,7 @@ The following table lists the meaning of abbreviations:
  |`unw`       |Unwrapping                  |
  |`der`       |Derivation                  |
 
-Moreover, the last column indicates if the operation takes place inside the module (`HW`) or at the library level (`SW`).
+The last column tells wether the operation takes place inside the bondaries of the cryptographic module (`HW`) or at the library level (`SW`). 
 
 Finally, for mechanisms supporting elliptic curve cryptography, there are additional capabilities printed:
  |abbreviation|capability meaning                              |
@@ -159,6 +159,14 @@ Finally, for mechanisms supporting elliptic curve cryptography, there are additi
 Here is an example of `p11slotinfo` executed with SoftHSMv2:
 ```
 $ p11slotinfo -l /usr/local/opt/softhsm/lib/softhsm/libsofthsm2.so -s 0
+PKCS#11 Library
+---------------
+Name        : /usr/local/lib/softhsm/libsofthsm2.so
+Lib version : 2.6
+API version : 2.40
+Description : Implementation of PKCS11
+Manufacturer: SoftHSM
+
 Slot[0]
 -------------
 Slot Number : 1575777370
@@ -246,7 +254,7 @@ CKM_ECDH1_DERIVE                          --- --- --- --- --- --- --- --- --- --
 ```
 
 ## p11ls
-This command allows to list the content of a token. Objects are grouped by type (certificates, secret keys, public keys, private keys). If a label is found, it is printed, otherwise the `CKA_ID` attribute is printed between brackets.
+This command allows to list the content of a token. Objects are grouped by type (certificates, secret keys, public keys, private keys, data objects). If a label is found, it is printed, otherwise the `CKA_ID` attribute is printed between curly brakets.
 
 It is also possible to filter through an object identifier, or a part of it.
 e.g. the following command will list all secret keys:
@@ -256,31 +264,38 @@ $ p11ls seck/
 
 For each object, a quick list of attributes is displayed. The following table lists the meaning of these abbreviations:
 
- |abbreviation  |capability meaning                                          |
- |--------------|------------------------------------------------------------|
- |    `tok`     |object is on token (always true)                            |
- |    `pub`     |object is public                                            |
- |    `prv`     |object is private                                           |
- |    `r/o`     |object is read only                                         |
- |    `r/w`     |object is writable (modifiable)                             |
- |    `tru`     |object is trusted (`CKA_TRUST` attribute is true)           |
- |    `wtt`     |object can be wrapped with another trusted key              |
- |    `loc`     |object has been created locally                             |
- |    `imp`     |object has been imported                                    |
- |    `enc`     |object can be used for encryption                           |
- |    `dec`     |object can be used for decryption                           |
- |    `sig`     |object can be used for signature                            |
- |    `sir`     |object can be used for signature with recovery              |
- |    `vfy`     |object can be used for signature verification               |
- |    `vre`     |object can be used for signature verification with recovery |
- |    `wra`     |object can be used for key wrapping                         |
- |    `unw`     |object can be used for key unwrapping                       |
- |    `der`     |object can be used for key derivation                       |
- |    `sen`     |object is sensitive                                         |
- |    `xtr`     |object is extractable                                       |
- |    `NXT`     |object has never been extractable                           |
- |    `ASE`     |object has always been sensitive                            |
- | `key(param)` |key algorithm and length or parameter                       |
+ | abbreviation | meaning                                                               |
+ |--------------|-----------------------------------------------------------------------|
+ |    `AAU`     |the key requires authentication each time it is used                   |
+ |    `ase`     |the key has always been sensitive                                      |
+ |    `dec`     |the key can be used for decryption                                     |
+ |    `der`     |the key can be used for key derivation                                 |
+ |    `enc`     |the key can be used for encryption                                     |
+ |    `imp`     |the key has been imported (e.g. unwrapped)                             |
+ |    `loc`     |the key has been generated locally                                     |
+ |    `NAS`     |the key has not always been sensitive                                  |
+ |    `NSE`     |the key is not sensitive (clear text value could leave token boundary) |
+ |    `nxt`     |the key has never been extractable                                     |
+ |    `prv`     |the object is private, i.e. requires login to access                   |
+ |    `pub`     |the object is public, i.e. can be accessed without login               |
+ |    `r/o`     |the object attributes are unmodifiable                                 |
+ |    `r/w`     |the object attributess are modifiable                                  |
+ |    `sen`     |the key is sensitive                                                   |
+ |    `sig`     |the key can be used for signature                                      |
+ |    `sir`     |the key can be used for signature with recovery                        |
+ |    `tok`     |the object is on token (always true)                                   |
+ |    `tru`     |the object is trusted (`CKA_TRUST` attribute is set to `true`)         |
+ |    `unw`     |the key can be used for key unwrapping                                 |
+ |    `vfy`     |the key can be used for signature verification                         |
+ |    `vre`     |the key can be used for signature verification with recovery           |
+ |    `wra`     |the key can be used for key wrapping                                   |
+ |    `wtt`     |the key may be wrapped only with a trusted key                         |
+ |    `WXT`     |the key has been at least once extractable                             |
+ |    `XTR`     |the key is extractable                                                 |
+ 
+For keys, the last attribute is always `KEY(PARAM)`, with `KEY` representing the key algorithm, and `PARAM` the key parameter(s).
+
+Note: the attributes with upper case letter have an impact on security that should be considered by the user.
 
 Here is an example of execution:
 ```
