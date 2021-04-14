@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 =======
+# Unpublished
+### Fixed
+- some of the mgf argument values for `p11wrap`, `p11rewrap` and `p11keygen` were incorrect. The documentation has also been adjusted (Issue #30).
+
 # [2.3.0]
 ### Added
 - added the ability to specify a buffer length, when performing HMAC key check values (default is 0).
@@ -100,6 +104,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release
 
+[2.3.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.3.0
+[2.2.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.2.0
+[2.1.3]: https://github.com/Mastercard/pkcs11-tools/tree/v2.1.3
+[2.1.2]: https://github.com/Mastercard/pkcs11-tools/tree/v2.1.2
 [2.1.1]: https://github.com/Mastercard/pkcs11-tools/tree/v2.1.1
 [2.1.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.1.0
 [2.0.2]: https://github.com/Mastercard/pkcs11-tools/tree/v2.0.2

@@ -144,7 +144,7 @@ The following table lists the meaning of abbreviations:
  |`unw`       |Unwrapping                  |
  |`der`       |Derivation                  |
 
-The last column tells wether the operation takes place inside the bondaries of the cryptographic module (`HW`) or at the library level (`SW`). 
+The last column tells wether the operation takes place inside the bondaries of the cryptographic module (`HW`) or at the library level (`SW`).
 
 Finally, for mechanisms supporting elliptic curve cryptography, there are additional capabilities printed:
  |abbreviation|capability meaning                              |
@@ -530,7 +530,7 @@ Generate a PKCS\#10 CSR. Important options are:
 
  - `-i`: the label of the key
  - `-d`: subject DN - Caution: must be specified in strict OpenSSL format, which is with a leading `/` character; however, unlike OpenSSL, the ordering is inverted (to ease human order encoding). It means that when you write `/CN=my cert/O=My Org/C=BE`, the actual (binary) order will start with the `C` attribute, then the `O` and finally the `C`. If however you would like to write the Subject DN in "binary" order, you can specify the `-r` option.
-- `-r`: use reverse order when specifying Subject DN (see `-d`for details).  
+- `-r`: use reverse order when specifying Subject DN (see `-d`for details).
 - `-e` ( may be specified several times): SAN field. It is prefixed with `DNS:` for a DNS entry, `email:` for an email entry, and `IP:` for an IPv4 address.
 - `-H` : hashing algorithm (`sha1`, `sha256`, \.... )
 - `-X`: add a subject key identifier extension to the CSR.
@@ -564,7 +564,7 @@ Generate a self-signed certificate, suitable for Java JCA. The main use is for c
 
  - `-i`: the label of the key
  - `-d`: subject DN - Caution: must be specified in strict OpenSSL format, which is with a leading `/` character; however, unlike OpenSSL, the ordering is inverted (to ease human order encoding). It means that when you write `/CN=my cert/O=My Org/C=BE`, the actual (binary) order will start with the `C` attribute, then the `O` and finally the `C`. If however you would like to write the Subject DN in "binary" order, you can specify the `-r` option.
-- `-r`: use reverse order when specifying Subject DN (see `-d`for details).  
+- `-r`: use reverse order when specifying Subject DN (see `-d`for details).
 - `-e` ( may be specified several times): SAN field. It is prefixed with `DNS:` for a DNS entry, `email:` for an email entry, and `IP:` for an IPv4 address.
 - `-H` : hashing algorithm (`sha1`, `sha256`, \.... )
 - `-X`: add a subject key identifier extension to the CSR.
@@ -612,7 +612,7 @@ Options are:
 
  - `-c`: the file name of the CSR to modify
  - `-d`: subject DN - Caution: must be specified in strict OpenSSL format, which is with a leading `/` character; however, unlike OpenSSL, the ordering is inverted (to ease human order encoding). It means that when you write `/CN=my cert/O=My Org/C=BE`, the actual (binary) order will start with the `C` attribute, then the `O` and finally the `C`. If however you would like to write the Subject DN in "binary" order, you can specify the `-r` option.
-- `-r`: use reverse order when specifying Subject DN (see `-d`for details).  
+- `-r`: use reverse order when specifying Subject DN (see `-d`for details).
 - `-e` ( may be specified several times): SAN field. It is prefixed with `DNS:` for a DNS entry, `email:` for an email entry, and `IP:` for an IPv4 address.
 - `-H` : hashing algorithm (`sha1`, `sha256`, \.... )
 - `-X`: add a subject key identifier extension to the CSR.
@@ -663,11 +663,12 @@ you must at least provide:
 
 By default, the wrapping algorithm is set to `oaep`. You can change this with the `-a` argument:
  - `-a pkcs1` will choose PKCS#1 1.5 wrapping algorithm. It is considered insecure and should be avoided.
- - `-a oaep` or `-a oaep(args...)` will choose PKCS#1 OAEP (RFC3447).
+ - `-a oaep` or `-a oaep(args...)` will choose PKCS#1 OAEP (RFC8017).
    `args...` can be one or several of the following parameters, separated by commas:
    * `label="label-value"` - OAEP label or source argument, default is empty
-   * `mgf=CKG_MGF1_SHA1|CKG_MGF1_SHA256|CKG_MGF_SHA384|CKG_MGF_SHA512` - MGF parameter, default is `CKG_MGF1_SHA1`
-   * `hash=CKM_SHA_1|CKM_SHA224|CKM_SHA256|CKM_SHA384|CKM_SHA512` - hashing alg. argument, default is `CKM_SHA_1`
+   * `mgf= CKG_MGF1_SHA1 | CKG_MGF1_SHA224 | CKG_MGF1_SHA256 | CKG_MGF1_SHA384 | CKG_MGF1_SHA512` - MGF parameter, default is `CKG_MGF1_SHA1`
+   * `hash= CKM_SHA_1 | CKM_SHA224 | CKM_SHA256 | CKM_SHA384 | CKM_SHA512` - hashing algorithm argument, default is `CKM_SHA_1`
+   Please refer to the RFC for the meaning of these parameters. Depending on the implementation, it is possible that not all combinations are supported. For example, many libraries support only matching mgf and hash arguments. Some libraries do not support the label argument as well.
 
  - `-a cbcpad` or `-a cbcpad(args...)` : private and secret key wrapping (using CKM_xxx_CBC_PAD wrapping mehanisms)
     `args...` can be one or several of the following parameters (separated by commas)
@@ -788,7 +789,7 @@ All the steps above can be executed in a simpler and more secure fashion, that l
    ```
    p11unwrap -f business-key-for-dest-token.wrap
    ```
-   
+
 The following diagram illustrate these steps:
 ```
 +--+ DEST TOKEN +--------------+      +---+ SOURCE TOKEN +---------------+
