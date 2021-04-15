@@ -1,29 +1,42 @@
 # Installation instructions
-----
 ## Important Notes
  * While a prefix can be specified at configuration time, the toolkit utility make no use of any hardcoded path.  Using `--prefix=$PWD`will deploy the binaries into a `bin` subdir, relative to the current directory.
  if that option is omitted, the default is to deploy in `/usr/local`, when invoking `make install`. In which case, you will need to be a `root` user when `make install` (or to use `su` or `sudo`) .
- * OpenSSL v1.1.1 or above is required to compile the toolkit. Please refer to [OpenSSL 1.1.1](#openssl-111) for details how to deploy it on your system.
+ * OpenSSL v1.1.1e or above is required to compile the toolkit. Please refer to [OpenSSL 1.1.1](#openssl-111) for details how to deploy it on your system.
  * Windows 64 bits is currently not supported. See [Note on 64 bits executables](#note-on-64-bits-executables) for more information.
 
 ## Pre-requisites
 In order to build the project from scratch, you will need
- - a C compiler (tested with `gcc`, `clang`, `xlc` on `AIX`)
- - the autotools suite: `autoconf`, `automake`, `libtool`, and `autoconf-archive`. If your system is Debian-based (e.g. Ubuntu), you can execute the following command:
-   ```bash
+ - a C compiler (tested with `gcc`, `clang`, `xlc` on `AIX`), and make utility (tested with GNU and BSD `make`)
+   If your host is Debian-based (e.g. Ubuntu), you can execute the following command:
+   ```sh
+   $ sudo apt-get install gcc make perl
+   ```
+ - the autotools suite: `autoconf`, `automake`, `libtool`, and `autoconf-archive`, as well as `pkg-config`.
+   If your host is Debian-based (e.g. Ubuntu), you can execute the following command:
+   ```sh
    $ sudo apt-get install autoconf-archive autoconf automake libtool pkg-config
    ```
    If the autotools suite is not available or obsolete on your platform, or if the build host has no connection to Internet, please check [this section](#when-autotools-utils-are-not-available-on-my-platform) for an alternative way to build.
- - optionally, `lex`/`flex` and `yacc`/`bison`
- - a connection to Internet (to checkout `gnulib`)
+ - the OpenSSL header files and libraries. Please check [this section](#openssl-111)  for more details.
+   If your host is Debian-based (e.g. Ubuntu), you can execute the following command:
+   ```sh
+   $ sudo apt-get install libssl-dev
+   ```
+ - optionally, `lex`/`flex` and `yacc`/`bison`. It is not mandatory; if no suitable lexer and/or parser is found, the pre-generated source files will be used instead. If your platform is esoteric, it is however recommended to have these tools available.
+   If your host is Debian-based (e.g. Ubuntu), you can execute the following command:
+   ```sh
+   $ sudo apt-get install bison flex
+   ```
+ - a connection to Internet (to fetch `gnulib` and the pkcs11 headers)
 
 
 ### OpenSSL 1.1.1
-The vast majority of recent distros (FreeBSD and Linux) have OpenSSL 1.1.1 by default.
+The vast majority of recent distros (FreeBSD and Linux) have OpenSSL 1.1.1e+ by default.
 
 If your platform does not have it, proceed as follows:
 
- 1. Clone OpenSSL [from GitHub](https://github.com/openssl/openssl.git), and checkout the latest OpenSSL 1.1.1 release. (To date, it is tagged `OpenSSL_1_1_1i`). Alternatively, you can directly download it from [here](https://github.com/openssl/openssl/archive/OpenSSL_1_1_1i.tar.gz)
+ 1. Clone OpenSSL [from GitHub](https://github.com/openssl/openssl.git), and checkout the latest OpenSSL 1.1.1 release.
  2. Configure and build. In the examples below, we assume that OpenSSL will be deployed at `/opt/openssl-1.1.1`, change the location to match your preference.
 
     - A typical build on linux look as follows:
@@ -112,13 +125,13 @@ To achieve this, please refer to section [OpenSSL 1.1.1](#openssl-1.1.1), to com
 
 
 ### FreeBSD
-On FreeBSD12, deploy first the OpenSSL package from ports, either using `pkg`, or through the port subsystem:
+On FreeBSD12 and above, deploy first the OpenSSL package from ports, either using `pkg`, or through the port subsystem:
 ```bash
 $ pkg install openssl
 ```
 Then proceed as with Linux. 
 
-If you had to install OpenSSL diffrently (e.g. older versions of FreeBSD), and if the path to OpenSSL libraries is not configured on the system, you need to specify an additional parameter when configuring the pkcs11-tools package, to adjust run path to the libraries. See [rtld(1)](https://www.freebsd.org/cgi/man.cgi?query=rtld&apropos=0&sektion=1&manpath=FreeBSD+12.0-RELEASE&arch=default&format=html) for more information.
+If you had to install OpenSSL differently (e.g. older versions of FreeBSD), and if the path to OpenSSL libraries is not configured on the system, you need to specify an additional parameter (`LIBCRYPTO_RPATH`) when configuring the pkcs11-tools package, to set a run path to the libraries. See [rtld(1)](https://www.freebsd.org/cgi/man.cgi?query=rtld&apropos=0&sektion=1&manpath=FreeBSD+12.0-RELEASE&arch=default&format=html) for more information.
 ```bash
 $ ./configure PKG_CONFIG_PATH=/opt/openssl-1.1.1/lib/pkgconfig LIBCRYPTO_RPATH=/opt/openssl-1.1.1/lib
 $ make
