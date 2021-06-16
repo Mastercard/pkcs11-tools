@@ -397,7 +397,7 @@ int main( int argc, char ** argv )
 	    case aes:
 		retcode = pkcs11_genAES( p11Context, label, kb,
 					 pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					 pkcs11_get_attrlen_from_cmdlinectx(clctx),					 
+					 pkcs11_get_attrnum_from_cmdlinectx(clctx),
 					 &keyhandle,
 					 keygentype
 		    );
@@ -406,7 +406,7 @@ int main( int argc, char ** argv )
 	    case des:
 		retcode = pkcs11_genDESX( p11Context, label, kb,
 					  pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					  pkcs11_get_attrlen_from_cmdlinectx(clctx),    
+					  pkcs11_get_attrnum_from_cmdlinectx(clctx),    
 					  &keyhandle,
 					  keygentype);
 		break;
@@ -421,7 +421,7 @@ int main( int argc, char ** argv )
 #endif
 		retcode = pkcs11_genGeneric( p11Context, label, keytype, kb,
 					     pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					     pkcs11_get_attrlen_from_cmdlinectx(clctx),
+					     pkcs11_get_attrnum_from_cmdlinectx(clctx),
 					     &keyhandle,
 					     keygentype);
 		break;
@@ -429,7 +429,7 @@ int main( int argc, char ** argv )
 	    case rsa:
 		retcode = pkcs11_genRSA( p11Context, label, kb,
 					 pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					 pkcs11_get_attrlen_from_cmdlinectx(clctx),					 
+					 pkcs11_get_attrnum_from_cmdlinectx(clctx),					 
 					 &pubkhandle,
 					 &keyhandle,
 					 keygentype);
@@ -443,7 +443,7 @@ int main( int argc, char ** argv )
 	    case ec:
 		retcode = pkcs11_genEC( p11Context, label, param ? param : "prime256v1" ,
 					pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					pkcs11_get_attrlen_from_cmdlinectx(clctx),					 
+					pkcs11_get_attrnum_from_cmdlinectx(clctx),					 
 					&pubkhandle,
 					&keyhandle,
 					keygentype);
@@ -456,7 +456,7 @@ int main( int argc, char ** argv )
 	    case ed:
 		retcode = pkcs11_genED( p11Context, label, param ? param : "ED25519" ,
 					pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					pkcs11_get_attrlen_from_cmdlinectx(clctx),					 
+					pkcs11_get_attrnum_from_cmdlinectx(clctx),					 
 					&pubkhandle,
 					&keyhandle,
 					keygentype);
@@ -469,7 +469,7 @@ int main( int argc, char ** argv )
 	    case dsa:
 		retcode = pkcs11_genDSA( p11Context, label, param,
 					 pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					 pkcs11_get_attrlen_from_cmdlinectx(clctx),					 
+					 pkcs11_get_attrnum_from_cmdlinectx(clctx),					 
 					 &pubkhandle,
 					 &keyhandle,
 					 keygentype);
@@ -482,7 +482,7 @@ int main( int argc, char ** argv )
 	    case dh:
 		retcode = pkcs11_genDH( p11Context, label, param,
 					pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					pkcs11_get_attrlen_from_cmdlinectx(clctx),					 
+					pkcs11_get_attrnum_from_cmdlinectx(clctx),					 
 					&pubkhandle,
 					&keyhandle,
 					keygentype);

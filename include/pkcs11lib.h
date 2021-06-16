@@ -278,15 +278,17 @@ typedef struct s_p11_cmdlinectx {
     size_t mainlist_idx;	/* the index of the main list */
     size_t wraptemplate_idx;	/* the index of the wrap template list */
     size_t unwraptemplate_idx;	/* the index of the unwrap template list */
+    size_t derivetemplate_idx;	/* the index of the derive template list */
     bool has_wrap_template;	/* whether or not we have a wrap template */
     bool has_unwrap_template;	/* whether or not we have an unwrap template */
+    bool has_derive_template;	/* whether or not we have a derive template */    
     int level;			/* used by parser to prevent mutli-level templates */
     size_t saved_idx;	        /* used by lexer to temporary store the index used for the template */
     
     struct {
 	CK_ATTRIBUTE *attrlist;	             
-	CK_ULONG attrlen;
-    } attrs[3];
+	size_t attrnum;
+    } attrs[4];
 	
 } CmdLineCtx;
 
@@ -735,7 +737,7 @@ void pkcs11_free_cmdlinecontext(CmdLineCtx *ctx);
 func_rc pkcs11_parse_cmdlineattribs_from_argv(CmdLineCtx *ctx , int pos, int argc, char **argv);
 bool pkcs11_is_template(CK_ATTRIBUTE_TYPE attrtype);
 CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_cmdlinectx(CmdLineCtx *ctx);
-CK_ULONG pkcs11_get_attrlen_from_cmdlinectx(CmdLineCtx *ctx);
+size_t pkcs11_get_attrnum_from_cmdlinectx(CmdLineCtx *ctx);
 
 
 /* End - Function Prototypes */

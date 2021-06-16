@@ -241,6 +241,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_START_DATE),
 				_ATTR(CKA_END_DATE),
 				_ATTR(CKA_DERIVE),
+				_ATTR(CKA_DERIVE_TEMPLATE),
 				_ATTR(CKA_LOCAL),
 				_ATTR(CKA_KEY_TYPE),
 				_ATTR(CKA_KEY_GEN_MECHANISM), /* NSS: unknown? */
@@ -317,7 +318,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 	    label_or_id(label, id, buffer, buffer_len);
 
-	    printf("pubk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s\n",
+	    printf("pubk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs,CKA_TOKEN, "tok,", "ses,", ""),
@@ -332,6 +333,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		   value_for_boolattr(attrs,CKA_WRAP, "wra,", "", ""),
 		   value_for_boolattr(attrs,CKA_TRUSTED, "tru,", "", ""),
 		   value_for_template(attrs,CKA_WRAP_TEMPLATE, "wrt,", ""),
+		   value_for_template(attrs,CKA_DERIVE_TEMPLATE, "drt,", ""),
 		   keykind
 		);
 	}
@@ -361,6 +363,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_START_DATE),
 				_ATTR(CKA_END_DATE),
 				_ATTR(CKA_DERIVE),
+				_ATTR(CKA_DERIVE_TEMPLATE),
 				_ATTR(CKA_LOCAL),
 				_ATTR(CKA_KEY_TYPE),
 				_ATTR(CKA_KEY_GEN_MECHANISM), /* NSS: unknown? */
@@ -442,7 +445,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 	    label_or_id(label, id, buffer, buffer_len);
 
-	    printf("prvk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	    printf("prvk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs,CKA_TOKEN, "tok,", "ses,", ""),
@@ -462,6 +465,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		   value_for_boolattr(attrs,CKA_ALWAYS_AUTHENTICATE, "AAU,", "", ""),
 		   value_for_boolattr(attrs,CKA_WRAP_WITH_TRUSTED, "wwt,", "", ""),
 		   value_for_template(attrs,CKA_UNWRAP_TEMPLATE, "uwt,", ""),
+		   value_for_template(attrs,CKA_DERIVE_TEMPLATE, "drt,", ""),
 		   keykind
 		);
 	}
@@ -491,6 +495,7 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_START_DATE),
 				_ATTR(CKA_END_DATE),
 				_ATTR(CKA_DERIVE),
+				_ATTR(CKA_DERIVE_TEMPLATE),
 				_ATTR(CKA_LOCAL),
 				_ATTR(CKA_KEY_GEN_MECHANISM), /* NSS: unknown? */
 
@@ -526,7 +531,7 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 	    label_or_id(label, id, buffer, buffer_len);
 
-	    printf("seck/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	    printf("seck/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs,CKA_TOKEN, "tok,", "ses,", ""),
@@ -549,6 +554,7 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		   value_for_boolattr(attrs,CKA_WRAP_WITH_TRUSTED, "wwt,", "", ""),
 		   value_for_template(attrs,CKA_WRAP_TEMPLATE, "wrt,", ""),
 		   value_for_template(attrs,CKA_UNWRAP_TEMPLATE, "uwt,", ""),
+		   value_for_template(attrs,CKA_DERIVE_TEMPLATE, "drt,", ""),
 		   value_for_keytype(attrs)
 		);
 	}

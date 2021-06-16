@@ -68,6 +68,7 @@ CKA_END_DATE|END_DATE               { cllval.ckattr = CKA_END_DATE; return CKATT
 CKA_EC_PARAMS|EC_PARAMS             { cllval.ckattr = CKA_EC_PARAMS; return CKATTR_STR; }
 CKA_WRAP_TEMPLATE|WRAP_TEMPLATE     { cllval.ckattr = CKA_WRAP_TEMPLATE; return CKATTR_TEMPLATE; }
 CKA_UNWRAP_TEMPLATE|UNWRAP_TEMPLATE { cllval.ckattr = CKA_UNWRAP_TEMPLATE; return CKATTR_TEMPLATE; }
+CKA_DERIVE_TEMPLATE|DERIVE_TEMPLATE { cllval.ckattr = CKA_DERIVE_TEMPLATE; return CKATTR_TEMPLATE; }
 
 CKK_GENERIC_SECRET { cllval.val_key = CKK_GENERIC_SECRET; return KEYTYPE; }
 CKK_DES            { cllval.val_key = CKK_DES           ; return KEYTYPE; }
@@ -97,10 +98,6 @@ CKO_HW_FEATURE     { cllval.val_cls = CKO_HW_FEATURE ; return OCLASS; }
 CKO_DOMAIN_PARAMETERS { cllval.val_cls = CKO_DOMAIN_PARAMETERS ; return OCLASS; }
 CKO_MECHANISM      { cllval.val_cls = CKO_MECHANISM ; return OCLASS; }
 CKO_OTP_KEY        { cllval.val_cls = CKO_OTP_KEY ; return OCLASS; }
-
-true|CK_TRUE|yes   { cllval.val_bool = 1; return TOK_BOOLEAN; }
-false|CK_FALSE|no  { cllval.val_bool = 0; return TOK_BOOLEAN; }
-
 
 0x[[:xdigit:]]+ {   if(strlen(cltext)%2==1) {
 			clerror(NULL, "Invalid hexadecimal string <%s>: odd length", cltext);
@@ -132,15 +129,18 @@ false|CK_FALSE|no  { cllval.val_bool = 0; return TOK_BOOLEAN; }
 
 [[:digit:]]{8} { memcpy(cllval.val_date.as_buffer, cltext, 8); return TOK_DATE; }
 
+true|CK_TRUE|yes|1   { cllval.val_bool = 1; return TOK_BOOLEAN; }
+false|CK_FALSE|no|0  { cllval.val_bool = 0; return TOK_BOOLEAN; }
+
 "{"            {		/*check with context if we are not nesting templates */
                    if(ctx->level==1) {
-		       clerror(NULL, "nesting templates not allowed", cltext);
+		       clerror(NULL, "***Error: nesting templates not allowed", cltext);
 		       yyterminate();
                    }
                    ctx->level++; /*remind we are in a curly brace */
                    ctx->current_idx++; /*increment current idx*/
-                   if(ctx->current_idx>=3) {
-		       clerror(NULL, "too many templates specified", cltext);
+                   if(ctx->current_idx>=4) {
+		       clerror(NULL, "***Error: too many templates specified", cltext);
 		       yyterminate();
                    }
                    return CURLY_OPEN;
@@ -148,7 +148,7 @@ false|CK_FALSE|no  { cllval.val_bool = 0; return TOK_BOOLEAN; }
 
 "}"            {
                    if(ctx->level==0) {
-		       clerror(NULL, "no matching opening curly brace", cltext);
+		       clerror(NULL, "***Error: no matching opening curly brace", cltext);
 		       yyterminate();
                    }
                    ctx->level--;

@@ -47,11 +47,11 @@ func_rc _cmdline_parser_append_attr(CmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp
     CK_ATTRIBUTE_PTR match=NULL;
 
     CK_ATTRIBUTE **attrlist=NULL;
-    CK_ULONG *attrlen;
+    size_t *attrnum;
 
     /* point to the right (current) attribute list */
     attrlist = &clctx->attrs[clctx->current_idx].attrlist;
-    attrlen  = &clctx->attrs[clctx->current_idx].attrlen;
+    attrnum  = &clctx->attrs[clctx->current_idx].attrnum;
 
     /* we need to create the buffer and stuff it with what is passed as parameter */
     stuffing.type   = attrtyp;
@@ -71,21 +71,21 @@ func_rc _cmdline_parser_append_attr(CmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp
     }
     stuffing.ulValueLen = len;
     
-    if(*attrlen==PARSING_MAX_ATTRS-1) {
+    if(*attrnum==PARSING_MAX_ATTRS-1) {
 	fprintf(stderr, "reached maximum number of attributes in parsing\n");
 	rc = rc_error_memory;
 	goto error;
     }
 
-    size_t arglen = *attrlen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
+    size_t argnum = *attrnum; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
 
     match = (CK_ATTRIBUTE_PTR ) lsearch ( &stuffing,
 					  *attrlist,
-					  &arglen,
+					  &argnum,
 					  sizeof(CK_ATTRIBUTE),
 					  compare_CKA );
 
-    *attrlen = arglen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
+    *attrnum = argnum; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
 
     if( match == &stuffing) { /* match, we may need to adjust the content */
 	if(match->pValue && !pkcs11_is_template(match->type)) { free(match->pValue); /* just in case */ }
@@ -114,7 +114,7 @@ func_rc _cmdline_parser_assign_list_to_template(CmdLineCtx *clctx, CK_ATTRIBUTE_
     switch(attrtyp) {
     case CKA_WRAP_TEMPLATE:
 	if(clctx->has_wrap_template==true) {
-	    fprintf(stderr, "a wrap template can only be specified once\n");
+	    fprintf(stderr, "***Error: a wrap template can only be specified once\n");
 	    rc = rc_error_parsing;
 	    goto error;
 	}
@@ -124,7 +124,7 @@ func_rc _cmdline_parser_assign_list_to_template(CmdLineCtx *clctx, CK_ATTRIBUTE_
 
     case CKA_UNWRAP_TEMPLATE:
 	if(clctx->has_unwrap_template==true) {
-	    fprintf(stderr, "an unwrap template can only be specified once\n");
+	    fprintf(stderr, "***Error: an unwrap template can only be specified once\n");
 	    rc = rc_error_parsing;
 	    goto error;
 	}
@@ -132,8 +132,18 @@ func_rc _cmdline_parser_assign_list_to_template(CmdLineCtx *clctx, CK_ATTRIBUTE_
 	clctx->has_unwrap_template = true;
 	break;
 
+    case CKA_DERIVE_TEMPLATE:
+	if(clctx->has_derive_template==true) {
+	    fprintf(stderr, "***Error: a derive template can only be specified once\n");
+	    rc = rc_error_parsing;
+	    goto error;
+	}
+	clctx->derivetemplate_idx = clctx->saved_idx; /* saved_idx is set by lexer */
+	clctx->has_derive_template = true;
+	break;
+
     default:
-	fprintf(stderr, "invalid template type - internal error\n");
+	fprintf(stderr, "***Error: invalid template type - internal error\n");
 	rc = rc_error_oops;
 	goto error;
     }
@@ -142,7 +152,7 @@ func_rc _cmdline_parser_assign_list_to_template(CmdLineCtx *clctx, CK_ATTRIBUTE_
     rc = _cmdline_parser_append_attr(clctx,
 				     attrtyp,
 				     clctx->attrs[clctx->saved_idx].attrlist,
-				     clctx->attrs[clctx->saved_idx].attrlen * sizeof(CK_ATTRIBUTE) );
+				     clctx->attrs[clctx->saved_idx].attrnum * sizeof(CK_ATTRIBUTE) );
 error:
     return rc;
 }

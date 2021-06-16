@@ -84,7 +84,7 @@ void pkcs11_free_cmdlinecontext(CmdLineCtx *ctx)
 		/* we need to walk through the attribute list and individually free up each member */
 		int j;
 
-		for(j=0; j<ctx->attrs[i].attrlen; j++) {
+		for(j=0; j<ctx->attrs[i].attrnum; j++) {
 		    if(ctx->attrs[i].attrlist[j].pValue) {
 			if(!pkcs11_is_template(ctx->attrs[i].attrlist[j].type)) {
 			    free(ctx->attrs[i].attrlist[j].pValue);
@@ -97,7 +97,7 @@ void pkcs11_free_cmdlinecontext(CmdLineCtx *ctx)
 		/* free the list itself */
 		free(ctx->attrs[i].attrlist);
 		ctx->attrs[i].attrlist = NULL;
-		ctx->attrs[i].attrlen = 0;
+		ctx->attrs[i].attrnum = 0;
 	    }
 	}
 
@@ -170,7 +170,7 @@ error:
 
 inline bool pkcs11_is_template(CK_ATTRIBUTE_TYPE attrtype)
 {
-    return attrtype == CKA_WRAP_TEMPLATE || attrtype == CKA_UNWRAP_TEMPLATE ;
+    return attrtype == CKA_WRAP_TEMPLATE || attrtype == CKA_UNWRAP_TEMPLATE || attrtype == CKA_DERIVE_TEMPLATE;
 }		     
 
 
@@ -179,7 +179,7 @@ inline CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_cmdlinectx(CmdLineCtx *ctx)
     return ctx->attrs[ctx->mainlist_idx].attrlist;
 }
 
-inline CK_ULONG pkcs11_get_attrlen_from_cmdlinectx(CmdLineCtx *ctx)
+inline size_t pkcs11_get_attrnum_from_cmdlinectx(CmdLineCtx *ctx)
 {
-    return ctx->attrs[ctx->mainlist_idx].attrlen;
+    return ctx->attrs[ctx->mainlist_idx].attrnum;
 }
