@@ -186,8 +186,6 @@ int main( int argc, char ** argv )
     CK_ULONG kb=0;
     char *param=NULL;
 
-    CK_ATTRIBUTE *attrs=NULL;	/* TODO REMOVE */
-    size_t attrs_cnt=0;		/* TODO REMOVE */
     CmdLineCtx *clctx = NULL;
 
     wrappedKeyCtx *wctx = NULL;
@@ -346,11 +344,6 @@ int main( int argc, char ** argv )
 	if(retcode!=rc_ok) {
 	    errflag++;
 	}
-	/* if( (attrs_cnt=get_attributes_from_argv( &attrs, optind , argc, argv)) == 0 ) { */
-	/*     fprintf( stderr, "Try `%s -h' for more information.\n", argv[0]); */
-	/*     retcode = rc_error_invalid_argument; */
-	/*     goto epilog; */
-	/* } */
     }
 
     if ( errflag ) {
@@ -403,8 +396,8 @@ int main( int argc, char ** argv )
 	    switch(keytype) {
 	    case aes:
 		retcode = pkcs11_genAES( p11Context, label, kb,
-					 attrs,
-					 attrs_cnt,
+					 pkcs11_get_attrlist_from_cmdlinectx(clctx),
+					 pkcs11_get_attrlen_from_cmdlinectx(clctx),					 
 					 &keyhandle,
 					 keygentype
 		    );
@@ -412,8 +405,8 @@ int main( int argc, char ** argv )
 
 	    case des:
 		retcode = pkcs11_genDESX( p11Context, label, kb,
-					  attrs,
-					  attrs_cnt,
+					  pkcs11_get_attrlist_from_cmdlinectx(clctx),
+					  pkcs11_get_attrlen_from_cmdlinectx(clctx),    
 					  &keyhandle,
 					  keygentype);
 		break;
@@ -427,16 +420,16 @@ int main( int argc, char ** argv )
 	    case hmacsha512:
 #endif
 		retcode = pkcs11_genGeneric( p11Context, label, keytype, kb,
-					     attrs,
-					     attrs_cnt,
+					     pkcs11_get_attrlist_from_cmdlinectx(clctx),
+					     pkcs11_get_attrlen_from_cmdlinectx(clctx),
 					     &keyhandle,
 					     keygentype);
 		break;
 
 	    case rsa:
 		retcode = pkcs11_genRSA( p11Context, label, kb,
-					 attrs,
-					 attrs_cnt,
+					 pkcs11_get_attrlist_from_cmdlinectx(clctx),
+					 pkcs11_get_attrlen_from_cmdlinectx(clctx),					 
 					 &pubkhandle,
 					 &keyhandle,
 					 keygentype);
@@ -449,8 +442,8 @@ int main( int argc, char ** argv )
 
 	    case ec:
 		retcode = pkcs11_genEC( p11Context, label, param ? param : "prime256v1" ,
-					attrs,
-					attrs_cnt,
+					pkcs11_get_attrlist_from_cmdlinectx(clctx),
+					pkcs11_get_attrlen_from_cmdlinectx(clctx),					 
 					&pubkhandle,
 					&keyhandle,
 					keygentype);
@@ -462,8 +455,8 @@ int main( int argc, char ** argv )
 
 	    case ed:
 		retcode = pkcs11_genED( p11Context, label, param ? param : "ED25519" ,
-					attrs,
-					attrs_cnt,
+					pkcs11_get_attrlist_from_cmdlinectx(clctx),
+					pkcs11_get_attrlen_from_cmdlinectx(clctx),					 
 					&pubkhandle,
 					&keyhandle,
 					keygentype);
@@ -475,8 +468,8 @@ int main( int argc, char ** argv )
 
 	    case dsa:
 		retcode = pkcs11_genDSA( p11Context, label, param,
-					 attrs,
-					 attrs_cnt,
+					 pkcs11_get_attrlist_from_cmdlinectx(clctx),
+					 pkcs11_get_attrlen_from_cmdlinectx(clctx),					 
 					 &pubkhandle,
 					 &keyhandle,
 					 keygentype);
@@ -488,8 +481,8 @@ int main( int argc, char ** argv )
 
 	    case dh:
 		retcode = pkcs11_genDH( p11Context, label, param,
-					attrs,
-					attrs_cnt,
+					pkcs11_get_attrlist_from_cmdlinectx(clctx),
+					pkcs11_get_attrlen_from_cmdlinectx(clctx),					 
 					&pubkhandle,
 					&keyhandle,
 					keygentype);
@@ -571,7 +564,6 @@ epilog:
 	if(wrappingjob[i].fullstring_allocated==1) { free(wrappingjob[i].fullstring); }
     }
     if(wctx) { pkcs11_free_wrappedkeycontext(wctx); wctx = NULL; }
-    //release_attributes( attrs, attrs_cnt );
     pkcs11_freeContext(p11Context);
     if(clctx) { pkcs11_free_cmdlinecontext(clctx); clctx = NULL; }
     

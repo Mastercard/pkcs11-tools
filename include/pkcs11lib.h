@@ -734,6 +734,8 @@ CmdLineCtx *pkcs11_new_cmdlinecontext();
 void pkcs11_free_cmdlinecontext(CmdLineCtx *ctx);
 func_rc pkcs11_parse_cmdlineattribs_from_argv(CmdLineCtx *ctx , int pos, int argc, char **argv);
 bool pkcs11_is_template(CK_ATTRIBUTE_TYPE attrtype);
+CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_cmdlinectx(CmdLineCtx *ctx);
+CK_ULONG pkcs11_get_attrlen_from_cmdlinectx(CmdLineCtx *ctx);
 
 
 /* End - Function Prototypes */

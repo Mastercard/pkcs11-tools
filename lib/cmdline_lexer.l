@@ -43,6 +43,7 @@
     if (cllval.val_str.len==0) { cllval.val_str.val=strdup(""); } BEGIN(INITIAL); return STRING;
 	    }
 
+NOT|NO|!                            { return NO; }
 CKA_ID|ID                           { cllval.ckattr = CKA_ID; return CKATTR_STR; }
 CKA_LABEL|LABEL                     { cllval.ckattr = CKA_LABEL; return CKATTR_STR; }
 CKA_CLASS|CLASS                     { cllval.ckattr = CKA_CLASS; return CKATTR_CLASS; }

@@ -87,7 +87,7 @@ extern int cldebug;
     OCLASS = 268,                  /* OCLASS  */
     CURLY_OPEN = 269,              /* CURLY_OPEN  */
     CURLY_CLOSE = 270,             /* CURLY_CLOSE  */
-    ASSIGN = 271                   /* ASSIGN  */
+    NO = 271                       /* NO  */
   };
   typedef enum cltokentype cltoken_kind_t;
 #endif

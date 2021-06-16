@@ -172,3 +172,14 @@ inline bool pkcs11_is_template(CK_ATTRIBUTE_TYPE attrtype)
 {
     return attrtype == CKA_WRAP_TEMPLATE || attrtype == CKA_UNWRAP_TEMPLATE ;
 }		     
+
+
+inline CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_cmdlinectx(CmdLineCtx *ctx)
+{
+    return ctx->attrs[ctx->mainlist_idx].attrlist;
+}
+
+inline CK_ULONG pkcs11_get_attrlen_from_cmdlinectx(CmdLineCtx *ctx)
+{
+    return ctx->attrs[ctx->mainlist_idx].attrlen;
+}

@@ -77,7 +77,7 @@
 %token <val_date> TOK_DATE
 %token <val_key>  KEYTYPE
 %token <val_cls>  OCLASS
-%token CURLY_OPEN CURLY_CLOSE ASSIGN
+%token CURLY_OPEN CURLY_CLOSE NO
 
 %%
 
@@ -106,6 +106,24 @@ cmdlinestmt:	CKATTR_TEMPLATE '=' CURLY_OPEN cmdlinestmts CURLY_CLOSE
 			YYERROR;
 		    }
 		}
+	|	CKATTR_BOOL
+                {
+		    CK_BBOOL btrue = CK_TRUE;
+		    
+		    if(_cmdline_parser_append_attr(ctx, $1, &btrue, sizeof(CK_BBOOL) )!=rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign boolean value.");
+			YYERROR;
+		    }
+		}
+	|	NO CKATTR_BOOL
+                {
+		    CK_BBOOL bfalse = CK_FALSE;
+		    
+		    if(_cmdline_parser_append_attr(ctx, $2, &bfalse, sizeof(CK_BBOOL) )!=rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign boolean value.");
+			YYERROR;
+		    }
+		}		
 	|	CKATTR_STR '=' STRING
                 {
 		    if(_cmdline_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
