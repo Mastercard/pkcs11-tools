@@ -186,16 +186,23 @@ int main( int argc, char ** argv )
     CK_ULONG kb=0;
     char *param=NULL;
 
-    CK_ATTRIBUTE *attrs=NULL;
-    size_t attrs_cnt=0;
+    CK_ATTRIBUTE *attrs=NULL;	/* TODO REMOVE */
+    size_t attrs_cnt=0;		/* TODO REMOVE */
+    CmdLineCtx *clctx = NULL;
 
     wrappedKeyCtx *wctx = NULL;
     wrappingjob_t wrappingjob[MAX_WRAPPINGJOB];
     int numjobs = 0;
     int numfailed = 0;
     int removetokencopy = 0;
-
     int i;
+
+    clctx = pkcs11_new_cmdlinecontext();
+
+    if(clctx==NULL) {
+	goto epilog;
+    }
+
     for(i=0; i<MAX_WRAPPINGJOB;i++) {
 	wrappingjob[i].wrappingkeylabel = wrappingjob[i].filename = NULL;
 	wrappingjob[i].algorithm = DEFAULT_ALGORITHM;
@@ -334,11 +341,16 @@ int main( int argc, char ** argv )
     }
 
     if(optind<argc) {
-	if( (attrs_cnt=get_attributes_from_argv( &attrs, optind , argc, argv)) == 0 ) {
-	    fprintf( stderr, "Try `%s -h' for more information.\n", argv[0]);
-	    retcode = rc_error_invalid_argument;
-	    goto epilog;
+
+	retcode = pkcs11_parse_cmdlineattribs_from_argv(clctx , optind, argc, argv);
+	if(retcode!=rc_ok) {
+	    errflag++;
 	}
+	/* if( (attrs_cnt=get_attributes_from_argv( &attrs, optind , argc, argv)) == 0 ) { */
+	/*     fprintf( stderr, "Try `%s -h' for more information.\n", argv[0]); */
+	/*     retcode = rc_error_invalid_argument; */
+	/*     goto epilog; */
+	/* } */
     }
 
     if ( errflag ) {
@@ -559,9 +571,10 @@ epilog:
 	if(wrappingjob[i].fullstring_allocated==1) { free(wrappingjob[i].fullstring); }
     }
     if(wctx) { pkcs11_free_wrappedkeycontext(wctx); wctx = NULL; }
-    release_attributes( attrs, attrs_cnt );
+    //release_attributes( attrs, attrs_cnt );
     pkcs11_freeContext(p11Context);
-
+    if(clctx) { pkcs11_free_cmdlinecontext(clctx); clctx = NULL; }
+    
     switch(retcode) {
     case rc_ok:
 	if(numfailed>0) {

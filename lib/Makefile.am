@@ -39,9 +39,15 @@ libp11_la_SOURCES = pkcs11_ll_unix.c
 endif
 
 libp11_la_SOURCES += pkcs11_attr.c \
+	cmdline_parser.y \
+	cmdline_lexer.l \
+	cmdline_parser.c cmdline_parser.h \
+	cmdline_lexer.c cmdline_lexer.h \
+	cmdline_helper.c cmdline_helper.h \
 	wrappedkey_parser.y \
 	wrappedkey_lexer.l \
 	wrappedkey_helper.c wrappedkey_helper.h \
+	pkcs11_cmdla.c \
 	pkcs11_wctx.c \
 	pkcs11_wrap.c \
 	pkcs11_unwrap.c \
@@ -94,6 +100,11 @@ BUILT_SOURCES = _mechinfo.h _attrinfo.h wrappedkey_parser.h wrappedkey_lexer.h
 # The following files depends upon lexer and parser source files
 wrappedkey_lexer.h: wrappedkey_lexer.l
 wrappedkey_helper.c pkcs11_wrap.c pkcs11_unwrap.c pkcs11_wctx.c: wrappedkey_lexer.l wrappedkey_parser.y wrappedkey_lexer.h wrappedkey_parser.h
+
+# The following files depends upon lexer and parser source files
+cmdline_lexer.c cmdline_lexer.h: cmdline_lexer.l
+cmdline_parser.c cmdline_parser.h: cmdline_parser.y
+cmdline_helper.c: cmdline_lexer.l cmdline_parser.y cmdline_lexer.h cmdline_parser.h
 
 pkcs11_mechanism.$(OBJEXT): _mechinfo.h
 

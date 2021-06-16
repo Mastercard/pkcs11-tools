@@ -90,6 +90,7 @@ typedef enum e_func_rc {
     rc_error_insecure,
     rc_error_dsa_missing_public_key,
     rc_error_ec_or_ed_missing_public_key,
+    rc_error_lexer,
 } func_rc;
 
 #define AES_WRAP_MECH_SIZE_MAX 8 /* for both rfc3394 and rfc5496, remember the compatible */
@@ -261,6 +262,34 @@ typedef struct s_p11_wrappedkeyctx {
 enum contenttype { ct_unknown,	/* unidentified app */
 		   ct_appl_p11,	/* application/pkcs11-tools */
 };
+
+
+/* cmdLineCtx contains a context that can hold parameters describing attributes. */
+/* it currently supports these grammars:
+   - CKA_DERIVE=true CKA_LABEL="label" CKA_UNWRAP_TEMPLATE={ CKA_EXTRACTABLE=false ... }
+   - the attributes can be shortened by removing the "CKA_" prefix
+   - boolean attributes can be true/false, CK_TRUE/CK_FALSE, 1/0, yes/no
+   - boolean attributes without a value are set to CK_TRUE
+   - boolean attributes prefixed with "no" are set to CK_FALSE
+ */
+
+typedef struct s_p11_cmdlinectx {
+    size_t current_idx;		/* the current index */
+    size_t mainlist_idx;	/* the index of the main list */
+    size_t wraptemplate_idx;	/* the index of the wrap template list */
+    size_t unwraptemplate_idx;	/* the index of the unwrap template list */
+    bool has_wrap_template;	/* whether or not we have a wrap template */
+    bool has_unwrap_template;	/* whether or not we have an unwrap template */
+    int level;			/* used by parser to prevent mutli-level templates */
+    size_t saved_idx;	        /* used by lexer to temporary store the index used for the template */
+    
+    struct {
+	CK_ATTRIBUTE *attrlist;	             
+	CK_ULONG attrlen;
+    } attrs[3];
+	
+} CmdLineCtx;
+
 
 /* /\* Supplementary flags for NSS *\/ */
 /* #define NSSCK_VENDOR_NSS 0x4E534350 /\* NSCP *\/ */
@@ -701,6 +730,11 @@ const CK_OBJECT_HANDLE pkcs11_get_publickeyhandle(wrappedKeyCtx *ctx);
 wrappedKeyCtx *pkcs11_new_wrappedkeycontext(pkcs11Context *p11Context);
 void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx);
 
+CmdLineCtx *pkcs11_new_cmdlinecontext();
+void pkcs11_free_cmdlinecontext(CmdLineCtx *ctx);
+func_rc pkcs11_parse_cmdlineattribs_from_argv(CmdLineCtx *ctx , int pos, int argc, char **argv);
+bool pkcs11_is_template(CK_ATTRIBUTE_TYPE attrtype);
+
 
 /* End - Function Prototypes */
 
@@ -714,7 +748,8 @@ void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx);
 #define MAX_KEY_LABEL_SIZE	32
 #define MAX_BYTE_ARRAY_SIZE	20
 
-#define PARSING_MAX_ATTRS       32   /* max number of attributes for unwrap templates */
+#define PARSING_MAX_ATTRS       32   /* max number of attributes inside a wrap file */
+#define CMDLINE_MAX_ATTRS       32   /* max number of attrivutes for cmdline parsing */
 
 #endif
 
