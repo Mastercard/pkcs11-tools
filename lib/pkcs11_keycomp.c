@@ -75,7 +75,7 @@ KeyImportCtx *pkcs11_import_component_init(pkcs11Context *p11Context, char *unwr
 				_ATTR(CKA_PUBLIC_EXPONENT), /* on pubk/privk */
 				_ATTR_END );
     
-    if( pkcs11_read_attr_from_handle (attrs, fkp_rc==1 ? hPrivateKey : hPublicKey) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (attrs, fkp_rc==1 ? hPrivateKey : hPublicKey) == false) {
 	fprintf(stderr,"Error: could not find a public or private key with label '%s'\n", unwrappinglabel);
 	goto error;
     } 
@@ -339,7 +339,7 @@ CK_OBJECT_HANDLE pkcs11_import_component_final(KeyImportCtx *kctx)
 	
 	if(kcv_attrs != NULL) { 
 
-	    if(pkcs11_read_attr_from_handle (kcv_attrs, unwrappedkey) == CK_TRUE) {
+	    if(pkcs11_read_attr_from_handle (kcv_attrs, unwrappedkey) == true) {
 		CK_ATTRIBUTE_PTR kcv = pkcs11_get_attr_in_attrlist ( kcv_attrs, CKA_CHECK_VALUE );
 		
 		if(kcv && kcv->pValue!=NULL_PTR && kcv->ulValueLen!=0 ) {

@@ -165,7 +165,7 @@ int pkcs11_mv_objects(pkcs11Context *p11Context, char *src, char *dest, int inte
 						_ATTR(CKA_LABEL),
 						_ATTR_END );
 
-		    if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+		    if( pkcs11_read_attr_from_handle (attrs, hndl) == true) {
 
 			CK_ATTRIBUTE_PTR oclass = pkcs11_get_attr_in_attrlist(attrs, CKA_CLASS);
 			CK_ATTRIBUTE_PTR olabel = pkcs11_get_attr_in_attrlist(attrs, CKA_LABEL);

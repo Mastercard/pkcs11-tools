@@ -204,7 +204,7 @@ static int ls_cert(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR_END);
 
     if( attrs!=NULL) {
-	if(pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	if(pkcs11_read_attr_from_handle (attrs, hndl) == true) {
 	    CK_ATTRIBUTE_PTR id, label;
 	    char buffer[LABELORID_MAXLEN];
 	    int buffer_len = sizeof buffer;
@@ -275,7 +275,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR_END );
 
     if( attrs!=NULL) {
-	if (pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	if (pkcs11_read_attr_from_handle (attrs, hndl) == true) {
 	    CK_ATTRIBUTE_PTR label, id, modulus, keytype, ec_params, prime;
 	    char buffer[LABELORID_MAXLEN];
 	    int  buffer_len = sizeof buffer;
@@ -402,7 +402,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR_END );
 
     if(attrs!=NULL) {
-	if (pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	if (pkcs11_read_attr_from_handle (attrs, hndl) == true) {
 	    CK_ATTRIBUTE_PTR label, id, modulus, keytype, ec_params, prime;
 	    char buffer[LABELORID_MAXLEN];
 	    int  buffer_len = sizeof buffer;
@@ -527,7 +527,7 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR_END );
 
     if( attrs!=NULL) {
-	if(pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	if(pkcs11_read_attr_from_handle (attrs, hndl) == true) {
 	    CK_ATTRIBUTE_PTR label, id;
 	    char buffer[LABELORID_MAXLEN];
 	    int buffer_len = sizeof buffer;
@@ -591,7 +591,7 @@ static int ls_data(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR_END );
 
     if(attrs!=NULL) {
-	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	if( pkcs11_read_attr_from_handle (attrs, hndl) == true) {
 	    CK_ATTRIBUTE_PTR label;
 	    char buffer[LABELORID_MAXLEN];
 	    int  buffer_len = sizeof buffer;
@@ -665,7 +665,7 @@ func_rc pkcs11_ls( pkcs11Context *p11Context, char *label)
 		    if( pkcs11_read_attr_from_handle_ext (attrs, hndl,
 							  CKR_ATTRIBUTE_SENSITIVE, /* we skip over sensitive attributes */
 							  CKR_FUNCTION_FAILED,     /* workaround for nCipher bug 30966 */
-							  0L) == CK_TRUE) {
+							  0L) == true) {
 
 			CK_ATTRIBUTE_PTR objclass = pkcs11_get_attr_in_attrlist(attrs, CKA_CLASS);
 

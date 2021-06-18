@@ -758,7 +758,7 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 		if( pkcs11_read_attr_from_handle_ext (attrs, hndl,
 						      CKR_ATTRIBUTE_SENSITIVE, /* we skip over sensitive attributes */
 						      CKR_FUNCTION_FAILED,     /* workaround for nCipher bug 30966 */
-						      0L) == CK_TRUE) {
+						      0L) == true) {
 
 		    int i;
 

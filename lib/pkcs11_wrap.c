@@ -881,7 +881,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
     }
 
 
-    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wctx->key[WRAPPEDKEYCTX_INNER_OR_LONE_KEY_INDEX].wrappedkeyhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wctx->key[WRAPPEDKEYCTX_INNER_OR_LONE_KEY_INDEX].wrappedkeyhandle) == false) {
 	fprintf(stderr,"Error: could not read attributes from key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -998,7 +998,7 @@ static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 					   _ATTR(CKA_END_DATE),
 					   _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wctx->pubkhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wctx->pubkhandle) == false) {
 	fprintf(stderr,"Error: could not read attributes from key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -1086,7 +1086,7 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 					    _ATTR(CKA_MODULUS),
 					    _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == false) {
 	fprintf(stderr,"Error: could not read CKA_MODULUS_BITS attribute from public key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -1112,7 +1112,7 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 					    _ATTR(CKA_VALUE_LEN), /* caution: value in bytes */
 					    _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wrappedkeyhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wrappedkeyhandle) == false) {
 	fprintf(stderr,"Error: could not read CKA_VALUE_LEN attribute from secret key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -1633,7 +1633,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 					    _ATTR(CKA_MODULUS),
 					    _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == false) {
 	fprintf(stderr,"Error: could not read CKA_MODULUS_BITS attribute from public key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -1659,7 +1659,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 					   _ATTR(CKA_VALUE_LEN), /* caution: value in bytes */
 					   _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wrappedkeyhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wrappedkeyhandle) == false) {
 	fprintf(stderr,"Error: could not read attributes from secret key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;

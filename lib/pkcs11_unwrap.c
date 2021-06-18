@@ -636,7 +636,7 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 	    goto error;
 	}
 
-	if( pkcs11_read_attr_from_handle (wklist, wrappingkeyhandle) == CK_FALSE) {
+	if( pkcs11_read_attr_from_handle (wklist, wrappingkeyhandle) == false) {
 	    fprintf(stderr, "***Error: cannot read attributes from wrapping key\n");
 	    goto error;
 	}

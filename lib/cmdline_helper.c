@@ -56,7 +56,7 @@ func_rc _cmdline_parser_append_attr(CmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp
     /* we need to create the buffer and stuff it with what is passed as parameter */
     stuffing.type   = attrtyp;
 
-    if(pkcs11_is_template(attrtyp)) {
+    if(pkcs11_attr_is_template(attrtyp)) {
 	stuffing.pValue = buffer; /* we pass the pointer, we don't allocate */
     } else {
 	stuffing.pValue = malloc(len);
@@ -88,7 +88,7 @@ func_rc _cmdline_parser_append_attr(CmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp
     *attrnum = argnum; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
 
     if( match == &stuffing) { /* match, we may need to adjust the content */
-	if(match->pValue && !pkcs11_is_template(match->type)) { free(match->pValue); /* just in case */ }
+	if(match->pValue && !pkcs11_attr_is_template(match->type)) { free(match->pValue); /* just in case */ }
 	
 	match->ulValueLen = stuffing.ulValueLen;
 	match->pValue = stuffing.pValue; /* we steal the pointer  */
@@ -102,7 +102,7 @@ func_rc _cmdline_parser_append_attr(CmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp
 
 error:
     /* clean up */
-    if (stuffing.pValue != NULL && !pkcs11_is_template(stuffing.type)) { free(stuffing.pValue); }
+    if (stuffing.pValue != NULL && !pkcs11_attr_is_template(stuffing.type)) { free(stuffing.pValue); }
 
     return rc;
 }

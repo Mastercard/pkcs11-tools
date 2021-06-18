@@ -171,7 +171,7 @@ typedef struct s_p11_attrlist {
 
     CK_ATTRIBUTE *attr_array;
     CK_ULONG allocated;
-    int cast;			/* this flag is to know how was the object created */
+    bool cast;			/* this flag is to know how was the object created */
 } pkcs11AttrList;
 
 
@@ -625,17 +625,17 @@ pkcs11AttrList *pkcs11_cast_to_attrlist(pkcs11Context *p11Context, CK_ATTRIBUTE_
 
 void pkcs11_attrlist_assign_context(pkcs11AttrList *attrlist, pkcs11Context *p11Context);
 
-CK_BBOOL pkcs11_set_attr_in_attrlist ( pkcs11AttrList *attrlist,
-				       CK_ATTRIBUTE_TYPE attrib,
-				       CK_VOID_PTR pvalue,
-				       CK_ULONG len );
+bool pkcs11_set_attr_in_attrlist ( pkcs11AttrList *attrlist,
+				   CK_ATTRIBUTE_TYPE attrib,
+				   CK_VOID_PTR pvalue,
+				   CK_ULONG len );
 
 bool pkcs11_attrlist_has_attribute(const pkcs11AttrList *attrlist, CK_ATTRIBUTE_TYPE attr);
 CK_ATTRIBUTE_PTR pkcs11_get_attr_in_attrlist ( pkcs11AttrList *attrlist,
 					       CK_ATTRIBUTE_TYPE attrib );
 
-CK_BBOOL pkcs11_read_attr_from_handle ( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle);
-CK_BBOOL pkcs11_read_attr_from_handle_ext ( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle, ... );
+bool pkcs11_read_attr_from_handle ( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle);
+bool pkcs11_read_attr_from_handle_ext ( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle, ... );
 
 pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PTR attrs, CK_ULONG numattrs);
 
@@ -735,9 +735,11 @@ void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx);
 CmdLineCtx *pkcs11_new_cmdlinecontext();
 void pkcs11_free_cmdlinecontext(CmdLineCtx *ctx);
 func_rc pkcs11_parse_cmdlineattribs_from_argv(CmdLineCtx *ctx , int pos, int argc, char **argv);
-bool pkcs11_is_template(CK_ATTRIBUTE_TYPE attrtype);
 CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_cmdlinectx(CmdLineCtx *ctx);
 size_t pkcs11_get_attrnum_from_cmdlinectx(CmdLineCtx *ctx);
+bool pkcs11_attr_is_template(CK_ATTRIBUTE_TYPE attrtype);
+
+
 
 
 /* End - Function Prototypes */
