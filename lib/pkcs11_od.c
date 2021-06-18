@@ -206,7 +206,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	}
 
 	// And print cast to CK_ULONG
-	printf ("  %ld (0x%08.8lx)\n", *((CK_ULONG *)addr), *((CK_ULONG *)addr));
+	printf ("  %s%ld (0x%08.8lx)\n", template ? "" : "  ", *((CK_ULONG *)addr), *((CK_ULONG *)addr));
 	break;
 
     case as_bool:
@@ -225,7 +225,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	    i++;
 	}
 
-	printf ("  %s\n", (CK_BBOOL)(pc[0])== CK_TRUE ? "CK_TRUE" : "CK_FALSE");
+	printf ("  %s%s\n", template ? "" : "  ", (CK_BBOOL)(pc[0])== CK_TRUE ? "CK_TRUE" : "CK_FALSE");
 	break;
 
     case as_object_class:
@@ -287,7 +287,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	    break;
 	}
 
-	printf ("  %s\n", info);
+	printf ("  %s%s\n", template ? "" : "  ", info);
 	break;
 
 
@@ -483,7 +483,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	    break;
 	}
 
-	printf ("  %s\n", info);
+	printf ("  %s%s\n", template ? "" : "  ", info);
 	break;
 
     case as_cert_type:
@@ -522,7 +522,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	    break;
 	}
 
-	printf ("  %s\n", info);
+	printf ("  %s%s\n", template ? "" : "  ", info);
 	break;
 
     case as_mech_type:
@@ -541,7 +541,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	    i++;
 	}
 
-	printf ("  %s\n", get_mechanism_name( *(CK_CERTIFICATE_TYPE *)addr ) );
+	printf ("  %s%s\n", template ? "" : "  ", get_mechanism_name( *(CK_CERTIFICATE_TYPE *)addr ) );
 	break;
 
     case no_cast:
@@ -555,7 +555,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	    if ((i % 16) == 0) {
 		// Just don't print ASCII for the zeroth line.
 		if (i != 0) {
-		    printf ("  %s\n", buff);
+		    printf ("  %s%s\n", template ? "" : "  ", buff);
 		}
 		// Output the offset.
 		printf (" %s %04lx ", template ? "| " : "", i);
@@ -580,7 +580,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	}
 
 	// And print the final ASCII bit.
-	printf ("  %s\n", buff);
+	printf ("  %s%s\n", template ? "" : "  ", buff);
 	break;
 
     case as_template:
