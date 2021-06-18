@@ -69,6 +69,7 @@ CKA_EC_PARAMS|EC_PARAMS             { cllval.ckattr = CKA_EC_PARAMS; return CKAT
 CKA_WRAP_TEMPLATE|WRAP_TEMPLATE     { cllval.ckattr = CKA_WRAP_TEMPLATE; return CKATTR_TEMPLATE; }
 CKA_UNWRAP_TEMPLATE|UNWRAP_TEMPLATE { cllval.ckattr = CKA_UNWRAP_TEMPLATE; return CKATTR_TEMPLATE; }
 CKA_DERIVE_TEMPLATE|DERIVE_TEMPLATE { cllval.ckattr = CKA_DERIVE_TEMPLATE; return CKATTR_TEMPLATE; }
+CKA_WRAP_WITH_TRUSTED|WRAP_WITH_TRUSTED { cllval.ckattr = CKA_WRAP_WITH_TRUSTED; return CKATTR_BOOL; }
 
 CKK_GENERIC_SECRET { cllval.val_key = CKK_GENERIC_SECRET; return KEYTYPE; }
 CKK_DES            { cllval.val_key = CKK_DES           ; return KEYTYPE; }
@@ -129,37 +130,13 @@ CKO_OTP_KEY        { cllval.val_cls = CKO_OTP_KEY ; return OCLASS; }
 
 [[:digit:]]{8} { memcpy(cllval.val_date.as_buffer, cltext, 8); return TOK_DATE; }
 
-true|CK_TRUE|yes|1   { cllval.val_bool = 1; return TOK_BOOLEAN; }
-false|CK_FALSE|no|0  { cllval.val_bool = 0; return TOK_BOOLEAN; }
+true|CK_TRUE|yes|on    { cllval.val_bool = 1; return TOK_BOOLEAN; }
+false|CK_FALSE|no|off  { cllval.val_bool = 0; return TOK_BOOLEAN; }
 
-"{"            {		/*check with context if we are not nesting templates */
-                   if(ctx->level==1) {
-		       clerror(NULL, "***Error: nesting templates not allowed", cltext);
-		       yyterminate();
-                   }
-                   ctx->level++; /*remind we are in a curly brace */
-                   ctx->current_idx++; /*increment current idx*/
-                   if(ctx->current_idx>=4) {
-		       clerror(NULL, "***Error: too many templates specified", cltext);
-		       yyterminate();
-                   }
-                   return CURLY_OPEN;
-               }
-
-"}"            {
-                   if(ctx->level==0) {
-		       clerror(NULL, "***Error: no matching opening curly brace", cltext);
-		       yyterminate();
-                   }
-                   ctx->level--;
-                   ctx->saved_idx = ctx->current_idx;
-                   ctx->current_idx = ctx->mainlist_idx; /* should be always 0 */
-                   
-                   return CURLY_CLOSE;
-               }
-
-[\n\r\t ]+         { /* ignore whitespace */ }
-
+[\n\r\t ,]+         { /* ignore whitespace and comma */ }
+"="                { return ASSIGN; }
+"{"                { return CURLY_OPEN; }
+"}"                { return CURLY_CLOSE; }
 .                  { return cltext[0]; } /* catch-all http://stackoverflow.com/questions/18837828/how-should-i-handle-lexical-errors-in-my-flex-lexer */
 					 /* gives it back to bison, so error comes from parser */
 

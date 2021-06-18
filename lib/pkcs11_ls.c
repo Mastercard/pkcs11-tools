@@ -59,12 +59,18 @@ static char* value_for_boolattr( pkcs11AttrList *attrlist,
     return rv;
 }
 
-static inline char* value_for_template( pkcs11AttrList *attrlist,
+static char* value_for_template( pkcs11AttrList *attrlist,
 					CK_ATTRIBUTE_TYPE attrtype,
 					char *ck_true,
-					char *ck_false)
+				        char *ck_false )
 {
-    return pkcs11_get_attr_in_attrlist ( attrlist, attrtype ) ? ck_true : ck_false;
+    CK_ATTRIBUTE_PTR attr;
+
+    attr = pkcs11_get_attr_in_attrlist ( attrlist, attrtype );
+
+    if(attr==NULL) return ck_false;
+    else if(attr!=NULL_PTR && attr->pValue!=NULL_PTR) return ck_true;
+    else return ck_false;
 }
 
 static char* value_for_keytype( pkcs11AttrList *attrlist )

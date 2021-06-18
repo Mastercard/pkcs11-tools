@@ -53,17 +53,12 @@
 extern int cldebug;
 #endif
 /* "%code requires" blocks.  */
-#line 29 "cmdline_parser.y"
-
+#line 30 "cmdline_parser.y"
 
 #include "pkcs11lib.h"
 #include "cmdline_helper.h"
 
-    //extern void clerror(CmdLineCtx *ctx, const char *s, ...);
-    //extern int cllex(void);
-
-
-#line 67 "cmdline_parser.h"
+#line 62 "cmdline_parser.h"
 
 /* Token kinds.  */
 #ifndef CLTOKENTYPE
@@ -85,9 +80,10 @@ extern int cldebug;
     TOK_DATE = 266,                /* TOK_DATE  */
     KEYTYPE = 267,                 /* KEYTYPE  */
     OCLASS = 268,                  /* OCLASS  */
-    CURLY_OPEN = 269,              /* CURLY_OPEN  */
-    CURLY_CLOSE = 270,             /* CURLY_CLOSE  */
-    NO = 271                       /* NO  */
+    NO = 269,                      /* NO  */
+    ASSIGN = 270,                  /* ASSIGN  */
+    CURLY_OPEN = 271,              /* CURLY_OPEN  */
+    CURLY_CLOSE = 272              /* CURLY_CLOSE  */
   };
   typedef enum cltokentype cltoken_kind_t;
 #endif
@@ -96,7 +92,7 @@ extern int cldebug;
 #if ! defined CLSTYPE && ! defined CLSTYPE_IS_DECLARED
 union CLSTYPE
 {
-#line 51 "cmdline_parser.y"
+#line 46 "cmdline_parser.y"
 
     CK_ATTRIBUTE_TYPE ckattr;
     CK_KEY_TYPE val_key;
@@ -117,7 +113,7 @@ union CLSTYPE
         char as_buffer[8];
     } val_date;
 
-#line 121 "cmdline_parser.h"
+#line 117 "cmdline_parser.h"
 
 };
 typedef union CLSTYPE CLSTYPE;
@@ -130,15 +126,14 @@ extern CLSTYPE cllval;
 
 int clparse (CmdLineCtx *ctx);
 /* "%code provides" blocks.  */
-#line 39 "cmdline_parser.y"
+#line 35 "cmdline_parser.y"
 
 #define YY_DECL int yylex(CmdLineCtx* ctx)
 
-    YY_DECL;
-
-    extern void clerror(CmdLineCtx *ctx, const char *s, ...);
+YY_DECL;
+extern void clerror(CmdLineCtx *ctx, const char *s, ...);
     
 
-#line 143 "cmdline_parser.h"
+#line 138 "cmdline_parser.h"
 
 #endif /* !YY_CL_CMDLINE_PARSER_H_INCLUDED  */

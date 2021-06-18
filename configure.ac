@@ -46,7 +46,7 @@ AC_PROG_MKDIR_P			dnl needed for dist/solaris build
 AC_CHECK_PROGS([TAR], [gtar tar]) dnl need to find tar (GNU tar preferred)
 
 dnl we need FLEX, not LEX
-AC_PROG_LEX
+AM_PROG_LEX
 AS_VAR_COPY([FLEX], [LEX])
 AX_PROG_FLEX([],[AC_MSG_WARN([GNU flex is required to regenerate lexer. Generated source code is provided, so it should be OK, until you change the lexer source file. Hint: use LEX variable to point to flex on your system.])])
 AX_PROG_FLEX_VERSION([2.5.0],[],[AC_MSG_WARN([GNU flex 2.5+ is required to regenerate lexer. Generated source code is provided, so it should be OK, until you change the lexer source file.])])

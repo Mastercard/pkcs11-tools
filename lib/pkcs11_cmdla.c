@@ -156,6 +156,7 @@ func_rc pkcs11_parse_cmdlineattribs_from_argv(CmdLineCtx *ctx , int pos, int arg
     cl_switch_to_buffer(bp);
 
     cldebug=1;
+    clset_debug(1);
 
     if(clparse(ctx)) {
 	rc = rc_error_parsing;

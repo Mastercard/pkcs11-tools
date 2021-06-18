@@ -18,6 +18,7 @@
 %define api.prefix {cl}
 %define parse.error verbose
 %define parse.trace
+/* %define lr.type canonical-lr */
 
 %code top {
 #include <stdio.h>
@@ -27,21 +28,15 @@
 
 			
 %code requires {
-
 #include "pkcs11lib.h"
 #include "cmdline_helper.h"
-
-    //extern void clerror(CmdLineCtx *ctx, const char *s, ...);
-    //extern int cllex(void);
-
 }
 
 %code provides {
 #define YY_DECL int yylex(CmdLineCtx* ctx)
 
-    YY_DECL;
-
-    extern void clerror(CmdLineCtx *ctx, const char *s, ...);
+YY_DECL;
+extern void clerror(CmdLineCtx *ctx, const char *s, ...);
     
 }
 			
@@ -77,7 +72,8 @@
 %token <val_date> TOK_DATE
 %token <val_key>  KEYTYPE
 %token <val_cls>  OCLASS
-%token CURLY_OPEN CURLY_CLOSE NO
+%nonassoc NO
+%token ASSIGN CURLY_OPEN CURLY_CLOSE			
 
 %%
 
@@ -86,31 +82,17 @@
  * so we know we are in this parsing job
  */
 
-cmdlinestmts:	cmdlinestmt
-	|	cmdlinestmts cmdlinestmt
+statement:	expression
+	|       statement expression
 	;
 
-/* TODO separate */
-cmdlinestmt:	CKATTR_TEMPLATE '=' CURLY_OPEN cmdlinestmts CURLY_CLOSE
-		{
-		    if(_cmdline_parser_assign_list_to_template(ctx, $1)!=rc_ok) {
-			clerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
-			YYERROR;
-		    /* TODO work on parsing substatement */
-			}
-		}
-	|	CKATTR_BOOL  '=' TOK_BOOLEAN
+expression:	simple_expr
+	|	template_expr
+	;
+
+simple_expr:	CKATTR_BOOL ASSIGN TOK_BOOLEAN
                 {
 		    if(_cmdline_parser_append_attr(ctx, $1, &$3, sizeof(CK_BBOOL) )!=rc_ok) {
-			clerror(ctx,"Error during parsing, cannot assign boolean value.");
-			YYERROR;
-		    }
-		}
-	|	CKATTR_BOOL
-                {
-		    CK_BBOOL btrue = CK_TRUE;
-		    
-		    if(_cmdline_parser_append_attr(ctx, $1, &btrue, sizeof(CK_BBOOL) )!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
@@ -124,7 +106,16 @@ cmdlinestmt:	CKATTR_TEMPLATE '=' CURLY_OPEN cmdlinestmts CURLY_CLOSE
 			YYERROR;
 		    }
 		}		
-	|	CKATTR_STR '=' STRING
+	|	CKATTR_BOOL
+                {
+		    CK_BBOOL btrue = CK_TRUE;
+		    
+		    if(_cmdline_parser_append_attr(ctx, $1, &btrue, sizeof(CK_BBOOL) )!=rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign boolean value.");
+			YYERROR;
+		    }
+		}
+	|	CKATTR_STR ASSIGN STRING
                 {
 		    if(_cmdline_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign bytes value.");
@@ -132,14 +123,14 @@ cmdlinestmt:	CKATTR_TEMPLATE '=' CURLY_OPEN cmdlinestmts CURLY_CLOSE
 		    }
 		    free($3.val); /* we must free() as the buffer was copied */
 		}
-	|	CKATTR_DATE '=' TOK_DATE
+	|	CKATTR_DATE ASSIGN TOK_DATE
                 {
 		    if(_cmdline_parser_append_attr(ctx, $1, $3.as_buffer, sizeof(CK_DATE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
 			YYERROR;
 		    }
 		}
-	|	CKATTR_DATE  '=' STRING /* if the date comes as 0x... format (not preferred but accepted) */
+	|	CKATTR_DATE  ASSIGN STRING /* if the date comes as 0x... format (not preferred but accepted) */
                 {
 		    if(_cmdline_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
@@ -147,14 +138,14 @@ cmdlinestmt:	CKATTR_TEMPLATE '=' CURLY_OPEN cmdlinestmts CURLY_CLOSE
 		    }
 		    free($3.val); /* we must free() as the buffer was copied */
 		}
-	|	CKATTR_KEY   '=' KEYTYPE
+	|	CKATTR_KEY ASSIGN KEYTYPE
                 {
 		    if(_cmdline_parser_append_attr(ctx, $1, &$3, sizeof(CK_KEY_TYPE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign key type value.");
 			YYERROR;
 		    }
 		}
-	|	CKATTR_CLASS '=' OCLASS
+	|	CKATTR_CLASS ASSIGN OCLASS
                 {
 		    if(_cmdline_parser_append_attr(ctx, $1, &$3, sizeof(CK_OBJECT_CLASS))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign object class value.");
@@ -162,5 +153,38 @@ cmdlinestmt:	CKATTR_TEMPLATE '=' CURLY_OPEN cmdlinestmts CURLY_CLOSE
 		    }
 		}
 		;
+
+template_expr:	CKATTR_TEMPLATE ASSIGN CURLY_OPEN
+		{
+		    if(ctx->level==1) {
+			clerror(ctx, "***Error: nesting templates not allowed");
+			YYERROR;
+		    }
+                    ctx->level++; /*remind we are in a curly brace */
+		    
+		    ctx->current_idx = ctx->saved_idx + 1; /*increment current idx from ctx->saved_idx */
+		    if(ctx->current_idx>=4) {
+			clerror(ctx, "***Error: too many templates specified");
+			YYERROR;
+                   } 		    
+		}
+		statement CURLY_CLOSE
+		{
+
+		    if(ctx->level==0) {
+		        clerror(ctx, "***Error: no matching opening curly brace");
+			YYERROR;
+                    }
+                    ctx->level--; /*out of curly brace now */
+
+		    ctx->saved_idx = ctx->current_idx; /* remember which index we used last */
+		    ctx->current_idx = ctx->mainlist_idx; /* should be always 0 */
+
+		    if(_cmdline_parser_assign_list_to_template(ctx, $1)!=rc_ok) {
+			clerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
+			YYERROR;
+		    }		    
+		}
+	;
 
 %%	      

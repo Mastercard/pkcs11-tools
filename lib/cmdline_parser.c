@@ -64,7 +64,7 @@
 #define YYPULL 1
 
 /* "%code top" blocks.  */
-#line 22 "cmdline_parser.y"
+#line 23 "cmdline_parser.y"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -124,17 +124,12 @@
 extern int cldebug;
 #endif
 /* "%code requires" blocks.  */
-#line 29 "cmdline_parser.y"
-
+#line 30 "cmdline_parser.y"
 
 #include "pkcs11lib.h"
 #include "cmdline_helper.h"
 
-    //extern void clerror(CmdLineCtx *ctx, const char *s, ...);
-    //extern int cllex(void);
-
-
-#line 138 "cmdline_parser.c"
+#line 133 "cmdline_parser.c"
 
 /* Token kinds.  */
 #ifndef CLTOKENTYPE
@@ -156,9 +151,10 @@ extern int cldebug;
     TOK_DATE = 266,                /* TOK_DATE  */
     KEYTYPE = 267,                 /* KEYTYPE  */
     OCLASS = 268,                  /* OCLASS  */
-    CURLY_OPEN = 269,              /* CURLY_OPEN  */
-    CURLY_CLOSE = 270,             /* CURLY_CLOSE  */
-    NO = 271                       /* NO  */
+    NO = 269,                      /* NO  */
+    ASSIGN = 270,                  /* ASSIGN  */
+    CURLY_OPEN = 271,              /* CURLY_OPEN  */
+    CURLY_CLOSE = 272              /* CURLY_CLOSE  */
   };
   typedef enum cltokentype cltoken_kind_t;
 #endif
@@ -167,7 +163,7 @@ extern int cldebug;
 #if ! defined CLSTYPE && ! defined CLSTYPE_IS_DECLARED
 union CLSTYPE
 {
-#line 51 "cmdline_parser.y"
+#line 46 "cmdline_parser.y"
 
     CK_ATTRIBUTE_TYPE ckattr;
     CK_KEY_TYPE val_key;
@@ -188,7 +184,7 @@ union CLSTYPE
         char as_buffer[8];
     } val_date;
 
-#line 192 "cmdline_parser.c"
+#line 188 "cmdline_parser.c"
 
 };
 typedef union CLSTYPE CLSTYPE;
@@ -201,16 +197,15 @@ extern CLSTYPE cllval;
 
 int clparse (CmdLineCtx *ctx);
 /* "%code provides" blocks.  */
-#line 39 "cmdline_parser.y"
+#line 35 "cmdline_parser.y"
 
 #define YY_DECL int yylex(CmdLineCtx* ctx)
 
-    YY_DECL;
-
-    extern void clerror(CmdLineCtx *ctx, const char *s, ...);
+YY_DECL;
+extern void clerror(CmdLineCtx *ctx, const char *s, ...);
     
 
-#line 214 "cmdline_parser.c"
+#line 209 "cmdline_parser.c"
 
 #endif /* !YY_CL_CMDLINE_PARSER_H_INCLUDED  */
 /* Symbol kind.  */
@@ -231,13 +226,16 @@ enum yysymbol_kind_t
   YYSYMBOL_TOK_DATE = 11,                  /* TOK_DATE  */
   YYSYMBOL_KEYTYPE = 12,                   /* KEYTYPE  */
   YYSYMBOL_OCLASS = 13,                    /* OCLASS  */
-  YYSYMBOL_CURLY_OPEN = 14,                /* CURLY_OPEN  */
-  YYSYMBOL_CURLY_CLOSE = 15,               /* CURLY_CLOSE  */
-  YYSYMBOL_NO = 16,                        /* NO  */
-  YYSYMBOL_17_ = 17,                       /* '='  */
+  YYSYMBOL_NO = 14,                        /* NO  */
+  YYSYMBOL_ASSIGN = 15,                    /* ASSIGN  */
+  YYSYMBOL_CURLY_OPEN = 16,                /* CURLY_OPEN  */
+  YYSYMBOL_CURLY_CLOSE = 17,               /* CURLY_CLOSE  */
   YYSYMBOL_YYACCEPT = 18,                  /* $accept  */
-  YYSYMBOL_cmdlinestmts = 19,              /* cmdlinestmts  */
-  YYSYMBOL_cmdlinestmt = 20                /* cmdlinestmt  */
+  YYSYMBOL_statement = 19,                 /* statement  */
+  YYSYMBOL_expression = 20,                /* expression  */
+  YYSYMBOL_simple_expr = 21,               /* simple_expr  */
+  YYSYMBOL_template_expr = 22,             /* template_expr  */
+  YYSYMBOL_23_1 = 23                       /* $@1  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
@@ -557,21 +555,21 @@ union yyalloc
 #endif /* !YYCOPY_NEEDED */
 
 /* YYFINAL -- State number of the termination state.  */
-#define YYFINAL  17
+#define YYFINAL  19
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   39
+#define YYLAST   46
 
 /* YYNTOKENS -- Number of terminals.  */
 #define YYNTOKENS  18
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  3
+#define YYNNTS  6
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  12
+#define YYNRULES  15
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  28
+#define YYNSTATES  31
 
 /* YYMAXUTOK -- Last valid token kind.  */
-#define YYMAXUTOK   271
+#define YYMAXUTOK   272
 
 
 /* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
@@ -591,7 +589,7 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,    17,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -612,15 +610,15 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
-      15,    16
+      15,    16,    17
 };
 
 #if CLDEBUG
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    89,    89,    90,    94,   102,   109,   118,   127,   135,
-     142,   150,   157
+       0,    85,    85,    86,    89,    90,    93,   100,   109,   118,
+     126,   133,   141,   148,   158,   157
 };
 #endif
 
@@ -638,9 +636,9 @@ static const char *const yytname[] =
 {
   "\"end of file\"", "error", "\"invalid token\"", "STRING",
   "CKATTR_BOOL", "CKATTR_STR", "CKATTR_DATE", "CKATTR_KEY", "CKATTR_CLASS",
-  "CKATTR_TEMPLATE", "TOK_BOOLEAN", "TOK_DATE", "KEYTYPE", "OCLASS",
-  "CURLY_OPEN", "CURLY_CLOSE", "NO", "'='", "$accept", "cmdlinestmts",
-  "cmdlinestmt", YY_NULLPTR
+  "CKATTR_TEMPLATE", "TOK_BOOLEAN", "TOK_DATE", "KEYTYPE", "OCLASS", "NO",
+  "ASSIGN", "CURLY_OPEN", "CURLY_CLOSE", "$accept", "statement",
+  "expression", "simple_expr", "template_expr", "$@1", YY_NULLPTR
 };
 
 static const char *
@@ -656,11 +654,11 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 static const yytype_int16 yytoknum[] =
 {
        0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
-     265,   266,   267,   268,   269,   270,   271,    61
+     265,   266,   267,   268,   269,   270,   271,   272
 };
 #endif
 
-#define YYPACT_NINF (-16)
+#define YYPACT_NINF (-14)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -674,9 +672,10 @@ static const yytype_int16 yytoknum[] =
      STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-      20,   -15,   -14,   -13,     2,     3,     4,    28,     1,   -16,
-      21,    30,    27,    22,    24,    25,   -16,   -16,   -16,   -16,
-     -16,   -16,   -16,   -16,   -16,    20,     7,   -16
+      32,   -13,   -11,    -3,    -2,    -1,     2,    12,     1,   -14,
+     -14,   -14,     8,    16,     0,    17,     7,    14,   -14,   -14,
+     -14,   -14,   -14,   -14,   -14,   -14,   -14,   -14,    32,    18,
+     -14
 };
 
   /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -684,21 +683,22 @@ static const yytype_int8 yypact[] =
      means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
-       0,     6,     0,     0,     0,     0,     0,     0,     0,     2,
-       0,     0,     0,     0,     0,     0,     7,     1,     3,     5,
-       8,    10,     9,    11,    12,     0,     0,     4
+       0,     8,     0,     0,     0,     0,     0,     0,     0,     2,
+       4,     5,     0,     0,     0,     0,     0,     0,     7,     1,
+       3,     6,     9,    11,    10,    12,    13,    14,     0,     0,
+      15
 };
 
   /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -16,    10,    -8
+     -14,     3,    -8,   -14,   -14,   -14
 };
 
   /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-       0,     8,     9
+       0,     8,     9,    10,    11,    28
 };
 
   /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -706,41 +706,44 @@ static const yytype_int8 yydefgoto[] =
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-      18,    17,    10,    11,    12,     1,     2,     3,     4,     5,
-       6,     1,     2,     3,     4,     5,     6,     7,    18,    13,
-      14,    15,    27,     7,     1,     2,     3,     4,     5,     6,
-      21,    19,    16,    20,    23,    26,     7,    24,    22,    25
+      20,    19,    12,    23,    13,     1,     2,     3,     4,     5,
+       6,    24,    14,    15,    16,     7,    18,    17,    21,    22,
+      26,    20,     1,     2,     3,     4,     5,     6,     0,    25,
+      27,    29,     7,     0,     0,    30,     1,     2,     3,     4,
+       5,     6,     0,     0,     0,     0,     7
 };
 
 static const yytype_int8 yycheck[] =
 {
-       8,     0,    17,    17,    17,     4,     5,     6,     7,     8,
-       9,     4,     5,     6,     7,     8,     9,    16,    26,    17,
-      17,    17,    15,    16,     4,     5,     6,     7,     8,     9,
-       3,    10,     4,     3,    12,    25,    16,    13,    11,    14
+       8,     0,    15,     3,    15,     4,     5,     6,     7,     8,
+       9,    11,    15,    15,    15,    14,     4,    15,    10,     3,
+      13,    29,     4,     5,     6,     7,     8,     9,    -1,    12,
+      16,    28,    14,    -1,    -1,    17,     4,     5,     6,     7,
+       8,     9,    -1,    -1,    -1,    -1,    14
 };
 
   /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
      symbol of state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
-       0,     4,     5,     6,     7,     8,     9,    16,    19,    20,
-      17,    17,    17,    17,    17,    17,     4,     0,    20,    10,
-       3,     3,    11,    12,    13,    14,    19,    15
+       0,     4,     5,     6,     7,     8,     9,    14,    19,    20,
+      21,    22,    15,    15,    15,    15,    15,    15,     4,     0,
+      20,    10,     3,     3,    11,    12,    13,    16,    23,    19,
+      17
 };
 
   /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    18,    19,    19,    20,    20,    20,    20,    20,    20,
-      20,    20,    20
+       0,    18,    19,    19,    20,    20,    21,    21,    21,    21,
+      21,    21,    21,    21,    23,    22
 };
 
   /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
 static const yytype_int8 yyr2[] =
 {
-       0,     2,     1,     2,     5,     3,     1,     2,     3,     3,
-       3,     3,     3
+       0,     2,     1,     2,     1,     1,     3,     2,     1,     3,
+       3,     3,     3,     3,     0,     6
 };
 
 
@@ -1479,30 +1482,31 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
-  case 4: /* cmdlinestmt: CKATTR_TEMPLATE '=' CURLY_OPEN cmdlinestmts CURLY_CLOSE  */
-#line 95 "cmdline_parser.y"
-                {
-		    if(_cmdline_parser_assign_list_to_template(ctx, (yyvsp[-4].ckattr))!=rc_ok) {
-			clerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
-			YYERROR;
-		    /* TODO work on parsing substatement */
-			}
-		}
-#line 1492 "cmdline_parser.c"
-    break;
-
-  case 5: /* cmdlinestmt: CKATTR_BOOL '=' TOK_BOOLEAN  */
-#line 103 "cmdline_parser.y"
+  case 6: /* simple_expr: CKATTR_BOOL ASSIGN TOK_BOOLEAN  */
+#line 94 "cmdline_parser.y"
                 {
 		    if(_cmdline_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_bool), sizeof(CK_BBOOL) )!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
 		}
-#line 1503 "cmdline_parser.c"
+#line 1494 "cmdline_parser.c"
     break;
 
-  case 6: /* cmdlinestmt: CKATTR_BOOL  */
+  case 7: /* simple_expr: NO CKATTR_BOOL  */
+#line 101 "cmdline_parser.y"
+                {
+		    CK_BBOOL bfalse = CK_FALSE;
+		    
+		    if(_cmdline_parser_append_attr(ctx, (yyvsp[0].ckattr), &bfalse, sizeof(CK_BBOOL) )!=rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign boolean value.");
+			YYERROR;
+		    }
+		}
+#line 1507 "cmdline_parser.c"
+    break;
+
+  case 8: /* simple_expr: CKATTR_BOOL  */
 #line 110 "cmdline_parser.y"
                 {
 		    CK_BBOOL btrue = CK_TRUE;
@@ -1512,24 +1516,11 @@ yyreduce:
 			YYERROR;
 		    }
 		}
-#line 1516 "cmdline_parser.c"
+#line 1520 "cmdline_parser.c"
     break;
 
-  case 7: /* cmdlinestmt: NO CKATTR_BOOL  */
+  case 9: /* simple_expr: CKATTR_STR ASSIGN STRING  */
 #line 119 "cmdline_parser.y"
-                {
-		    CK_BBOOL bfalse = CK_FALSE;
-		    
-		    if(_cmdline_parser_append_attr(ctx, (yyvsp[0].ckattr), &bfalse, sizeof(CK_BBOOL) )!=rc_ok) {
-			clerror(ctx,"Error during parsing, cannot assign boolean value.");
-			YYERROR;
-		    }
-		}
-#line 1529 "cmdline_parser.c"
-    break;
-
-  case 8: /* cmdlinestmt: CKATTR_STR '=' STRING  */
-#line 128 "cmdline_parser.y"
                 {
 		    if(_cmdline_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign bytes value.");
@@ -1537,22 +1528,22 @@ yyreduce:
 		    }
 		    free((yyvsp[0].val_str).val); /* we must free() as the buffer was copied */
 		}
-#line 1541 "cmdline_parser.c"
+#line 1532 "cmdline_parser.c"
     break;
 
-  case 9: /* cmdlinestmt: CKATTR_DATE '=' TOK_DATE  */
-#line 136 "cmdline_parser.y"
+  case 10: /* simple_expr: CKATTR_DATE ASSIGN TOK_DATE  */
+#line 127 "cmdline_parser.y"
                 {
 		    if(_cmdline_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_date).as_buffer, sizeof(CK_DATE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
 			YYERROR;
 		    }
 		}
-#line 1552 "cmdline_parser.c"
+#line 1543 "cmdline_parser.c"
     break;
 
-  case 10: /* cmdlinestmt: CKATTR_DATE '=' STRING  */
-#line 143 "cmdline_parser.y"
+  case 11: /* simple_expr: CKATTR_DATE ASSIGN STRING  */
+#line 134 "cmdline_parser.y"
                 {
 		    if(_cmdline_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
@@ -1560,33 +1551,72 @@ yyreduce:
 		    }
 		    free((yyvsp[0].val_str).val); /* we must free() as the buffer was copied */
 		}
-#line 1564 "cmdline_parser.c"
+#line 1555 "cmdline_parser.c"
     break;
 
-  case 11: /* cmdlinestmt: CKATTR_KEY '=' KEYTYPE  */
-#line 151 "cmdline_parser.y"
+  case 12: /* simple_expr: CKATTR_KEY ASSIGN KEYTYPE  */
+#line 142 "cmdline_parser.y"
                 {
 		    if(_cmdline_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_key), sizeof(CK_KEY_TYPE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign key type value.");
 			YYERROR;
 		    }
 		}
-#line 1575 "cmdline_parser.c"
+#line 1566 "cmdline_parser.c"
     break;
 
-  case 12: /* cmdlinestmt: CKATTR_CLASS '=' OCLASS  */
-#line 158 "cmdline_parser.y"
+  case 13: /* simple_expr: CKATTR_CLASS ASSIGN OCLASS  */
+#line 149 "cmdline_parser.y"
                 {
 		    if(_cmdline_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_cls), sizeof(CK_OBJECT_CLASS))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign object class value.");
 			YYERROR;
 		    }
 		}
-#line 1586 "cmdline_parser.c"
+#line 1577 "cmdline_parser.c"
+    break;
+
+  case 14: /* $@1: %empty  */
+#line 158 "cmdline_parser.y"
+                {
+		    if(ctx->level==1) {
+			clerror(ctx, "***Error: nesting templates not allowed");
+			YYERROR;
+		    }
+                    ctx->level++; /*remind we are in a curly brace */
+		    
+		    ctx->current_idx = ctx->saved_idx + 1; /*increment current idx from ctx->saved_idx */
+		    if(ctx->current_idx>=4) {
+			clerror(ctx, "***Error: too many templates specified");
+			YYERROR;
+                   } 		    
+		}
+#line 1595 "cmdline_parser.c"
+    break;
+
+  case 15: /* template_expr: CKATTR_TEMPLATE ASSIGN CURLY_OPEN $@1 statement CURLY_CLOSE  */
+#line 172 "cmdline_parser.y"
+                {
+
+		    if(ctx->level==0) {
+		        clerror(ctx, "***Error: no matching opening curly brace");
+			YYERROR;
+                    }
+                    ctx->level--; /*out of curly brace now */
+
+		    ctx->saved_idx = ctx->current_idx; /* remember which index we used last */
+		    ctx->current_idx = ctx->mainlist_idx; /* should be always 0 */
+
+		    if(_cmdline_parser_assign_list_to_template(ctx, (yyvsp[-5].ckattr))!=rc_ok) {
+			clerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
+			YYERROR;
+		    }		    
+		}
+#line 1616 "cmdline_parser.c"
     break;
 
 
-#line 1590 "cmdline_parser.c"
+#line 1620 "cmdline_parser.c"
 
       default: break;
     }
@@ -1811,5 +1841,5 @@ yyreturn:
   return yyresult;
 }
 
-#line 166 "cmdline_parser.y"
+#line 190 "cmdline_parser.y"
 	      
