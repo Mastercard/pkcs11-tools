@@ -245,6 +245,25 @@ CK_ATTRIBUTE_PTR pkcs11_get_attr_in_attrlist ( pkcs11AttrList *attrlist,
     return rc;
 }
 
+CK_ATTRIBUTE_PTR pkcs11_get_attr_in_array ( CK_ATTRIBUTE_PTR array,
+					    size_t arraysize,
+					    CK_ATTRIBUTE_TYPE attrib )
+{
+    CK_ATTRIBUTE_PTR rc = NULL_PTR;
+
+    if(array && arraysize) {
+	int i;
+
+	for(i=0; i<arraysize/sizeof(CK_ATTRIBUTE); i++) {
+	    if(attrib==array[i].type) {
+		rc = &array[i];
+		break;		/* exit loop */
+	    }
+	}
+    }
+    return rc;
+}
+
 
 inline bool pkcs11_read_attr_from_handle( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle )
 {
@@ -264,15 +283,17 @@ bool pkcs11_read_attr_from_handle_ext( pkcs11AttrList *attrlist, CK_OBJECT_HANDL
 	CK_RV rv;
 	int i;
 
-	/* first of all cleanup everything */
+	/* first of all cleanup everything, and check if we have at least one template attribute */
 	for(i=0; i<attrlist->allocated;i++) {
 	    if(attrlist->attr_array[i].pValue) {
 		free(attrlist->attr_array[i].pValue);
 	    }
 	    attrlist->attr_array[i].pValue = NULL_PTR;
 	    attrlist->attr_array[i].ulValueLen = 0;
+	    if( attrlist->has_template==false && pkcs11_attr_is_template(attrlist->attr_array[i].type)==true) {
+		attrlist->has_template=true;
+	    }
 	}
-
 
 	/* obtain buffer lengths to allocate */
 	rv = attrlist->GetAttributeValue(attrlist->p11Context->Session, handle, attrlist->attr_array, attrlist->allocated);
@@ -330,10 +351,53 @@ bool pkcs11_read_attr_from_handle_ext( pkcs11AttrList *attrlist, CK_OBJECT_HANDL
 	    }
 	}
 
+	/* special case: we have at least one template attribute */
+	if(attrlist->has_template) {
+	    for(i=0; i<attrlist->allocated;i++) {
+		if( pkcs11_attr_is_template(attrlist->attr_array[i].type)) {
+		    /* pValue contains a list of attributes, that we need to cast and walk through. */
+		    CK_ATTRIBUTE_PTR template_array = (CK_ATTRIBUTE_PTR)attrlist->attr_array[i].pValue;
+		    size_t template_numelem = attrlist->attr_array[i].ulValueLen / sizeof (CK_ATTRIBUTE);
+
+		    int j;
+		    for (j=0;j<template_numelem;j++) {
+			if( (template_array[j].pValue=malloc(template_array[j].ulValueLen))==NULL ) {
+			    fprintf(stderr, "Memory allocation error");
+			    goto error;
+			}
+		    }
+		}
+	    }
+
+	    /* OK, call GetAttributeValue for the third time */
+	    rv = attrlist->GetAttributeValue(attrlist->p11Context->Session, handle, attrlist->attr_array, attrlist->allocated);
+
+	    /* skip accepted return codes */
+	    va_start(vl, handle);
+	    while( (accepted_rv=va_arg(vl, CK_RV)) != 0L ) {
+		if(accepted_rv==rv) {
+		    rv = CKR_OK;	/* force value and exit */
+		    break;
+		}
+	    }
+	    va_end(vl);
+
+	    if (rv != CKR_OK && rv != CKR_ATTRIBUTE_TYPE_INVALID ) {
+		pkcs11_error( rv, "C_GetAttributeValue" );
+		goto error;
+	    }
+
+	    /* in case we have remaining invalid ulValueLen fields, adjust them */
+	    for(i=0; i<attrlist->allocated;i++) {
+		if( (long)(attrlist->attr_array[i].ulValueLen) == -1) { /* we need to check if we have -1. If so, skip alloc. */
+		    attrlist->attr_array[i].ulValueLen = 0L; /* force again value to 0 */
+		}
+	    }
+	}
 	rc = true;
     }
 
-error:
+error:				/* TODO: fix mem leaks resulting from errors in process */
     return rc;
 }
 
@@ -346,6 +410,22 @@ void pkcs11_delete_attrlist(pkcs11AttrList *attrlist)
 	    int i;
 	    for(i=0;i<attrlist->allocated;i++) {
 		if(attrlist->attr_array[i].pValue) {
+
+		    /* special case: for templates, we need to free sub-buffers */
+		    if(pkcs11_attr_is_template(attrlist->attr_array[i].type)) {
+			/* pValue contains a list of attributes, that we need to cast and walk through. */
+			CK_ATTRIBUTE_PTR template_array = (CK_ATTRIBUTE_PTR)attrlist->attr_array[i].pValue;
+			size_t template_numelem = attrlist->attr_array[i].ulValueLen / sizeof (CK_ATTRIBUTE);
+
+			int j;
+			for (j=0;j<template_numelem;j++) {
+			    if(template_array[j].pValue) {
+				free(template_array[j].pValue);
+				template_array[j].pValue=NULL_PTR;
+				template_array[j].ulValueLen=0;
+			    }
+			}
+		    }
 		    free(attrlist->attr_array[i].pValue);
 		    attrlist->attr_array[i].pValue=NULL_PTR;
 		    attrlist->attr_array[i].ulValueLen=0;

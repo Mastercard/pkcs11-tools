@@ -32,7 +32,8 @@ typedef enum { no_cast,
 	       as_object_class,
 	       as_key_type,
 	       as_cert_type,
-	       as_mech_type
+	       as_mech_type,
+	       as_template
 } ck_cast;
 
 
@@ -122,9 +123,9 @@ static attrib_repr list[] = {
     { CKA_ALWAYS_AUTHENTICATE, "CKA_ALWAYS_AUTHENTICATE", as_bool },
 
     { CKA_WRAP_WITH_TRUSTED, "CKA_WRAP_WITH_TRUSTED", as_bool },
-    { CKA_WRAP_TEMPLATE, "CKA_WRAP_TEMPLATE", no_cast },
-    { CKA_UNWRAP_TEMPLATE, "CKA_UNWRAP_TEMPLATE", no_cast },
-    { CKA_DERIVE_TEMPLATE, "CKA_DERIVE_TEMPLATE", no_cast },
+    { CKA_WRAP_TEMPLATE, "CKA_WRAP_TEMPLATE", as_template },
+    { CKA_UNWRAP_TEMPLATE, "CKA_UNWRAP_TEMPLATE", as_template },
+    { CKA_DERIVE_TEMPLATE, "CKA_DERIVE_TEMPLATE", as_template },
 
     { CKA_OTP_FORMAT, "CKA_OTP_FORMAT", no_cast },
     { CKA_OTP_LENGTH, "CKA_OTP_LENGTH", no_cast },
@@ -177,15 +178,14 @@ static attrib_repr list[] = {
 /* taken from linux kernel and modified */
 
 
-static void hexdump (attrib_repr *item, void *addr, unsigned long len) {
+static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool template) {
     unsigned long i;
     unsigned char buff[17];
     unsigned char *pc = (unsigned char*)addr;
     char *info;
 
     // Output description
-    printf (" %s:\n", item->name);
-
+    printf (" %s%s:\n", template ? "| " : "" , item->name);
 
     switch(item->cast) {
 
@@ -193,7 +193,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len) {
 	for (i = 0; i < len; i++) {
 	    if ((i % 16) == 0) {
 		// Output the offset.
-		printf ("  %04lx ", i);
+		printf ("%s  %04lx ", template ? "| ":"", i);
 	    }
 
 	    printf (" %02x", pc[i]);
@@ -213,7 +213,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len) {
 	for (i = 0; i < len; i++) {
 	    if ((i % 16) == 0) {
 		// Output the offset.
-		printf ("  %04lx ", i);
+		printf (" %s %04lx ", template ? "| " : "", i);
 	    }
 
 	    printf (" %02x", pc[i]);
@@ -233,7 +233,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len) {
 	for (i = 0; i < len; i++) {
 	    if ((i % 16) == 0) {
 		// Output the offset.
-		printf ("  %04lx ", i);
+		printf (" %s %04lx ", template ? "| " : "", i);
 	    }
 
 	    printf (" %02x", pc[i]);
@@ -296,7 +296,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len) {
 	for (i = 0; i < len; i++) {
 	    if ((i % 16) == 0) {
 		// Output the offset.
-		printf ("  %04lx ", i);
+		printf (" %s %04lx ", template ? "| " : "", i);
 	    }
 
 	    printf (" %02x", pc[i]);
@@ -491,7 +491,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len) {
 	for (i = 0; i < len; i++) {
 	    if ((i % 16) == 0) {
 		// Output the offset.
-		printf ("  %04lx ", i);
+		printf (" %s %04lx ", template ? "| " : "", i);
 	    }
 
 	    printf (" %02x", pc[i]);
@@ -529,7 +529,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len) {
 	for (i = 0; i < len; i++) {
 	    if ((i % 16) == 0) {
 		// Output the offset.
-		printf ("  %04lx ", i);
+		printf (" %s %04lx ", template ? "| " : "", i);
 	    }
 
 	    printf (" %02x", pc[i]);
@@ -558,7 +558,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len) {
 		    printf ("  %s\n", buff);
 		}
 		// Output the offset.
-		printf ("  %04lx ", i);
+		printf (" %s %04lx ", template ? "| " : "", i);
 	    }
 
 	    // Now the hex code for the specific character.
@@ -582,11 +582,24 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len) {
 	// And print the final ASCII bit.
 	printf ("  %s\n", buff);
 	break;
+
+    case as_template:
+	/* we need to cast the buffer into an array of CK_ATTRIBUTE */
+	for ( i=0; i< sizeof(list)/sizeof(attrib_repr); i++ ) {
+	    
+	    CK_ATTRIBUTE_PTR item = pkcs11_get_attr_in_array(addr, len, list[i].attr );
+
+	    if(item && item->ulValueLen) {
+		hexdump( &list[i], item->pValue, item->ulValueLen, true);
+	    }
+	}	
+	break;
+    
     }
 }
 
 
-/* high-level search functions */
+/* High-level search functions */
 
 func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 {
@@ -773,7 +786,7 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 			CK_ATTRIBUTE_PTR item = pkcs11_get_attr_in_attrlist(attrs, list[i].attr );
 
 			if(item && item->ulValueLen) {
-			    hexdump( &list[i], item->pValue, item->ulValueLen);
+			    hexdump( &list[i], item->pValue, item->ulValueLen, false);
 			}
 		    }
 		    printf("\n");
