@@ -133,8 +133,8 @@ CKO_OTP_KEY        { cllval.val_cls = CKO_OTP_KEY ; return OCLASS; }
 
 [[:digit:]]{8} { memcpy(cllval.val_date.as_buffer, cltext, 8); return TOK_DATE; }
 
-true|CK_TRUE|yes|on    { cllval.val_bool = 1; return TOK_BOOLEAN; }
-false|CK_FALSE|no|off  { cllval.val_bool = 0; return TOK_BOOLEAN; }
+true|CK_TRUE|yes|on|1    { cllval.val_bool = 1; return TOK_BOOLEAN; }
+false|CK_FALSE|no|off|0  { cllval.val_bool = 0; return TOK_BOOLEAN; }
 
 [\n\r\t ,]+         { /* ignore whitespace and comma */ }
 "="                { return ASSIGN; }
