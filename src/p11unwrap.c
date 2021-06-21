@@ -116,8 +116,13 @@ int main( int argc, char ** argv )
     func_rc retcode = rc_ok;
     int p11unwraprc = EX_OK;
 
-    CK_ATTRIBUTE *attrs=NULL;
-    size_t attrs_cnt=0;
+    cmdLineCtx *clctx = NULL;
+
+    clctx = pkcs11_new_cmdlinecontext();
+
+    if(clctx==NULL) {
+	goto err;
+    }
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
@@ -199,11 +204,9 @@ int main( int argc, char ** argv )
     }
 
     if(optind<argc) {
-	if( (attrs_cnt=get_attributes_from_argv( &attrs, optind , argc, argv)) == 0 ) {
-	    fprintf( stderr, "Attributes passed as argument could not be read.\n"
-		     "Try `%s -h' for more information.\n", argv[0]);
-	    retcode = rc_error_invalid_argument;
-	    goto err;
+	retcode = pkcs11_parse_cmdlineattribs_from_argv(clctx, optind, argc, argv, NULL);
+	if(retcode!=rc_ok) {
+	    errflag++;
 	}
     }
 
@@ -236,7 +239,13 @@ int main( int argc, char ** argv )
 	wrappedKeyCtx *wctx = pkcs11_new_wrapped_key_from_file(p11Context, filename);
 
 	if(wctx) {
-	    retcode = pkcs11_unwrap(p11Context, wctx, wrappingkeylabel, wrappedkeylabel, attrs, attrs_cnt, kg_token);
+	    retcode = pkcs11_unwrap( p11Context,
+				     wctx,
+				     wrappingkeylabel,
+				     wrappedkeylabel,
+				     pkcs11_get_attrlist_from_cmdlinectx(clctx),
+				     pkcs11_get_attrnum_from_cmdlinectx(clctx),
+				     kg_token);
 
 	    pkcs11_free_wrappedkeycontext( wctx );
 	} else {
@@ -250,6 +259,7 @@ int main( int argc, char ** argv )
 err:
 
     pkcs11_freeContext(p11Context);
+    if(clctx) { pkcs11_free_cmdlinecontext(clctx); clctx = NULL; }
 
     switch(retcode) {
     case rc_error_usage:

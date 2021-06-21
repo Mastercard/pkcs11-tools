@@ -63,6 +63,7 @@ CKA_PRIVATE|PRIVATE                 { cllval.ckattr = CKA_PRIVATE; return CKATTR
 CKA_SENSITIVE|SENSITIVE             { cllval.ckattr = CKA_SENSITIVE; return CKATTR_BOOL; }
 CKA_EXTRACTABLE|EXTRACTABLE         { cllval.ckattr = CKA_EXTRACTABLE; return CKATTR_BOOL; }
 CKA_MODIFIABLE|MODIFIABLE           { cllval.ckattr = CKA_MODIFIABLE; return CKATTR_BOOL; }
+CKA_COPYABLE|COPYABLE               { cllval.ckattr = CKA_COPYABLE; return CKATTR_BOOL; }
 CKA_START_DATE|START_DATE           { cllval.ckattr = CKA_START_DATE; return CKATTR_DATE; }
 CKA_END_DATE|END_DATE               { cllval.ckattr = CKA_END_DATE; return CKATTR_DATE; }
 CKA_EC_PARAMS|EC_PARAMS             { cllval.ckattr = CKA_EC_PARAMS; return CKATTR_STR; }
@@ -70,6 +71,8 @@ CKA_WRAP_TEMPLATE|WRAP_TEMPLATE     { cllval.ckattr = CKA_WRAP_TEMPLATE; return 
 CKA_UNWRAP_TEMPLATE|UNWRAP_TEMPLATE { cllval.ckattr = CKA_UNWRAP_TEMPLATE; return CKATTR_TEMPLATE; }
 CKA_DERIVE_TEMPLATE|DERIVE_TEMPLATE { cllval.ckattr = CKA_DERIVE_TEMPLATE; return CKATTR_TEMPLATE; }
 CKA_WRAP_WITH_TRUSTED|WRAP_WITH_TRUSTED { cllval.ckattr = CKA_WRAP_WITH_TRUSTED; return CKATTR_BOOL; }
+CKA_TRUSTED|TRUSTED                 { cllval.ckattr = CKA_TRUSTED; return CKATTR_BOOL; }
+
 
 CKK_GENERIC_SECRET { cllval.val_key = CKK_GENERIC_SECRET; return KEYTYPE; }
 CKK_DES            { cllval.val_key = CKK_DES           ; return KEYTYPE; }

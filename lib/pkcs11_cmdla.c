@@ -106,7 +106,7 @@ void pkcs11_free_cmdlinecontext(cmdLineCtx *ctx)
 }
 
 
-func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int argc, char **argv)
+func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int argc, char **argv, const char *additional)
 {
     func_rc rc = rc_ok;
     int i;
@@ -119,8 +119,12 @@ func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int arg
     /* each argument being separated with a space */
 
     for (i=pos; i<argc; ++i) {
-	len+=strlen(argv[i]) + 1; /* +1 accounts for additional space and trailing '\0' */
+	len+=strlen(argv[i]) + 1; /* +1 accounts for additional space used as separator */
     }
+
+    /* if additional specified, account space for " *additional" */
+    if(additional) { len+=strlen(additional)+1; } 
+    
     /* we need to add another one more YY_END_OF_BUFFER_CHAR  */
     /* as we will be using yy_scan_buffer() like function */
     ++len;
@@ -137,14 +141,20 @@ func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int arg
 	goto error;
     }
 
+    /* put additional upfront, to prevent CMDLINE interfering */
+    if(additional) {
+	strncat(cmdlineattrsbuff, additional, len-1); /* add additional */
+	strncat(cmdlineattrsbuff, " ", len-1); /* add space before the additional */
+    }
     /* now concatenate to it */
     for (i=pos; i<argc; ++i) {
-	strncat(cmdlineattrsbuff, argv[i], len);
+	strncat(cmdlineattrsbuff, argv[i], len-1);
 	if(i!=argc-1) {
-	    strncat(cmdlineattrsbuff, " ", len); /* add space (lazy way) */
+	    strncat(cmdlineattrsbuff, " ", len-1); /* add space (lazy way) */
 	}
     }
 
+    fprintf(stderr,"buffer to parse: <%s>\n", cmdlineattrsbuff);
     bp = cl_scan_bytes(cmdlineattrsbuff, len);
     if(bp==NULL) {
 	fprintf(stderr, "Error: lexer cannot scan buffer\n");
@@ -155,8 +165,9 @@ func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int arg
     /* OK now we can try to parse the buffer */
     cl_switch_to_buffer(bp);
 
-    cldebug=1;
-    clset_debug(1);
+    /* the following will enable parser debugging */
+    /* cldebug=1; */
+    /* clset_debug(1); */
 
     if(clparse(ctx)) {
 	rc = rc_error_parsing;

@@ -96,7 +96,7 @@ int main( int argc, char ** argv )
     extern int optind, optopt;
     int argnum = 0;
     int errflag = 0;
-    int trusted = 0;
+    bool trusted = 0;
     char * library = NULL;
     char * nsscfgdir = NULL;
     char * filename = NULL;
@@ -111,9 +111,13 @@ int main( int argc, char ** argv )
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_error_other_error;
 
-    CK_ATTRIBUTE *attrs=NULL;
-    size_t attrs_cnt=0;
+    cmdLineCtx *clctx = NULL;
 
+    clctx = pkcs11_new_cmdlinecontext();
+
+    if(clctx==NULL) {
+	goto epilog;
+    }
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
@@ -141,7 +145,7 @@ int main( int argc, char ** argv )
 	    break;
 
 	case 'T':
-	    trusted = 1;
+	    trusted = true;
 	    break;
 
 	case 'l' :
@@ -191,35 +195,34 @@ int main( int argc, char ** argv )
 	}
     }
 
-    if(optind<argc) {
-	if( (attrs_cnt=get_attributes_from_argv( &attrs, optind , argc, argv)) == 0 ) {
-	    fprintf( stderr, "Try `%s -h' for more information.\n", argv[0]);
-	    retcode = rc_error_usage;
-	    goto err;
+    if(optind<argc || trusted) {
+	retcode = pkcs11_parse_cmdlineattribs_from_argv(clctx , optind, argc, argv, trusted ? "trusted, not modifiable" : NULL );
+	if(retcode!=rc_ok) {
+	    errflag++;
 	}
     }
 
     if ( errflag ) {
 	fprintf(stderr, "Try `%s -h' for more information.\n", argv[0]);
 	retcode = rc_error_usage;
-	goto err;
+	goto epilog;
     }
 
     if ( library == NULL || label == NULL || filename == NULL ) {
 	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
 	retcode = rc_error_usage;
-	goto err;
+	goto epilog;
     }
 
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
 	retcode = rc_error_library;
-	goto err;
+	goto epilog;
     }
 
     /* validate the given provider library exists and can be opened */
     if (( retcode = pkcs11_initialize( p11Context ) ) != CKR_OK ) {
-	goto err;
+	goto epilog;
     }
 
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
@@ -230,10 +233,14 @@ int main( int argc, char ** argv )
 	if(pkcs11_publickey_exists(p11Context, label)) {
 	    fprintf(stderr, "a public key with this label already exists, aborting\n");
 	    retcode = rc_error_object_exists;
-	    goto err;
+	    goto epilog;
 	}
 
-	imported_pubk = pkcs11_importpubk( p11Context, filename, label, trusted, attrs, attrs_cnt );
+	imported_pubk = pkcs11_importpubk( p11Context,
+					   filename,
+					   label,
+					   pkcs11_get_attrlist_from_cmdlinectx(clctx),
+					   pkcs11_get_attrnum_from_cmdlinectx(clctx) );
 
 	if(imported_pubk) {
 	    printf( "%s: import of public key succeeded.\n", argv[0]);
@@ -248,9 +255,10 @@ int main( int argc, char ** argv )
 
     pkcs11_finalize( p11Context );
 
-err:
+epilog:
 
     pkcs11_freeContext(p11Context);
+    if(clctx) { pkcs11_free_cmdlinecontext(clctx); clctx = NULL; }
 
     return retcode;
 }

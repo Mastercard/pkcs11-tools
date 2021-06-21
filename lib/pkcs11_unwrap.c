@@ -220,7 +220,6 @@ func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrapp
 								ctx->pubk_buffer,
 								ctx->pubk_len,
 								wrappedkeylabel,
-								0,
 								pubk_extended_attrlist,
 								pubk_extended_attrlen );
 

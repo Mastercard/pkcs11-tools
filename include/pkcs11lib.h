@@ -429,7 +429,6 @@ CK_ULONG pkcs11_new_SKI_value_from_pubk(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
 CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 				    char *filename,
 				    char *label,
-				    int trusted,
 				    CK_ATTRIBUTE attrs[],
 				    CK_ULONG numattrs );
 
@@ -437,7 +436,6 @@ CK_OBJECT_HANDLE pkcs11_importpubk_from_buffer( pkcs11Context * p11Context,
 						unsigned char *buffer,
 						size_t len,
 						char *label,
-						int trusted,
 						CK_ATTRIBUTE attrs[],
 						CK_ULONG numattrs );
 
@@ -740,7 +738,7 @@ void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx);
 
 cmdLineCtx *pkcs11_new_cmdlinecontext();
 void pkcs11_free_cmdlinecontext(cmdLineCtx *ctx);
-func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int argc, char **argv);
+func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int argc, char **argv, const char *additional);
 CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_cmdlinectx(cmdLineCtx *ctx);
 size_t pkcs11_get_attrnum_from_cmdlinectx(cmdLineCtx *ctx);
 

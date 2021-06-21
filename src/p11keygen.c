@@ -339,8 +339,7 @@ int main( int argc, char ** argv )
     }
 
     if(optind<argc) {
-
-	retcode = pkcs11_parse_cmdlineattribs_from_argv(clctx , optind, argc, argv);
+	retcode = pkcs11_parse_cmdlineattribs_from_argv(clctx , optind, argc, argv, NULL);
 	if(retcode!=rc_ok) {
 	    errflag++;
 	}
