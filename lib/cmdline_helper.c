@@ -40,7 +40,7 @@ static int compare_CKA( const void *a, const void *b)
     return ((CK_ATTRIBUTE_PTR)a)->type == ((CK_ATTRIBUTE_PTR)b)->type ? 0 : -1;
 }
 
-func_rc _cmdline_parser_append_attr(CmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len)
+func_rc _cmdline_parser_append_attr(cmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len)
 {
     func_rc rc = rc_ok;
     CK_ATTRIBUTE stuffing;
@@ -107,7 +107,7 @@ error:
     return rc;
 }
 
-func_rc _cmdline_parser_assign_list_to_template(CmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp)
+func_rc _cmdline_parser_assign_list_to_template(cmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp)
 {
     func_rc rc = rc_ok;
 

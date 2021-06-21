@@ -143,7 +143,7 @@ false|CK_FALSE|no|off  { cllval.val_bool = 0; return TOK_BOOLEAN; }
 %%
 
 
-void clerror(CmdLineCtx *ctx, const char *s, ...)
+void clerror(cmdLineCtx *ctx, const char *s, ...)
 {
     va_list ap;
     va_start(ap, s);

@@ -24,7 +24,7 @@
 #include "pkcs11lib.h"
 
 /* internal functions used by parser */
-func_rc _cmdline_parser_append_attr(CmdLineCtx *ctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len );
-func_rc _cmdline_parser_assign_list_to_template(CmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp );
+func_rc _cmdline_parser_append_attr(cmdLineCtx *ctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len );
+func_rc _cmdline_parser_assign_list_to_template(cmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp );
 
 #endif /* CMDLINE_HELPER_H */

@@ -291,7 +291,7 @@ typedef struct s_p11_cmdlinectx {
 	size_t attrnum;
     } attrs[4];
 	
-} CmdLineCtx;
+} cmdLineCtx;
 
 
 /* /\* Supplementary flags for NSS *\/ */
@@ -738,11 +738,11 @@ const CK_OBJECT_HANDLE pkcs11_get_publickeyhandle(wrappedKeyCtx *ctx);
 wrappedKeyCtx *pkcs11_new_wrappedkeycontext(pkcs11Context *p11Context);
 void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx);
 
-CmdLineCtx *pkcs11_new_cmdlinecontext();
-void pkcs11_free_cmdlinecontext(CmdLineCtx *ctx);
-func_rc pkcs11_parse_cmdlineattribs_from_argv(CmdLineCtx *ctx , int pos, int argc, char **argv);
-CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_cmdlinectx(CmdLineCtx *ctx);
-size_t pkcs11_get_attrnum_from_cmdlinectx(CmdLineCtx *ctx);
+cmdLineCtx *pkcs11_new_cmdlinecontext();
+void pkcs11_free_cmdlinecontext(cmdLineCtx *ctx);
+func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int argc, char **argv);
+CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_cmdlinectx(cmdLineCtx *ctx);
+size_t pkcs11_get_attrnum_from_cmdlinectx(cmdLineCtx *ctx);
 
 
 

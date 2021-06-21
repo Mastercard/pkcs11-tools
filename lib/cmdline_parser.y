@@ -33,14 +33,14 @@
 }
 
 %code provides {
-#define YY_DECL int yylex(CmdLineCtx* ctx)
+#define YY_DECL int yylex(cmdLineCtx* ctx)
 
 YY_DECL;
-extern void clerror(CmdLineCtx *ctx, const char *s, ...);
+extern void clerror(cmdLineCtx *ctx, const char *s, ...);
     
 }
 			
-%param { CmdLineCtx *ctx }
+%param { cmdLineCtx *ctx }
 
 
 %union {

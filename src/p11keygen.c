@@ -186,7 +186,7 @@ int main( int argc, char ** argv )
     CK_ULONG kb=0;
     char *param=NULL;
 
-    CmdLineCtx *clctx = NULL;
+    cmdLineCtx *clctx = NULL;
 
     wrappedKeyCtx *wctx = NULL;
     wrappingjob_t wrappingjob[MAX_WRAPPINGJOB];

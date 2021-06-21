@@ -39,13 +39,11 @@ libp11_la_SOURCES = pkcs11_ll_unix.c
 endif
 
 libp11_la_SOURCES += pkcs11_attr.c \
-	cmdline_parser.y \
-	cmdline_lexer.l \
 	cmdline_parser.c cmdline_parser.h \
 	cmdline_lexer.c cmdline_lexer.h \
 	cmdline_helper.c cmdline_helper.h \
-	wrappedkey_parser.y \
-	wrappedkey_lexer.l \
+	wrappedkey_parser.c wrappedkey_parser.h \
+	wrappedkey_lexer.c wrappedkey_lexer.h \
 	wrappedkey_helper.c wrappedkey_helper.h \
 	pkcs11_cmdla.c \
 	pkcs11_wctx.c \
@@ -92,19 +90,35 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_ossl_fake_sign.c
 
 
-dist_libp11_la_SOURCES = gen_attrinfo_h.pl gen_mechinfo_h.pl wrappedkey_parser.y wrappedkey_lexer.l wrappedkey_lexer.h pkcs11_ossl.h
+dist_libp11_la_SOURCES = \
+	gen_attrinfo_h.pl gen_mechinfo_h.pl pkcs11_ossl.h \
+	wrappedkey_lexer.l wrappedkey_parser.y \
+	cmdline_lexer.l cmdline_parser.y
 
 CLEANFILES = _mechinfo.h _attrinfo.h
-BUILT_SOURCES = _mechinfo.h _attrinfo.h wrappedkey_parser.h wrappedkey_lexer.h
+BUILT_SOURCES = _mechinfo.h _attrinfo.h \
+		wrappedkey_parser.h wrappedkey_parser.c \
+		wrappedkey_lexer.h wrappedkey_lexer.c \
+		cmdline_parser.h cmdline_parser.c \
+		cmdline_lexer.h cmdline_lexer.c
 
 # The following files depends upon lexer and parser source files
-wrappedkey_lexer.h: wrappedkey_lexer.l
-wrappedkey_helper.c pkcs11_wrap.c pkcs11_unwrap.c pkcs11_wctx.c: wrappedkey_lexer.l wrappedkey_parser.y wrappedkey_lexer.h wrappedkey_parser.h
+wrappedkey_lexer.c wrappedkey_lexer.h: wrappedkey_lexer.l
+wrappedkey_parser.c wrappedkey_parser.h: wrappedkey_parser.y
+
+wrappedkey_helper.c pkcs11_wrap.c pkcs11_unwrap.c pkcs11_wctx.c: \
+			wrappedkey_helper.h \
+			wrappedkey_lexer.l wrappedkey_lexer.h wrappedkey_lexer.c \
+			wrappedkey_parser.y wrappedkey_parser.h wrappedkey_parser.c
 
 # The following files depends upon lexer and parser source files
 cmdline_lexer.c cmdline_lexer.h: cmdline_lexer.l
 cmdline_parser.c cmdline_parser.h: cmdline_parser.y
-cmdline_helper.c: cmdline_lexer.l cmdline_parser.y cmdline_lexer.h cmdline_parser.h
+
+cmdline_helper.c pkcs11_cmdla.c: \
+			cmdline_helper.h \
+			cmdline_lexer.l cmdline_lexer.h cmdline_lexer.c \
+			cmdline_parser.y cmdline_parser.h cmdline_parser.c
 
 pkcs11_mechanism.$(OBJEXT): _mechinfo.h
 

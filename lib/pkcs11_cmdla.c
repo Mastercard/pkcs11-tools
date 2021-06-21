@@ -31,22 +31,22 @@
 #include "cmdline_lexer.h"
 #include "cmdline_parser.h"
 
-/* CmdLineCtx contains attributes captured from command-line interface */
+/* cmdLineCtx contains attributes captured from command-line interface */
 /* it is designed to hold attributes into three lists: */
 /* - the main list */
 /* - a wrap template list */
 /* - an unwrap template list */
 
 
-CmdLineCtx *pkcs11_new_cmdlinecontext()
+cmdLineCtx *pkcs11_new_cmdlinecontext()
 {
 
-    CmdLineCtx *ctx = NULL;
+    cmdLineCtx *ctx = NULL;
 
     ctx = calloc(1, sizeof (wrappedKeyCtx));
     
     if(ctx==NULL) {
-	fprintf(stderr, "Error: not enough memory when allocating memory for CmdLineCtx\n");
+	fprintf(stderr, "Error: not enough memory when allocating memory for cmdLineCtx\n");
 	goto error;
     }
 
@@ -70,7 +70,7 @@ error:
 }
 
 
-void pkcs11_free_cmdlinecontext(CmdLineCtx *ctx)
+void pkcs11_free_cmdlinecontext(cmdLineCtx *ctx)
 {
 
     if( ctx ) {
@@ -106,7 +106,7 @@ void pkcs11_free_cmdlinecontext(CmdLineCtx *ctx)
 }
 
 
-func_rc pkcs11_parse_cmdlineattribs_from_argv(CmdLineCtx *ctx , int pos, int argc, char **argv)
+func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int argc, char **argv)
 {
     func_rc rc = rc_ok;
     int i;
@@ -170,12 +170,12 @@ error:
 }
 
 
-inline CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_cmdlinectx(CmdLineCtx *ctx)
+inline CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_cmdlinectx(cmdLineCtx *ctx)
 {
     return ctx->attrs[ctx->mainlist_idx].attrlist;
 }
 
-inline size_t pkcs11_get_attrnum_from_cmdlinectx(CmdLineCtx *ctx)
+inline size_t pkcs11_get_attrnum_from_cmdlinectx(cmdLineCtx *ctx)
 {
     return ctx->attrs[ctx->mainlist_idx].attrnum;
 }

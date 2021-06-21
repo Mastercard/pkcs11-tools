@@ -124,14 +124,14 @@ typedef union CLSTYPE CLSTYPE;
 
 extern CLSTYPE cllval;
 
-int clparse (CmdLineCtx *ctx);
+int clparse (cmdLineCtx *ctx);
 /* "%code provides" blocks.  */
 #line 35 "cmdline_parser.y"
 
-#define YY_DECL int yylex(CmdLineCtx* ctx)
+#define YY_DECL int yylex(cmdLineCtx* ctx)
 
 YY_DECL;
-extern void clerror(CmdLineCtx *ctx, const char *s, ...);
+extern void clerror(cmdLineCtx *ctx, const char *s, ...);
     
 
 #line 138 "cmdline_parser.h"

@@ -195,14 +195,14 @@ typedef union CLSTYPE CLSTYPE;
 
 extern CLSTYPE cllval;
 
-int clparse (CmdLineCtx *ctx);
+int clparse (cmdLineCtx *ctx);
 /* "%code provides" blocks.  */
 #line 35 "cmdline_parser.y"
 
-#define YY_DECL int yylex(CmdLineCtx* ctx)
+#define YY_DECL int yylex(cmdLineCtx* ctx)
 
 YY_DECL;
-extern void clerror(CmdLineCtx *ctx, const char *s, ...);
+extern void clerror(cmdLineCtx *ctx, const char *s, ...);
     
 
 #line 209 "cmdline_parser.c"
@@ -819,7 +819,7 @@ do {                                                                      \
 
 static void
 yy_symbol_value_print (FILE *yyo,
-                       yysymbol_kind_t yykind, YYSTYPE const * const yyvaluep, CmdLineCtx *ctx)
+                       yysymbol_kind_t yykind, YYSTYPE const * const yyvaluep, cmdLineCtx *ctx)
 {
   FILE *yyoutput = yyo;
   YY_USE (yyoutput);
@@ -842,7 +842,7 @@ yy_symbol_value_print (FILE *yyo,
 
 static void
 yy_symbol_print (FILE *yyo,
-                 yysymbol_kind_t yykind, YYSTYPE const * const yyvaluep, CmdLineCtx *ctx)
+                 yysymbol_kind_t yykind, YYSTYPE const * const yyvaluep, cmdLineCtx *ctx)
 {
   YYFPRINTF (yyo, "%s %s (",
              yykind < YYNTOKENS ? "token" : "nterm", yysymbol_name (yykind));
@@ -881,7 +881,7 @@ do {                                                            \
 
 static void
 yy_reduce_print (yy_state_t *yyssp, YYSTYPE *yyvsp,
-                 int yyrule, CmdLineCtx *ctx)
+                 int yyrule, cmdLineCtx *ctx)
 {
   int yylno = yyrline[yyrule];
   int yynrhs = yyr2[yyrule];
@@ -1210,7 +1210,7 @@ yysyntax_error (YYPTRDIFF_T *yymsg_alloc, char **yymsg,
 
 static void
 yydestruct (const char *yymsg,
-            yysymbol_kind_t yykind, YYSTYPE *yyvaluep, CmdLineCtx *ctx)
+            yysymbol_kind_t yykind, YYSTYPE *yyvaluep, cmdLineCtx *ctx)
 {
   YY_USE (yyvaluep);
   YY_USE (ctx);
@@ -1240,7 +1240,7 @@ int yynerrs;
 `----------*/
 
 int
-yyparse (CmdLineCtx *ctx)
+yyparse (cmdLineCtx *ctx)
 {
     yy_state_fast_t yystate = 0;
     /* Number of tokens to shift before error messages enabled.  */
