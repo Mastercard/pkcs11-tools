@@ -186,7 +186,7 @@ int main( int argc, char ** argv )
     CK_ULONG kb=0;
     char *param=NULL;
 
-    cmdLineCtx *clctx = NULL;
+    attribCtx *actx = NULL;
 
     wrappedKeyCtx *wctx = NULL;
     wrappingjob_t wrappingjob[MAX_WRAPPINGJOB];
@@ -195,9 +195,9 @@ int main( int argc, char ** argv )
     int removetokencopy = 0;
     int i;
 
-    clctx = pkcs11_new_cmdlinecontext();
+    actx = pkcs11_new_attribcontext();
 
-    if(clctx==NULL) {
+    if(actx==NULL) {
 	goto epilog;
     }
 
@@ -339,7 +339,7 @@ int main( int argc, char ** argv )
     }
 
     if(optind<argc) {
-	retcode = pkcs11_parse_cmdlineattribs_from_argv(clctx , optind, argc, argv, NULL);
+	retcode = pkcs11_parse_attribs_from_argv(actx , optind, argc, argv, NULL);
 	if(retcode!=rc_ok) {
 	    errflag++;
 	}
@@ -395,8 +395,8 @@ int main( int argc, char ** argv )
 	    switch(keytype) {
 	    case aes:
 		retcode = pkcs11_genAES( p11Context, label, kb,
-					 pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					 pkcs11_get_attrnum_from_cmdlinectx(clctx),
+					 pkcs11_get_attrlist_from_attribctx(actx),
+					 pkcs11_get_attrnum_from_attribctx(actx),
 					 &keyhandle,
 					 keygentype
 		    );
@@ -404,8 +404,8 @@ int main( int argc, char ** argv )
 
 	    case des:
 		retcode = pkcs11_genDESX( p11Context, label, kb,
-					  pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					  pkcs11_get_attrnum_from_cmdlinectx(clctx),    
+					  pkcs11_get_attrlist_from_attribctx(actx),
+					  pkcs11_get_attrnum_from_attribctx(actx),    
 					  &keyhandle,
 					  keygentype);
 		break;
@@ -419,16 +419,16 @@ int main( int argc, char ** argv )
 	    case hmacsha512:
 #endif
 		retcode = pkcs11_genGeneric( p11Context, label, keytype, kb,
-					     pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					     pkcs11_get_attrnum_from_cmdlinectx(clctx),
+					     pkcs11_get_attrlist_from_attribctx(actx),
+					     pkcs11_get_attrnum_from_attribctx(actx),
 					     &keyhandle,
 					     keygentype);
 		break;
 
 	    case rsa:
 		retcode = pkcs11_genRSA( p11Context, label, kb,
-					 pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					 pkcs11_get_attrnum_from_cmdlinectx(clctx),					 
+					 pkcs11_get_attrlist_from_attribctx(actx),
+					 pkcs11_get_attrnum_from_attribctx(actx),					 
 					 &pubkhandle,
 					 &keyhandle,
 					 keygentype);
@@ -441,8 +441,8 @@ int main( int argc, char ** argv )
 
 	    case ec:
 		retcode = pkcs11_genEC( p11Context, label, param ? param : "prime256v1" ,
-					pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					pkcs11_get_attrnum_from_cmdlinectx(clctx),					 
+					pkcs11_get_attrlist_from_attribctx(actx),
+					pkcs11_get_attrnum_from_attribctx(actx),					 
 					&pubkhandle,
 					&keyhandle,
 					keygentype);
@@ -454,8 +454,8 @@ int main( int argc, char ** argv )
 
 	    case ed:
 		retcode = pkcs11_genED( p11Context, label, param ? param : "ED25519" ,
-					pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					pkcs11_get_attrnum_from_cmdlinectx(clctx),					 
+					pkcs11_get_attrlist_from_attribctx(actx),
+					pkcs11_get_attrnum_from_attribctx(actx),					 
 					&pubkhandle,
 					&keyhandle,
 					keygentype);
@@ -467,8 +467,8 @@ int main( int argc, char ** argv )
 
 	    case dsa:
 		retcode = pkcs11_genDSA( p11Context, label, param,
-					 pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					 pkcs11_get_attrnum_from_cmdlinectx(clctx),					 
+					 pkcs11_get_attrlist_from_attribctx(actx),
+					 pkcs11_get_attrnum_from_attribctx(actx),					 
 					 &pubkhandle,
 					 &keyhandle,
 					 keygentype);
@@ -480,8 +480,8 @@ int main( int argc, char ** argv )
 
 	    case dh:
 		retcode = pkcs11_genDH( p11Context, label, param,
-					pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					pkcs11_get_attrnum_from_cmdlinectx(clctx),					 
+					pkcs11_get_attrlist_from_attribctx(actx),
+					pkcs11_get_attrnum_from_attribctx(actx),					 
 					&pubkhandle,
 					&keyhandle,
 					keygentype);
@@ -564,7 +564,7 @@ epilog:
     }
     if(wctx) { pkcs11_free_wrappedkeycontext(wctx); wctx = NULL; }
     pkcs11_freeContext(p11Context);
-    if(clctx) { pkcs11_free_cmdlinecontext(clctx); clctx = NULL; }
+    if(actx) { pkcs11_free_attribcontext(actx); actx = NULL; }
     
     switch(retcode) {
     case rc_ok:

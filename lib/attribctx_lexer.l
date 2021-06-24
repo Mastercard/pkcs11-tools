@@ -1,4 +1,4 @@
-/* cmdline lexical analyser */
+/* attributes lexical analyser */
 /*
  * Copyright (c) 2018 Mastercard
  *
@@ -18,7 +18,7 @@
 /* %option debug */
 %option case-insensitive
 %option noyywrap yylineno
-%option header-file="cmdline_lexer.h"
+%option header-file="attribctx_lexer.h"
 %option never-interactive
 %option prefix="cl"
 %option outfile="lex.yy.c"
@@ -26,7 +26,7 @@
 %{
 #include "config.h"
 #include <stdarg.h>
-#include "cmdline_parser.h"
+#include "attribctx_parser.h"
 
 %}
 
@@ -146,7 +146,7 @@ false|CK_FALSE|no|off|0  { cllval.val_bool = 0; return TOK_BOOLEAN; }
 %%
 
 
-void clerror(cmdLineCtx *ctx, const char *s, ...)
+void clerror(attribCtx *ctx, const char *s, ...)
 {
     va_list ap;
     va_start(ap, s);

@@ -35,8 +35,8 @@
 #include "cryptoki.h"
 
 /* grammar version, for wrapped keys */
-#define  SUPPORTED_GRAMMAR_VERSION "2.0"
-#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "2.0.0"
+#define  SUPPORTED_GRAMMAR_VERSION "2.1"
+#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "2.4.0"
 
 /* Program Error Codes */
 #define RC_OK                    0x00
@@ -217,14 +217,42 @@ typedef enum {
     sha512
 } hash_alg_t ;
 
+
+/* cmdLineCtx contains a context that can hold parameters describing attributes. */
+/* it currently supports these grammars:
+   - CKA_DERIVE=true CKA_LABEL="label" CKA_UNWRAP_TEMPLATE={ CKA_EXTRACTABLE=false ... }
+   - the attributes can be shortened by removing the "CKA_" prefix
+   - boolean attributes can be true/false, CK_TRUE/CK_FALSE, 1/0, yes/no
+   - boolean attributes without a value are set to CK_TRUE
+   - boolean attributes prefixed with "no" are set to CK_FALSE
+ */
+
+typedef struct s_p11_attribctx {
+    size_t current_idx;		/* the current index */
+    size_t mainlist_idx;	/* the index of the main list */
+    size_t wraptemplate_idx;	/* the index of the wrap template list */
+    size_t unwraptemplate_idx;	/* the index of the unwrap template list */
+    size_t derivetemplate_idx;	/* the index of the derive template list */
+    bool has_wrap_template;	/* whether or not we have a wrap template */
+    bool has_unwrap_template;	/* whether or not we have an unwrap template */
+    bool has_derive_template;	/* whether or not we have a derive template */    
+    int level;			/* used by parser to prevent mutli-level templates */
+    size_t saved_idx;	        /* used by lexer to temporary store the index used for the template */
+    
+    struct {
+	CK_ATTRIBUTE *attrlist;	             
+	size_t attrnum;
+    } attrs[4];	
+} attribCtx;
+
 /* pkcs11_unwrap / pkcs11_wrap / pkcs11_wctx */
 
 typedef struct s_p11_wrappedkeyctx {
     pkcs11Context *p11Context;
-    CK_ATTRIBUTE *attrlist;	             /* inner key only */
-    CK_ULONG attrlen;			     /* inner key only */
+
     char *wrappingkeylabel;
     char *wrappedkeylabel;	             /* inner key only - outer key will have random name and ID */
+
     char *filename;			     /* filename used to write wrapping file */
     struct {				     /* inner or outer but never both (by design) */
 	CK_MECHANISM_TYPE aes_wrapping_mech;     /* used when wrapping_meth is w_rfc3394 or w_rfc5649 */
@@ -248,8 +276,10 @@ typedef struct s_p11_wrappedkeyctx {
     CK_BYTE_PTR pubk_buffer;
     CK_ULONG pubk_len;
     CK_OBJECT_HANDLE pubkhandle;
-    CK_ATTRIBUTE *pubkattrlist;
-    CK_ULONG pubkattrlen;
+
+    attribCtx *wrpkattribs;	     /* structure to hold wrappedkey attributes */
+    attribCtx *pubkattribs;	     /* structure to hold public key attributes */
+    
 } wrappedKeyCtx;
 
 /* key index, see pkcs11_wctx.c for a comment explaining how this works */
@@ -265,33 +295,6 @@ enum contenttype { ct_unknown,	/* unidentified app */
 };
 
 
-/* cmdLineCtx contains a context that can hold parameters describing attributes. */
-/* it currently supports these grammars:
-   - CKA_DERIVE=true CKA_LABEL="label" CKA_UNWRAP_TEMPLATE={ CKA_EXTRACTABLE=false ... }
-   - the attributes can be shortened by removing the "CKA_" prefix
-   - boolean attributes can be true/false, CK_TRUE/CK_FALSE, 1/0, yes/no
-   - boolean attributes without a value are set to CK_TRUE
-   - boolean attributes prefixed with "no" are set to CK_FALSE
- */
-
-typedef struct s_p11_cmdlinectx {
-    size_t current_idx;		/* the current index */
-    size_t mainlist_idx;	/* the index of the main list */
-    size_t wraptemplate_idx;	/* the index of the wrap template list */
-    size_t unwraptemplate_idx;	/* the index of the unwrap template list */
-    size_t derivetemplate_idx;	/* the index of the derive template list */
-    bool has_wrap_template;	/* whether or not we have a wrap template */
-    bool has_unwrap_template;	/* whether or not we have an unwrap template */
-    bool has_derive_template;	/* whether or not we have a derive template */    
-    int level;			/* used by parser to prevent mutli-level templates */
-    size_t saved_idx;	        /* used by lexer to temporary store the index used for the template */
-    
-    struct {
-	CK_ATTRIBUTE *attrlist;	             
-	size_t attrnum;
-    } attrs[4];
-	
-} cmdLineCtx;
 
 
 /* /\* Supplementary flags for NSS *\/ */
@@ -736,13 +739,13 @@ const CK_OBJECT_HANDLE pkcs11_get_publickeyhandle(wrappedKeyCtx *ctx);
 wrappedKeyCtx *pkcs11_new_wrappedkeycontext(pkcs11Context *p11Context);
 void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx);
 
-cmdLineCtx *pkcs11_new_cmdlinecontext();
-void pkcs11_free_cmdlinecontext(cmdLineCtx *ctx);
-func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int argc, char **argv, const char *additional);
-CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_cmdlinectx(cmdLineCtx *ctx);
-size_t pkcs11_get_attrnum_from_cmdlinectx(cmdLineCtx *ctx);
-
-
+/* pkcs11_attribctx */
+attribCtx *pkcs11_new_attribcontext();
+void pkcs11_free_attribcontext(attribCtx *ctx);
+func_rc pkcs11_parse_attribs_from_argv(attribCtx *ctx , int pos, int argc, char **argv, const char *additional);
+CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_attribctx(attribCtx *ctx);
+size_t pkcs11_get_attrnum_from_attribctx(attribCtx *ctx);
+void pkcs11_adjust_attrnum_on_attribctx(attribCtx *ctx, size_t value);
 
 
 /* End - Function Prototypes */
@@ -758,7 +761,7 @@ size_t pkcs11_get_attrnum_from_cmdlinectx(cmdLineCtx *ctx);
 #define MAX_BYTE_ARRAY_SIZE	20
 
 #define PARSING_MAX_ATTRS       32   /* max number of attributes inside a wrap file */
-#define CMDLINE_MAX_ATTRS       32   /* max number of attrivutes for cmdline parsing */
+#define CMDLINE_MAX_ATTRS       32   /* max number of attributes for cmdline parsing */
 
 #endif
 

@@ -116,11 +116,11 @@ int main( int argc, char ** argv )
     func_rc retcode = rc_ok;
     int p11unwraprc = EX_OK;
 
-    cmdLineCtx *clctx = NULL;
+    attribCtx *actx = NULL;
 
-    clctx = pkcs11_new_cmdlinecontext();
+    actx = pkcs11_new_attribcontext();
 
-    if(clctx==NULL) {
+    if(actx==NULL) {
 	goto err;
     }
 
@@ -204,7 +204,7 @@ int main( int argc, char ** argv )
     }
 
     if(optind<argc) {
-	retcode = pkcs11_parse_cmdlineattribs_from_argv(clctx, optind, argc, argv, NULL);
+	retcode = pkcs11_parse_attribs_from_argv(actx, optind, argc, argv, NULL);
 	if(retcode!=rc_ok) {
 	    errflag++;
 	}
@@ -243,8 +243,8 @@ int main( int argc, char ** argv )
 				     wctx,
 				     wrappingkeylabel,
 				     wrappedkeylabel,
-				     pkcs11_get_attrlist_from_cmdlinectx(clctx),
-				     pkcs11_get_attrnum_from_cmdlinectx(clctx),
+				     pkcs11_get_attrlist_from_attribctx(actx),
+				     pkcs11_get_attrnum_from_attribctx(actx),
 				     kg_token);
 
 	    pkcs11_free_wrappedkeycontext( wctx );
@@ -259,7 +259,7 @@ int main( int argc, char ** argv )
 err:
 
     pkcs11_freeContext(p11Context);
-    if(clctx) { pkcs11_free_cmdlinecontext(clctx); clctx = NULL; }
+    if(actx) { pkcs11_free_attribcontext(actx); actx = NULL; }
 
     switch(retcode) {
     case rc_error_usage:

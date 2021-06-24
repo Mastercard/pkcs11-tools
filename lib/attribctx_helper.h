@@ -16,15 +16,15 @@
  * limitations under the License.
  */
 
-/* wrappedkey_helper.h: header files for wrappedkey_helper.c */
+/* attribctx_helper.h: header files for wrappedkey_helper.c */
 
-#ifndef CMDLINE_HELPER_H
-#define CMDLINE_HELPER_H
+#ifndef ATTRIBCTX_HELPER_H
+#define ATTRIBCTX_HELPER_H
 
 #include "pkcs11lib.h"
 
 /* internal functions used by parser */
-func_rc _cmdline_parser_append_attr(cmdLineCtx *ctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len );
-func_rc _cmdline_parser_assign_list_to_template(cmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp );
+func_rc _attribctx_parser_append_attr(attribCtx *ctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len );
+func_rc _attribctx_parser_assign_list_to_template(attribCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp );
 
-#endif /* CMDLINE_HELPER_H */
+#endif /* ATTRIBCTX_HELPER_H */

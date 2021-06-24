@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-/* cmdline_helper.c: contains routines used during parsing of wrap files or strings */
-/* see cmdline_lexer.l and cmdline_parser.y for calling methods                     */
+/* attribctx_helper.c: contains routines used during parsing of wrap files or strings */
+/* see attribctx_lexer.l and cmdline_parser.y for calling methods                     */
 
 #include <config.h>
 #include <stdio.h>
@@ -31,7 +31,7 @@
 
 
 #include "pkcs11lib.h"
-#include "cmdline_helper.h"
+#include "attribctx_helper.h"
 
 
 /* comparison function for attributes */
@@ -40,7 +40,7 @@ static int compare_CKA( const void *a, const void *b)
     return ((CK_ATTRIBUTE_PTR)a)->type == ((CK_ATTRIBUTE_PTR)b)->type ? 0 : -1;
 }
 
-func_rc _cmdline_parser_append_attr(cmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len)
+func_rc _attribctx_parser_append_attr(attribCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len)
 {
     func_rc rc = rc_ok;
     CK_ATTRIBUTE stuffing;
@@ -107,7 +107,7 @@ error:
     return rc;
 }
 
-func_rc _cmdline_parser_assign_list_to_template(cmdLineCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp)
+func_rc _attribctx_parser_assign_list_to_template(attribCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp)
 {
     func_rc rc = rc_ok;
 
@@ -149,10 +149,10 @@ func_rc _cmdline_parser_assign_list_to_template(cmdLineCtx *clctx, CK_ATTRIBUTE_
     }
 
     /* now we need to add a template attribute to the main list */
-    rc = _cmdline_parser_append_attr(clctx,
-				     attrtyp,
-				     clctx->attrs[clctx->saved_idx].attrlist,
-				     clctx->attrs[clctx->saved_idx].attrnum * sizeof(CK_ATTRIBUTE) );
+    rc = _attribctx_parser_append_attr(clctx,
+				       attrtyp,
+				       clctx->attrs[clctx->saved_idx].attrlist,
+				       clctx->attrs[clctx->saved_idx].attrnum * sizeof(CK_ATTRIBUTE) );
 error:
     return rc;
 }

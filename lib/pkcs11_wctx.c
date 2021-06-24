@@ -67,35 +67,37 @@ wrappedKeyCtx *pkcs11_new_wrappedkeycontext(pkcs11Context *p11Context)
 	}
 
 	ctx->p11Context = p11Context;
-	ctx->attrlist = calloc( PARSING_MAX_ATTRS, sizeof(CK_ATTRIBUTE) );
-
-	if(ctx->attrlist == NULL) {
-	    fprintf(stderr, "Error: not enough memory when allocating memory for attribute array of wrappedKeyCtx\n");
-	    goto error;
-	}
 
 	ctx->oaep_params = calloc( 1, sizeof(CK_RSA_PKCS_OAEP_PARAMS) );
 	if(ctx->oaep_params == NULL) {
 	    fprintf(stderr, "Error: not enough memory when allocating memory for CK_RSA_PKCS_OAEP_PARAMS of wrappedKeyCtx\n");
 	    goto error;
 	}
+
+	ctx->is_envelope = CK_FALSE;
+
+	ctx->wrpkattribs = pkcs11_new_attribcontext();
+	if(ctx->wrpkattribs == NULL) {
+	    fprintf(stderr, "Error: not enough memory when allocating memory for wrpkattribs member\n");
+	    goto error;
+	}
+
+	ctx->pubkattribs = pkcs11_new_attribcontext();
+	if(ctx->pubkattribs == NULL) {
+	    fprintf(stderr, "Error: not enough memory when allocating memory for pubkattribs member\n");
+	    goto error;
+	}
     }
-
-    ctx->is_envelope = CK_FALSE;
-
-    ctx->pubkattrlist = calloc( PARSING_MAX_ATTRS, sizeof(CK_ATTRIBUTE) );
-
-    if(ctx->pubkattrlist == NULL) {
-	fprintf(stderr, "Error: not enough memory when allocating memory for pubkattrlist member\n");
-	goto error;
-    }
-
+    
     return ctx;
-
 
 error:
-    if(ctx) { pkcs11_free_wrappedkeycontext(ctx); ctx=NULL; }
-    return ctx;
+    if(ctx) {
+	if(ctx->wrpkattribs) pkcs11_free_attribcontext(ctx->wrpkattribs);
+	if(ctx->pubkattribs) pkcs11_free_attribcontext(ctx->pubkattribs);	
+	pkcs11_free_wrappedkeycontext(ctx);
+    }
+    return NULL;
 }
 
 
@@ -103,38 +105,6 @@ void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx)
 {
 
     if( wctx ) {
-
-	/* free up attributes */
-	if(wctx->attrlist) {
-
-	    /* we need to walk through the attribute list and individually free up each member */
-	    int i;
-
-	    for(i=0; i<wctx->attrlen; i++) {
-		if(wctx->attrlist[i].pValue) { free(wctx->attrlist[i].pValue); wctx->attrlist[i].pValue=NULL; wctx->attrlist[i].ulValueLen = 0L; }
-	    }
-
-	    /* free the list itself */
-	    free(wctx->attrlist);
-	    wctx->attrlist = NULL;
-	    wctx->attrlen = 0;
-	}
-
-	/* same with pubkattrlist */
-	if(wctx->pubkattrlist) {
-
-	    /* we need to walk through the attribute list and individually free up each member */
-	    int i;
-
-	    for(i=0; i<wctx->pubkattrlen; i++) {
-		if(wctx->pubkattrlist[i].pValue) { free(wctx->pubkattrlist[i].pValue); wctx->pubkattrlist[i].pValue=NULL; wctx->pubkattrlist[i].ulValueLen = 0L; }
-	    }
-
-	    /* free the list itself */
-	    free(wctx->pubkattrlist);
-	    wctx->pubkattrlist = NULL;
-	    wctx->pubkattrlen = 0;
-	}
 
 	/* free up wrappingkeylabel */
 	if(wctx->wrappingkeylabel) {
@@ -187,6 +157,18 @@ void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx)
 	    free(wctx->pubk_buffer);
 	    wctx->pubk_buffer = NULL;
 	    wctx->pubk_len=0;
+	}
+
+	/* free up wrappedkeyattribs */
+	if(wctx->wrpkattribs) {
+	    pkcs11_free_attribcontext(wctx->wrpkattribs);
+	    wctx->wrpkattribs = NULL;
+	}
+	
+	/* free up pubkeyattribs */
+	if(wctx->pubkattribs) {
+	    pkcs11_free_attribcontext(wctx->pubkattribs);
+	    wctx->pubkattribs = NULL;
 	}
 
 	free(wctx);		/* eventually free up context mem */

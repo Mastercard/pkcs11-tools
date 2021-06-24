@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-/* cmdline attributes parser */
+/* attribctx attributes parser */
 %define api.prefix {cl}
 %define parse.error verbose
 %define parse.trace
@@ -29,18 +29,18 @@
 			
 %code requires {
 #include "pkcs11lib.h"
-#include "cmdline_helper.h"
+#include "attribctx_helper.h"
 }
 
 %code provides {
-#define YY_DECL int yylex(cmdLineCtx* ctx)
+#define YY_DECL int yylex(attribCtx* ctx)
 
 YY_DECL;
-extern void clerror(cmdLineCtx *ctx, const char *s, ...);
+extern void clerror(attribCtx *ctx, const char *s, ...);
     
 }
 			
-%param { cmdLineCtx *ctx }
+%param { attribCtx *ctx }
 
 
 %union {
@@ -92,7 +92,7 @@ expression:	simple_expr
 
 simple_expr:	CKATTR_BOOL ASSIGN TOK_BOOLEAN
                 {
-		    if(_cmdline_parser_append_attr(ctx, $1, &$3, sizeof(CK_BBOOL) )!=rc_ok) {
+		    if(_attribctx_parser_append_attr(ctx, $1, &$3, sizeof(CK_BBOOL) )!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
@@ -101,7 +101,7 @@ simple_expr:	CKATTR_BOOL ASSIGN TOK_BOOLEAN
                 {
 		    CK_BBOOL bfalse = CK_FALSE;
 		    
-		    if(_cmdline_parser_append_attr(ctx, $2, &bfalse, sizeof(CK_BBOOL) )!=rc_ok) {
+		    if(_attribctx_parser_append_attr(ctx, $2, &bfalse, sizeof(CK_BBOOL) )!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
@@ -110,14 +110,14 @@ simple_expr:	CKATTR_BOOL ASSIGN TOK_BOOLEAN
                 {
 		    CK_BBOOL btrue = CK_TRUE;
 		    
-		    if(_cmdline_parser_append_attr(ctx, $1, &btrue, sizeof(CK_BBOOL) )!=rc_ok) {
+		    if(_attribctx_parser_append_attr(ctx, $1, &btrue, sizeof(CK_BBOOL) )!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_STR ASSIGN STRING
                 {
-		    if(_cmdline_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
+		    if(_attribctx_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign bytes value.");
 			YYERROR;
 		    }
@@ -125,14 +125,14 @@ simple_expr:	CKATTR_BOOL ASSIGN TOK_BOOLEAN
 		}
 	|	CKATTR_DATE ASSIGN TOK_DATE
                 {
-		    if(_cmdline_parser_append_attr(ctx, $1, $3.as_buffer, sizeof(CK_DATE))!=rc_ok) {
+		    if(_attribctx_parser_append_attr(ctx, $1, $3.as_buffer, sizeof(CK_DATE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_DATE  ASSIGN STRING /* if the date comes as 0x... format (not preferred but accepted) */
                 {
-		    if(_cmdline_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
+		    if(_attribctx_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
 			YYERROR;
 		    }
@@ -140,14 +140,14 @@ simple_expr:	CKATTR_BOOL ASSIGN TOK_BOOLEAN
 		}
 	|	CKATTR_KEY ASSIGN KEYTYPE
                 {
-		    if(_cmdline_parser_append_attr(ctx, $1, &$3, sizeof(CK_KEY_TYPE))!=rc_ok) {
+		    if(_attribctx_parser_append_attr(ctx, $1, &$3, sizeof(CK_KEY_TYPE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign key type value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_CLASS ASSIGN OCLASS
                 {
-		    if(_cmdline_parser_append_attr(ctx, $1, &$3, sizeof(CK_OBJECT_CLASS))!=rc_ok) {
+		    if(_attribctx_parser_append_attr(ctx, $1, &$3, sizeof(CK_OBJECT_CLASS))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign object class value.");
 			YYERROR;
 		    }
@@ -180,7 +180,7 @@ template_expr:	CKATTR_TEMPLATE ASSIGN CURLY_OPEN
 		    ctx->saved_idx = ctx->current_idx; /* remember which index we used last */
 		    ctx->current_idx = ctx->mainlist_idx; /* should be always 0 */
 
-		    if(_cmdline_parser_assign_list_to_template(ctx, $1)!=rc_ok) {
+		    if(_attribctx_parser_assign_list_to_template(ctx, $1)!=rc_ok) {
 			clerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
 			YYERROR;
 		    }		    

@@ -111,11 +111,11 @@ int main( int argc, char ** argv )
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_error_other_error;
 
-    cmdLineCtx *clctx = NULL;
+    attribCtx *actx = NULL;
 
-    clctx = pkcs11_new_cmdlinecontext();
+    actx = pkcs11_new_attribcontext();
 
-    if(clctx==NULL) {
+    if(actx==NULL) {
 	goto epilog;
     }
 
@@ -196,7 +196,7 @@ int main( int argc, char ** argv )
     }
 
     if(optind<argc || trusted) {
-	retcode = pkcs11_parse_cmdlineattribs_from_argv(clctx , optind, argc, argv, trusted ? "trusted, not modifiable" : NULL );
+	retcode = pkcs11_parse_attribs_from_argv(actx , optind, argc, argv, trusted ? "trusted, not modifiable" : NULL );
 	if(retcode!=rc_ok) {
 	    errflag++;
 	}
@@ -239,8 +239,8 @@ int main( int argc, char ** argv )
 	imported_pubk = pkcs11_importpubk( p11Context,
 					   filename,
 					   label,
-					   pkcs11_get_attrlist_from_cmdlinectx(clctx),
-					   pkcs11_get_attrnum_from_cmdlinectx(clctx) );
+					   pkcs11_get_attrlist_from_attribctx(actx),
+					   pkcs11_get_attrnum_from_attribctx(actx) );
 
 	if(imported_pubk) {
 	    printf( "%s: import of public key succeeded.\n", argv[0]);
@@ -258,7 +258,7 @@ int main( int argc, char ** argv )
 epilog:
 
     pkcs11_freeContext(p11Context);
-    if(clctx) { pkcs11_free_cmdlinecontext(clctx); clctx = NULL; }
+    if(actx) { pkcs11_free_attribcontext(actx); actx = NULL; }
 
     return retcode;
 }

@@ -39,13 +39,13 @@ libp11_la_SOURCES = pkcs11_ll_unix.c
 endif
 
 libp11_la_SOURCES += pkcs11_attr.c \
-	cmdline_parser.c cmdline_parser.h \
-	cmdline_lexer.c cmdline_lexer.h \
-	cmdline_helper.c cmdline_helper.h \
+	attribctx_parser.c attribctx_parser.h \
+	attribctx_lexer.c attribctx_lexer.h \
+	attribctx_helper.c attribctx_helper.h \
 	wrappedkey_parser.c wrappedkey_parser.h \
 	wrappedkey_lexer.c wrappedkey_lexer.h \
 	wrappedkey_helper.c wrappedkey_helper.h \
-	pkcs11_cmdla.c \
+	pkcs11_attribctx.c \
 	pkcs11_wctx.c \
 	pkcs11_wrap.c \
 	pkcs11_unwrap.c \
@@ -93,14 +93,14 @@ libp11_la_SOURCES += pkcs11_attr.c \
 dist_libp11_la_SOURCES = \
 	gen_attrinfo_h.pl gen_mechinfo_h.pl pkcs11_ossl.h \
 	wrappedkey_lexer.l wrappedkey_parser.y \
-	cmdline_lexer.l cmdline_parser.y
+	attribctx_lexer.l attribctx_parser.y
 
 CLEANFILES = _mechinfo.h _attrinfo.h
 BUILT_SOURCES = _mechinfo.h _attrinfo.h \
 		wrappedkey_parser.h wrappedkey_parser.c \
 		wrappedkey_lexer.h wrappedkey_lexer.c \
-		cmdline_parser.h cmdline_parser.c \
-		cmdline_lexer.h cmdline_lexer.c
+		attribctx_parser.h attribctx_parser.c \
+		attribctx_lexer.h attribctx_lexer.c
 
 # The following files depends upon lexer and parser source files
 wrappedkey_lexer.c wrappedkey_lexer.h: wrappedkey_lexer.l
@@ -112,13 +112,13 @@ wrappedkey_helper.c pkcs11_wrap.c pkcs11_unwrap.c pkcs11_wctx.c: \
 			wrappedkey_parser.y wrappedkey_parser.h wrappedkey_parser.c
 
 # The following files depends upon lexer and parser source files
-cmdline_lexer.c cmdline_lexer.h: cmdline_lexer.l
-cmdline_parser.c cmdline_parser.h: cmdline_parser.y
+attribctx_lexer.c attribctx_lexer.h: attribctx_lexer.l
+attribctx_parser.c attribctx_parser.h: attribctx_parser.y
 
-cmdline_helper.c pkcs11_cmdla.c: \
-			cmdline_helper.h \
-			cmdline_lexer.l cmdline_lexer.h cmdline_lexer.c \
-			cmdline_parser.y cmdline_parser.h cmdline_parser.c
+attribctx_helper.c pkcs11_attribctx.c: \
+			attribctx_helper.h \
+			attribctx_lexer.l attribctx_lexer.h attribctx_lexer.c \
+			attribctx_parser.y attribctx_parser.h attribctx_parser.c
 
 pkcs11_mechanism.$(OBJEXT): _mechinfo.h
 

@@ -28,25 +28,25 @@
 #include <openssl/x509.h>
 
 #include "pkcs11lib.h"
-#include "cmdline_lexer.h"
-#include "cmdline_parser.h"
+#include "attribctx_lexer.h"
+#include "attribctx_parser.h"
 
-/* cmdLineCtx contains attributes captured from command-line interface */
+/* attribCtx contains attributes captured from command-line interface */
 /* it is designed to hold attributes into three lists: */
 /* - the main list */
 /* - a wrap template list */
 /* - an unwrap template list */
 
 
-cmdLineCtx *pkcs11_new_cmdlinecontext()
+attribCtx *pkcs11_new_attribcontext()
 {
 
-    cmdLineCtx *ctx = NULL;
+    attribCtx *ctx = NULL;
 
     ctx = calloc(1, sizeof (wrappedKeyCtx));
     
     if(ctx==NULL) {
-	fprintf(stderr, "Error: not enough memory when allocating memory for cmdLineCtx\n");
+	fprintf(stderr, "Error: not enough memory when allocating memory for attribCtx\n");
 	goto error;
     }
 
@@ -64,13 +64,13 @@ cmdLineCtx *pkcs11_new_cmdlinecontext()
     return ctx;
     
 error:
-    if(ctx) { pkcs11_free_cmdlinecontext(ctx); ctx=NULL; }
+    if(ctx) { pkcs11_free_attribcontext(ctx); ctx=NULL; }
     /* when zeroed, the structure is initialized and ready */
     return ctx;
 }
 
 
-void pkcs11_free_cmdlinecontext(cmdLineCtx *ctx)
+void pkcs11_free_attribcontext(attribCtx *ctx)
 {
 
     if( ctx ) {
@@ -106,12 +106,12 @@ void pkcs11_free_cmdlinecontext(cmdLineCtx *ctx)
 }
 
 
-func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int argc, char **argv, const char *additional)
+func_rc pkcs11_parse_attribs_from_argv(attribCtx *ctx , int pos, int argc, char **argv, const char *additional)
 {
     func_rc rc = rc_ok;
     int i;
     size_t len=0;
-    char *cmdlineattrsbuff = NULL;
+    char *parsebuf = NULL;
     YY_BUFFER_STATE bp;
     
     /* we need to allocate a buffer that can hold a concatenated list of argv[], */
@@ -130,32 +130,31 @@ func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int arg
     ++len;
     
     /* allocate buffer */
-    cmdlineattrsbuff = calloc(len, sizeof(char));
+    parsebuf = calloc(len, sizeof(char));
     /* since YY_END_OF_BUFFER_CHAR = 0, we don't need to add these characters */
     /* as the buffer will contain two trailing 0 bytes */
     /* to support yy_scan_buffer() like function */
 
-    if(cmdlineattrsbuff == NULL) {
+    if(parsebuf == NULL) {
 	fprintf(stderr, "Error: not enough memory when allocating memory for pubkattrlist member\n");
 	rc = rc_error_memory;
 	goto error;
     }
 
-    /* put additional upfront, to prevent CMDLINE interfering */
+    /* put additional upfront, to prevent argv interfering */
     if(additional) {
-	strncat(cmdlineattrsbuff, additional, len-1); /* add additional */
-	strncat(cmdlineattrsbuff, " ", len-1); /* add space before the additional */
+	strncat(parsebuf, additional, len-1); /* add additional */
+	strncat(parsebuf, " ", len-1); /* add space before the additional */
     }
     /* now concatenate to it */
     for (i=pos; i<argc; ++i) {
-	strncat(cmdlineattrsbuff, argv[i], len-1);
+	strncat(parsebuf, argv[i], len-1);
 	if(i!=argc-1) {
-	    strncat(cmdlineattrsbuff, " ", len-1); /* add space (lazy way) */
+	    strncat(parsebuf, " ", len-1); /* add space (lazy way) */
 	}
     }
 
-    fprintf(stderr,"buffer to parse: <%s>\n", cmdlineattrsbuff);
-    bp = cl_scan_bytes(cmdlineattrsbuff, len);
+    bp = cl_scan_bytes(parsebuf, len);
     if(bp==NULL) {
 	fprintf(stderr, "Error: lexer cannot scan buffer\n");
 	rc = rc_error_lexer;
@@ -174,19 +173,24 @@ func_rc pkcs11_parse_cmdlineattribs_from_argv(cmdLineCtx *ctx , int pos, int arg
     }
     
 error:
-    if(cmdlineattrsbuff) { free(cmdlineattrsbuff); }
+    if(parsebuf) { free(parsebuf); }
     if(bp) { cl_delete_buffer(bp); }
 
     return rc;
 }
 
 
-inline CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_cmdlinectx(cmdLineCtx *ctx)
+inline CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_attribctx(attribCtx *ctx)
 {
     return ctx->attrs[ctx->mainlist_idx].attrlist;
 }
 
-inline size_t pkcs11_get_attrnum_from_cmdlinectx(cmdLineCtx *ctx)
+inline size_t pkcs11_get_attrnum_from_attribctx(attribCtx *ctx)
 {
     return ctx->attrs[ctx->mainlist_idx].attrnum;
+}
+
+inline void pkcs11_adjust_attrnum_on_attribctx(attribCtx *ctx, size_t value)
+{
+    ctx->attrs[ctx->mainlist_idx].attrnum = value;
 }
