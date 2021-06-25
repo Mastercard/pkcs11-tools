@@ -1058,7 +1058,7 @@ static func_rc _unwrap_envelope(pkcs11Context *p11Context, wrappedKeyCtx *wctx, 
 	{ CKA_KEY_TYPE, &ckk_aes, sizeof(ckk_aes) },
 	{ CKA_TOKEN, &ck_false, sizeof(ck_false) },
 	{ CKA_UNWRAP, &ck_true, sizeof(ck_true) },
-	{ CKA_EXTRACTABLE, &ck_true, sizeof(ck_true) },
+	{ CKA_EXTRACTABLE, &ck_false, sizeof(ck_false) }, /* the intermiediate key does not require to be extractable */
 	{ CKA_LABEL, &tempaes_label, strlen(tempaes_label) }
     };
 
