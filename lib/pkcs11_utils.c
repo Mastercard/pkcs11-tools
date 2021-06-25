@@ -358,7 +358,7 @@ char * hex2bin_new(char *label, size_t size, size_t *outsize)
 
     /* #2: allocate tmpbuf with right size and prepend with a leading '0' if needed */
     len = (size-ws_cnt)+ ((size-ws_cnt)%2);
-    tmpbuf = malloc(len);
+    tmpbuf = calloc(sizeof(char), len+1);
 
     tmpbuf_s=tmpbuf;
 
