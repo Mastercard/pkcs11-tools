@@ -45,7 +45,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 34 "wrappedkey_parser.y"
+#line 39 "wrappedkey_parser.y"
 
 
 #include "pkcs11lib.h"
@@ -114,7 +114,7 @@ extern int yylex(void);
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 47 "wrappedkey_parser.y"
+#line 52 "wrappedkey_parser.y"
 
     CK_ATTRIBUTE_TYPE ckattr;
     CK_KEY_TYPE val_key;

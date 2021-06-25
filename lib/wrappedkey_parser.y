@@ -18,6 +18,11 @@
 %define parse.error verbose
 %define parse.trace
 
+/* there are a handful of shift-reduce conflicts that can be safely ignored */
+/* these are caused by nested grammar under wkeystmts, which is required as */
+/* 'assignstmts' is needed when defining a template, but not 'metastmts'    */
+%expect 10
+
 %{
 #include <stdio.h>
 #include <stdlib.h>
@@ -153,9 +158,14 @@ wkeystmts:	wkeystmt
 	|	wkeystmts wkeystmt
 		;
 
-wkeystmt:	metastmt
-	|	assignstmt
+wkeystmt:	metastmts
+	|	assignstmts
 	;
+
+metastmts:	metastmt
+	|	metastmts metastmt
+	;
+
 metastmt:	CTYPE ':' CTYPE_VAL
 	|	GRAMMAR_VERSION ':' DOTTEDNUMBER
 		{
@@ -176,6 +186,11 @@ metastmt:	CTYPE ':' CTYPE_VAL
                     }
 		}
 	;
+
+assignstmts:	assignstmt
+	|	assignstmts assignstmt
+	;
+
 assignstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
                 {
 		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, &$3, sizeof(CK_BBOOL) )!=rc_ok) {
@@ -233,7 +248,7 @@ assignstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 			YYERROR;
                    } 		    
 		}
-		assignstmt '}'
+		assignstmts '}'
 		{
 		    if(ctx->wrpkattribs->level==0) {
 		        yyerror(ctx, "***Error: no matching opening curly brace");
@@ -556,7 +571,7 @@ pubkstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 			YYERROR;
                    } 		    
 		}
-		assignstmt '}'
+		pubkstmts '}'
 		{
 		    if(ctx->pubkattribs->level==0) {
 		        yyerror(ctx, "***Error: no matching opening curly brace");
