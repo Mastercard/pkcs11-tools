@@ -116,6 +116,29 @@ pkcs11AttrList *pkcs11_new_attrlist_from_array(pkcs11Context *p11Context, CK_ATT
 	}
 	memcpy(retval->attr_array[i].pValue, attrs[i].pValue, attrs[i].ulValueLen);
 	retval->attr_array[i].ulValueLen = attrs[i].ulValueLen;
+
+	/* in case we copy a template attribute, we need also to clone the attributes value */
+	if(pkcs11_attr_is_template(retval->attr_array[i].type)) {
+	    /* pValue contains a list of attributes, that we need to cast and walk through. */
+	    CK_ATTRIBUTE_PTR template_array = (CK_ATTRIBUTE_PTR)retval->attr_array[i].pValue;
+	    size_t template_numelem = retval->attr_array[i].ulValueLen / sizeof (CK_ATTRIBUTE);
+
+	    int j;
+	    for (j=0;j<template_numelem;j++) {
+		/* we need first to allocate memory, using a temporary buffer */
+		CK_VOID_PTR attribvalueclone;
+		if( (attribvalueclone=malloc(template_array[j].ulValueLen))==NULL ) {
+		    fprintf(stderr, "Memory allocation error");
+		    goto error;	/* TODO better cleanup */
+		}
+
+		/* then we copy the content of the original attribute to the cloned one */
+		memcpy(attribvalueclone, template_array[j].pValue, template_array[j].ulValueLen);
+
+		/* finally we overwrite the previous pointer with the new one freshly allocated */
+		template_array[j].pValue = attribvalueclone;
+	    }
+	}
     }
 
     return retval;
@@ -488,6 +511,30 @@ pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PT
 
 			memcpy(newlist[extended_index].pValue, attrs[i].pValue, attrs[i].ulValueLen); /* copy attribute */
 			newlist[extended_index].ulValueLen = attrs[i].ulValueLen; /* adjust length */
+
+			/* in case we extend a template attribute, we need also to clone the attributes value */
+			if(pkcs11_attr_is_template(newlist[extended_index].type)) {
+			    /* pValue contains a list of attributes, that we need to cast and walk through. */
+			    CK_ATTRIBUTE_PTR template_array = (CK_ATTRIBUTE_PTR)newlist[extended_index].pValue;
+			    size_t template_numelem = newlist[extended_index].ulValueLen / sizeof (CK_ATTRIBUTE);
+
+			    int j;
+			    for (j=0;j<template_numelem;j++) {
+				/* we need first to allocate memory, using a temporary buffer */
+				CK_VOID_PTR attribvalueclone;
+				if( (attribvalueclone=malloc(template_array[j].ulValueLen))==NULL ) {
+				    fprintf(stderr, "Memory allocation error");
+				    goto error;
+				}
+
+				/* then we copy the content of the original attribute to the cloned one */
+				memcpy(attribvalueclone, template_array[j].pValue, template_array[j].ulValueLen);
+
+				/* finally we overwrite the previous pointer with the new one freshly allocated */
+				template_array[j].pValue = attribvalueclone;
+			    }
+			}
+			
 		    }
 		}
 
