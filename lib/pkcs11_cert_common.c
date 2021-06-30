@@ -623,9 +623,9 @@ EVP_PKEY *pkcs11_SPKI_from_ED(pkcs11AttrList *attrlist )
     /* extract param into OID */
     /* for Edwards curve, it may come it two flavours: 
      * - as an OID, in which case it will be parsed by d2i_ASN1_OBJECT
-     * - as a named curve, of the form 0x13 0x0c 'e' 'd' 'w' 'a' 'r' 'd' 's' '2' ...
-     * the later case cannot be parsed as a DER encoded object
-     * this is why perform first a comparison with the curve names.
+     * - as a PrintableString 'edwards25519' or 'edwards448'
+     * the later case cannot be converted directly to an OID
+     * and is therefore detected upfront.
      */
     pp = oecparams->pValue;
     if(pkcs11_is_ed_param_named_25519(pp, oecparams->ulValueLen)) {

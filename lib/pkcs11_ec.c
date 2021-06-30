@@ -32,7 +32,13 @@
 static const uint8_t id_edwards25519[] = { 0x13, 0x0C, 'e', 'd', 'w', 'a', 'r', 'd', 's', '2', '5', '5', '1', '9' };
 static const uint8_t id_edwards448[] = { 0x13, 0x0A, 'e', 'd', 'w', 'a', 'r', 'd', 's', '4', '4', '8' };
 
-/* The following functions tell whether EC_PARAM is of the form of named curve, for Edwards curves */
+/* Edwards curves may be specified it two flavours: 
+ * - as an OID, in which case it will be parsed by d2i_ASN1_OBJECT
+ * - as a PrintableString 'edwards25519' or 'edwards448'
+ * the later case cannot be converted directly to an OID
+ * The two following functions implement that detection.
+ */
+
 inline bool pkcs11_is_ed_param_named_25519(const uint8_t *ecparam, size_t ecparamlen)
 {
     return ecparamlen==sizeof id_edwards25519 && memcmp(ecparam, id_edwards25519, sizeof id_edwards25519)==0;
@@ -42,7 +48,6 @@ inline bool pkcs11_is_ed_param_named_448(const uint8_t *ecparam, size_t ecparaml
 {
     return ecparamlen==sizeof id_edwards448 && memcmp(ecparam, id_edwards448, sizeof id_edwards448)==0;
 }
-
 
 
 bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_type_t keytype)
