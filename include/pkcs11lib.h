@@ -295,8 +295,6 @@ enum contenttype { ct_unknown,	/* unidentified app */
 };
 
 
-
-
 /* /\* Supplementary flags for NSS *\/ */
 /* #define NSSCK_VENDOR_NSS 0x4E534350 /\* NSCP *\/ */
 /* #define CKA_NSS (CKA_VENDOR_DEFINED|NSSCK_VENDOR_NSS) */
@@ -713,6 +711,7 @@ CK_OBJECT_HANDLE pkcs11_import_component_final(KeyImportCtx *kctx);
 /* info functions */
 const char *get_mechanism_name(CK_MECHANISM_TYPE mech); /* pkcs11_mechanism.c */
 CK_ATTRIBUTE_TYPE get_attribute_type_from_name(char *name); /* pkcs11_attrdesc.c */
+const char *get_attribute_name_from_type(CK_ATTRIBUTE_TYPE attrtyp); 
 
 func_rc pkcs11_info_library(pkcs11Context *p11Context);
 func_rc pkcs11_info_slot(pkcs11Context *p11Context);
