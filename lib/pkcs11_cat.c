@@ -496,8 +496,21 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
 		    }
 
 		    /* extract param into OID */
+		    /* for Edwards curve, it may come it two flavours: 
+		     * - as an OID, in which case it will be parsed by d2i_ASN1_OBJECT
+		     * - as a PrintableString 'edwards25519' or 'edwards448'
+		     * the later case cannot be converted directly to an OID
+		     * and is therefore detected upfront.
+		     */
 		    pp = oecparams->pValue;
-		    if( (ed_oid = d2i_ASN1_OBJECT(NULL, &pp, oecparams->ulValueLen)) == NULL ) {
+		    if(pkcs11_is_ed_param_named_25519(pp, oecparams->ulValueLen)) {
+			ed_oid = OBJ_nid2obj(NID_ED25519);
+		    } else if(pkcs11_is_ed_param_named_448(pp, oecparams->ulValueLen)) {
+			ed_oid = OBJ_nid2obj(NID_ED448);
+		    } else {
+			ed_oid = d2i_ASN1_OBJECT(NULL, &pp, oecparams->ulValueLen);
+		    }
+		    if( ed_oid == NULL ) {
 			P_ERR();
 			goto key_ed_error;
 		    }
@@ -568,7 +581,11 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
 
 		if(ovalue) {
 		    pkcs11_ll_set_binary(stdout);
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
 		    write( fileno(stdout), ovalue->pValue, ovalue->ulValueLen); /* TODO: use OpenSSL BIO */
+#pragma GCC diagnostic pop
 		}
 	    }
 		break;

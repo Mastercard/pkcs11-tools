@@ -32,6 +32,24 @@
 static const uint8_t id_edwards25519[] = { 0x13, 0x0C, 'e', 'd', 'w', 'a', 'r', 'd', 's', '2', '5', '5', '1', '9' };
 static const uint8_t id_edwards448[] = { 0x13, 0x0A, 'e', 'd', 'w', 'a', 'r', 'd', 's', '4', '4', '8' };
 
+/* Edwards curves may be specified it two flavours: 
+ * - as an OID, in which case it will be parsed by d2i_ASN1_OBJECT
+ * - as a PrintableString 'edwards25519' or 'edwards448'
+ * the later case cannot be converted directly to an OID
+ * The two following functions implement that detection.
+ */
+
+inline bool pkcs11_is_ed_param_named_25519(const uint8_t *ecparam, size_t ecparamlen)
+{
+    return ecparamlen==sizeof id_edwards25519 && memcmp(ecparam, id_edwards25519, sizeof id_edwards25519)==0;
+}
+
+inline bool pkcs11_is_ed_param_named_448(const uint8_t *ecparam, size_t ecparamlen)
+{
+    return ecparamlen==sizeof id_edwards448 && memcmp(ecparam, id_edwards448, sizeof id_edwards448)==0;
+}
+
+
 bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_type_t keytype)
 {
     bool rc = false;
@@ -105,9 +123,9 @@ bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_typ
 		rc = true;
 	    }
 	}
-	/* although we could use the OID for key generation,                       */
-	/* it seems like HSM implementtions prefer using the curve strings instead */
-	/* note that PKCS#11 3.0 requires to support both ways.                    */
+	/* although we could use the OID for key generation,                        */
+	/* it seems like HSM implementations prefer using the curve strings instead */
+	/* note that PKCS#11 3.0 requires to support both ways.                     */
 	if ( keytype == ed ) {
 	    size_t wanted_len;
 
@@ -203,8 +221,7 @@ static char * pkcs11_ex_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *
 	    break;
 
 	case ed:
-	    /* if we have public keys, it will be a regular OID */
-	    /* if we have private keys, params may be one of the forms */
+	    /* it will be a regular OID or one of the parameters below */
 	    /*
 	       13 0c 65 64 77 61 72 64 73 32 35 35 31 39        ..edwards25519
 	       13 0a 65 64 77 61 72 64 73 34 34 38              ..edwards448

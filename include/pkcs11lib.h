@@ -448,6 +448,9 @@ CK_OBJECT_HANDLE pkcs11_importdata( pkcs11Context * p11Context,
 
 /* pkcs11_ec.c */
 
+bool pkcs11_is_ed_param_named_25519(const uint8_t *ecparam, size_t ecparamlen);
+bool pkcs11_is_ed_param_named_448(const uint8_t *ecparam, size_t ecparamlen);
+
 bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_type_t keytype);
 
 bool pkcs11_ec_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len);
