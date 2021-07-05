@@ -174,7 +174,7 @@ static func_rc _wrappedkey_parser_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_
     CK_ATTRIBUTE_PTR match=NULL;
 
     CK_ATTRIBUTE **attrlist=NULL;
-    CK_ULONG *attrnum;
+    size_t *attrnum;
 
     /* attrlist = &clctx->attrs[clctx->current_idx].attrlist; */
     /* attrnum  = &clctx->attrs[clctx->current_idx].attrnum; */
@@ -226,15 +226,11 @@ static func_rc _wrappedkey_parser_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_
 	goto error;
     }
 
-    size_t argnum = *attrnum; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
-
     match = (CK_ATTRIBUTE_PTR ) lsearch ( &stuffing,
 					  *attrlist,
-					  &argnum,
+					  attrnum,
 					  sizeof(CK_ATTRIBUTE),
 					  compare_CKA );
-
-    *attrnum = argnum; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
 
     if( match == &stuffing) { /* match, we may need to adjust the content */
 	if(match->pValue) { free(match->pValue); /* just in case */ }
