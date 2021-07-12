@@ -74,34 +74,34 @@ CKA_WRAP_WITH_TRUSTED|WRAP_WITH_TRUSTED { cllval.ckattr = CKA_WRAP_WITH_TRUSTED;
 CKA_TRUSTED|TRUSTED                 { cllval.ckattr = CKA_TRUSTED; return CKATTR_BOOL; }
 
 
-CKK_GENERIC_SECRET { cllval.val_key = CKK_GENERIC_SECRET; return KEYTYPE; }
-CKK_DES            { cllval.val_key = CKK_DES           ; return KEYTYPE; }
-CKK_DES2           { cllval.val_key = CKK_DES2          ; return KEYTYPE; }
-CKK_DES3           { cllval.val_key = CKK_DES3          ; return KEYTYPE; }
-CKK_AES            { cllval.val_key = CKK_AES           ; return KEYTYPE; }
-CKK_MD5_HMAC       { cllval.val_key = CKK_MD5_HMAC      ; return KEYTYPE; }
-CKK_SHA_1_HMAC     { cllval.val_key = CKK_SHA_1_HMAC    ; return KEYTYPE; }
-CKK_RIPEMD128_HMAC { cllval.val_key = CKK_RIPEMD128_HMAC; return KEYTYPE; }
-CKK_RIPEMD160_HMAC { cllval.val_key = CKK_RIPEMD160_HMAC; return KEYTYPE; }
-CKK_SHA256_HMAC    { cllval.val_key = CKK_SHA256_HMAC   ; return KEYTYPE; }
-CKK_SHA384_HMAC    { cllval.val_key = CKK_SHA384_HMAC   ; return KEYTYPE; }
-CKK_SHA512_HMAC    { cllval.val_key = CKK_SHA512_HMAC   ; return KEYTYPE; }
-CKK_SHA224_HMAC    { cllval.val_key = CKK_SHA224_HMAC   ; return KEYTYPE; }
-CKK_RSA            { cllval.val_key = CKK_RSA           ; return KEYTYPE; }
-CKK_DH             { cllval.val_key = CKK_DH            ; return KEYTYPE; }
-CKK_DSA            { cllval.val_key = CKK_DSA           ; return KEYTYPE; }
-CKK_EC             { cllval.val_key = CKK_EC            ; return KEYTYPE; }
-CKK_EC_EDWARDS     { cllval.val_key = CKK_EC_EDWARDS    ; return KEYTYPE; }
+CKK_GENERIC_SECRET|GENERIC_SECRET|GENERIC { cllval.val_key = CKK_GENERIC_SECRET; return KEYTYPE; }
+CKK_DES|DES                               { cllval.val_key = CKK_DES           ; return KEYTYPE; }
+CKK_DES2|DES2                             { cllval.val_key = CKK_DES2          ; return KEYTYPE; }
+CKK_DES3|DES3                             { cllval.val_key = CKK_DES3          ; return KEYTYPE; }
+CKK_AES|AES                               { cllval.val_key = CKK_AES           ; return KEYTYPE; }
+CKK_MD5_HMAC|MD5_HMAC                     { cllval.val_key = CKK_MD5_HMAC      ; return KEYTYPE; }
+CKK_SHA_1_HMAC|SHA_1_HMAC|SHA1_HMAC       { cllval.val_key = CKK_SHA_1_HMAC    ; return KEYTYPE; }
+CKK_RIPEMD128_HMAC|RIPEMD128_HMAC         { cllval.val_key = CKK_RIPEMD128_HMAC; return KEYTYPE; }
+CKK_RIPEMD160_HMAC|RIPEMD128_HMAC         { cllval.val_key = CKK_RIPEMD160_HMAC; return KEYTYPE; }
+CKK_SHA256_HMAC|SHA256_HMAC               { cllval.val_key = CKK_SHA256_HMAC   ; return KEYTYPE; }
+CKK_SHA384_HMAC|SHA384_HMAC               { cllval.val_key = CKK_SHA384_HMAC   ; return KEYTYPE; }
+CKK_SHA512_HMAC|SHA512_HMAC               { cllval.val_key = CKK_SHA512_HMAC   ; return KEYTYPE; }
+CKK_SHA224_HMAC|SHA224_HMAC               { cllval.val_key = CKK_SHA224_HMAC   ; return KEYTYPE; }
+CKK_RSA|RSA                               { cllval.val_key = CKK_RSA           ; return KEYTYPE; }
+CKK_DH|DH                                 { cllval.val_key = CKK_DH            ; return KEYTYPE; }
+CKK_DSA|DSA                               { cllval.val_key = CKK_DSA           ; return KEYTYPE; }
+CKK_EC|EC                                 { cllval.val_key = CKK_EC            ; return KEYTYPE; }
+CKK_EC_EDWARDS|EC_EDWARDS|EDWARDS|ED      { cllval.val_key = CKK_EC_EDWARDS    ; return KEYTYPE; }
 
-CKO_DATA           { cllval.val_cls = CKO_DATA ; return OCLASS; }
-CKO_CERTIFICATE    { cllval.val_cls = CKO_CERTIFICATE ; return OCLASS; }
-CKO_PUBLIC_KEY     { cllval.val_cls = CKO_PUBLIC_KEY ; return OCLASS; }
-CKO_PRIVATE_KEY    { cllval.val_cls = CKO_PRIVATE_KEY ; return OCLASS; }
-CKO_SECRET_KEY     { cllval.val_cls = CKO_SECRET_KEY ; return OCLASS; }
-CKO_HW_FEATURE     { cllval.val_cls = CKO_HW_FEATURE ; return OCLASS; }
-CKO_DOMAIN_PARAMETERS { cllval.val_cls = CKO_DOMAIN_PARAMETERS ; return OCLASS; }
-CKO_MECHANISM      { cllval.val_cls = CKO_MECHANISM ; return OCLASS; }
-CKO_OTP_KEY        { cllval.val_cls = CKO_OTP_KEY ; return OCLASS; }
+CKO_DATA|DATA                             { cllval.val_cls = CKO_DATA ; return OCLASS; }
+CKO_CERTIFICATE|CERTIFICATE|CERT          { cllval.val_cls = CKO_CERTIFICATE ; return OCLASS; }
+CKO_PUBLIC_KEY|PUBLIC_KEY|PUBK            { cllval.val_cls = CKO_PUBLIC_KEY ; return OCLASS; }
+CKO_PRIVATE_KEY|PRIVATE_KEY|PRVK          { cllval.val_cls = CKO_PRIVATE_KEY ; return OCLASS; }
+CKO_SECRET_KEY|SECRET_KEY|SECK            { cllval.val_cls = CKO_SECRET_KEY ; return OCLASS; }
+CKO_HW_FEATURE|HW_FEATURE                 { cllval.val_cls = CKO_HW_FEATURE ; return OCLASS; }
+CKO_DOMAIN_PARAMETERS|DOMAIN_PARAMETERS   { cllval.val_cls = CKO_DOMAIN_PARAMETERS ; return OCLASS; }
+CKO_MECHANISM|MECHANISM                   { cllval.val_cls = CKO_MECHANISM ; return OCLASS; }
+CKO_OTP_KEY|OTP_KEY                       { cllval.val_cls = CKO_OTP_KEY ; return OCLASS; }
 
 0x[[:xdigit:]]+ {   if(strlen(cltext)%2==1) {
 			clerror(NULL, "Invalid hexadecimal string <%s>: odd length", cltext);
