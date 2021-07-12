@@ -846,8 +846,8 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
 
 	retcode = p11ctx->FunctionList.C_GenerateKeyPair(p11ctx->Session,
 							 &mechanism,
-							 pubktemplate, sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE),
-							 prvktemplate, sizeof(prvktemplate)/sizeof(CK_ATTRIBUTE),
+							 pubktemplate, pubk_num_elems,
+							 prvktemplate, prvk_num_elems,
 							 pubkhandleptr, prvkhandleptr);
 
 	if (retcode != CKR_OK ) {
