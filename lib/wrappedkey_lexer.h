@@ -11,22 +11,12 @@
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 37
+#define YY_FLEX_SUBMINOR_VERSION 35
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
 
 /* First, we deal with  platform-specific or compiler-specific issues. */
-
-#if defined(__FreeBSD__)
-#ifndef __STDC_LIMIT_MACROS
-#define	__STDC_LIMIT_MACROS
-#endif
-#include <sys/cdefs.h>
-#include <stdint.h>
-#else
-#define	__dead2
-#endif
 
 /* begin standard C headers. */
 #include <stdio.h>
@@ -43,8 +33,7 @@
 
 /* C99 systems have <inttypes.h>. Non-C99 systems may or may not. */
 
-#if defined(__FreeBSD__) || \
-    (defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L)
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 
 /* C99 says to define __STDC_LIMIT_MACROS before including stdint.h,
  * if you want the limit (max/min) macros for int types. 
@@ -60,6 +49,7 @@ typedef int16_t flex_int16_t;
 typedef uint16_t flex_uint16_t;
 typedef int32_t flex_int32_t;
 typedef uint32_t flex_uint32_t;
+typedef uint64_t flex_uint64_t;
 #else
 typedef signed char flex_int8_t;
 typedef short int flex_int16_t;
@@ -67,6 +57,7 @@ typedef int flex_int32_t;
 typedef unsigned char flex_uint8_t; 
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
+#endif /* ! C99 */
 
 /* Limits of integral types. */
 #ifndef INT8_MIN
@@ -96,8 +87,6 @@ typedef unsigned int flex_uint32_t;
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
 #endif
-
-#endif /* ! C99 */
 
 #endif /* ! FLEXINT_H */
 
@@ -210,7 +199,7 @@ void yyfree (void *  );
 
 /* Begin user sect3 */
 
-#define yywrap() 1
+#define yywrap(n) 1
 #define YY_SKIP_YYWRAP
 
 extern int yylineno;
@@ -330,6 +319,6 @@ extern int yylex (void);
 #line 197 "wrappedkey_lexer.l"
 
 
-#line 334 "wrappedkey_lexer.h"
+#line 323 "wrappedkey_lexer.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */
