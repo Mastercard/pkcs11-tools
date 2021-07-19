@@ -125,7 +125,12 @@ To achieve this, please refer to section [OpenSSL 1.1.1](#openssl-1.1.1), to com
 
 
 ### FreeBSD
-On FreeBSD12 and above, deploy first the OpenSSL package from ports, either using `pkg`, or through the port subsystem:
+On FreeBSD12 and above, the toolkit is available from ports, under `security/pkcs11-tools`, and can be either built from there, or installed as a package:
+```
+$ pkg install pkcs11-tools
+```
+
+On previous FreeBSD versions, you will have to build it. Deploy first the OpenSSL package from ports, either using `pkg`, or through the port subsystem:
 ```bash
 $ pkg install openssl
 ```
