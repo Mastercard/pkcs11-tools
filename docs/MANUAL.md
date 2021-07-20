@@ -89,7 +89,7 @@ It is possible, for certain commands, to proceed without login in against the to
 It is possible to specify a command to execute to retrieve the password. Use `-p` parameter with `:::exec:` followed by the command to launch, between simple or double quotes (use simple quotes to avoid variable expansion on the quoted expression, and double quotes to allow it). This enables to interface with a vault, to prevent storing the password in a script or in an environment variable.
 
 ```
-$ p11ls -s 1 -p :::exec:\"getpassword -label password-label\"
+$ p11ls -s 1 -p :::exec:\"getpasswordfromvaultcommand -label password-label\"
 ```
 ## Environment variables
 Each command can be invoked without the need of any environment variable. However, it can be cumbersome, as all token information must be passed as arguments. To ease the pain, a few environment variables can be specified:
@@ -103,6 +103,41 @@ Each command can be invoked without the need of any environment variable. Howeve
 | `PKCS11PASSWORD`    | `-p`                | password                   |
 
 Environment variables obbey to the same syntax as the corresponding arguments. Note that any argument present in the command line will override the corresponding environment variable.
+
+## wrapper scripts
+To facilitate setting environment variables and/or arguments, there are wrapper scripts that can be used to interface with the cryptographic tokens. All wrapper scripts begin with `with_` and are followed by the name of the platform. The following table lists existing scripts:
+
+| script name    | library              | equipment                                            |
+|----------------|----------------------|------------------------------------------------------|
+| `with_beid`    | `libbeidpkcs11.so`   | Belgian national electonic ID card PKCS#11 interface |
+| `with_luna`    | `libCryptoki2_64.so` | Thales (Gemalto) Safenet Luna HSM                    |
+| `with_nfast`   | `libcknfast.so`      | Entrust (nCipher) nShield HSM                        |
+| `with_nss`     | `libsoftokn3.so`     | Mozilla.org NSS soft token                           |
+| `with_softhsm` | `libsofthsm2.so`     | OpenDNSSSEC SoftHSM v2                               |
+| `with_utimaco` | `libcs_pkcs11_R2.so` | Utimaco Security Server HSM                          |
+
+Each wrapper script is looking for a file `.pkcs11rc` within the current directory, or within any parent directory up to the root. This file is sourced as a shell script; default variables defined here will override defaults from the wrapper script.
+
+As an example, you could create a `.pkcs11rc` file to access your favorite SoftHSM token:
+
+```
+$ cat >$HOME/.pkcs11rc
+PKCS11PASSWORD=mytokenpassword
+PKCS11TOKENLABEL=my-token-label
+```
+Then just invoke `with_softhsm` in front of your pkcs11-tools command:
+```
+$ with_softhsm p11ls
+```
+
+when invoking the wrapper scripts, a few environment variables may be specified:
+ - `NOSLOT`: when set to `1`, slot or token are unset. It allows you to trigger the interactive mode (handy if you need to check what slots are availables)
+ - `SPY`: set this value to a target log file, or to `/dev/stdout` or `/dev/stderr` to invoke `pkcs11-spy.so`, a shim PKCS#11 interface that will trace calls and forward them to the library. Please refer to the [OpenSC project](https://github.com/OpenSC/OpenSC) for more information about the spy module.
+
+example:
+```
+$ NOSLOT=1 with_softhsm p11slotinfo
+```
 
 ## Addressing objects
 When an object has a label value, it is represented as `[object_class]/[label]`, where:
@@ -121,6 +156,15 @@ Some commands accept attributes. These attributes can be entered in different wa
 - this name is not case-sensitive, `cka_label` is also valid
 - the prefix `CKA_` can be removed, for convenience. `label` is therefore a valid token.
 - for attributes accepting a boolean value, the following tokens are accepted: `CK_TRUE`, `CK_FALSE`, `true`, `false`, `yes`, `no`
+- for boolean attributes, the value may be omitted, in which case, the attribute value is considered set to `true`
+- boolean attributes can be prefixed with a `no` keyword, in which case the attribute value is considered set to `false`
+- attributes may be separated by a comma `,` for readability, but it is optional
+- template attributes have attributes as values; these attributes can be specified by grouping them between curly brackets.
+
+Here is an example of valid grammar for attributes:
+```
+encrypt decrypt=true sign=on verify=off wrap, no unwrap, unwrap_template = { not extractable, sign }
+```
 
 # Commands details
 ## p11slotinfo
@@ -270,6 +314,7 @@ For each object, a quick list of attributes is displayed. The following table li
  |    `ase`     |the key has always been sensitive                                      |
  |    `dec`     |the key can be used for decryption                                     |
  |    `der`     |the key can be used for key derivation                                 |
+ |    `drt`     |the key has a derive template                                          |
  |    `enc`     |the key can be used for encryption                                     |
  |    `imp`     |the key has been imported (e.g. unwrapped)                             |
  |    `loc`     |the key has been generated locally                                     |
@@ -286,13 +331,15 @@ For each object, a quick list of attributes is displayed. The following table li
  |    `tok`     |the object is on token (always true)                                   |
  |    `tru`     |the object is trusted (`CKA_TRUST` attribute is set to `true`)         |
  |    `unw`     |the key can be used for key unwrapping                                 |
+ |    `uwt`     |the key has an unwrap template                                         |
  |    `vfy`     |the key can be used for signature verification                         |
  |    `vre`     |the key can be used for signature verification with recovery           |
  |    `wra`     |the key can be used for key wrapping                                   |
+ |    `wrt`     |the key has a wrap template                                            |
  |    `wtt`     |the key may be wrapped only with a trusted key                         |
  |    `WXT`     |the key has been at least once extractable                             |
  |    `XTR`     |the key is extractable                                                 |
- 
+
 For keys, the last attribute is always `KEY(PARAM)`, with `KEY` representing the key algorithm, and `PARAM` the key parameter(s).
 
 Note: the attributes with upper case letter have an impact on security that should be considered by the user.
@@ -435,6 +482,8 @@ $
 
 ## p11od
 Object Dumper. Given an object identifier, prints attributes and values of an object.
+Note that template attributes are also parsed; these attributes are indented to distinguish them from the main attributes of the object.
+
 Example output:
 ```
 $ p11od seck/aes-wrapping-key
@@ -487,6 +536,13 @@ seck/aes-wrapping-key:
   0000  01                                               CK_TRUE
  CKA_WRAP_WITH_TRUSTED:
   0000  00                                               CK_FALSE
+ CKA_WRAP_TEMPLATE:
+ | CKA_ENCRYPT:
+ |  0000  01                                               CK_TRUE
+ | CKA_DECRYPT:
+ |  0000  01                                               CK_TRUE
+ | CKA_DERIVE:
+ |  0000  00                                               CK_FALSE
 ```
 
 ## p11keygen
@@ -501,18 +557,18 @@ For key pairs, the tool will dispatch attributes pertaining to the relevant key 
 For RSA key pairs, `CKA_ID` is adjusted to match IBM PKCS\#11 JCE algorithm (the value is the SHA-1 of the key modulus).
 
 ```
-$ p11keygen -k rsa -b 2048 -i test-rsa-2048 CKA_ENCRYPT=true CKA_DECRYPT=true CKA_SIGN=true CKA_VERIFY=true
+$ p11keygen -k rsa -b 2048 -i test-rsa-2048 encrypt decrypt sign verify
 Generating, please wait... Key Generation succeeded
 ```
 
-For HMAC key (excepting on nCipher HSMs), you need to specify `CKA_DERIVE=true`. The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
+For HMAC key (excepting on nCipher HSMs), you need to specify `derive`. The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
 
 ```
-$ p11keygen -k generic -b 256 -i test-hmac-32-bytes CKA_DERIVE=true
+$ p11keygen -k generic -b 256 -i test-hmac-32-bytes derive
 Generating, please wait... Key Generation succeeded
 ```
 
-For generating HMAC key on nCipher, you need to use one of the following key types: `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512`; In addition, specify `CKA_SIGN=true` and `CKA_VERIFY=true`. The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
+For generating HMAC key on nCipher, you need to use one of the following key types: `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512`; In addition, specify `sign` and `verify`. The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
 
 ### creating wrapped keys
 using `p11keygen`, it is possible to generate a session key and wrap it immediately under one or several wrapping keys. To achieve this, you simply need to add the `-W` optional parameter, followed by the wrapping parameters string, as explained in `p11wrap`. Note that by default, `p11keygen` will attempt to store a copy of the session key on the token. To prevent this (some PKCS\#11 library do not support this), add the `-r` optional parameter.
@@ -560,7 +616,11 @@ dOaYPtY2vDku2as4Y5oj9g4Aht26yqNsYQFNKw==
 ```
 
 ## p11mkcert
-Generate a self-signed certificate, suitable for Java JCA. The main use is for code-signing platforms. Options are:
+Generate a self-signed certificate, suitable for Java JCA. The main use is for code-signing platforms. 
+Note that the key must have the `CKA_SIGN` attribute set to `true`, unless you are specifying the `-F` optional parameter (see below).
+
+
+Options are:
 
  - `-i`: the label of the key
  - `-d`: subject DN - Caution: must be specified in strict OpenSSL format, which is with a leading `/` character; however, unlike OpenSSL, the ordering is inverted (to ease human order encoding). It means that when you write `/CN=my cert/O=My Org/C=BE`, the actual (binary) order will start with the `C` attribute, then the `O` and finally the `C`. If however you would like to write the Subject DN in "binary" order, you can specify the `-r` option.
@@ -589,12 +649,21 @@ p11importcert: importing certificate succeeded.
 ## p11importpubk
 Similarily to `p11importcert`, this utility will load a PEM or DER formatted public key and import it into the PKCS\#11 token. The `CKA_ID`
 will be adjusted according to IBM rules.
+Attributes may be specified when importing a public key, in which case, these will replace the default ones.
 
 ```
 $ p11importpubk -f test-public-rsa-key.rsa -i test-public-rsa-key
 PEM format detected
 p11importpubk: import of public key succeeded.
 ```
+
+same example, when importing a public key that can be used for wrapping, and with a wrap template accepting to wrap only keys that have encrypt set to `false`:
+```
+$ p11importpubk -f test-public-rsa-key.rsa -i test-public-rsa-key wrap=1 wrap_template={ not encrypt }
+PEM format detected
+p11importpubk: import of public key succeeded.
+```
+
 
 ## p11importdata
 Similarily to p11importcert, this utility will load an arbitrary file and import it into the PKCS\#11 token.
@@ -744,13 +813,13 @@ The following diagram depicts the different steps to execute to establish a key 
 Steps from the figure are explained here below:
 
 1. On the destination token, an RSA key pair can be generated e.g. using the following command:
-`p11keygen -k rsa -b 4096 -i rsa-wrapping-key CKA_WRAP=true CKA_UNWRAP=true`
+`p11keygen -k rsa -b 4096 -i rsa-wrapping-key wrap unwrap`
 2. On the destination token, the freshly created public key can be extracted as follows:
 `p11cat pubk/rsa-wrapping-key >rsa-wrapping-key.pubk`
 3. On the source token, the public key can be imported using:
 `p11importpubk -f rsa-wrapping-key.pubk -i rsa-wrapping-key`
 4. On the source token, generate an AES key that will be used to wrap keys from source token:
-`p11keygen -k aes -b 256 -i aes-wrapping-key CKA_WRAP=true CKA_UNWRAP=true CKA_EXTRACTABLE=true`
+`p11keygen -k aes -b 256 -i aes-wrapping-key wrap unwrap extractable`
 5. On the source token, wrap that AES key:
 `p11wrap -a oaep -i aes-wrapping-key -w rsa-wrapping-key -o aes-wrapping-key.wrap`
 6. On the destination token, unwrap that AES key:
@@ -771,7 +840,7 @@ All the steps above can be executed in a simpler and more secure fashion, that l
 
 1. On the destination token, generate an RSA key pair e.g. using the following command:
    ```
-   p11keygen -k rsa -b 4096 -i rsa-dest-wrapping-key CKA_WRAP=true CKA_UNWRAP=true
+   p11keygen -k rsa -b 4096 -i rsa-dest-wrapping-key wrap unwrap
    ```
 2. On the destination token, the freshly created public key can be extracted as follows:
    ```

@@ -63,19 +63,19 @@ void print_usage(char *progname)
 	     "+-> arguments marked with a plus sign(+) can be repeated\n"
 	     "\n"
 	     " ARGUMENTS: ATTRIBUTE=VALUE pairs\n"
-	     "   supported attributes:\n"
+	     "   supported attributes (applied to private and secret key only):\n"
 	     "                 CKA_LABEL, CKA_ID,\n"
-             "                 CKA_WRAP, CKA_UNWRAP,\n" 
-             "                 CKA_DECRYPT, CKA_ENCRYPT,\n"
+             "                 CKA_UNWRAP,CKA_WRAP\n"
+             "                 CKA_DECRYPT,CKA_ENCRYPT,\n"
 	     "                 CKA_SIGN, CKA_VERIFY,\n"
 	     "                 CKA_SIGN_RECOVER, CKA_VERIFY_RECOVER,\n"
 	     "                 CKA_DERIVE,\n"
              "                 CKA_TRUSTED, CKA_MODIFIABLE,\n"
              "                 CKA_EXTRACTABLE, CKA_SENSITIVE\n"
 	     "                 CKA_WRAP_WITH_TRUSTED\n"
+	     "                 CKA_UNWRAP_TEMPLATE\n"
 	     "   supported values:\n"
-	     "                 true / false / [ASCII-string]\n"
-	     "\n"
+	     "                 true / false / [ASCII-string] / date / { template attributes }\n"
 	     "\n"
              " ENVIRONMENT VARIABLES:\n"
 	     "    PKCS11LIB         : path to PKCS#11 library,\n"
@@ -116,8 +116,13 @@ int main( int argc, char ** argv )
     func_rc retcode = rc_ok;
     int p11unwraprc = EX_OK;
 
-    CK_ATTRIBUTE *attrs=NULL;
-    size_t attrs_cnt=0;
+    attribCtx *actx = NULL;
+
+    actx = pkcs11_new_attribcontext();
+
+    if(actx==NULL) {
+	goto err;
+    }
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
@@ -199,11 +204,9 @@ int main( int argc, char ** argv )
     }
 
     if(optind<argc) {
-	if( (attrs_cnt=get_attributes_from_argv( &attrs, optind , argc, argv)) == 0 ) {
-	    fprintf( stderr, "Attributes passed as argument could not be read.\n"
-		     "Try `%s -h' for more information.\n", argv[0]);
-	    retcode = rc_error_invalid_argument;
-	    goto err;
+	retcode = pkcs11_parse_attribs_from_argv(actx, optind, argc, argv, NULL);
+	if(retcode!=rc_ok) {
+	    errflag++;
 	}
     }
 
@@ -236,7 +239,13 @@ int main( int argc, char ** argv )
 	wrappedKeyCtx *wctx = pkcs11_new_wrapped_key_from_file(p11Context, filename);
 
 	if(wctx) {
-	    retcode = pkcs11_unwrap(p11Context, wctx, wrappingkeylabel, wrappedkeylabel, attrs, attrs_cnt, kg_token);
+	    retcode = pkcs11_unwrap( p11Context,
+				     wctx,
+				     wrappingkeylabel,
+				     wrappedkeylabel,
+				     pkcs11_get_attrlist_from_attribctx(actx),
+				     pkcs11_get_attrnum_from_attribctx(actx),
+				     kg_token);
 
 	    pkcs11_free_wrappedkeycontext( wctx );
 	} else {
@@ -250,6 +259,7 @@ int main( int argc, char ** argv )
 err:
 
     pkcs11_freeContext(p11Context);
+    if(actx) { pkcs11_free_attribcontext(actx); actx = NULL; }
 
     switch(retcode) {
     case rc_error_usage:

@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.6.4.  */
+/* A Bison parser, made by GNU Bison 3.7.6.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2021 Free Software Foundation,
    Inc.
 
    This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -45,7 +45,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 34 "wrappedkey_parser.y"
+#line 39 "wrappedkey_parser.y"
 
 
 #include "pkcs11lib.h"
@@ -96,15 +96,16 @@ extern int yylex(void);
     CKATTR_DATE = 285,             /* CKATTR_DATE  */
     CKATTR_KEY = 286,              /* CKATTR_KEY  */
     CKATTR_CLASS = 287,            /* CKATTR_CLASS  */
-    TOK_BOOLEAN = 288,             /* TOK_BOOLEAN  */
-    TOK_DATE = 289,                /* TOK_DATE  */
-    KEYTYPE = 290,                 /* KEYTYPE  */
-    OCLASS = 291,                  /* OCLASS  */
-    DOTTEDNUMBER = 292,            /* DOTTEDNUMBER  */
-    WRAPPINGJOBHEADER = 293,       /* WRAPPINGJOBHEADER  */
-    P_WRAPPINGKEY = 294,           /* P_WRAPPINGKEY  */
-    P_FILENAME = 295,              /* P_FILENAME  */
-    P_ALGORITHM = 296              /* P_ALGORITHM  */
+    CKATTR_TEMPLATE = 288,         /* CKATTR_TEMPLATE  */
+    TOK_BOOLEAN = 289,             /* TOK_BOOLEAN  */
+    TOK_DATE = 290,                /* TOK_DATE  */
+    KEYTYPE = 291,                 /* KEYTYPE  */
+    OCLASS = 292,                  /* OCLASS  */
+    DOTTEDNUMBER = 293,            /* DOTTEDNUMBER  */
+    WRAPPINGJOBHEADER = 294,       /* WRAPPINGJOBHEADER  */
+    P_WRAPPINGKEY = 295,           /* P_WRAPPINGKEY  */
+    P_FILENAME = 296,              /* P_FILENAME  */
+    P_ALGORITHM = 297              /* P_ALGORITHM  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -113,7 +114,7 @@ extern int yylex(void);
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 47 "wrappedkey_parser.y"
+#line 52 "wrappedkey_parser.y"
 
     CK_ATTRIBUTE_TYPE ckattr;
     CK_KEY_TYPE val_key;
@@ -143,7 +144,7 @@ union YYSTYPE
     unsigned char *val_pem;	/* used to hold PEM-encoded blocks */
     char *val_dottednumber;
 
-#line 147 "wrappedkey_parser.h"
+#line 148 "wrappedkey_parser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

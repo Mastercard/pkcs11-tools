@@ -186,7 +186,7 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
     if( pkcs11_read_attr_from_handle_ext (attrs, hndl,
 					  CKR_ATTRIBUTE_SENSITIVE, /* we skip over sensitive attributes */
 					  CKR_FUNCTION_FAILED,     /* workaround for nCipher bug 30966 */
-					  0L) == CK_TRUE) {
+					  0L) == true) {
 
 	CK_ATTRIBUTE_PTR oclass = pkcs11_get_attr_in_attrlist(attrs, CKA_CLASS);
 	CK_ATTRIBUTE_PTR oktype = pkcs11_get_attr_in_attrlist(attrs, CKA_KEY_TYPE);

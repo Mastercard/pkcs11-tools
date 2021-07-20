@@ -64,7 +64,6 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 				     unsigned char *buffer,
 				     size_t len,
 				     char *label,
-				     int trusted,
 				     CK_ATTRIBUTE attrs[],
 				     CK_ULONG numattrs,
 				     pubk_source_type source);
@@ -74,6 +73,12 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 static int compare_CKA( const void *a, const void *b)
 {
     return ((CK_ATTRIBUTE_PTR)a)->type == ((CK_ATTRIBUTE_PTR)b)->type ? 0 : -1;
+}
+
+/* when importing a key, we want to skip these parameters from template */
+static inline bool is_attribute_skipped( const CK_ATTRIBUTE_TYPE attrib)
+{
+    return attrib==CKA_TOKEN || attrib==CKA_CLASS || attrib==CKA_KEY_TYPE;
 }
 
 static EVP_PKEY * new_pubk_from_file(char *filename)
@@ -948,14 +953,13 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 				     unsigned char *buffer,
 				     size_t len,
 				     char *label,
-				     int trusted,
 				     CK_ATTRIBUTE attrs[],
 				     CK_ULONG numattrs,
 				     pubk_source_type source
     )
 {
 
-    CK_OBJECT_HANDLE hPubk = NULL_PTR;
+    CK_OBJECT_HANDLE pubkhandle = NULL_PTR;
 
     CK_RV retCode;
     CK_OBJECT_CLASS pubkClass = CKO_PUBLIC_KEY;
@@ -965,6 +969,19 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
     CK_BBOOL ck_true = CK_TRUE;
 
     EVP_PKEY *pubk = NULL;
+    size_t i;
+
+    /* When importing a public key, two cases are supported:
+     * - importing a public key from `p11importpubk`
+     *   in this case, there is a 'default' template that creates useful public keys
+     *   that template is then adjusted using attributes given at the command line
+     *
+     * - importing a public key from `p11unwrap`
+     *   in this case, the default template is "pristine", and is adjusted using
+     *   what is provided from the wrap file. This is to ensure that no attibute
+     *   is enabled by mistake.
+     *
+     */
 
     switch(source) {
     case source_file:
@@ -1001,110 +1018,118 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 	    CK_BYTE_PTR rsa_public_exponent = NULL;
 	    CK_ULONG rsa_public_exponent_len =0;
 
-	    CK_ATTRIBUTE pubkTemplate[] = {
+	    CK_ATTRIBUTE pubktemplate[] = {
 		{CKA_CLASS, &pubkClass, sizeof pubkClass},       /* 0  */
 		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},      /* 1  */
 		{CKA_ID, NULL, 0},				 /* 2  */
 		{CKA_LABEL, label, label ? strlen(label) : 0 },	 /* 3  */
-		{CKA_ENCRYPT, &ck_true, sizeof ck_true },	 /* 4  */
-		{CKA_WRAP, &ck_true, sizeof ck_true },		 /* 5  */
-		{CKA_VERIFY, &ck_true, sizeof ck_true },	 /* 6  */
-		{CKA_VERIFY_RECOVER, &ck_true, sizeof ck_true }, /* 7  */
-		{CKA_TOKEN, &ck_true, sizeof ck_true },		 /* 8  */
-		{CKA_MODULUS, NULL, 0 },                         /* 9  */
-		{CKA_PUBLIC_EXPONENT, NULL, 0 },                 /* 10 */
-		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	 /* 11 */
-		{CKA_TRUSTED, &ck_true, sizeof ck_true },	 /* 12 */
-		/* CKA_TRUSTED set at last position   */
-		/* this flag is CK_FALSE by default      */
-		/* So we don't present it in case     */
-		/* library does not support attribute */
-		/* if trust flag is needed, then we expand */
-		/* the size of the structure by 1     */
+		{CKA_ENCRYPT, source == source_file ? &ck_true : &ck_false, sizeof ck_false },	 /* 4  */
+		{CKA_WRAP,    source == source_file ? &ck_true : &ck_false, sizeof ck_false },	 /* 5  */
+		{CKA_VERIFY,  source == source_file ? &ck_true : &ck_false, sizeof ck_false },	 /* 6  */
+		{CKA_TOKEN, &ck_true, sizeof ck_true },		 /* 7  */
+		{CKA_MODULUS, NULL, 0 },                         /* 8  */
+		{CKA_PUBLIC_EXPONENT, NULL, 0 },                 /* 9 */
+		/* leave room for up to 12 additional attributes */
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
 	    };
+	    
+	    size_t pubk_template_len_max = (sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE));
+	    size_t pubk_template_len_min = pubk_template_len_max - 12;
+	    size_t pubk_num_elems = pubk_template_len_min;
 
 	    pubkType = CKK_RSA;
-
-	    if(source == source_file) {
-		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
-	    }
+	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
 
 	    rsa_modulus_len = get_RSA_modulus( pubk, &rsa_modulus);
 	    rsa_public_exponent_len = get_RSA_public_exponent( pubk, &rsa_public_exponent);
 
-	    if( (source == source_buffer || pubkey_hash_len >0) && rsa_modulus_len>0 && rsa_public_exponent_len>0) {
+	    if(rsa_modulus_len>0 && rsa_public_exponent_len>0) {
 
 		/* we have everything, let's fill in the template */
 
-		pubkTemplate[2].pValue = pubkey_hash; /* CKA_ID */
-		pubkTemplate[2].ulValueLen = pubkey_hash_len;
+		pubktemplate[2].pValue = pubkey_hash; /* CKA_ID */
+		pubktemplate[2].ulValueLen = pubkey_hash_len;
 
-		pubkTemplate[9].pValue = rsa_modulus;
-		pubkTemplate[9].ulValueLen = rsa_modulus_len;
+		pubktemplate[8].pValue = rsa_modulus;
+		pubktemplate[8].ulValueLen = rsa_modulus_len;
 
-		pubkTemplate[10].pValue = rsa_public_exponent;
-		pubkTemplate[10].ulValueLen = rsa_public_exponent_len;
+		pubktemplate[9].pValue = rsa_public_exponent;
+		pubktemplate[9].ulValueLen = rsa_public_exponent_len;
 
-		/* let's override with any boolean attribute given in the command line */
-		/* we consider only the following attributes: */
-		/* CKA_ENCRYPT                                */
-		/* CKA_WRAP                                   */
-		/* CKA_VERIFY                                 */
-		/* CKA_VERIFY_RECOVER                         */
-		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to ck_true */
-		/* note that CKA_TRUSTED is handled separately  */
-		int i;
+		for(i=0; i<numattrs && pubk_num_elems<pubk_template_len_max; i++)
+		{
+		    switch(attrs[i].type) {
+		    case CKA_LABEL:
+		    case CKA_ID:
+		    case CKA_ENCRYPT:
+		    case CKA_WRAP:
+		    case CKA_VERIFY:
+		    case CKA_VERIFY_RECOVER: /* not in template onwards */
+		    case CKA_DERIVE:
+		    case CKA_TRUSTED: 
+		    case CKA_PRIVATE:
+		    case CKA_WRAP_TEMPLATE:
+		    case CKA_COPYABLE:
+		    case CKA_MODIFIABLE:
+		    case CKA_DESTROYABLE:
+		    case CKA_START_DATE:
+		    case CKA_END_DATE:
+		    case CKA_SUBJECT:
+		    case CKA_PUBLIC_KEY_INFO:
+		    {
+			size_t next_pubk_num_elems = pubk_num_elems;
+			
+			CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+							  pubktemplate,
+							  &next_pubk_num_elems,
+							  sizeof(CK_ATTRIBUTE),
+							  compare_CKA );
 
-		for(i=0; i<numattrs; i++) {
-		    /* lsearch will add the keys if not found in the template */
-
-		    size_t arglen = sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE);
-
-		    CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lfind( &attrs[i],
-								       pubkTemplate,
-								       &arglen,
-								       sizeof(CK_ATTRIBUTE),
-								       compare_CKA );
-
-		    /* do we have a match in the template list? */
-		    if(match) {
-			/* if source_buffer, we apply ALL matches except label, if it is non-null */
-			if(source==source_buffer) {
-			    if(match->type!=CKA_LABEL || label==NULL) {
-				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-				match->ulValueLen = attrs[i].ulValueLen;
+			/* if we have a match and the record was not created by lsearch */
+			/* steal the pointer from attrs array. */
+			/* It's OK as the template is sitting on the stack, no need */
+			/* to dealloc when leaving scope  */
+			if(match) {
+			    if(next_pubk_num_elems==pubk_num_elems) {
+				match->pValue = attrs[i].pValue;           /* copy pointer */
+				match->ulValueLen = attrs[i].ulValueLen;   /* adjust length */
+			    }
+			    else {
+				/* everything was copied by lsearch */
+				/* just increment array length */
+				pubk_num_elems = next_pubk_num_elems;      
 			    }
 			} else {
-			    switch(match->type) {
-			    case CKA_ENCRYPT:
-			    case CKA_WRAP:
-			    case CKA_VERIFY:
-			    case CKA_VERIFY_RECOVER:
-			    case CKA_MODIFIABLE:
-				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-				match->ulValueLen = attrs[i].ulValueLen;
-				break;
-
-			    default:
-				break;
-				/* we do nothing */
-			    }
+			    fprintf(stderr, "***Error: can't update attribute array - skipping 0x%08lx\n", attrs[i].type);
+			    /* TODO print attribute text */
 			}
 		    }
-		}
+		    break;
 
-		/* if -T is set: we want trusted */
-		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
+		    default:
+			if(!is_attribute_skipped(attrs[i].type)) {
+			    fprintf(stderr, "***Warning: attribute 0x%08lx skipped\n", attrs[i].type);
+			    /* pass */
+			}
+			break;
+		    }
 		}
-
-		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
-		/* and as such we are not messing up with the template, we take it as it is */
+		
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
-								  pubkTemplate,
-								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
-								  &hPubk);
+								  pubktemplate,
+								  pubk_num_elems,
+								  &pubkhandle);
 
 		if(retCode!=CKR_OK) {
 		    pkcs11_error( retCode, "CreateObject" );
@@ -1136,116 +1161,126 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 	    CK_ULONG dsa_pubkey_len = 0;
 
 
-	    CK_ATTRIBUTE pubkTemplate[] = {
+	    CK_ATTRIBUTE pubktemplate[] = {
 		{CKA_CLASS, &pubkClass, sizeof pubkClass},           /* 0  */
 		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
 		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
-		{CKA_VERIFY, &ck_true, sizeof ck_true },		     /* 4  */
+		{CKA_VERIFY, source == source_file ? &ck_true : &ck_false, sizeof ck_false }, /* 4  */
 		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 5  */
 		{CKA_PRIME, NULL, 0 },                               /* 6  */
 		{CKA_SUBPRIME, NULL, 0 },                            /* 7  */
 		{CKA_BASE, NULL, 0 },                                /* 8  */
 		{CKA_VALUE, NULL, 0 },                               /* 9  */
-		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 10 */
-		{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 11 */
-		/* CKA_TRUSTED set at last position   */
-		/* this flag is CK_FALSE by default      */
-		/* So we don't present it in case     */
-		/* library does not support attribute */
-		/* if trust flag is needed, then we expand */
-		/* the size of the structure by 1     */
+		/* leave room for up to 12 additional attributes */
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
 	    };
 
-	    pubkType = CKK_DSA;
+	    size_t pubk_template_len_max = (sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE));
+	    size_t pubk_template_len_min = pubk_template_len_max - 12;
+	    size_t pubk_num_elems = pubk_template_len_min;
 
-	    if(source == source_file) {
-		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
-	    }
+	    pubkType = CKK_DSA;
+	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
 
 	    dsa_prime_len = get_DSA_prime( pubk, &dsa_prime);          /* p */
 	    dsa_subprime_len = get_DSA_subprime( pubk, &dsa_subprime); /* q */
 	    dsa_base_len = get_DSA_base( pubk, &dsa_base);             /* g */
 	    dsa_pubkey_len = get_DSA_pubkey( pubk, &dsa_pubkey);       /* public key */
 
-	    if( (source == source_buffer || pubkey_hash_len >0) &&
-		dsa_prime_len > 0 &&
+	    if( dsa_prime_len > 0 &&
 		dsa_subprime_len > 0 &&
 		dsa_base_len > 0 &&
 		dsa_pubkey_len > 0 ) {
 
 		/* we have everything, let's fill in the template */
 
-		pubkTemplate[2].pValue = pubkey_hash; /* CKA_ID */
-		pubkTemplate[2].ulValueLen = pubkey_hash_len;
+		pubktemplate[2].pValue = pubkey_hash; /* CKA_ID */
+		pubktemplate[2].ulValueLen = pubkey_hash_len;
 
-		pubkTemplate[6].pValue = dsa_prime;
-		pubkTemplate[6].ulValueLen = dsa_prime_len;
+		pubktemplate[6].pValue = dsa_prime;
+		pubktemplate[6].ulValueLen = dsa_prime_len;
 
-		pubkTemplate[7].pValue = dsa_subprime;
-		pubkTemplate[7].ulValueLen = dsa_subprime_len;
+		pubktemplate[7].pValue = dsa_subprime;
+		pubktemplate[7].ulValueLen = dsa_subprime_len;
 
-		pubkTemplate[8].pValue = dsa_base;
-		pubkTemplate[8].ulValueLen = dsa_base_len;
+		pubktemplate[8].pValue = dsa_base;
+		pubktemplate[8].ulValueLen = dsa_base_len;
 
-		pubkTemplate[9].pValue = dsa_pubkey;
-		pubkTemplate[9].ulValueLen = dsa_pubkey_len;
+		pubktemplate[9].pValue = dsa_pubkey;
+		pubktemplate[9].ulValueLen = dsa_pubkey_len;
 
-		/* let's override with any boolean attribute given in the command line */
-		/* we consider only the following attributes: */
-		/* CKA_VERIFY                                 */
-		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to ck_true */
-		/* note that CKA_TRUSTED is handled separately  */
-		int i;
+		for(i=0; i<numattrs && pubk_num_elems<pubk_template_len_max; i++)
+		{
+		    switch(attrs[i].type) {
+		    case CKA_LABEL:
+		    case CKA_ID:
+		    case CKA_VERIFY:
+		    case CKA_VERIFY_RECOVER: /* not in template onwards */
+		    case CKA_DERIVE:
+		    case CKA_TRUSTED: 
+		    case CKA_PRIVATE:
+		    case CKA_COPYABLE:
+		    case CKA_MODIFIABLE:
+		    case CKA_DESTROYABLE:
+		    case CKA_START_DATE:
+		    case CKA_END_DATE:
+		    case CKA_SUBJECT:
+		    case CKA_PUBLIC_KEY_INFO:
+		    {
+			size_t next_pubk_num_elems = pubk_num_elems;
+			
+			CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+							  pubktemplate,
+							  &next_pubk_num_elems,
+							  sizeof(CK_ATTRIBUTE),
+							  compare_CKA );
 
-		for(i=0; i<numattrs; i++) {
-		    /* lsearch will add the keys if not found in the template */
-
-		    size_t arglen = sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE);
-
-		    CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lfind( &attrs[i],
-								       pubkTemplate,
-								       &arglen,
-								       sizeof(CK_ATTRIBUTE),
-								       compare_CKA );
-
-		    /* do we have a match in the template list? */
-		    if(match) {
-			/* if source_buffer, we apply ALL matches except label, if it is non-null */
-			if(source==source_buffer) {
-			    if(match->type!=CKA_LABEL || label==NULL) {
-				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-				match->ulValueLen = attrs[i].ulValueLen;
+			/* if we have a match and the record was not created by lsearch */
+			/* steal the pointer from attrs array. */
+			/* It's OK as the template is sitting on the stack, no need */
+			/* to dealloc when leaving scope  */
+			if(match) {
+			    if(next_pubk_num_elems==pubk_num_elems) {
+				match->pValue = attrs[i].pValue;           /* copy pointer */
+				match->ulValueLen = attrs[i].ulValueLen;   /* adjust length */
+			    }
+			    else {
+				/* everything was copied by lsearch */
+				/* just increment array length */
+				pubk_num_elems = next_pubk_num_elems;      
 			    }
 			} else {
-			    switch(match->type) {
-			    case CKA_VERIFY:
-			    case CKA_VERIFY_RECOVER:
-			    case CKA_MODIFIABLE:
-				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-				match->ulValueLen = attrs[i].ulValueLen;
-				break;
-
-			    default:
-				break;
-				/* we do nothing */
-			    }
+			    fprintf(stderr, "***Error: can't update attribute array - skipping 0x%08lx\n", attrs[i].type);
+			    /* TODO print attribute text */
 			}
+		    }
+		    break;
+
+		    default:
+			if(!is_attribute_skipped(attrs[i].type)) {
+			    fprintf(stderr, "***Warning: attribute 0x%08lx skipped\n", attrs[i].type);
+			    /* pass */
+			}
+			break;
 		    }
 		}
 
-		/* if -T is set: we want trusted */
-		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
-		}
-
-		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
-		/* and as such we are not messing up with the template, we take it as it is */
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
-								  pubkTemplate,
-								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
-								  &hPubk);
+								  pubktemplate,
+								  pubk_num_elems,
+								  &pubkhandle);
 
 		pkcs11_error( retCode, "CreateObject" );
 
@@ -1274,109 +1309,118 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 	    CK_BYTE_PTR dh_pubkey = NULL;
 	    CK_ULONG dh_pubkey_len = 0;
 
-	    CK_ATTRIBUTE pubkTemplate[] = {
+	    CK_ATTRIBUTE pubktemplate[] = {
 		{CKA_CLASS, &pubkClass, sizeof pubkClass},           /* 0  */
 		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
 		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
-		{CKA_DERIVE, &ck_true, sizeof ck_true },		     /* 4  */
+		{CKA_DERIVE, source == source_file ? &ck_true : &ck_false, sizeof ck_false }, /* 4  */
 		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 5  */
 		{CKA_PRIME, NULL, 0 },                               /* 6  */
 		{CKA_BASE, NULL, 0 },                                /* 7  */
 		{CKA_VALUE, NULL, 0 },                               /* 8  */
-		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 9  */
-		{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 10 */
-		/* CKA_TRUSTED set at last position   */
-		/* this flag is CK_FALSE by default      */
-		/* So we don't present it in case     */
-		/* library does not support attribute */
-		/* if trust flag is needed, then we expand */
-		/* the size of the structure by 1     */
+		/* leave room for up to 12 additional attributes */
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
 	    };
 
-	    pubkType = CKK_DH;
+	    size_t pubk_template_len_max = (sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE));
+	    size_t pubk_template_len_min = pubk_template_len_max - 12;
+	    size_t pubk_num_elems = pubk_template_len_min;
 
-	    if( source == source_file) {
-		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
-	    }
+	    pubkType = CKK_DH;
+	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
 
 	    dh_prime_len = get_DH_prime( pubk, &dh_prime);          /* p */
 	    dh_base_len = get_DH_base( pubk, &dh_base);             /* g */
 	    dh_pubkey_len = get_DH_pubkey( pubk, &dh_pubkey);       /* public key */
 
-	    if( pubkey_hash_len >0 &&
-		dh_prime_len > 0 &&
+	    if( dh_prime_len > 0 &&
 		dh_base_len > 0 &&
 		dh_pubkey_len > 0 ) {
 
 		/* we have everything, let's fill in the template */
 
-		pubkTemplate[2].pValue = pubkey_hash; /* CKA_ID */
-		pubkTemplate[2].ulValueLen = pubkey_hash_len;
+		pubktemplate[2].pValue = pubkey_hash; /* CKA_ID */
+		pubktemplate[2].ulValueLen = pubkey_hash_len;
 
-		pubkTemplate[6].pValue = dh_prime;
-		pubkTemplate[6].ulValueLen = dh_prime_len;
+		pubktemplate[6].pValue = dh_prime;
+		pubktemplate[6].ulValueLen = dh_prime_len;
 
-		pubkTemplate[7].pValue = dh_base;
-		pubkTemplate[7].ulValueLen = dh_base_len;
+		pubktemplate[7].pValue = dh_base;
+		pubktemplate[7].ulValueLen = dh_base_len;
 
-		pubkTemplate[8].pValue = dh_pubkey;
-		pubkTemplate[8].ulValueLen = dh_pubkey_len;
+		pubktemplate[8].pValue = dh_pubkey;
+		pubktemplate[8].ulValueLen = dh_pubkey_len;
 
-		/* let's override with any boolean attribute given in the command line */
-		/* we consider only the following attributes: */
-		/* CKA_DERIVE                                 */
-		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to ck_true */
-		/* note that CKA_TRUSTED is handled separately  */
-		int i;
+		for(i=0; i<numattrs && pubk_num_elems<pubk_template_len_max; i++)
+		{
+		    switch(attrs[i].type) {
+		    case CKA_LABEL:
+		    case CKA_ID:
+		    case CKA_DERIVE:
+		    case CKA_TRUSTED: /* not in template onwards */
+		    case CKA_PRIVATE:
+		    case CKA_COPYABLE:
+		    case CKA_MODIFIABLE:
+		    case CKA_DESTROYABLE:
+		    case CKA_START_DATE:
+		    case CKA_END_DATE:
+		    case CKA_SUBJECT:
+		    case CKA_PUBLIC_KEY_INFO:
+		    {
+			size_t next_pubk_num_elems = pubk_num_elems;
+			
+			CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+							  pubktemplate,
+							  &next_pubk_num_elems,
+							  sizeof(CK_ATTRIBUTE),
+							  compare_CKA );
 
-		for(i=0; i<numattrs; i++) {
-		    /* lsearch will add the keys if not found in the template */
-
-		    size_t arglen = sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE);
-
-		    CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lfind( &attrs[i],
-								       pubkTemplate,
-								       &arglen,
-								       sizeof(CK_ATTRIBUTE),
-								       compare_CKA );
-
-		    /* do we have a match in the template list? */
-		    if(match) {
-			/* if source_buffer, we apply ALL matches except label, if it is non-null */
-			if(source==source_buffer) {
-			    if(match->type!=CKA_LABEL || label==NULL) {
-				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-				match->ulValueLen = attrs[i].ulValueLen;
+			/* if we have a match and the record was not created by lsearch */
+			/* steal the pointer from attrs array. */
+			/* It's OK as the template is sitting on the stack, no need */
+			/* to dealloc when leaving scope  */
+			if(match) {
+			    if(next_pubk_num_elems==pubk_num_elems) {
+				match->pValue = attrs[i].pValue;           /* copy pointer */
+				match->ulValueLen = attrs[i].ulValueLen;   /* adjust length */
+			    }
+			    else {
+				/* everything was copied by lsearch */
+				/* just increment array length */
+				pubk_num_elems = next_pubk_num_elems;      
 			    }
 			} else {
-			    switch(match->type) {
-			    case CKA_DERIVE:
-			    case CKA_MODIFIABLE:
-				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-				match->ulValueLen = attrs[i].ulValueLen;
-				break;
-
-			    default:
-				break;
-				/* we do nothing */
-			    }
+			    fprintf(stderr, "***Error: can't update attribute array - skipping 0x%08lx\n", attrs[i].type);
+			    /* TODO print attribute text */
 			}
 		    }
-		}
+		    break;
 
-		/* if -T is set: we want trusted */
-		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
+		    default:
+			if(!is_attribute_skipped(attrs[i].type)) {
+			    fprintf(stderr, "***Warning: attribute 0x%08lx skipped\n", attrs[i].type);
+			    /* pass */
+			}
+			break;
+		    }
 		}
-
-		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
-		/* and as such we are not messing up with the template, we take it as it is */
+		
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
-								  pubkTemplate,
-								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
-								  &hPubk);
+								  pubktemplate,
+								  pubk_num_elems,
+								  &pubkhandle);
 
 		pkcs11_error( retCode, "CreateObject" );
 
@@ -1401,107 +1445,113 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 	    CK_BYTE_PTR ec_point = NULL;
 	    CK_ULONG ec_point_len = 0;
 
-	    CK_ATTRIBUTE pubkTemplate[] = {
+	    CK_ATTRIBUTE pubktemplate[] = {
 		{CKA_CLASS, &pubkClass, sizeof pubkClass },          /* 0  */
 		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
 		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
-		{CKA_VERIFY, &ck_true, sizeof ck_true },             /* 4  */
-		{CKA_DERIVE, &ck_false, sizeof ck_false},            /* 5  */
-		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 6  */
-		{CKA_EC_PARAMS, NULL, 0 },                           /* 7  */
-		{CKA_EC_POINT, NULL, 0 },                            /* 8  */
-		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 9  */
-		{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 10 */
-		/* CKA_TRUSTED set at last position   */
-		/* this flag is CK_FALSE by default      */
-		/* So we don't present it in case     */
-		/* library does not support attribute */
-		/* if trust flag is needed, then we expand */
-		/* the size of the structure by 1     */
+		{CKA_VERIFY, source == source_file ? &ck_true : &ck_false, sizeof ck_false }, /* 4  */
+		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 5  */
+		{CKA_EC_PARAMS, NULL, 0 },                           /* 6  */
+		{CKA_EC_POINT, NULL, 0 },                            /* 7  */
+		/* leave room for up to 12 additional attributes */
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
 	    };
 
-	    pubkType = CKK_EC_EDWARDS;
+	    size_t pubk_template_len_max = (sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE));
+	    size_t pubk_template_len_min = pubk_template_len_max - 12;
+	    size_t pubk_num_elems = pubk_template_len_min;
 
-	    if(source == source_file) {
-		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
-	    }
+	    pubkType = CKK_EC_EDWARDS;
+	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
 
 	    ec_params_len = get_ED_params( pubk, &ec_params);           /* curve parameters */
 	    ec_point_len  = get_ED_point( pubk, &ec_point);             /* curve point */
 
-	    if( (source == source_buffer || pubkey_hash_len >0) &&
-		ec_params_len > 0 &&
-		ec_point_len > 0 ) {
+	    if( ec_params_len > 0 && ec_point_len > 0 ) {
 
 		/* we have everything, let's fill in the template */
 
-		pubkTemplate[2].pValue = pubkey_hash; /* CKA_ID */
-		pubkTemplate[2].ulValueLen = pubkey_hash_len;
+		pubktemplate[2].pValue = pubkey_hash; /* CKA_ID */
+		pubktemplate[2].ulValueLen = pubkey_hash_len;
 
-		pubkTemplate[7].pValue = ec_params;
-		pubkTemplate[7].ulValueLen = ec_params_len;
+		pubktemplate[6].pValue = ec_params;
+		pubktemplate[6].ulValueLen = ec_params_len;
 
-		pubkTemplate[8].pValue = ec_point;
-		pubkTemplate[8].ulValueLen = ec_point_len;
+		pubktemplate[7].pValue = ec_point;
+		pubktemplate[7].ulValueLen = ec_point_len;
 
-		/* let's override with any boolean attribute given in the command line */
-		/* we consider only the following attributes: */
-		/* CKA_VERIFY                                 */
-		/* CKA_DERIVE                                 */
-		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to ck_true */
-		/* note that CKA_TRUSTED is handled separately  */
-		int i;
+		for(i=0; i<numattrs && pubk_num_elems<pubk_template_len_max; i++)
+		{
+		    switch(attrs[i].type) {
+		    case CKA_LABEL:
+		    case CKA_ID:
+		    case CKA_VERIFY:
+		    case CKA_VERIFY_RECOVER: /* not in template onwards */
+		    case CKA_DERIVE:
+		    case CKA_TRUSTED: 
+		    case CKA_PRIVATE:
+		    case CKA_COPYABLE:
+		    case CKA_MODIFIABLE:
+		    case CKA_DESTROYABLE:
+		    case CKA_START_DATE:
+		    case CKA_END_DATE:
+		    case CKA_SUBJECT:
+		    case CKA_PUBLIC_KEY_INFO:
+		    {
+			size_t next_pubk_num_elems = pubk_num_elems;
+			
+			CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+							  pubktemplate,
+							  &next_pubk_num_elems,
+							  sizeof(CK_ATTRIBUTE),
+							  compare_CKA );
 
-		for(i=0; i<numattrs; i++) {
-		    /* lsearch will add the keys if not found in the template */
-
-		    size_t arglen = sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE);
-
-		    CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lfind( &attrs[i],
-								       pubkTemplate,
-								       &arglen,
-								       sizeof(CK_ATTRIBUTE),
-								       compare_CKA );
-
-		    /* do we have a match in the template list? */
-		    if(match) {
-			/* if source_buffer, we apply ALL matches except label, if it is non-null */
-			if(source==source_buffer) {
-			    if(match->type!=CKA_LABEL || label==NULL) {
-				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-				match->ulValueLen = attrs[i].ulValueLen;
+			/* if we have a match and the record was not created by lsearch */
+			/* steal the pointer from attrs array. */
+			/* It's OK as the template is sitting on the stack, no need */
+			/* to dealloc when leaving scope  */
+			if(match) {
+			    if(next_pubk_num_elems==pubk_num_elems) {
+				match->pValue = attrs[i].pValue;           /* copy pointer */
+				match->ulValueLen = attrs[i].ulValueLen;   /* adjust length */
+			    }
+			    else {
+				/* everything was copied by lsearch */
+				/* just increment array length */
+				pubk_num_elems = next_pubk_num_elems;      
 			    }
 			} else {
-			    switch(match->type) {
-			    case CKA_VERIFY:
-			    case CKA_VERIFY_RECOVER:
-			    case CKA_DERIVE:
-			    case CKA_MODIFIABLE:
-				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-				match->ulValueLen = attrs[i].ulValueLen;
-				break;
-
-			    default:
-				break;
-				/* we do nothing */
-			    }
+			    fprintf(stderr, "***Error: can't update attribute array - skipping 0x%08lx\n", attrs[i].type);
+			    /* TODO print attribute text */
 			}
 		    }
-		}
+		    break;
 
-		/* if -T is set: we want trusted */
-		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
+		    default:
+			if(!is_attribute_skipped(attrs[i].type)) {
+			    fprintf(stderr, "***Warning: attribute 0x%08lx skipped\n", attrs[i].type);
+			    /* pass */
+			}
+			break;
+		    }
 		}
-
-		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
-		/* and as such we are not messing up with the template, we take it as it is */
+		
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
-								  pubkTemplate,
-								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
-								  &hPubk);
+								  pubktemplate,
+								  pubk_num_elems,
+								  &pubkhandle);
 
 		if(retCode != CKR_OK) {
 		    pkcs11_error( retCode, "CreateObject" );
@@ -1526,107 +1576,116 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 	    CK_BYTE_PTR ec_point = NULL;
 	    CK_ULONG ec_point_len = 0;
 
-	    CK_ATTRIBUTE pubkTemplate[] = {
+	    CK_ATTRIBUTE pubktemplate[] = {
 		{CKA_CLASS, &pubkClass, sizeof pubkClass },          /* 0  */
 		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},	     /* 1  */
 		{CKA_ID, NULL, 0},				     /* 2  */
 		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
-		{CKA_VERIFY, &ck_true, sizeof ck_true },             /* 4  */
-		{CKA_DERIVE, &ck_false, sizeof ck_false},            /* 5  */
-		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 6  */
-		{CKA_EC_PARAMS, NULL, 0 },                           /* 7  */
-		{CKA_EC_POINT, NULL, 0 },                            /* 8  */
-		{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 9  */
-		{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 10 */
-		/* CKA_TRUSTED set at last position   */
-		/* this flag is CK_FALSE by default      */
-		/* So we don't present it in case     */
-		/* library does not support attribute */
-		/* if trust flag is needed, then we expand */
-		/* the size of the structure by 1     */
+		{CKA_VERIFY, source == source_file ? &ck_true : &ck_false, sizeof ck_false}, /* 4  */
+		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 5  */
+		{CKA_EC_PARAMS, NULL, 0 },                           /* 6  */
+		{CKA_EC_POINT, NULL, 0 },                            /* 7  */
+		/* leave room for up to 12 additional attributes */
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},		
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},		
 	    };
 
-	    pubkType = CKK_EC;
+	    size_t pubk_template_len_max = (sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE));
+	    size_t pubk_template_len_min = pubk_template_len_max - 12;
+	    size_t pubk_num_elems = pubk_template_len_min;
 
-	    if(source == source_file) {
-		pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
-	    }
+	    pubkType = CKK_EC;
+	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
 
 	    ec_params_len = get_EC_params( pubk, &ec_params);           /* curve parameters */
 	    ec_point_len  = get_EC_point( pubk, &ec_point);             /* curve point */
 
-	    if( (source == source_buffer || pubkey_hash_len >0) &&
-		ec_params_len > 0 &&
+	    if( ec_params_len > 0 &&
 		ec_point_len > 0 ) {
 
 		/* we have everything, let's fill in the template */
 
-		pubkTemplate[2].pValue = pubkey_hash; /* CKA_ID */
-		pubkTemplate[2].ulValueLen = pubkey_hash_len;
+		pubktemplate[2].pValue = pubkey_hash; /* CKA_ID */
+		pubktemplate[2].ulValueLen = pubkey_hash_len;
 
-		pubkTemplate[7].pValue = ec_params;
-		pubkTemplate[7].ulValueLen = ec_params_len;
+		pubktemplate[6].pValue = ec_params;
+		pubktemplate[6].ulValueLen = ec_params_len;
 
-		pubkTemplate[8].pValue = ec_point;
-		pubkTemplate[8].ulValueLen = ec_point_len;
+		pubktemplate[7].pValue = ec_point;
+		pubktemplate[7].ulValueLen = ec_point_len;
 
-		/* let's override with any boolean attribute given in the command line */
-		/* we consider only the following attributes: */
-		/* CKA_VERIFY                                 */
-		/* CKA_DERIVE                                 */
-		/* CKA_MODIFIABLE                             */
-		/* by default, all these attributes are set to ck_true */
-		/* note that CKA_TRUSTED is handled separately  */
-		int i;
+		for(i=0; i<numattrs && pubk_num_elems<pubk_template_len_max; i++)
+		{
+		    switch(attrs[i].type) {
+		    case CKA_LABEL:
+		    case CKA_ID:
+		    case CKA_WRAP:
+		    case CKA_VERIFY:
+		    case CKA_VERIFY_RECOVER: /* not in template onwards */
+		    case CKA_DERIVE:
+		    case CKA_TRUSTED: 
+		    case CKA_PRIVATE:
+		    case CKA_WRAP_TEMPLATE:
+		    case CKA_COPYABLE:
+		    case CKA_MODIFIABLE:
+		    case CKA_DESTROYABLE:
+		    case CKA_START_DATE:
+		    case CKA_END_DATE:
+		    case CKA_SUBJECT:
+		    case CKA_PUBLIC_KEY_INFO:
+		    {
+			size_t next_pubk_num_elems = pubk_num_elems;
+			
+			CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+							  pubktemplate,
+							  &next_pubk_num_elems,
+							  sizeof(CK_ATTRIBUTE),
+							  compare_CKA );
 
-		for(i=0; i<numattrs; i++) {
-		    /* lsearch will add the keys if not found in the template */
-
-		    size_t arglen = sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE);
-
-		    CK_ATTRIBUTE_PTR match = (CK_ATTRIBUTE_PTR) lfind( &attrs[i],
-								       pubkTemplate,
-								       &arglen,
-								       sizeof(CK_ATTRIBUTE),
-								       compare_CKA );
-
-		    /* do we have a match in the template list? */
-		    if(match) {
-			/* if source_buffer, we apply ALL matches except label, if it is non-null */
-			if(source==source_buffer) {
-			    if(match->type!=CKA_LABEL || label==NULL) {
-				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-				match->ulValueLen = attrs[i].ulValueLen;
+			/* if we have a match and the record was not created by lsearch */
+			/* steal the pointer from attrs array. */
+			/* It's OK as the template is sitting on the stack, no need */
+			/* to dealloc when leaving scope  */
+			if(match) {
+			    if(next_pubk_num_elems==pubk_num_elems) {
+				match->pValue = attrs[i].pValue;           /* copy pointer */
+				match->ulValueLen = attrs[i].ulValueLen;   /* adjust length */
+			    }
+			    else {
+				/* everything was copied by lsearch */
+				/* just increment array length */
+				pubk_num_elems = next_pubk_num_elems;      
 			    }
 			} else {
-			    switch(match->type) {
-			    case CKA_VERIFY:
-			    case CKA_VERIFY_RECOVER:
-			    case CKA_DERIVE:
-			    case CKA_MODIFIABLE:
-				match->pValue = attrs[i].pValue; /* we use the value passed as argument. Do not free it afterwards! */
-				match->ulValueLen = attrs[i].ulValueLen;
-				break;
-
-			    default:
-				break;
-				/* we do nothing */
-			    }
+			    fprintf(stderr, "***Error: can't update attribute array - skipping 0x%08lx\n", attrs[i].type);
+			    /* TODO print attribute text */
 			}
 		    }
-		}
+		    break;
 
-		/* if -T is set: we want trusted */
-		if(trusted) {
-		    pubkTemplate[ (sizeof(pubkTemplate) / sizeof(CK_ATTRIBUTE))-2 ].pValue = &ck_false; /* then CKA_MODIFIABLE must be ck_false */
+		    default:
+			if(!is_attribute_skipped(attrs[i].type)) {
+			    fprintf(stderr, "***Warning: attribute 0x%08lx skipped\n", attrs[i].type);
+			    /* pass */
+			}
+			break;
+		    }
 		}
-
-		/* if the source is not source_file, (assumed source_buffer), then we are called from p11unwrap */
-		/* and as such we are not messing up with the template, we take it as it is */
+		
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
-								  pubkTemplate,
-								  (trusted ? sizeof(pubkTemplate) : sizeof(pubkTemplate)-2) / sizeof(CK_ATTRIBUTE),
-								  &hPubk);
+								  pubktemplate,
+								  pubk_num_elems,
+								  &pubkhandle);
 
 		if(retCode != CKR_OK) {
 		    pkcs11_error( retCode, "CreateObject" );
@@ -1649,7 +1708,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 	OPENSSL_free(pubk);
 
     }
-    return hPubk;
+    return pubkhandle;
 }
 
 /* public interface */
@@ -1662,19 +1721,17 @@ inline CK_ULONG pkcs11_new_SKI_value_from_pubk(EVP_PKEY *pubkey, CK_BYTE_PTR *bu
 inline CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 					   char *filename,
 					   char *label,
-					   int trusted,
 					   CK_ATTRIBUTE attrs[],
 					   CK_ULONG numattrs ) {
-    return _importpubk(p11Context, filename, NULL, 0, label, trusted, attrs, numattrs, source_file);
+    return _importpubk(p11Context, filename, NULL, 0, label, attrs, numattrs, source_file);
 }
 
 inline CK_OBJECT_HANDLE pkcs11_importpubk_from_buffer( pkcs11Context * p11Context,
 						       unsigned char *buffer,
 						       size_t len,
 						       char *label,
-						       int trusted,
 						       CK_ATTRIBUTE attrs[],
 						       CK_ULONG numattrs ) {
-    return _importpubk(p11Context, NULL, buffer, len, label, trusted, attrs, numattrs, source_buffer);
+    return _importpubk(p11Context, NULL, buffer, len, label, attrs, numattrs, source_buffer);
 }
 

@@ -174,17 +174,20 @@ static func_rc _wrappedkey_parser_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_
     CK_ATTRIBUTE_PTR match=NULL;
 
     CK_ATTRIBUTE **attrlist=NULL;
-    CK_ULONG *attrlen;
+    size_t *attrnum;
+
+    /* attrlist = &clctx->attrs[clctx->current_idx].attrlist; */
+    /* attrnum  = &clctx->attrs[clctx->current_idx].attrnum; */
 
     switch(target) {
     case target_wkey:
-	attrlist = &wctx->attrlist;
-	attrlen = &wctx->attrlen;
+	attrlist = &wctx->wrpkattribs->attrs[wctx->wrpkattribs->current_idx].attrlist;
+	attrnum =  &wctx->wrpkattribs->attrs[wctx->wrpkattribs->current_idx].attrnum;
 	break;
 
     case target_pubk:
-	attrlist = &wctx->pubkattrlist;
-	attrlen = &wctx->pubkattrlen;
+	attrlist = &wctx->pubkattribs->attrs[wctx->pubkattribs->current_idx].attrlist;
+	attrnum = &wctx->pubkattribs->attrs[wctx->pubkattribs->current_idx].attrnum;
 	break;
 
     default:
@@ -202,24 +205,32 @@ static func_rc _wrappedkey_parser_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_
 	goto error;
     }
 
-    memcpy(stuffing.pValue, buffer, len); /* copy the value */
+    if(pkcs11_attr_is_template(attrtyp)) {
+	stuffing.pValue = buffer; /* we pass the pointer, we don't allocate */
+    } else {
+	stuffing.pValue = malloc(len);
+
+	if(stuffing.pValue == NULL) {
+	    fprintf(stderr, "Memory error\n");
+	    rc = rc_error_memory;
+	    goto error;
+	}
+
+	memcpy(stuffing.pValue, buffer, len); /* copy the value */
+    }
     stuffing.ulValueLen = len;
 
-    if(*attrlen==PARSING_MAX_ATTRS-1) {
+    if(*attrnum==PARSING_MAX_ATTRS-1) {
 	fprintf(stderr, "reached maximum number of attributes in parsing\n");
 	rc = rc_error_memory;
 	goto error;
     }
 
-    size_t arglen = *attrlen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
-
     match = (CK_ATTRIBUTE_PTR ) lsearch ( &stuffing,
 					  *attrlist,
-					  &arglen,
+					  attrnum,
 					  sizeof(CK_ATTRIBUTE),
 					  compare_CKA );
-
-    *attrlen = arglen; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
 
     if( match == &stuffing) { /* match, we may need to adjust the content */
 	if(match->pValue) { free(match->pValue); /* just in case */ }
@@ -235,7 +246,7 @@ static func_rc _wrappedkey_parser_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_
 
 error:
     /* clean up */
-    if (stuffing.pValue != NULL) { free(stuffing.pValue); }
+    if (stuffing.pValue != NULL && !pkcs11_attr_is_template(stuffing.type)) { free(stuffing.pValue); }
 
     return rc;
 }
@@ -365,3 +376,85 @@ func_rc _wrappedkey_parser_wkey_set_filename(wrappedKeyCtx *wctx, char *filename
     wctx->filename = strdup(filename);
     return rc_ok;
 }
+
+
+func_rc _wrappedkey_parser_assign_list_to_template(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE attrtyp, parser_attr_target target)
+{
+    func_rc rc = rc_ok;
+
+    attribCtx *actx;
+    
+    switch(target) {
+    case target_wkey:
+	actx = wctx->wrpkattribs;
+	break;
+
+    case target_pubk:
+	actx = wctx->pubkattribs;
+	break;
+
+    default:
+	rc = rc_error_oops;
+	goto error;
+    }
+
+    switch(attrtyp) {
+    case CKA_WRAP_TEMPLATE:
+	if(actx->has_wrap_template==true) {
+	    fprintf(stderr, "***Error: a wrap template can only be specified once\n");
+	    rc = rc_error_parsing;
+	    goto error;
+	}
+	actx->wraptemplate_idx = actx->saved_idx; /* saved_idx is set by lexer */
+	actx->has_wrap_template = true;
+	break;
+
+    case CKA_UNWRAP_TEMPLATE:
+	if(actx->has_unwrap_template==true) {
+	    fprintf(stderr, "***Error: an unwrap template can only be specified once\n");
+	    rc = rc_error_parsing;
+	    goto error;
+	}
+	actx->unwraptemplate_idx = actx->saved_idx; /* saved_idx is set by lexer */
+	actx->has_unwrap_template = true;
+	break;
+
+    case CKA_DERIVE_TEMPLATE:
+	if(actx->has_derive_template==true) {
+	    fprintf(stderr, "***Error: a derive template can only be specified once\n");
+	    rc = rc_error_parsing;
+	    goto error;
+	}
+	actx->derivetemplate_idx = actx->saved_idx; /* saved_idx is set by lexer */
+	actx->has_derive_template = true;
+	break;
+
+    default:
+	fprintf(stderr, "***Error: invalid template type - internal error\n");
+	rc = rc_error_oops;
+	goto error;
+    }
+
+    /* now we need to add a template attribute to the main list */
+    rc = _wrappedkey_parser_append_attr(wctx,
+					attrtyp,
+					actx->attrs[actx->saved_idx].attrlist,
+					actx->attrs[actx->saved_idx].attrnum * sizeof(CK_ATTRIBUTE),
+					target );
+error:
+    return rc;
+}
+
+
+inline func_rc _wrappedkey_parser_wkey_assign_list_to_template(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE attrtyp)
+{
+    return _wrappedkey_parser_assign_list_to_template(wctx, attrtyp, target_wkey);
+}
+
+inline func_rc _wrappedkey_parser_pubk_assign_list_to_template(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE attrtyp)
+{
+    return _wrappedkey_parser_assign_list_to_template(wctx, attrtyp, target_pubk);
+}
+
+    
+/* EOF */

@@ -134,16 +134,18 @@ void print_usage(char *progname)
 	     " ARGUMENTS: ATTRIBUTE=VALUE pairs\n"
 	     "   supported attributes:\n"
 	     "                 CKA_LABEL, CKA_ID,\n"
-             "                 CKA_WRAP, CKA_UNWRAP,\n"
-             "                 CKA_DECRYPT, CKA_ENCRYPT,\n"
+             "                 CKA_UNWRAP,CKA_WRAP\n"
+             "                 CKA_DECRYPT,CKA_ENCRYPT,\n"
 	     "                 CKA_SIGN, CKA_VERIFY,\n"
 	     "                 CKA_SIGN_RECOVER, CKA_VERIFY_RECOVER,\n"
 	     "                 CKA_DERIVE,\n"
              "                 CKA_TRUSTED, CKA_MODIFIABLE,\n"
              "                 CKA_EXTRACTABLE, CKA_SENSITIVE\n"
 	     "                 CKA_WRAP_WITH_TRUSTED\n"
+	     "                 CKA_UNWRAP_TEMPLATE\n"
+	     "                 CKA_WRAP_TEMPLATE\n"
 	     "   supported values:\n"
-	     "                 true / false / [ASCII-string]\n"
+	     "                 true / false / [ASCII-string] / date / { template attributes }\n"
 	     "\n"
              " ENVIRONMENT VARIABLES:\n"
 	     "    PKCS11LIB         : path to PKCS#11 library,\n"
@@ -186,16 +188,21 @@ int main( int argc, char ** argv )
     CK_ULONG kb=0;
     char *param=NULL;
 
-    CK_ATTRIBUTE *attrs=NULL;
-    size_t attrs_cnt=0;
+    attribCtx *actx = NULL;
 
     wrappedKeyCtx *wctx = NULL;
     wrappingjob_t wrappingjob[MAX_WRAPPINGJOB];
     int numjobs = 0;
     int numfailed = 0;
     int removetokencopy = 0;
-
     int i;
+
+    actx = pkcs11_new_attribcontext();
+
+    if(actx==NULL) {
+	goto epilog;
+    }
+
     for(i=0; i<MAX_WRAPPINGJOB;i++) {
 	wrappingjob[i].wrappingkeylabel = wrappingjob[i].filename = NULL;
 	wrappingjob[i].algorithm = DEFAULT_ALGORITHM;
@@ -334,10 +341,9 @@ int main( int argc, char ** argv )
     }
 
     if(optind<argc) {
-	if( (attrs_cnt=get_attributes_from_argv( &attrs, optind , argc, argv)) == 0 ) {
-	    fprintf( stderr, "Try `%s -h' for more information.\n", argv[0]);
-	    retcode = rc_error_invalid_argument;
-	    goto epilog;
+	retcode = pkcs11_parse_attribs_from_argv(actx , optind, argc, argv, NULL);
+	if(retcode!=rc_ok) {
+	    errflag++;
 	}
     }
 
@@ -391,8 +397,8 @@ int main( int argc, char ** argv )
 	    switch(keytype) {
 	    case aes:
 		retcode = pkcs11_genAES( p11Context, label, kb,
-					 attrs,
-					 attrs_cnt,
+					 pkcs11_get_attrlist_from_attribctx(actx),
+					 pkcs11_get_attrnum_from_attribctx(actx),
 					 &keyhandle,
 					 keygentype
 		    );
@@ -400,8 +406,8 @@ int main( int argc, char ** argv )
 
 	    case des:
 		retcode = pkcs11_genDESX( p11Context, label, kb,
-					  attrs,
-					  attrs_cnt,
+					  pkcs11_get_attrlist_from_attribctx(actx),
+					  pkcs11_get_attrnum_from_attribctx(actx),    
 					  &keyhandle,
 					  keygentype);
 		break;
@@ -415,16 +421,16 @@ int main( int argc, char ** argv )
 	    case hmacsha512:
 #endif
 		retcode = pkcs11_genGeneric( p11Context, label, keytype, kb,
-					     attrs,
-					     attrs_cnt,
+					     pkcs11_get_attrlist_from_attribctx(actx),
+					     pkcs11_get_attrnum_from_attribctx(actx),
 					     &keyhandle,
 					     keygentype);
 		break;
 
 	    case rsa:
 		retcode = pkcs11_genRSA( p11Context, label, kb,
-					 attrs,
-					 attrs_cnt,
+					 pkcs11_get_attrlist_from_attribctx(actx),
+					 pkcs11_get_attrnum_from_attribctx(actx),					 
 					 &pubkhandle,
 					 &keyhandle,
 					 keygentype);
@@ -437,8 +443,8 @@ int main( int argc, char ** argv )
 
 	    case ec:
 		retcode = pkcs11_genEC( p11Context, label, param ? param : "prime256v1" ,
-					attrs,
-					attrs_cnt,
+					pkcs11_get_attrlist_from_attribctx(actx),
+					pkcs11_get_attrnum_from_attribctx(actx),					 
 					&pubkhandle,
 					&keyhandle,
 					keygentype);
@@ -450,8 +456,8 @@ int main( int argc, char ** argv )
 
 	    case ed:
 		retcode = pkcs11_genED( p11Context, label, param ? param : "ED25519" ,
-					attrs,
-					attrs_cnt,
+					pkcs11_get_attrlist_from_attribctx(actx),
+					pkcs11_get_attrnum_from_attribctx(actx),					 
 					&pubkhandle,
 					&keyhandle,
 					keygentype);
@@ -463,8 +469,8 @@ int main( int argc, char ** argv )
 
 	    case dsa:
 		retcode = pkcs11_genDSA( p11Context, label, param,
-					 attrs,
-					 attrs_cnt,
+					 pkcs11_get_attrlist_from_attribctx(actx),
+					 pkcs11_get_attrnum_from_attribctx(actx),					 
 					 &pubkhandle,
 					 &keyhandle,
 					 keygentype);
@@ -476,8 +482,8 @@ int main( int argc, char ** argv )
 
 	    case dh:
 		retcode = pkcs11_genDH( p11Context, label, param,
-					attrs,
-					attrs_cnt,
+					pkcs11_get_attrlist_from_attribctx(actx),
+					pkcs11_get_attrnum_from_attribctx(actx),					 
 					&pubkhandle,
 					&keyhandle,
 					keygentype);
@@ -559,9 +565,9 @@ epilog:
 	if(wrappingjob[i].fullstring_allocated==1) { free(wrappingjob[i].fullstring); }
     }
     if(wctx) { pkcs11_free_wrappedkeycontext(wctx); wctx = NULL; }
-    release_attributes( attrs, attrs_cnt );
     pkcs11_freeContext(p11Context);
-
+    if(actx) { pkcs11_free_attribcontext(actx); actx = NULL; }
+    
     switch(retcode) {
     case rc_ok:
 	if(numfailed>0) {

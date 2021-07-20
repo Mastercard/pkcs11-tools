@@ -1,8 +1,10 @@
-#ifndef yyHEADER_H
-#define yyHEADER_H 1
-#define yyIN_HEADER 1
+#ifndef clHEADER_H
+#define clHEADER_H 1
+#define clIN_HEADER 1
 
-#line 6 "wrappedkey_lexer.h"
+#line 6 "attribctx_lexer.h"
+
+#line 8 "attribctx_lexer.h"
 
 #define  YY_INT_ALIGNED short int
 
@@ -126,9 +128,9 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 typedef size_t yy_size_t;
 #endif
 
-extern yy_size_t yyleng;
+extern yy_size_t clleng;
 
-extern FILE *yyin, *yyout;
+extern FILE *clin, *clout;
 
 #ifndef YY_STRUCT_YY_BUFFER_STATE
 #define YY_STRUCT_YY_BUFFER_STATE
@@ -181,38 +183,35 @@ struct yy_buffer_state
 	};
 #endif /* !YY_STRUCT_YY_BUFFER_STATE */
 
-void yyrestart (FILE *input_file  );
-void yy_switch_to_buffer (YY_BUFFER_STATE new_buffer  );
-YY_BUFFER_STATE yy_create_buffer (FILE *file,int size  );
-void yy_delete_buffer (YY_BUFFER_STATE b  );
-void yy_flush_buffer (YY_BUFFER_STATE b  );
-void yypush_buffer_state (YY_BUFFER_STATE new_buffer  );
-void yypop_buffer_state (void );
+void clrestart (FILE *input_file  );
+void cl_switch_to_buffer (YY_BUFFER_STATE new_buffer  );
+YY_BUFFER_STATE cl_create_buffer (FILE *file,int size  );
+void cl_delete_buffer (YY_BUFFER_STATE b  );
+void cl_flush_buffer (YY_BUFFER_STATE b  );
+void clpush_buffer_state (YY_BUFFER_STATE new_buffer  );
+void clpop_buffer_state (void );
 
-YY_BUFFER_STATE yy_scan_buffer (char *base,yy_size_t size  );
-YY_BUFFER_STATE yy_scan_string (yyconst char *yy_str  );
-YY_BUFFER_STATE yy_scan_bytes (yyconst char *bytes,yy_size_t len  );
+YY_BUFFER_STATE cl_scan_buffer (char *base,yy_size_t size  );
+YY_BUFFER_STATE cl_scan_string (yyconst char *yy_str  );
+YY_BUFFER_STATE cl_scan_bytes (yyconst char *bytes,yy_size_t len  );
 
-void *yyalloc (yy_size_t  );
-void *yyrealloc (void *,yy_size_t  );
-void yyfree (void *  );
+void *clalloc (yy_size_t  );
+void *clrealloc (void *,yy_size_t  );
+void clfree (void *  );
 
 /* Begin user sect3 */
 
-#define yywrap(n) 1
+#define clwrap(n) 1
 #define YY_SKIP_YYWRAP
 
-extern int yylineno;
+extern int cllineno;
 
-extern char *yytext;
-#define yytext_ptr yytext
+extern char *cltext;
+#define yytext_ptr cltext
 
 #ifdef YY_HEADER_EXPORT_START_CONDITIONS
 #define INITIAL 0
-#define OUTERKEYPEM 1
-#define INNERKEYPEM 2
-#define PUBKPEM 3
-#define STR 4
+#define STR 1
 
 #endif
 
@@ -231,31 +230,31 @@ extern char *yytext;
 /* Accessor methods to globals.
    These are made visible to non-reentrant scanners for convenience. */
 
-int yylex_destroy (void );
+int cllex_destroy (void );
 
-int yyget_debug (void );
+int clget_debug (void );
 
-void yyset_debug (int debug_flag  );
+void clset_debug (int debug_flag  );
 
-YY_EXTRA_TYPE yyget_extra (void );
+YY_EXTRA_TYPE clget_extra (void );
 
-void yyset_extra (YY_EXTRA_TYPE user_defined  );
+void clset_extra (YY_EXTRA_TYPE user_defined  );
 
-FILE *yyget_in (void );
+FILE *clget_in (void );
 
-void yyset_in  (FILE * in_str  );
+void clset_in  (FILE * in_str  );
 
-FILE *yyget_out (void );
+FILE *clget_out (void );
 
-void yyset_out  (FILE * out_str  );
+void clset_out  (FILE * out_str  );
 
-yy_size_t yyget_leng (void );
+yy_size_t clget_leng (void );
 
-char *yyget_text (void );
+char *clget_text (void );
 
-int yyget_lineno (void );
+int clget_lineno (void );
 
-void yyset_lineno (int line_number  );
+void clset_lineno (int line_number  );
 
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
@@ -263,9 +262,9 @@ void yyset_lineno (int line_number  );
 
 #ifndef YY_SKIP_YYWRAP
 #ifdef __cplusplus
-extern "C" int yywrap (void );
+extern "C" int clwrap (void );
 #else
-extern int yywrap (void );
+extern int clwrap (void );
 #endif
 #endif
 
@@ -297,9 +296,9 @@ static int yy_flex_strlen (yyconst char * );
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-extern int yylex (void);
+extern int cllex (void);
 
-#define YY_DECL int yylex (void)
+#define YY_DECL int cllex (void)
 #endif /* !YY_DECL */
 
 /* yy_get_previous_state - get the state just before the EOB char was reached */
@@ -316,9 +315,9 @@ extern int yylex (void);
 #undef YY_DECL
 #endif
 
-#line 197 "wrappedkey_lexer.l"
+#line 146 "attribctx_lexer.l"
 
 
-#line 323 "wrappedkey_lexer.h"
-#undef yyIN_HEADER
-#endif /* yyHEADER_H */
+#line 322 "attribctx_lexer.h"
+#undef clIN_HEADER
+#endif /* clHEADER_H */

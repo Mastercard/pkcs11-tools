@@ -24,9 +24,9 @@ for $file(@ARGV) {
     open (FILE, $file) or die;
     while(<FILE>) {
 	chomp;
-	if( /^#define[[:space:]]+(CKA_[[:word:]]+)[[:space:]]+(0x[[:xdigit:]]+)/ ) {
+	if( /^#define[[:space:]]+(CKA_[[:word:]]+)[[:space:]]+(.+)/ ) {
 	    # $1 contains the attribute name,
-	    # $2 contains the hex code
+	    # $2 contains the definition
 	    push @lines, [${1}, ${2}, $_, $file ]
 	}
     }

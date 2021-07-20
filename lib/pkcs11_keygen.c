@@ -555,6 +555,8 @@ func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
 	    case CKA_DERIVE:
 	    case CKA_TRUSTED:
 	    case CKA_MODIFIABLE:
+	    case CKA_DERIVE_TEMPLATE:
+	    case CKA_UNWRAP_TEMPLATE:
 	    {
 		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
 						  prvktemplate,
@@ -590,6 +592,8 @@ func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
 	    case CKA_DERIVE:
 	    case CKA_TRUSTED:
 	    case CKA_MODIFIABLE:
+	    case CKA_WRAP_TEMPLATE:
+	    case CKA_DERIVE_TEMPLATE:
 	    {
 		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
 						  pubktemplate,
@@ -725,8 +729,19 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
 	    {CKA_VERIFY, &ck_false, sizeof ck_false},
 	    {CKA_VERIFY_RECOVER, &ck_false, sizeof ck_false},
 	    {CKA_DERIVE, &ck_false, sizeof ck_false},
+	    /* leave room for up to 5 additional attributes */
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},	    
 	};
 
+	size_t pubk_template_len_max = (sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE));
+	size_t pubk_template_len_min = pubk_template_len_max - 5;
+	size_t pubk_num_elems = pubk_template_len_min;
+
+	
 	CK_ATTRIBUTE prvktemplate[] = {
 	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof ck_true},
 	    {CKA_PRIVATE, &ck_true, sizeof ck_true},
@@ -741,48 +756,98 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
 	    {CKA_SIGN, &ck_false, sizeof ck_false},
 	    {CKA_SIGN_RECOVER, &ck_false, sizeof ck_false},
 	    {CKA_DERIVE, &ck_false, sizeof ck_false},
+	    /* leave room for up to 5 additional attributes */
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},	    
 	};
 
+	size_t prvk_template_len_max = (sizeof(prvktemplate)/sizeof(CK_ATTRIBUTE));
+	size_t prvk_template_len_min = prvk_template_len_max - 5;
+	size_t prvk_num_elems = prvk_template_len_min;
+
 	/* adjust private key */
-	for(i=0; i<numattrs; i++)
+	/* some attributes are not applicable to private key, so we filter out first */
+	for(i=0; i<numattrs && prvk_num_elems<prvk_template_len_max; i++)
 	{
-	    size_t num_elems = sizeof(prvktemplate)/sizeof(CK_ATTRIBUTE);
+	    switch(attrs[i].type) {
+	    case CKA_SENSITIVE:
+	    case CKA_EXTRACTABLE:
+	    case CKA_LABEL:
+	    case CKA_ID:
+	    case CKA_DECRYPT:
+	    case CKA_UNWRAP:
+	    case CKA_SIGN:
+	    case CKA_SIGN_RECOVER:
+	    case CKA_DERIVE:
+	    case CKA_TRUSTED:
+	    case CKA_MODIFIABLE:
+	    case CKA_UNWRAP_TEMPLATE:
+	    case CKA_DERIVE_TEMPLATE:
+	    {
+		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+						  prvktemplate,
+						  &prvk_num_elems,
+						  sizeof(CK_ATTRIBUTE),
+						  compare_CKA );
 
-	    CK_ATTRIBUTE_PTR match = lfind( &attrs[i],
-					    prvktemplate,
-					    &num_elems,
-					    sizeof(CK_ATTRIBUTE),
-					    compare_CKA );
+		/* if we have a match, take the value from the command line */
+		/* we are basically stealing the pointer from attrs array   */
+		if(match && match->ulValueLen == attrs[i].ulValueLen) {
+		    match->pValue = attrs[i].pValue;
+		}
+	    }
+	    break;
 
-	    /* if we have a match, take the value from the command line */
-	    /* we are basically stealing the pointer from attrs array   */
-	    if(match && match->ulValueLen == attrs[i].ulValueLen) {
-		match->pValue = attrs[i].pValue;
+	    default:
+		/* pass */
+		break;
 	    }
 	}
 
 	/* adjust public key */
-	for(i=0; i<numattrs; i++)
+	for(i=0; i<numattrs && pubk_num_elems<pubk_template_len_max; i++)
 	{
-	    size_t num_elems = sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE);
 
-	    CK_ATTRIBUTE_PTR match = lfind( &attrs[i],
-					    pubktemplate,
-					    &num_elems,
-					    sizeof(CK_ATTRIBUTE),
-					    compare_CKA );
+	    switch(attrs[i].type) {
+	    case CKA_LABEL:
+	    case CKA_ID:
+	    case CKA_ENCRYPT:
+	    case CKA_WRAP:
+	    case CKA_VERIFY:
+	    case CKA_VERIFY_RECOVER:
+	    case CKA_DERIVE:
+	    case CKA_TRUSTED:
+	    case CKA_MODIFIABLE:
+	    case CKA_WRAP_TEMPLATE:
+	    case CKA_DERIVE_TEMPLATE:
+	    {
+		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+						  pubktemplate,
+						  &pubk_num_elems,
+						  sizeof(CK_ATTRIBUTE),
+						  compare_CKA );
 
-	    /* if we have a match, take the value from the command line */
-	    /* we are basically stealing the pointer from attrs array   */
-	    if(match && match->ulValueLen == attrs[i].ulValueLen) {
-		match->pValue = attrs[i].pValue;
+		/* if we have a match, take the value from the command line */
+		/* we are basically stealing the pointer from attrs array   */
+		if(match && match->ulValueLen == attrs[i].ulValueLen) {
+		    match->pValue = attrs[i].pValue;
+		}
+	    }
+	    break;
+
+	    default:
+		/* pass */
+		break;
 	    }
 	}
 
 	retcode = p11ctx->FunctionList.C_GenerateKeyPair(p11ctx->Session,
 							 &mechanism,
-							 pubktemplate, sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE),
-							 prvktemplate, sizeof(prvktemplate)/sizeof(CK_ATTRIBUTE),
+							 pubktemplate, pubk_num_elems,
+							 prvktemplate, prvk_num_elems,
 							 pubkhandleptr, prvkhandleptr);
 
 	if (retcode != CKR_OK ) {

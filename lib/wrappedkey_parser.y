@@ -18,6 +18,11 @@
 %define parse.error verbose
 %define parse.trace
 
+/* there are a handful of shift-reduce conflicts that can be safely ignored */
+/* these are caused by nested grammar under wkeystmts, which is required as */
+/* 'assignstmts' is needed when defining a template, but not 'metastmts'    */
+%expect 10
+
 %{
 #include <stdio.h>
 #include <stdlib.h>
@@ -95,7 +100,7 @@ extern int yylex(void);
 %token PARAMOUTER
 %token PARAMINNER
 
-%token <ckattr> CKATTR_BOOL CKATTR_STR CKATTR_DATE CKATTR_KEY CKATTR_CLASS
+%token <ckattr> CKATTR_BOOL CKATTR_STR CKATTR_DATE CKATTR_KEY CKATTR_CLASS CKATTR_TEMPLATE
 %token <val_bool> TOK_BOOLEAN
 %token <val_date> TOK_DATE
 %token <val_key>  KEYTYPE
@@ -121,7 +126,7 @@ headers:	CTYPE ':' CTYPE_VAL
 		}
 	;
 
-wkey:		wkeymeta wkeyblocks
+wkey:		wkeystmts wkeyblocks
 		;
 
 wkeyblocks:	innerblock
@@ -149,11 +154,19 @@ outerblock:	OUTER
 		}
                 ;
 
-wkeymeta:	wkeystmt
-	|	wkeymeta wkeystmt
+wkeystmts:	wkeystmt
+	|	wkeystmts wkeystmt
 		;
 
-wkeystmt:	CTYPE ':' CTYPE_VAL
+wkeystmt:	metastmts
+	|	assignstmts
+	;
+
+metastmts:	metastmt
+	|	metastmts metastmt
+	;
+
+metastmt:	CTYPE ':' CTYPE_VAL
 	|	GRAMMAR_VERSION ':' DOTTEDNUMBER
 		{
 		    if(strcmp($3,SUPPORTED_GRAMMAR_VERSION)>0) {
@@ -172,7 +185,13 @@ wkeystmt:	CTYPE ':' CTYPE_VAL
                         YYERROR;
                     }
 		}
-	|	CKATTR_BOOL  ':' TOK_BOOLEAN
+	;
+
+assignstmts:	assignstmt
+	|	assignstmts assignstmt
+	;
+
+assignstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
                 {
 		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, &$3, sizeof(CK_BBOOL) )!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign boolean value.");
@@ -213,6 +232,37 @@ wkeystmt:	CTYPE ':' CTYPE_VAL
 			yyerror(ctx,"Error during parsing, cannot assign object class value.");
 			YYERROR;
 		    }
+		}
+	|	CKATTR_TEMPLATE ':' '{'
+	        {
+		    if(ctx->wrpkattribs->level==1) {
+			yyerror(ctx, "***Error: nesting templates not allowed");
+			YYERROR;
+		    }
+                    ctx->wrpkattribs->level++; /*remind we are in a curly brace */
+		    
+		    ctx->wrpkattribs->current_idx = ctx->wrpkattribs->saved_idx + 1; /*increment current idx from ctx->saved_idx */
+		    if(ctx->wrpkattribs->current_idx>=4) {
+			/* There exist only 3 templates */
+			yyerror(ctx, "***Error: too many templates specified");
+			YYERROR;
+                   } 		    
+		}
+		assignstmts '}'
+		{
+		    if(ctx->wrpkattribs->level==0) {
+		        yyerror(ctx, "***Error: no matching opening curly brace");
+			YYERROR;
+                    }
+                    ctx->wrpkattribs->level--; /*out of curly brace now */
+
+		    ctx->wrpkattribs->saved_idx = ctx->wrpkattribs->current_idx; /* remember which index we used last */
+		    ctx->wrpkattribs->current_idx = ctx->wrpkattribs->mainlist_idx; /* should be always 0 */
+
+		    if(_wrappedkey_parser_wkey_assign_list_to_template(ctx, $1)!=rc_ok) {
+			yyerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
+			YYERROR;
+		    }		    
 		}
 		;
 
@@ -446,7 +496,7 @@ inneralgo: 	cbcpadalgo
 
 
 /* public key information */
-pubk:		pubkmeta pubkblock
+pubk:		pubkstmts pubkblock
 		;
 
 pubkblock:	PUBK
@@ -459,9 +509,10 @@ pubkblock:	PUBK
 		}
                 ;
 
-pubkmeta: 	pubkstmt
-	|	pubkmeta pubkstmt
+pubkstmts: 	pubkstmt
+	|	pubkstmts pubkstmt
 		;
+
 
 pubkstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
                 {
@@ -504,6 +555,37 @@ pubkstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 			yyerror(ctx,"Error during parsing, cannot assign object class value.");
 			YYERROR;
 		    }
+		}
+	|	CKATTR_TEMPLATE ':' '{'
+	        {
+		    if(ctx->pubkattribs->level==1) {
+			yyerror(ctx, "***Error: nesting templates not allowed");
+			YYERROR;
+		    }
+                    ctx->pubkattribs->level++; /*remind we are in a curly brace */
+		    
+		    ctx->pubkattribs->current_idx = ctx->pubkattribs->saved_idx + 1; /*increment current idx from ctx->saved_idx */
+		    if(ctx->pubkattribs->current_idx>=4) {
+			/* There exist only 3 templates */
+			yyerror(ctx, "***Error: too many templates specified");
+			YYERROR;
+                   } 		    
+		}
+		pubkstmts '}'
+		{
+		    if(ctx->pubkattribs->level==0) {
+		        yyerror(ctx, "***Error: no matching opening curly brace");
+			YYERROR;
+                    }
+                    ctx->pubkattribs->level--; /*out of curly brace now */
+
+		    ctx->pubkattribs->saved_idx = ctx->pubkattribs->current_idx; /* remember which index we used last */
+		    ctx->pubkattribs->current_idx = ctx->pubkattribs->mainlist_idx; /* should be always 0 */
+
+		    if(_wrappedkey_parser_pubk_assign_list_to_template(ctx, $1)!=rc_ok) {
+			yyerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
+			YYERROR;
+		    }		    
 		}
 		;
 

@@ -14,7 +14,7 @@ dnl limitations under the License.
 
 
 AC_PREREQ([2.64])
-AC_INIT([pkcs11-tools], [2.3.1], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
+AC_INIT([pkcs11-tools], [2.4.0-devel], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
 AC_CONFIG_MACRO_DIR([m4])
 
 dnl adding AM_MAINTAINER_MODE to address autotools issues with git
@@ -46,7 +46,7 @@ AC_PROG_MKDIR_P			dnl needed for dist/solaris build
 AC_CHECK_PROGS([TAR], [gtar tar]) dnl need to find tar (GNU tar preferred)
 
 dnl we need FLEX, not LEX
-AC_PROG_LEX
+AM_PROG_LEX([noyywrap])
 AS_VAR_COPY([FLEX], [LEX])
 AX_PROG_FLEX([],[AC_MSG_WARN([GNU flex is required to regenerate lexer. Generated source code is provided, so it should be OK, until you change the lexer source file. Hint: use LEX variable to point to flex on your system.])])
 AX_PROG_FLEX_VERSION([2.5.0],[],[AC_MSG_WARN([GNU flex 2.5+ is required to regenerate lexer. Generated source code is provided, so it should be OK, until you change the lexer source file.])])

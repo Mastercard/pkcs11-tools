@@ -197,7 +197,9 @@ func_rc pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hP
 				_ATTR(CKA_VALUE),
 				_ATTR_END );
 
-    if( pkcs11_read_attr_from_handle_ext (attrs, hPublicKey, CKR_FUNCTION_FAILED /* workaround for nCipher bug 30966 */) == CK_TRUE) {
+    if( pkcs11_read_attr_from_handle_ext (attrs, hPublicKey,
+					  CKR_FUNCTION_FAILED, /* workaround for nCipher bug 30966 */
+					  0L ) == true) {
 	CK_ATTRIBUTE_PTR key_type, attr;
 
 	key_type = pkcs11_get_attr_in_attrlist ( attrs, CKA_KEY_TYPE );
@@ -316,7 +318,7 @@ int pkcs11_get_rsa_modulus_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl
 
     if(attrs) {
 
-	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	if( pkcs11_read_attr_from_handle (attrs, hndl) == true) {
 	    CK_ATTRIBUTE_PTR modulus = pkcs11_get_attr_in_attrlist ( attrs, CKA_MODULUS );
 	    rv = (modulus->ulValueLen)<<3; /* this could be wrong, not bit-accurate */
 	}
@@ -337,7 +339,7 @@ int pkcs11_get_dsa_pubkey_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
     if(attrs) {
 
-	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	if( pkcs11_read_attr_from_handle (attrs, hndl) == true) {
 	    CK_ATTRIBUTE_PTR pubkey = pkcs11_get_attr_in_attrlist ( attrs, CKA_VALUE );
 	    rv = (pubkey->ulValueLen)<<3; /* this could be wrong, not bit-accurate */
 	}
@@ -360,7 +362,7 @@ CK_OBJECT_CLASS pkcs11_get_object_class(pkcs11Context *p11Context, CK_OBJECT_HAN
 
     if(attrs) {
 
-	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	if( pkcs11_read_attr_from_handle (attrs, hndl) == true) {
 	    CK_ATTRIBUTE_PTR attr_ptr = pkcs11_get_attr_in_attrlist(attrs, CKA_CLASS);
 	    rv = *(CK_OBJECT_CLASS *)(attr_ptr->pValue);
 	}
@@ -407,7 +409,7 @@ key_type_t pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
     if(attrs) {
 
-	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	if( pkcs11_read_attr_from_handle (attrs, hndl) == true) {
 	    CK_ATTRIBUTE_PTR attr_ptr = pkcs11_get_attr_in_attrlist(attrs, CKA_KEY_TYPE);
 	    int i;
 	    for(i=0; i<sizeof key_type_mapping / sizeof(key_type_mapping_t); i++) {
@@ -433,7 +435,7 @@ char *pkcs11_alloclabelforhandle(pkcs11Context *p11Context, CK_OBJECT_HANDLE hnd
     attrs = pkcs11_new_attrlist(p11Context, _ATTR(CKA_LABEL), _ATTR_END );
 
     if(attrs) {
-	if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+	if( pkcs11_read_attr_from_handle (attrs, hndl) == true) {
 	    CK_ATTRIBUTE_PTR attr_ptr = pkcs11_get_attr_in_attrlist(attrs, CKA_LABEL);
 	    if(attr_ptr) {
 		label = malloc( attr_ptr->ulValueLen+1 );

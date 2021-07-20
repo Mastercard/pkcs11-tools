@@ -23,6 +23,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <unistd.h>
+#include <search.h>
 
 #include <openssl/bio.h>
 #include <openssl/pem.h>
@@ -36,6 +37,13 @@ typedef enum  {
     meth_label,
     meth_keyhandle
 } wrap_source_method_t;
+
+typedef struct {
+    CK_ATTRIBUTE_TYPE attr_type;
+    void (*func_ptr) (FILE *, char *, CK_ATTRIBUTE_PTR, CK_BBOOL );
+    char *name;
+    CK_BBOOL commented;
+} attr_printer ;
 
 
 /* private funcs prototypes */
@@ -479,6 +487,73 @@ not_a_digit:
     looks_like_a_date ? _fprintf_str_attr(fp,name,attr,commented) : fprintf_hex_attr(fp,name,attr,commented);
 }
 
+/* fprintf_template_attr() function and support functions */
+
+static int compare_attr( const void *a, const void *b)
+{
+    return ((CK_ATTRIBUTE_PTR)a)->type == ((CK_ATTRIBUTE_PTR)b)->type ? 0 : -1;
+}
+
+
+static void fprintf_template_attr_member(FILE *fp, CK_ATTRIBUTE_PTR attr)
+{
+    
+    /* a collection of possible values found in templates */
+    /* all attributes are uncommented */
+    static const attr_printer attriblist[] = {
+	{ CKA_CHECK_VALUE, fprintf_hex_attr, "CKA_CHECK_VALUE", CK_TRUE },
+	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE  },
+	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", CK_FALSE },
+	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", CK_FALSE },
+	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", CK_TRUE },
+	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", CK_FALSE },
+	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", CK_FALSE },
+	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", CK_FALSE },
+	{ CKA_ID, fprintf_str_attr, "CKA_ID", CK_FALSE },
+	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", CK_FALSE },
+	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", CK_FALSE },
+	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", CK_FALSE },
+	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", CK_FALSE },
+	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", CK_FALSE },
+	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN", CK_FALSE },
+	{ CKA_SIGN_RECOVER, fprintf_boolean_attr, "CKA_SIGN_RECOVER", CK_FALSE },
+	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", CK_FALSE },
+	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", CK_FALSE },
+	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", CK_FALSE },
+	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP", CK_FALSE },
+	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY", CK_FALSE },
+	{ CKA_VERIFY_RECOVER, fprintf_boolean_attr, "CKA_VERIFY_RECOVER", CK_FALSE },
+	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", CK_FALSE },
+    };
+
+    size_t nelem = sizeof attriblist / sizeof(attr_printer);
+    attr_printer key = { attr->type, NULL, NULL, CK_FALSE };
+    attr_printer *match = lfind(&key, attriblist, &nelem, sizeof(attr_printer), compare_attr);
+
+    if(match) {
+	match->func_ptr(fp, match->name, attr, CK_FALSE ); /* we ignore the comment argument */
+    }
+
+}
+
+
+static void fprintf_template_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
+{
+    int i;
+    CK_ATTRIBUTE_PTR attr_array = attr->pValue; /* attr_array will be used as the array to walk template */
+    size_t attr_arrayitems = attr->ulValueLen / sizeof(CK_ATTRIBUTE);
+
+    fprintf(fp, "%s%s: {\n", commented == CK_TRUE ? "# " : "", name);
+
+    for(i=0; i<attr_arrayitems; i++) {	
+//	fprintf(fp, "%s    %08lx", commented == CK_TRUE ? "# " : "", attr_array[i].type );
+	fprintf(fp, "%s    ", commented == CK_TRUE ? "# " : "");
+	fprintf_template_attr_member(fp, &attr_array[i]);
+    }        
+
+    fprintf(fp, "%s}\n", commented == CK_TRUE ? "# " : "");
+}
+
 
 /*------------------------------------------------------------------------*/
 
@@ -770,14 +845,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
     CK_ATTRIBUTE_PTR o_attr = NULL;
     size_t alist_len=0;
 
-    typedef struct {
-	CK_ATTRIBUTE_TYPE attr_type;
-	void (*func_ptr) (FILE *, char *, CK_ATTRIBUTE_PTR, CK_BBOOL );
-	char *name;
-	CK_BBOOL commented;
-    } attr_printer ;
-
-    attr_printer seckalist[] = {
+    static attr_printer seckalist[] = {
 	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", CK_FALSE },
 	{ CKA_ID, fprintf_str_attr, "CKA_ID", CK_FALSE },
 	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE  },
@@ -786,10 +854,13 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", CK_FALSE },
 	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", CK_FALSE },
 	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", CK_FALSE },
+	{ CKA_WRAP_TEMPLATE, fprintf_template_attr, "CKA_WRAP_TEMPLATE", CK_FALSE },
 	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP", CK_FALSE },
+	{ CKA_UNWRAP_TEMPLATE, fprintf_template_attr, "CKA_UNWRAP_TEMPLATE", CK_FALSE },
 	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN", CK_FALSE },
 	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY", CK_FALSE },
 	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", CK_FALSE },
+	{ CKA_DERIVE_TEMPLATE, fprintf_template_attr, "CKA_DERIVE_TEMPLATE", CK_FALSE },
 	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", CK_FALSE },
 	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", CK_FALSE },
 	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", CK_FALSE },
@@ -799,7 +870,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	{ CKA_CHECK_VALUE, fprintf_hex_attr, "CKA_CHECK_VALUE", CK_TRUE }, /* Not valid in C_Unwrap() template */
     };
 
-    attr_printer prvkalist[] = {
+    static attr_printer prvkalist[] = {
 	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", CK_FALSE },
 	{ CKA_ID, fprintf_str_attr, "CKA_ID", CK_FALSE },
 	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE },
@@ -809,9 +880,11 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", CK_FALSE },
 	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", CK_FALSE },
 	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP", CK_FALSE },
+	{ CKA_UNWRAP_TEMPLATE, fprintf_template_attr, "CKA_UNWRAP_TEMPLATE", CK_FALSE },
 	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN", CK_FALSE },
 	{ CKA_SIGN_RECOVER, fprintf_boolean_attr, "CKA_SIGN_RECOVER", CK_FALSE },
 	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", CK_FALSE },
+	{ CKA_DERIVE_TEMPLATE, fprintf_template_attr, "CKA_DERIVE_TEMPLATE", CK_FALSE },
 	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", CK_FALSE },
 	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", CK_FALSE },
 	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", CK_FALSE },
@@ -835,9 +908,12 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 					       _ATTR(CKA_ENCRYPT),
 					       _ATTR(CKA_DECRYPT),
 					       _ATTR(CKA_WRAP),
+					       _ATTR(CKA_WRAP_TEMPLATE),
 					       _ATTR(CKA_UNWRAP),
+					       _ATTR(CKA_UNWRAP_TEMPLATE),
 					       _ATTR(CKA_SIGN),
 					       _ATTR(CKA_VERIFY),
+					       _ATTR(CKA_DERIVE_TEMPLATE),
 					       _ATTR(CKA_DERIVE),
 					       _ATTR(CKA_PRIVATE),
 					       _ATTR(CKA_SENSITIVE),
@@ -862,9 +938,11 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 					       _ATTR(CKA_SUBJECT),
 					       _ATTR(CKA_DECRYPT),
 					       _ATTR(CKA_UNWRAP),
+					       _ATTR(CKA_UNWRAP_TEMPLATE),
 					       _ATTR(CKA_SIGN),
 					       _ATTR(CKA_SIGN_RECOVER),
 					       _ATTR(CKA_DERIVE),
+					       _ATTR(CKA_DERIVE_TEMPLATE),
 					       _ATTR(CKA_PRIVATE),
 					       _ATTR(CKA_SENSITIVE),
 					       _ATTR(CKA_EXTRACTABLE),
@@ -881,7 +959,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
     }
 
 
-    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wctx->key[WRAPPEDKEYCTX_INNER_OR_LONE_KEY_INDEX].wrappedkeyhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wctx->key[WRAPPEDKEYCTX_INNER_OR_LONE_KEY_INDEX].wrappedkeyhandle) == false) {
 	fprintf(stderr,"Error: could not read attributes from key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -955,7 +1033,7 @@ static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	CK_BBOOL commented;
     } attr_printer ;
 
-    attr_printer alist[] = {
+    static attr_printer alist[] = {
 	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", CK_FALSE },
 	{ CKA_ID, fprintf_str_attr, "CKA_ID", CK_FALSE },
 	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE  },
@@ -965,12 +1043,11 @@ static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", CK_FALSE },
 	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", CK_FALSE },
 	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", CK_FALSE },
+	{ CKA_WRAP_TEMPLATE, fprintf_template_attr, "CKA_WRAP_TEMPLATE", CK_FALSE },
 	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY", CK_FALSE },
 	{ CKA_VERIFY_RECOVER, fprintf_boolean_attr, "CKA_VERIFY_RECOVER", CK_FALSE },
 	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", CK_FALSE },
 	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", CK_FALSE },
-	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", CK_FALSE },
-	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", CK_FALSE },
 	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", CK_FALSE },
 	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", CK_FALSE },
 	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", CK_FALSE },
@@ -987,18 +1064,17 @@ static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 					   _ATTR(CKA_SUBJECT),
 					   _ATTR(CKA_ENCRYPT),
 					   _ATTR(CKA_WRAP),
+					   _ATTR(CKA_WRAP_TEMPLATE),
 					   _ATTR(CKA_VERIFY),
 					   _ATTR(CKA_VERIFY_RECOVER),
 					   _ATTR(CKA_DERIVE),
 					   _ATTR(CKA_PRIVATE),
-					   _ATTR(CKA_SENSITIVE),
-					   _ATTR(CKA_EXTRACTABLE),
 					   _ATTR(CKA_MODIFIABLE),
 					   _ATTR(CKA_START_DATE),
 					   _ATTR(CKA_END_DATE),
 					   _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wctx->pubkhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wctx->pubkhandle) == false) {
 	fprintf(stderr,"Error: could not read attributes from key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -1086,7 +1162,7 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 					    _ATTR(CKA_MODULUS),
 					    _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == false) {
 	fprintf(stderr,"Error: could not read CKA_MODULUS_BITS attribute from public key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -1112,7 +1188,7 @@ static func_rc _wrap_pkcs1_15(wrappedKeyCtx *wctx)
 					    _ATTR(CKA_VALUE_LEN), /* caution: value in bytes */
 					    _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wrappedkeyhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wrappedkeyhandle) == false) {
 	fprintf(stderr,"Error: could not read CKA_VALUE_LEN attribute from secret key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -1633,7 +1709,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 					    _ATTR(CKA_MODULUS),
 					    _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappingkey_attrs, wrappingkeyhandle) == false) {
 	fprintf(stderr,"Error: could not read CKA_MODULUS_BITS attribute from public key with label '%s'\n", wctx->wrappingkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;
@@ -1659,7 +1735,7 @@ static func_rc _wrap_pkcs1_oaep(wrappedKeyCtx *wctx)
 					   _ATTR(CKA_VALUE_LEN), /* caution: value in bytes */
 					   _ATTR_END );
 
-    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wrappedkeyhandle) == CK_FALSE) {
+    if( pkcs11_read_attr_from_handle (wrappedkey_attrs, wrappedkeyhandle) == false) {
 	fprintf(stderr,"Error: could not read attributes from secret key with label '%s'\n", wctx->wrappedkeylabel);
 	rc = rc_error_pkcs11_api;
 	goto error;

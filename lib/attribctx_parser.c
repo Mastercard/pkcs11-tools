@@ -63,24 +63,25 @@
 /* Pull parsers.  */
 #define YYPULL 1
 
-
-
-
-/* First part of user prologue.  */
-#line 26 "wrappedkey_parser.y"
+/* "%code top" blocks.  */
+#line 23 "attribctx_parser.y"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/* parsing_envelope will remember if we are parsing inside envelope(...) */
-int parsing_envelope= 0;
+#line 74 "attribctx_parser.c"
+/* Substitute the type names.  */
+#define YYSTYPE         CLSTYPE
+/* Substitute the variable and function names.  */
+#define yyparse         clparse
+#define yylex           cllex
+#define yyerror         clerror
+#define yydebug         cldebug
+#define yynerrs         clnerrs
+#define yylval          cllval
+#define yychar          clchar
 
-/* envelope_keyindex will remember, when parsing inside envelope, if we care about inner or outer alg */
-int envelope_keyindex=0;
-
-
-#line 84 "wrappedkey_parser.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -105,97 +106,69 @@ int envelope_keyindex=0;
 
 /* Use api.header.include to #include this header
    instead of duplicating it here.  */
-#ifndef YY_YY_WRAPPEDKEY_PARSER_H_INCLUDED
-# define YY_YY_WRAPPEDKEY_PARSER_H_INCLUDED
+#ifndef YY_CL_ATTRIBCTX_PARSER_H_INCLUDED
+# define YY_CL_ATTRIBCTX_PARSER_H_INCLUDED
 /* Debug traces.  */
-#ifndef YYDEBUG
-# define YYDEBUG 1
-#endif
+#ifndef CLDEBUG
+# if defined YYDEBUG
 #if YYDEBUG
-extern int yydebug;
+#   define CLDEBUG 1
+#  else
+#   define CLDEBUG 0
+#  endif
+# else /* ! defined YYDEBUG */
+#  define CLDEBUG 1
+# endif /* ! defined YYDEBUG */
+#endif  /* ! defined CLDEBUG */
+#if CLDEBUG
+extern int cldebug;
 #endif
 /* "%code requires" blocks.  */
-#line 39 "wrappedkey_parser.y"
-
+#line 30 "attribctx_parser.y"
 
 #include "pkcs11lib.h"
-#include "wrappedkey_helper.h"
+#include "attribctx_helper.h"
 
-extern void yyerror(wrappedKeyCtx *ctx, const char *s, ...);
-extern int yylex(void);
-
-
-#line 129 "wrappedkey_parser.c"
+#line 133 "attribctx_parser.c"
 
 /* Token kinds.  */
-#ifndef YYTOKENTYPE
-# define YYTOKENTYPE
-  enum yytokentype
+#ifndef CLTOKENTYPE
+# define CLTOKENTYPE
+  enum cltokentype
   {
-    YYEMPTY = -2,
-    YYEOF = 0,                     /* "end of file"  */
-    YYerror = 256,                 /* error  */
-    YYUNDEF = 257,                 /* "invalid token"  */
-    OUTER = 258,                   /* OUTER  */
-    INNER = 259,                   /* INNER  */
-    PUBK = 260,                    /* PUBK  */
-    STRING = 261,                  /* STRING  */
-    CTYPE = 262,                   /* CTYPE  */
-    GRAMMAR_VERSION = 263,         /* GRAMMAR_VERSION  */
-    CTYPE_VAL = 264,               /* CTYPE_VAL  */
-    WRAPPING_ALG = 265,            /* WRAPPING_ALG  */
-    WRAPPING_KEY = 266,            /* WRAPPING_KEY  */
-    PKCS1ALGO = 267,               /* PKCS1ALGO  */
-    OAEPALGO = 268,                /* OAEPALGO  */
-    CBCPADALGO = 269,              /* CBCPADALGO  */
-    RFC3394ALGO = 270,             /* RFC3394ALGO  */
-    RFC5649ALGO = 271,             /* RFC5649ALGO  */
-    ENVELOPEALGO = 272,            /* ENVELOPEALGO  */
-    PARAMHASH = 273,               /* PARAMHASH  */
-    HASHALG = 274,                 /* HASHALG  */
-    PARAMMGF = 275,                /* PARAMMGF  */
-    MGFTYPE = 276,                 /* MGFTYPE  */
-    PARAMLABEL = 277,              /* PARAMLABEL  */
-    PARAMIV = 278,                 /* PARAMIV  */
-    PARAMFLAVOUR = 279,            /* PARAMFLAVOUR  */
-    WRAPALG = 280,                 /* WRAPALG  */
-    PARAMOUTER = 281,              /* PARAMOUTER  */
-    PARAMINNER = 282,              /* PARAMINNER  */
-    CKATTR_BOOL = 283,             /* CKATTR_BOOL  */
-    CKATTR_STR = 284,              /* CKATTR_STR  */
-    CKATTR_DATE = 285,             /* CKATTR_DATE  */
-    CKATTR_KEY = 286,              /* CKATTR_KEY  */
-    CKATTR_CLASS = 287,            /* CKATTR_CLASS  */
-    CKATTR_TEMPLATE = 288,         /* CKATTR_TEMPLATE  */
-    TOK_BOOLEAN = 289,             /* TOK_BOOLEAN  */
-    TOK_DATE = 290,                /* TOK_DATE  */
-    KEYTYPE = 291,                 /* KEYTYPE  */
-    OCLASS = 292,                  /* OCLASS  */
-    DOTTEDNUMBER = 293,            /* DOTTEDNUMBER  */
-    WRAPPINGJOBHEADER = 294,       /* WRAPPINGJOBHEADER  */
-    P_WRAPPINGKEY = 295,           /* P_WRAPPINGKEY  */
-    P_FILENAME = 296,              /* P_FILENAME  */
-    P_ALGORITHM = 297              /* P_ALGORITHM  */
+    CLEMPTY = -2,
+    CLEOF = 0,                     /* "end of file"  */
+    CLerror = 256,                 /* error  */
+    CLUNDEF = 257,                 /* "invalid token"  */
+    STRING = 258,                  /* STRING  */
+    CKATTR_BOOL = 259,             /* CKATTR_BOOL  */
+    CKATTR_STR = 260,              /* CKATTR_STR  */
+    CKATTR_DATE = 261,             /* CKATTR_DATE  */
+    CKATTR_KEY = 262,              /* CKATTR_KEY  */
+    CKATTR_CLASS = 263,            /* CKATTR_CLASS  */
+    CKATTR_TEMPLATE = 264,         /* CKATTR_TEMPLATE  */
+    TOK_BOOLEAN = 265,             /* TOK_BOOLEAN  */
+    TOK_DATE = 266,                /* TOK_DATE  */
+    KEYTYPE = 267,                 /* KEYTYPE  */
+    OCLASS = 268,                  /* OCLASS  */
+    NO = 269,                      /* NO  */
+    ASSIGN = 270,                  /* ASSIGN  */
+    CURLY_OPEN = 271,              /* CURLY_OPEN  */
+    CURLY_CLOSE = 272              /* CURLY_CLOSE  */
   };
-  typedef enum yytokentype yytoken_kind_t;
+  typedef enum cltokentype cltoken_kind_t;
 #endif
 
 /* Value type.  */
-#if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-union YYSTYPE
+#if ! defined CLSTYPE && ! defined CLSTYPE_IS_DECLARED
+union CLSTYPE
 {
-#line 52 "wrappedkey_parser.y"
+#line 46 "attribctx_parser.y"
 
     CK_ATTRIBUTE_TYPE ckattr;
     CK_KEY_TYPE val_key;
     CK_OBJECT_CLASS val_cls;
     CK_BBOOL val_bool;
-    CK_MECHANISM_TYPE val_hashalg;
-    CK_RSA_PKCS_MGF_TYPE val_mgf;
-
-    enum contenttype val_contenttype;
-    enum wrappingmethod val_wrappingmethod;
-    CK_MECHANISM_TYPE val_wrapalg;
 
     struct {			/* HEX encoded - or real string */
 	char *val;
@@ -211,23 +184,30 @@ union YYSTYPE
         char as_buffer[8];
     } val_date;
 
-    unsigned char *val_pem;	/* used to hold PEM-encoded blocks */
-    char *val_dottednumber;
-
-#line 218 "wrappedkey_parser.c"
+#line 188 "attribctx_parser.c"
 
 };
-typedef union YYSTYPE YYSTYPE;
-# define YYSTYPE_IS_TRIVIAL 1
-# define YYSTYPE_IS_DECLARED 1
+typedef union CLSTYPE CLSTYPE;
+# define CLSTYPE_IS_TRIVIAL 1
+# define CLSTYPE_IS_DECLARED 1
 #endif
 
 
-extern YYSTYPE yylval;
+extern CLSTYPE cllval;
 
-int yyparse (wrappedKeyCtx *ctx);
+int clparse (attribCtx *ctx);
+/* "%code provides" blocks.  */
+#line 35 "attribctx_parser.y"
 
-#endif /* !YY_YY_WRAPPEDKEY_PARSER_H_INCLUDED  */
+#define YY_DECL int yylex(attribCtx* ctx)
+
+YY_DECL;
+extern void clerror(attribCtx *ctx, const char *s, ...);
+    
+
+#line 209 "attribctx_parser.c"
+
+#endif /* !YY_CL_ATTRIBCTX_PARSER_H_INCLUDED  */
 /* Symbol kind.  */
 enum yysymbol_kind_t
 {
@@ -235,108 +215,27 @@ enum yysymbol_kind_t
   YYSYMBOL_YYEOF = 0,                      /* "end of file"  */
   YYSYMBOL_YYerror = 1,                    /* error  */
   YYSYMBOL_YYUNDEF = 2,                    /* "invalid token"  */
-  YYSYMBOL_OUTER = 3,                      /* OUTER  */
-  YYSYMBOL_INNER = 4,                      /* INNER  */
-  YYSYMBOL_PUBK = 5,                       /* PUBK  */
-  YYSYMBOL_STRING = 6,                     /* STRING  */
-  YYSYMBOL_CTYPE = 7,                      /* CTYPE  */
-  YYSYMBOL_GRAMMAR_VERSION = 8,            /* GRAMMAR_VERSION  */
-  YYSYMBOL_CTYPE_VAL = 9,                  /* CTYPE_VAL  */
-  YYSYMBOL_WRAPPING_ALG = 10,              /* WRAPPING_ALG  */
-  YYSYMBOL_WRAPPING_KEY = 11,              /* WRAPPING_KEY  */
-  YYSYMBOL_PKCS1ALGO = 12,                 /* PKCS1ALGO  */
-  YYSYMBOL_OAEPALGO = 13,                  /* OAEPALGO  */
-  YYSYMBOL_CBCPADALGO = 14,                /* CBCPADALGO  */
-  YYSYMBOL_RFC3394ALGO = 15,               /* RFC3394ALGO  */
-  YYSYMBOL_RFC5649ALGO = 16,               /* RFC5649ALGO  */
-  YYSYMBOL_ENVELOPEALGO = 17,              /* ENVELOPEALGO  */
-  YYSYMBOL_PARAMHASH = 18,                 /* PARAMHASH  */
-  YYSYMBOL_HASHALG = 19,                   /* HASHALG  */
-  YYSYMBOL_PARAMMGF = 20,                  /* PARAMMGF  */
-  YYSYMBOL_MGFTYPE = 21,                   /* MGFTYPE  */
-  YYSYMBOL_PARAMLABEL = 22,                /* PARAMLABEL  */
-  YYSYMBOL_PARAMIV = 23,                   /* PARAMIV  */
-  YYSYMBOL_PARAMFLAVOUR = 24,              /* PARAMFLAVOUR  */
-  YYSYMBOL_WRAPALG = 25,                   /* WRAPALG  */
-  YYSYMBOL_PARAMOUTER = 26,                /* PARAMOUTER  */
-  YYSYMBOL_PARAMINNER = 27,                /* PARAMINNER  */
-  YYSYMBOL_CKATTR_BOOL = 28,               /* CKATTR_BOOL  */
-  YYSYMBOL_CKATTR_STR = 29,                /* CKATTR_STR  */
-  YYSYMBOL_CKATTR_DATE = 30,               /* CKATTR_DATE  */
-  YYSYMBOL_CKATTR_KEY = 31,                /* CKATTR_KEY  */
-  YYSYMBOL_CKATTR_CLASS = 32,              /* CKATTR_CLASS  */
-  YYSYMBOL_CKATTR_TEMPLATE = 33,           /* CKATTR_TEMPLATE  */
-  YYSYMBOL_TOK_BOOLEAN = 34,               /* TOK_BOOLEAN  */
-  YYSYMBOL_TOK_DATE = 35,                  /* TOK_DATE  */
-  YYSYMBOL_KEYTYPE = 36,                   /* KEYTYPE  */
-  YYSYMBOL_OCLASS = 37,                    /* OCLASS  */
-  YYSYMBOL_DOTTEDNUMBER = 38,              /* DOTTEDNUMBER  */
-  YYSYMBOL_WRAPPINGJOBHEADER = 39,         /* WRAPPINGJOBHEADER  */
-  YYSYMBOL_P_WRAPPINGKEY = 40,             /* P_WRAPPINGKEY  */
-  YYSYMBOL_P_FILENAME = 41,                /* P_FILENAME  */
-  YYSYMBOL_P_ALGORITHM = 42,               /* P_ALGORITHM  */
-  YYSYMBOL_43_ = 43,                       /* ':'  */
-  YYSYMBOL_44_ = 44,                       /* '{'  */
-  YYSYMBOL_45_ = 45,                       /* '}'  */
-  YYSYMBOL_46_ = 46,                       /* '/'  */
-  YYSYMBOL_47_ = 47,                       /* '('  */
-  YYSYMBOL_48_ = 48,                       /* ')'  */
-  YYSYMBOL_49_ = 49,                       /* ','  */
-  YYSYMBOL_50_ = 50,                       /* '='  */
-  YYSYMBOL_YYACCEPT = 51,                  /* $accept  */
-  YYSYMBOL_wkeyset = 52,                   /* wkeyset  */
-  YYSYMBOL_headers = 53,                   /* headers  */
-  YYSYMBOL_wkey = 54,                      /* wkey  */
-  YYSYMBOL_wkeyblocks = 55,                /* wkeyblocks  */
-  YYSYMBOL_innerblock = 56,                /* innerblock  */
-  YYSYMBOL_outerblock = 57,                /* outerblock  */
-  YYSYMBOL_wkeystmts = 58,                 /* wkeystmts  */
-  YYSYMBOL_wkeystmt = 59,                  /* wkeystmt  */
-  YYSYMBOL_metastmts = 60,                 /* metastmts  */
-  YYSYMBOL_metastmt = 61,                  /* metastmt  */
-  YYSYMBOL_assignstmts = 62,               /* assignstmts  */
-  YYSYMBOL_assignstmt = 63,                /* assignstmt  */
-  YYSYMBOL_64_1 = 64,                      /* $@1  */
-  YYSYMBOL_algo = 65,                      /* algo  */
-  YYSYMBOL_pkcs1algo = 66,                 /* pkcs1algo  */
-  YYSYMBOL_pkcs1algoheader = 67,           /* pkcs1algoheader  */
-  YYSYMBOL_pkcs1algoid = 68,               /* pkcs1algoid  */
-  YYSYMBOL_oaepalgo = 69,                  /* oaepalgo  */
-  YYSYMBOL_oaepalgoheader = 70,            /* oaepalgoheader  */
-  YYSYMBOL_oaepalgoid = 71,                /* oaepalgoid  */
-  YYSYMBOL_oaepparamlist = 72,             /* oaepparamlist  */
-  YYSYMBOL_oaepparam = 73,                 /* oaepparam  */
-  YYSYMBOL_cbcpadalgo = 74,                /* cbcpadalgo  */
-  YYSYMBOL_cbcpadalgoheader = 75,          /* cbcpadalgoheader  */
-  YYSYMBOL_cbcpadalgoid = 76,              /* cbcpadalgoid  */
-  YYSYMBOL_cbcpadparamlist = 77,           /* cbcpadparamlist  */
-  YYSYMBOL_cbcpadparam = 78,               /* cbcpadparam  */
-  YYSYMBOL_rfc3394algo = 79,               /* rfc3394algo  */
-  YYSYMBOL_rfc3394algoheader = 80,         /* rfc3394algoheader  */
-  YYSYMBOL_rfc3394algoid = 81,             /* rfc3394algoid  */
-  YYSYMBOL_rfc5649algo = 82,               /* rfc5649algo  */
-  YYSYMBOL_rfc5649algoheader = 83,         /* rfc5649algoheader  */
-  YYSYMBOL_rfc5649algoid = 84,             /* rfc5649algoid  */
-  YYSYMBOL_rfc5649paramlist = 85,          /* rfc5649paramlist  */
-  YYSYMBOL_rfc5649param = 86,              /* rfc5649param  */
-  YYSYMBOL_envelopealgo = 87,              /* envelopealgo  */
-  YYSYMBOL_88_2 = 88,                      /* $@2  */
-  YYSYMBOL_envelopealgoheader = 89,        /* envelopealgoheader  */
-  YYSYMBOL_envelopealgoid = 90,            /* envelopealgoid  */
-  YYSYMBOL_envelopeparamlist = 91,         /* envelopeparamlist  */
-  YYSYMBOL_envelopeparam = 92,             /* envelopeparam  */
-  YYSYMBOL_93_3 = 93,                      /* $@3  */
-  YYSYMBOL_94_4 = 94,                      /* $@4  */
-  YYSYMBOL_outeralgo = 95,                 /* outeralgo  */
-  YYSYMBOL_inneralgo = 96,                 /* inneralgo  */
-  YYSYMBOL_pubk = 97,                      /* pubk  */
-  YYSYMBOL_pubkblock = 98,                 /* pubkblock  */
-  YYSYMBOL_pubkstmts = 99,                 /* pubkstmts  */
-  YYSYMBOL_pubkstmt = 100,                 /* pubkstmt  */
-  YYSYMBOL_101_5 = 101,                    /* $@5  */
-  YYSYMBOL_wrappingjob = 102,              /* wrappingjob  */
-  YYSYMBOL_wrpjobstmts = 103,              /* wrpjobstmts  */
-  YYSYMBOL_wrpjobstmt = 104                /* wrpjobstmt  */
+  YYSYMBOL_STRING = 3,                     /* STRING  */
+  YYSYMBOL_CKATTR_BOOL = 4,                /* CKATTR_BOOL  */
+  YYSYMBOL_CKATTR_STR = 5,                 /* CKATTR_STR  */
+  YYSYMBOL_CKATTR_DATE = 6,                /* CKATTR_DATE  */
+  YYSYMBOL_CKATTR_KEY = 7,                 /* CKATTR_KEY  */
+  YYSYMBOL_CKATTR_CLASS = 8,               /* CKATTR_CLASS  */
+  YYSYMBOL_CKATTR_TEMPLATE = 9,            /* CKATTR_TEMPLATE  */
+  YYSYMBOL_TOK_BOOLEAN = 10,               /* TOK_BOOLEAN  */
+  YYSYMBOL_TOK_DATE = 11,                  /* TOK_DATE  */
+  YYSYMBOL_KEYTYPE = 12,                   /* KEYTYPE  */
+  YYSYMBOL_OCLASS = 13,                    /* OCLASS  */
+  YYSYMBOL_NO = 14,                        /* NO  */
+  YYSYMBOL_ASSIGN = 15,                    /* ASSIGN  */
+  YYSYMBOL_CURLY_OPEN = 16,                /* CURLY_OPEN  */
+  YYSYMBOL_CURLY_CLOSE = 17,               /* CURLY_CLOSE  */
+  YYSYMBOL_YYACCEPT = 18,                  /* $accept  */
+  YYSYMBOL_statement = 19,                 /* statement  */
+  YYSYMBOL_expression = 20,                /* expression  */
+  YYSYMBOL_simple_expr = 21,               /* simple_expr  */
+  YYSYMBOL_template_expr = 22,             /* template_expr  */
+  YYSYMBOL_23_1 = 23                       /* $@1  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
@@ -453,7 +352,7 @@ typedef int yytype_uint16;
 
 
 /* Stored state numbers (used for stacks). */
-typedef yytype_uint8 yy_state_t;
+typedef yytype_int8 yy_state_t;
 
 /* State numbers in computations.  */
 typedef int yy_state_fast_t;
@@ -597,7 +496,7 @@ void free (void *); /* INFRINGES ON USER NAME SPACE */
 
 #if (! defined yyoverflow \
      && (! defined __cplusplus \
-         || (defined YYSTYPE_IS_TRIVIAL && YYSTYPE_IS_TRIVIAL)))
+         || (defined CLSTYPE_IS_TRIVIAL && CLSTYPE_IS_TRIVIAL)))
 
 /* A type that is properly aligned for any stack member.  */
 union yyalloc
@@ -656,21 +555,21 @@ union yyalloc
 #endif /* !YYCOPY_NEEDED */
 
 /* YYFINAL -- State number of the termination state.  */
-#define YYFINAL  14
+#define YYFINAL  19
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   194
+#define YYLAST   46
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  51
+#define YYNTOKENS  18
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  54
+#define YYNNTS  6
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  108
+#define YYNRULES  15
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  195
+#define YYNSTATES  31
 
 /* YYMAXUTOK -- Last valid token kind.  */
-#define YYMAXUTOK   297
+#define YYMAXUTOK   272
 
 
 /* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
@@ -688,15 +587,15 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-      47,    48,     2,     2,    49,     2,     2,    46,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,    43,     2,
-       2,    50,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,    44,     2,    45,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -711,26 +610,15 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
-      15,    16,    17,    18,    19,    20,    21,    22,    23,    24,
-      25,    26,    27,    28,    29,    30,    31,    32,    33,    34,
-      35,    36,    37,    38,    39,    40,    41,    42
+      15,    16,    17
 };
 
-#if YYDEBUG
+#if CLDEBUG
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
-static const yytype_int16 yyrline[] =
+static const yytype_uint8 yyrline[] =
 {
-       0,   114,   114,   115,   116,   119,   120,   129,   132,   133,
-     134,   137,   147,   157,   158,   161,   162,   165,   166,   169,
-     170,   180,   181,   190,   191,   194,   201,   208,   215,   222,
-     229,   237,   236,   271,   272,   273,   274,   275,   276,   279,
-     282,   295,   296,   299,   300,   303,   316,   317,   320,   321,
-     324,   331,   338,   347,   348,   352,   365,   366,   370,   371,
-     374,   385,   386,   390,   403,   404,   409,   410,   413,   426,
-     427,   430,   431,   434,   443,   445,   444,   455,   468,   469,
-     472,   473,   477,   476,   482,   481,   488,   489,   492,   493,
-     494,   499,   502,   512,   513,   517,   524,   531,   538,   545,
-     552,   560,   559,   596,   599,   600,   603,   610,   617
+       0,    85,    85,    86,    89,    90,    93,   100,   109,   118,
+     126,   133,   141,   148,   158,   157
 };
 #endif
 
@@ -746,27 +634,11 @@ static const char *yysymbol_name (yysymbol_kind_t yysymbol) YY_ATTRIBUTE_UNUSED;
    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
 static const char *const yytname[] =
 {
-  "\"end of file\"", "error", "\"invalid token\"", "OUTER", "INNER",
-  "PUBK", "STRING", "CTYPE", "GRAMMAR_VERSION", "CTYPE_VAL",
-  "WRAPPING_ALG", "WRAPPING_KEY", "PKCS1ALGO", "OAEPALGO", "CBCPADALGO",
-  "RFC3394ALGO", "RFC5649ALGO", "ENVELOPEALGO", "PARAMHASH", "HASHALG",
-  "PARAMMGF", "MGFTYPE", "PARAMLABEL", "PARAMIV", "PARAMFLAVOUR",
-  "WRAPALG", "PARAMOUTER", "PARAMINNER", "CKATTR_BOOL", "CKATTR_STR",
-  "CKATTR_DATE", "CKATTR_KEY", "CKATTR_CLASS", "CKATTR_TEMPLATE",
-  "TOK_BOOLEAN", "TOK_DATE", "KEYTYPE", "OCLASS", "DOTTEDNUMBER",
-  "WRAPPINGJOBHEADER", "P_WRAPPINGKEY", "P_FILENAME", "P_ALGORITHM", "':'",
-  "'{'", "'}'", "'/'", "'('", "')'", "','", "'='", "$accept", "wkeyset",
-  "headers", "wkey", "wkeyblocks", "innerblock", "outerblock", "wkeystmts",
-  "wkeystmt", "metastmts", "metastmt", "assignstmts", "assignstmt", "$@1",
-  "algo", "pkcs1algo", "pkcs1algoheader", "pkcs1algoid", "oaepalgo",
-  "oaepalgoheader", "oaepalgoid", "oaepparamlist", "oaepparam",
-  "cbcpadalgo", "cbcpadalgoheader", "cbcpadalgoid", "cbcpadparamlist",
-  "cbcpadparam", "rfc3394algo", "rfc3394algoheader", "rfc3394algoid",
-  "rfc5649algo", "rfc5649algoheader", "rfc5649algoid", "rfc5649paramlist",
-  "rfc5649param", "envelopealgo", "$@2", "envelopealgoheader",
-  "envelopealgoid", "envelopeparamlist", "envelopeparam", "$@3", "$@4",
-  "outeralgo", "inneralgo", "pubk", "pubkblock", "pubkstmts", "pubkstmt",
-  "$@5", "wrappingjob", "wrpjobstmts", "wrpjobstmt", YY_NULLPTR
+  "\"end of file\"", "error", "\"invalid token\"", "STRING",
+  "CKATTR_BOOL", "CKATTR_STR", "CKATTR_DATE", "CKATTR_KEY", "CKATTR_CLASS",
+  "CKATTR_TEMPLATE", "TOK_BOOLEAN", "TOK_DATE", "KEYTYPE", "OCLASS", "NO",
+  "ASSIGN", "CURLY_OPEN", "CURLY_CLOSE", "$accept", "statement",
+  "expression", "simple_expr", "template_expr", "$@1", YY_NULLPTR
 };
 
 static const char *
@@ -782,15 +654,11 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 static const yytype_int16 yytoknum[] =
 {
        0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
-     265,   266,   267,   268,   269,   270,   271,   272,   273,   274,
-     275,   276,   277,   278,   279,   280,   281,   282,   283,   284,
-     285,   286,   287,   288,   289,   290,   291,   292,   293,   294,
-     295,   296,   297,    58,   123,   125,    47,    40,    41,    44,
-      61
+     265,   266,   267,   268,   269,   270,   271,   272
 };
 #endif
 
-#define YYPACT_NINF (-55)
+#define YYPACT_NINF (-14)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -802,28 +670,12 @@ static const yytype_int16 yytoknum[] =
 
   /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
      STATE-NUM.  */
-static const yytype_int16 yypact[] =
+static const yytype_int8 yypact[] =
 {
-      -5,   -37,   -35,    33,    13,    20,   -55,    17,   -22,   -21,
-     -18,    18,    23,   -55,   -55,    62,    63,    64,    65,    66,
-      67,    68,    69,    70,    71,    -8,     7,   -55,    59,   -55,
-      50,   -55,   -55,   -55,   109,   110,    72,    33,   111,    38,
-      72,   112,    85,   115,    -2,    86,    87,    81,    83,    84,
-      88,    89,    90,    92,   -55,    14,   -55,   -55,   -55,   -55,
-     125,   126,   -55,   -55,   -55,   -55,   -55,    93,    94,    95,
-      96,    97,    98,   -55,   -55,   -55,   -55,   -55,    82,   -55,
-     -55,    99,   -55,   -55,   100,   -55,   -55,   101,   -55,   -55,
-     102,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,
-     -55,   -55,   -55,   -55,   103,   128,     6,   114,   108,   107,
-     -55,   -55,   -55,   -55,   -55,   116,   117,   118,   119,   120,
-     121,   -13,   113,   104,   129,   -55,    50,   -55,   -55,   -55,
-     -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,
-     122,   123,   124,    45,   -55,   127,    47,   -55,   -55,   130,
-      49,   -55,    73,    26,    -8,   141,   140,   132,   -55,   -13,
-     156,   -55,   113,   138,   -55,   129,   131,   133,    53,   -55,
-     -55,    32,   -55,   -55,   -55,   -55,   -55,   -55,   -55,   -55,
-     -55,   -55,   -55,    73,   -55,    91,    76,   -55,   -55,   -55,
-     -55,   -55,   -55,   -55,   -55
+      32,   -13,   -11,    -3,    -2,    -1,     2,    12,     1,   -14,
+     -14,   -14,     8,    16,     0,    17,     7,    14,   -14,   -14,
+     -14,   -14,   -14,   -14,   -14,   -14,   -14,   -14,    32,    18,
+     -14
 };
 
   /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -831,164 +683,74 @@ static const yytype_int16 yypact[] =
      means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
-       0,     0,     0,     0,     0,     0,     4,     0,     0,     0,
-       0,     0,   103,   104,     1,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     0,     2,     0,    13,    15,    17,
-      16,    23,     5,     6,     0,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     3,     0,    93,    12,    11,     7,
-       8,     0,    14,    18,    24,   106,   107,    41,    46,    56,
-      64,    69,    78,   108,    33,    39,    40,    34,    43,    45,
-      35,    53,    55,    36,    61,    63,    37,    66,    68,    38,
-      74,    77,   105,    19,    20,    21,    22,    25,    26,    28,
-      27,    29,    30,    31,     0,     0,     0,     0,     0,     0,
-      92,    91,    94,     9,    10,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     0,    75,     0,    95,    96,    98,
-      97,    99,   100,   101,    42,    47,    57,    65,    70,    79,
-       0,     0,     0,     0,    48,     0,     0,    58,    62,     0,
-       0,    71,     0,     0,     0,     0,     0,     0,    44,     0,
-       0,    54,     0,     0,    67,     0,     0,     0,     0,    80,
-      32,     0,    50,    51,    52,    49,    60,    59,    73,    72,
-      82,    84,    76,     0,   102,     0,     0,    81,    86,    87,
-      83,    88,    89,    90,    85
+       0,     8,     0,     0,     0,     0,     0,     0,     0,     2,
+       4,     5,     0,     0,     0,     0,     0,     0,     7,     1,
+       3,     6,     9,    11,    10,    12,    13,    14,     0,     0,
+      15
 };
 
   /* YYPGOTO[NTERM-NUM].  */
-static const yytype_int16 yypgoto[] =
+static const yytype_int8 yypgoto[] =
 {
-     -55,   -55,   -55,   -55,   -55,   105,   134,   -55,   139,   -55,
-     136,    41,   -30,   -55,   135,   -17,   -55,   -55,   -16,   -55,
-     -55,   -55,    11,   -15,   -55,   -55,   -55,    16,   -10,   -55,
-     -55,    -7,   -55,   -55,   -55,    19,   -55,   -55,   -55,   -55,
-     -55,    -1,   -55,   -55,   -55,   -55,   -55,   -55,    31,   -54,
-     -55,   -55,   -55,   149
+     -14,     3,    -8,   -14,   -14,   -14
 };
 
   /* YYDEFGOTO[NTERM-NUM].  */
-static const yytype_uint8 yydefgoto[] =
+static const yytype_int8 yydefgoto[] =
 {
-       0,     4,     5,    25,    59,    60,    61,    26,    27,    28,
-      29,    30,    31,   126,    73,    74,    75,    76,    77,    78,
-      79,   143,   144,    80,    81,    82,   146,   147,    83,    84,
-      85,    86,    87,    88,   150,   151,    89,   152,    90,    91,
-     168,   169,   185,   186,   190,   194,    54,   111,    55,    56,
-     154,     6,    12,    13
+       0,     8,     9,    10,    11,    28
 };
 
   /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
      positive, shift that token.  If negative, reduce the rule whose
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
-static const yytype_uint8 yytable[] =
+static const yytype_int8 yytable[] =
 {
-      64,   112,     1,     2,    99,   140,     7,   141,     8,   142,
-      57,    58,   129,    14,    15,    16,    33,    17,    18,   110,
-      48,    49,    50,    51,    52,    53,    32,    15,    16,    34,
-      17,    18,    35,   100,     3,    19,    20,    21,    22,    23,
-      24,   130,    48,    49,    50,    51,    52,    53,    19,    20,
-      21,    22,    23,    24,    19,    20,    21,    22,    23,    24,
-      48,    49,    50,    51,    52,    53,    15,    16,    36,    17,
-      18,   170,    37,     9,    10,    11,    94,   184,    19,    20,
-      21,    22,    23,    24,    67,    68,    69,    70,    71,    72,
-      69,    70,    71,   158,   159,   161,   162,   164,   165,   166,
-     167,   182,   183,    67,    68,    38,    39,    40,    41,    42,
-      43,    44,    45,    46,    47,    65,    66,   112,    96,    97,
-      93,    98,   101,    64,   102,   103,   104,   105,    57,   121,
-      58,   106,   107,   108,   128,   109,   145,   127,   174,   115,
-     116,   117,   118,   119,   120,   132,   122,   123,   124,   125,
-     131,   133,   148,   149,   134,   135,   136,   137,   138,   139,
-     172,   173,   176,   178,    63,    62,   114,   153,   188,   189,
-     175,   191,   155,   156,   157,    95,   192,   160,   177,   193,
-     163,   180,   187,   181,   179,   171,    92,     0,     0,     0,
-       0,     0,     0,     0,   113
+      20,    19,    12,    23,    13,     1,     2,     3,     4,     5,
+       6,    24,    14,    15,    16,     7,    18,    17,    21,    22,
+      26,    20,     1,     2,     3,     4,     5,     6,     0,    25,
+      27,    29,     7,     0,     0,    30,     1,     2,     3,     4,
+       5,     6,     0,     0,     0,     0,     7
 };
 
-static const yytype_int16 yycheck[] =
+static const yytype_int8 yycheck[] =
 {
-      30,    55,     7,     8,     6,    18,    43,    20,    43,    22,
-       3,     4,     6,     0,     7,     8,    38,    10,    11,     5,
-      28,    29,    30,    31,    32,    33,     9,     7,     8,    50,
-      10,    11,    50,    35,    39,    28,    29,    30,    31,    32,
-      33,    35,    28,    29,    30,    31,    32,    33,    28,    29,
-      30,    31,    32,    33,    28,    29,    30,    31,    32,    33,
-      28,    29,    30,    31,    32,    33,     7,     8,    50,    10,
-      11,    45,    49,    40,    41,    42,    38,    45,    28,    29,
-      30,    31,    32,    33,    12,    13,    14,    15,    16,    17,
-      14,    15,    16,    48,    49,    48,    49,    48,    49,    26,
-      27,    48,    49,    12,    13,    43,    43,    43,    43,    43,
-      43,    43,    43,    43,    43,     6,     6,   171,     6,    34,
-       9,     6,    36,   153,    37,    44,    43,    43,     3,    47,
-       4,    43,    43,    43,     6,    43,    23,    34,     6,    46,
-      46,    46,    46,    46,    46,    37,    47,    47,    47,    47,
-      36,    44,    48,    24,    38,    38,    38,    38,    38,    38,
-      19,    21,     6,    25,    28,    26,    61,   126,   185,   185,
-     159,   186,    50,    50,    50,    40,   186,    50,   162,   186,
-      50,    50,   183,    50,   165,   154,    37,    -1,    -1,    -1,
-      -1,    -1,    -1,    -1,    60
+       8,     0,    15,     3,    15,     4,     5,     6,     7,     8,
+       9,    11,    15,    15,    15,    14,     4,    15,    10,     3,
+      13,    29,     4,     5,     6,     7,     8,     9,    -1,    12,
+      16,    28,    14,    -1,    -1,    17,     4,     5,     6,     7,
+       8,     9,    -1,    -1,    -1,    -1,    14
 };
 
   /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
      symbol of state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
-       0,     7,     8,    39,    52,    53,   102,    43,    43,    40,
-      41,    42,   103,   104,     0,     7,     8,    10,    11,    28,
-      29,    30,    31,    32,    33,    54,    58,    59,    60,    61,
-      62,    63,     9,    38,    50,    50,    50,    49,    43,    43,
-      43,    43,    43,    43,    43,    43,    43,    43,    28,    29,
-      30,    31,    32,    33,    97,    99,   100,     3,     4,    55,
-      56,    57,    59,    61,    63,     6,     6,    12,    13,    14,
-      15,    16,    17,    65,    66,    67,    68,    69,    70,    71,
-      74,    75,    76,    79,    80,    81,    82,    83,    84,    87,
-      89,    90,   104,     9,    38,    65,     6,    34,     6,     6,
-      35,    36,    37,    44,    43,    43,    43,    43,    43,    43,
-       5,    98,   100,    57,    56,    46,    46,    46,    46,    46,
-      46,    47,    47,    47,    47,    47,    64,    34,     6,     6,
-      35,    36,    37,    44,    38,    38,    38,    38,    38,    38,
-      18,    20,    22,    72,    73,    23,    77,    78,    48,    24,
-      85,    86,    88,    62,   101,    50,    50,    50,    48,    49,
-      50,    48,    49,    50,    48,    49,    26,    27,    91,    92,
-      45,    99,    19,    21,     6,    73,     6,    78,    25,    86,
-      50,    50,    48,    49,    45,    93,    94,    92,    66,    69,
-      95,    74,    79,    82,    96
+       0,     4,     5,     6,     7,     8,     9,    14,    19,    20,
+      21,    22,    15,    15,    15,    15,    15,    15,     4,     0,
+      20,    10,     3,     3,    11,    12,    13,    16,    23,    19,
+      17
 };
 
   /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    51,    52,    52,    52,    53,    53,    54,    55,    55,
-      55,    56,    57,    58,    58,    59,    59,    60,    60,    61,
-      61,    61,    61,    62,    62,    63,    63,    63,    63,    63,
-      63,    64,    63,    65,    65,    65,    65,    65,    65,    66,
-      67,    68,    68,    69,    69,    70,    71,    71,    72,    72,
-      73,    73,    73,    74,    74,    75,    76,    76,    77,    77,
-      78,    79,    79,    80,    81,    81,    82,    82,    83,    84,
-      84,    85,    85,    86,    87,    88,    87,    89,    90,    90,
-      91,    91,    93,    92,    94,    92,    95,    95,    96,    96,
-      96,    97,    98,    99,    99,   100,   100,   100,   100,   100,
-     100,   101,   100,   102,   103,   103,   104,   104,   104
+       0,    18,    19,    19,    20,    20,    21,    21,    21,    21,
+      21,    21,    21,    21,    23,    22
 };
 
   /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
 static const yytype_int8 yyr2[] =
 {
-       0,     2,     2,     3,     1,     3,     3,     2,     1,     2,
-       2,     1,     1,     1,     2,     1,     1,     1,     2,     3,
-       3,     3,     3,     1,     2,     3,     3,     3,     3,     3,
-       3,     0,     6,     1,     1,     1,     1,     1,     1,     1,
-       1,     1,     3,     1,     4,     1,     1,     3,     1,     3,
-       3,     3,     3,     1,     4,     1,     1,     3,     1,     3,
-       3,     1,     3,     1,     1,     3,     1,     4,     1,     1,
-       3,     1,     3,     3,     1,     0,     5,     1,     1,     3,
-       1,     3,     0,     4,     0,     4,     1,     1,     1,     1,
-       1,     2,     1,     1,     2,     3,     3,     3,     3,     3,
-       3,     0,     6,     2,     1,     3,     3,     3,     3
+       0,     2,     1,     2,     1,     1,     3,     2,     1,     3,
+       3,     3,     3,     3,     0,     6
 };
 
 
 enum { YYENOMEM = -2 };
 
 #define yyerrok         (yyerrstatus = 0)
-#define yyclearin       (yychar = YYEMPTY)
+#define yyclearin       (yychar = CLEMPTY)
 
 #define YYACCEPT        goto yyacceptlab
 #define YYABORT         goto yyabortlab
@@ -999,7 +761,7 @@ enum { YYENOMEM = -2 };
 
 #define YYBACKUP(Token, Value)                                    \
   do                                                              \
-    if (yychar == YYEMPTY)                                        \
+    if (yychar == CLEMPTY)                                        \
       {                                                           \
         yychar = (Token);                                         \
         yylval = (Value);                                         \
@@ -1015,12 +777,12 @@ enum { YYENOMEM = -2 };
   while (0)
 
 /* Backward compatibility with an undocumented macro.
-   Use YYerror or YYUNDEF. */
-#define YYERRCODE YYUNDEF
+   Use CLerror or CLUNDEF. */
+#define YYERRCODE CLUNDEF
 
 
 /* Enable debugging if requested.  */
-#if YYDEBUG
+#if CLDEBUG
 
 # ifndef YYFPRINTF
 #  include <stdio.h> /* INFRINGES ON USER NAME SPACE */
@@ -1057,7 +819,7 @@ do {                                                                      \
 
 static void
 yy_symbol_value_print (FILE *yyo,
-                       yysymbol_kind_t yykind, YYSTYPE const * const yyvaluep, wrappedKeyCtx *ctx)
+                       yysymbol_kind_t yykind, YYSTYPE const * const yyvaluep, attribCtx *ctx)
 {
   FILE *yyoutput = yyo;
   YY_USE (yyoutput);
@@ -1080,7 +842,7 @@ yy_symbol_value_print (FILE *yyo,
 
 static void
 yy_symbol_print (FILE *yyo,
-                 yysymbol_kind_t yykind, YYSTYPE const * const yyvaluep, wrappedKeyCtx *ctx)
+                 yysymbol_kind_t yykind, YYSTYPE const * const yyvaluep, attribCtx *ctx)
 {
   YYFPRINTF (yyo, "%s %s (",
              yykind < YYNTOKENS ? "token" : "nterm", yysymbol_name (yykind));
@@ -1119,7 +881,7 @@ do {                                                            \
 
 static void
 yy_reduce_print (yy_state_t *yyssp, YYSTYPE *yyvsp,
-                 int yyrule, wrappedKeyCtx *ctx)
+                 int yyrule, attribCtx *ctx)
 {
   int yylno = yyrline[yyrule];
   int yynrhs = yyr2[yyrule];
@@ -1146,12 +908,12 @@ do {                                    \
 /* Nonzero means print parse trace.  It is left uninitialized so that
    multiple parsers can coexist.  */
 int yydebug;
-#else /* !YYDEBUG */
+#else /* !CLDEBUG */
 # define YYDPRINTF(Args) ((void) 0)
 # define YY_SYMBOL_PRINT(Title, Kind, Value, Location)
 # define YY_STACK_PRINT(Bottom, Top)
 # define YY_REDUCE_PRINT(Rule)
-#endif /* !YYDEBUG */
+#endif /* !CLDEBUG */
 
 
 /* YYINITDEPTH -- initial size of the parser's stacks.  */
@@ -1448,7 +1210,7 @@ yysyntax_error (YYPTRDIFF_T *yymsg_alloc, char **yymsg,
 
 static void
 yydestruct (const char *yymsg,
-            yysymbol_kind_t yykind, YYSTYPE *yyvaluep, wrappedKeyCtx *ctx)
+            yysymbol_kind_t yykind, YYSTYPE *yyvaluep, attribCtx *ctx)
 {
   YY_USE (yyvaluep);
   YY_USE (ctx);
@@ -1478,7 +1240,7 @@ int yynerrs;
 `----------*/
 
 int
-yyparse (wrappedKeyCtx *ctx)
+yyparse (attribCtx *ctx)
 {
     yy_state_fast_t yystate = 0;
     /* Number of tokens to shift before error messages enabled.  */
@@ -1522,7 +1284,7 @@ yyparse (wrappedKeyCtx *ctx)
 
   YYDPRINTF ((stderr, "Starting parse\n"));
 
-  yychar = YYEMPTY; /* Cause a token to be read.  */
+  yychar = CLEMPTY; /* Cause a token to be read.  */
   goto yysetstate;
 
 
@@ -1630,25 +1392,25 @@ yybackup:
   /* Not known => get a lookahead token if don't already have one.  */
 
   /* YYCHAR is either empty, or end-of-input, or a valid lookahead.  */
-  if (yychar == YYEMPTY)
+  if (yychar == CLEMPTY)
     {
       YYDPRINTF ((stderr, "Reading a token\n"));
-      yychar = yylex ();
+      yychar = yylex (ctx);
     }
 
-  if (yychar <= YYEOF)
+  if (yychar <= CLEOF)
     {
-      yychar = YYEOF;
+      yychar = CLEOF;
       yytoken = YYSYMBOL_YYEOF;
       YYDPRINTF ((stderr, "Now at end of input.\n"));
     }
-  else if (yychar == YYerror)
+  else if (yychar == CLerror)
     {
       /* The scanner already issued an error message, process directly
          to error recovery.  But do not keep the error token as
          lookahead, it is too special and may lead us to an endless
          loop in error recovery. */
-      yychar = YYUNDEF;
+      yychar = CLUNDEF;
       yytoken = YYSYMBOL_YYerror;
       goto yyerrlab1;
     }
@@ -1685,7 +1447,7 @@ yybackup:
   YY_IGNORE_MAYBE_UNINITIALIZED_END
 
   /* Discard the shifted token.  */
-  yychar = YYEMPTY;
+  yychar = CLEMPTY;
   goto yynewstate;
 
 
@@ -1720,472 +1482,141 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
-  case 6: /* headers: GRAMMAR_VERSION ':' DOTTEDNUMBER  */
-#line 121 "wrappedkey_parser.y"
+  case 6: /* simple_expr: CKATTR_BOOL ASSIGN TOK_BOOLEAN  */
+#line 94 "attribctx_parser.y"
                 {
-		    if(strcmp((yyvsp[0].val_dottednumber),SUPPORTED_GRAMMAR_VERSION)>0) {
-			yyerror(ctx,"Grammar version (%s) not supported, max supported is %s please update pkcs11-tools\n", (yyvsp[0].val_dottednumber), SUPPORTED_GRAMMAR_VERSION);
+		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_bool), sizeof(CK_BBOOL) )!=rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
 		}
-#line 1732 "wrappedkey_parser.c"
+#line 1494 "attribctx_parser.c"
     break;
 
-  case 11: /* innerblock: INNER  */
-#line 138 "wrappedkey_parser.y"
+  case 7: /* simple_expr: NO CKATTR_BOOL  */
+#line 101 "attribctx_parser.y"
                 {
-		    if(_wrappedkey_parser_wkey_append_cryptogram(ctx, (yyvsp[0].val_pem), WRAPPEDKEYCTX_INNER_KEY_INDEX)!=rc_ok) {
-			yyerror(ctx,"Error when parsing encrypted key cryptogram (inner)");
-			YYERROR;
-		    }
-                    free((yyvsp[0].val_pem));	/* free up mem */
-		}
-#line 1744 "wrappedkey_parser.c"
-    break;
-
-  case 12: /* outerblock: OUTER  */
-#line 148 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_append_cryptogram(ctx, (yyvsp[0].val_pem), WRAPPEDKEYCTX_OUTER_KEY_INDEX)!=rc_ok) {
-			yyerror(ctx,"Error when parsing encrypted key cryptogram (outer)");
-			YYERROR;
-		    }
-                    free((yyvsp[0].val_pem));	/* free up mem */
-		}
-#line 1756 "wrappedkey_parser.c"
-    break;
-
-  case 20: /* metastmt: GRAMMAR_VERSION ':' DOTTEDNUMBER  */
-#line 171 "wrappedkey_parser.y"
-                {
-		    if(strcmp((yyvsp[0].val_dottednumber),SUPPORTED_GRAMMAR_VERSION)>0) {
-			yyerror(ctx,
-				"Grammar version %s not supported (highest supported version is %s)\n"
-				"Please update pkcs11-tools\n",
-				(yyvsp[0].val_dottednumber), SUPPORTED_GRAMMAR_VERSION);
-			YYERROR;
-		    }
-		}
-#line 1770 "wrappedkey_parser.c"
-    break;
-
-  case 22: /* metastmt: WRAPPING_KEY ':' STRING  */
-#line 182 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_set_wrapping_key(ctx, (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
-		        yyerror(ctx,"Parsing error with wrapping key identifier.");
-                        YYERROR;
-                    }
-		}
-#line 1781 "wrappedkey_parser.c"
-    break;
-
-  case 25: /* assignstmt: CKATTR_BOOL ':' TOK_BOOLEAN  */
-#line 195 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_bool), sizeof(CK_BBOOL) )!=rc_ok) {
-			yyerror(ctx,"Error during parsing, cannot assign boolean value.");
-			YYERROR;
-		    }
-		}
-#line 1792 "wrappedkey_parser.c"
-    break;
-
-  case 26: /* assignstmt: CKATTR_STR ':' STRING  */
-#line 202 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
-			yyerror(ctx,"Error during parsing, cannot assign bytes value.");
-			YYERROR;
-		    }
-		}
-#line 1803 "wrappedkey_parser.c"
-    break;
-
-  case 27: /* assignstmt: CKATTR_DATE ':' TOK_DATE  */
-#line 209 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_date).as_buffer, sizeof(CK_DATE))!=rc_ok) {
-			yyerror(ctx,"Error during parsing, cannot assign date value.");
-			YYERROR;
-		    }
-		}
-#line 1814 "wrappedkey_parser.c"
-    break;
-
-  case 28: /* assignstmt: CKATTR_DATE ':' STRING  */
-#line 216 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
-			yyerror(ctx,"Error during parsing, cannot assign date value.");
-			YYERROR;
-		    }
-		}
-#line 1825 "wrappedkey_parser.c"
-    break;
-
-  case 29: /* assignstmt: CKATTR_KEY ':' KEYTYPE  */
-#line 223 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_key), sizeof(CK_KEY_TYPE))!=rc_ok) {
-			yyerror(ctx,"Error during parsing, cannot assign key type value.");
-			YYERROR;
-		    }
-		}
-#line 1836 "wrappedkey_parser.c"
-    break;
-
-  case 30: /* assignstmt: CKATTR_CLASS ':' OCLASS  */
-#line 230 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_cls), sizeof(CK_OBJECT_CLASS))!=rc_ok) {
-			yyerror(ctx,"Error during parsing, cannot assign object class value.");
-			YYERROR;
-		    }
-		}
-#line 1847 "wrappedkey_parser.c"
-    break;
-
-  case 31: /* $@1: %empty  */
-#line 237 "wrappedkey_parser.y"
-                {
-		    if(ctx->wrpkattribs->level==1) {
-			yyerror(ctx, "***Error: nesting templates not allowed");
-			YYERROR;
-		    }
-                    ctx->wrpkattribs->level++; /*remind we are in a curly brace */
+		    CK_BBOOL bfalse = CK_FALSE;
 		    
-		    ctx->wrpkattribs->current_idx = ctx->wrpkattribs->saved_idx + 1; /*increment current idx from ctx->saved_idx */
-		    if(ctx->wrpkattribs->current_idx>=4) {
-			/* There exist only 3 templates */
-			yyerror(ctx, "***Error: too many templates specified");
+		    if(_attribctx_parser_append_attr(ctx, (yyvsp[0].ckattr), &bfalse, sizeof(CK_BBOOL) )!=rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign boolean value.");
+			YYERROR;
+		    }
+		}
+#line 1507 "attribctx_parser.c"
+    break;
+
+  case 8: /* simple_expr: CKATTR_BOOL  */
+#line 110 "attribctx_parser.y"
+                {
+		    CK_BBOOL btrue = CK_TRUE;
+		    
+		    if(_attribctx_parser_append_attr(ctx, (yyvsp[0].ckattr), &btrue, sizeof(CK_BBOOL) )!=rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign boolean value.");
+			YYERROR;
+		    }
+		}
+#line 1520 "attribctx_parser.c"
+    break;
+
+  case 9: /* simple_expr: CKATTR_STR ASSIGN STRING  */
+#line 119 "attribctx_parser.y"
+                {
+		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign bytes value.");
+			YYERROR;
+		    }
+		    free((yyvsp[0].val_str).val); /* we must free() as the buffer was copied */
+		}
+#line 1532 "attribctx_parser.c"
+    break;
+
+  case 10: /* simple_expr: CKATTR_DATE ASSIGN TOK_DATE  */
+#line 127 "attribctx_parser.y"
+                {
+		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_date).as_buffer, sizeof(CK_DATE))!=rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign date value.");
+			YYERROR;
+		    }
+		}
+#line 1543 "attribctx_parser.c"
+    break;
+
+  case 11: /* simple_expr: CKATTR_DATE ASSIGN STRING  */
+#line 134 "attribctx_parser.y"
+                {
+		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign date value.");
+			YYERROR;
+		    }
+		    free((yyvsp[0].val_str).val); /* we must free() as the buffer was copied */
+		}
+#line 1555 "attribctx_parser.c"
+    break;
+
+  case 12: /* simple_expr: CKATTR_KEY ASSIGN KEYTYPE  */
+#line 142 "attribctx_parser.y"
+                {
+		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_key), sizeof(CK_KEY_TYPE))!=rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign key type value.");
+			YYERROR;
+		    }
+		}
+#line 1566 "attribctx_parser.c"
+    break;
+
+  case 13: /* simple_expr: CKATTR_CLASS ASSIGN OCLASS  */
+#line 149 "attribctx_parser.y"
+                {
+		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_cls), sizeof(CK_OBJECT_CLASS))!=rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign object class value.");
+			YYERROR;
+		    }
+		}
+#line 1577 "attribctx_parser.c"
+    break;
+
+  case 14: /* $@1: %empty  */
+#line 158 "attribctx_parser.y"
+                {
+		    if(ctx->level==1) {
+			clerror(ctx, "***Error: nesting templates not allowed");
+			YYERROR;
+		    }
+                    ctx->level++; /*remind we are in a curly brace */
+		    
+		    ctx->current_idx = ctx->saved_idx + 1; /*increment current idx from ctx->saved_idx */
+		    if(ctx->current_idx>=4) {
+			clerror(ctx, "***Error: too many templates specified");
 			YYERROR;
                    } 		    
 		}
-#line 1866 "wrappedkey_parser.c"
+#line 1595 "attribctx_parser.c"
     break;
 
-  case 32: /* assignstmt: CKATTR_TEMPLATE ':' '{' $@1 assignstmts '}'  */
-#line 252 "wrappedkey_parser.y"
+  case 15: /* template_expr: CKATTR_TEMPLATE ASSIGN CURLY_OPEN $@1 statement CURLY_CLOSE  */
+#line 172 "attribctx_parser.y"
                 {
-		    if(ctx->wrpkattribs->level==0) {
-		        yyerror(ctx, "***Error: no matching opening curly brace");
+
+		    if(ctx->level==0) {
+		        clerror(ctx, "***Error: no matching opening curly brace");
 			YYERROR;
                     }
-                    ctx->wrpkattribs->level--; /*out of curly brace now */
+                    ctx->level--; /*out of curly brace now */
 
-		    ctx->wrpkattribs->saved_idx = ctx->wrpkattribs->current_idx; /* remember which index we used last */
-		    ctx->wrpkattribs->current_idx = ctx->wrpkattribs->mainlist_idx; /* should be always 0 */
+		    ctx->saved_idx = ctx->current_idx; /* remember which index we used last */
+		    ctx->current_idx = ctx->mainlist_idx; /* should be always 0 */
 
-		    if(_wrappedkey_parser_wkey_assign_list_to_template(ctx, (yyvsp[-5].ckattr))!=rc_ok) {
-			yyerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
+		    if(_attribctx_parser_assign_list_to_template(ctx, (yyvsp[-5].ckattr))!=rc_ok) {
+			clerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
 			YYERROR;
 		    }		    
 		}
-#line 1886 "wrappedkey_parser.c"
-    break;
-
-  case 40: /* pkcs1algoheader: pkcs1algoid  */
-#line 283 "wrappedkey_parser.y"
-                {
-		    int keyidx = parsing_envelope ? envelope_keyindex : WRAPPEDKEYCTX_LONE_KEY_INDEX;
-		    if(_wrappedkey_parser_wkey_set_wrapping_alg(ctx, (yyvsp[0].val_wrappingmethod), keyidx)!=rc_ok) {
-			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
-			YYERROR;
-		    }
-		}
-#line 1898 "wrappedkey_parser.c"
-    break;
-
-  case 45: /* oaepalgoheader: oaepalgoid  */
-#line 304 "wrappedkey_parser.y"
-                {
-		    int keyidx = parsing_envelope ? envelope_keyindex : WRAPPEDKEYCTX_LONE_KEY_INDEX;
-		    if(_wrappedkey_parser_wkey_set_wrapping_alg(ctx, (yyvsp[0].val_wrappingmethod), keyidx)!=rc_ok) {
-			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
-			YYERROR;
-		    }
-		}
-#line 1910 "wrappedkey_parser.c"
-    break;
-
-  case 50: /* oaepparam: PARAMHASH '=' HASHALG  */
-#line 325 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_set_wrapping_param_hash(ctx, (yyvsp[0].val_hashalg))!=rc_ok) {
-			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
-			YYERROR;
-		    }
-		}
-#line 1921 "wrappedkey_parser.c"
-    break;
-
-  case 51: /* oaepparam: PARAMMGF '=' MGFTYPE  */
-#line 332 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_set_wrapping_param_mgf(ctx, (yyvsp[0].val_mgf))!=rc_ok) {
-			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
-			YYERROR;
-		    }
-		}
-#line 1932 "wrappedkey_parser.c"
-    break;
-
-  case 52: /* oaepparam: PARAMLABEL '=' STRING  */
-#line 339 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_set_wrapping_param_label(ctx, (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
-			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
-			YYERROR;
-		    }
-		}
-#line 1943 "wrappedkey_parser.c"
-    break;
-
-  case 55: /* cbcpadalgoheader: cbcpadalgoid  */
-#line 353 "wrappedkey_parser.y"
-                {
-		    int keyidx = parsing_envelope ? envelope_keyindex : WRAPPEDKEYCTX_LONE_KEY_INDEX;
-		    if(_wrappedkey_parser_wkey_set_wrapping_alg(ctx, (yyvsp[0].val_wrappingmethod), keyidx)!=rc_ok) {
-			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
-			YYERROR;
-		    }
-		}
-#line 1955 "wrappedkey_parser.c"
-    break;
-
-  case 60: /* cbcpadparam: PARAMIV '=' STRING  */
-#line 375 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_set_wrapping_param_iv(ctx, (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
-			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
-			YYERROR;
-		    }
-		}
-#line 1966 "wrappedkey_parser.c"
-    break;
-
-  case 63: /* rfc3394algoheader: rfc3394algoid  */
-#line 391 "wrappedkey_parser.y"
-                {
-		    int keyidx = parsing_envelope ? envelope_keyindex : WRAPPEDKEYCTX_LONE_KEY_INDEX;
-		    if(_wrappedkey_parser_wkey_set_wrapping_alg(ctx, (yyvsp[0].val_wrappingmethod), keyidx)!=rc_ok) {
-			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
-			YYERROR;
-		    }
-		}
-#line 1978 "wrappedkey_parser.c"
-    break;
-
-  case 68: /* rfc5649algoheader: rfc5649algoid  */
-#line 414 "wrappedkey_parser.y"
-                {
-		    int keyidx = parsing_envelope ? envelope_keyindex : WRAPPEDKEYCTX_LONE_KEY_INDEX;
-		    if(_wrappedkey_parser_wkey_set_wrapping_alg(ctx, (yyvsp[0].val_wrappingmethod), keyidx)!=rc_ok) {
-			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
-			YYERROR;
-		    }
-		}
-#line 1990 "wrappedkey_parser.c"
-    break;
-
-  case 73: /* rfc5649param: PARAMFLAVOUR '=' WRAPALG  */
-#line 435 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_set_wrapping_param_flavour(ctx, (yyvsp[0].val_wrapalg))!=rc_ok) {
-			yyerror(ctx,"Parsing error with specified wrapping algorithm flavour.");
-			YYERROR;
-		    }
-		}
-#line 2001 "wrappedkey_parser.c"
-    break;
-
-  case 75: /* $@2: %empty  */
-#line 445 "wrappedkey_parser.y"
-                {
-		    if(++parsing_envelope>1) {
-			yyerror(ctx, "Nested envelope() algorithm not allowed.");
-			YYERROR;
-		    }
-		}
-#line 2012 "wrappedkey_parser.c"
-    break;
-
-  case 76: /* envelopealgo: envelopealgoheader '(' $@2 envelopeparamlist ')'  */
-#line 452 "wrappedkey_parser.y"
-                    { --parsing_envelope; }
-#line 2018 "wrappedkey_parser.c"
-    break;
-
-  case 77: /* envelopealgoheader: envelopealgoid  */
-#line 456 "wrappedkey_parser.y"
-                {
-		    int keyidx = parsing_envelope ? envelope_keyindex : WRAPPEDKEYCTX_LONE_KEY_INDEX;
-		    if(_wrappedkey_parser_wkey_set_wrapping_alg(ctx, (yyvsp[0].val_wrappingmethod), keyidx)!=rc_ok) {
-			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
-			YYERROR;
-		    }
-		}
-#line 2030 "wrappedkey_parser.c"
-    break;
-
-  case 82: /* $@3: %empty  */
-#line 477 "wrappedkey_parser.y"
-                {
-		    envelope_keyindex = WRAPPEDKEYCTX_OUTER_KEY_INDEX;
-		}
-#line 2038 "wrappedkey_parser.c"
-    break;
-
-  case 84: /* $@4: %empty  */
-#line 482 "wrappedkey_parser.y"
-                {
-		    envelope_keyindex = WRAPPEDKEYCTX_INNER_KEY_INDEX;
-		}
-#line 2046 "wrappedkey_parser.c"
-    break;
-
-  case 92: /* pubkblock: PUBK  */
-#line 503 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_pubk_append_pem(ctx, (yyvsp[0].val_pem))!=rc_ok) {
-			yyerror(ctx,"Error when parsing public key information");
-			YYERROR;
-		    }
-                    free((yyvsp[0].val_pem));	/* free up mem */
-		}
-#line 2058 "wrappedkey_parser.c"
-    break;
-
-  case 95: /* pubkstmt: CKATTR_BOOL ':' TOK_BOOLEAN  */
-#line 518 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_pubk_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_bool), sizeof(CK_BBOOL) )!=rc_ok) {
-			yyerror(ctx,"Error during parsing, cannot assign boolean value.");
-			YYERROR;
-		    }
-		}
-#line 2069 "wrappedkey_parser.c"
-    break;
-
-  case 96: /* pubkstmt: CKATTR_STR ':' STRING  */
-#line 525 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_pubk_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
-			yyerror(ctx,"Error during parsing, cannot assign bytes value.");
-			YYERROR;
-		    }
-		}
-#line 2080 "wrappedkey_parser.c"
-    break;
-
-  case 97: /* pubkstmt: CKATTR_DATE ':' TOK_DATE  */
-#line 532 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_pubk_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_date).as_buffer, sizeof(CK_DATE))!=rc_ok) {
-			yyerror(ctx,"Error during parsing, cannot assign date value.");
-			YYERROR;
-		    }
-		}
-#line 2091 "wrappedkey_parser.c"
-    break;
-
-  case 98: /* pubkstmt: CKATTR_DATE ':' STRING  */
-#line 539 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_pubk_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
-			yyerror(ctx,"Error during parsing, cannot assign date value.");
-			YYERROR;
-		    }
-		}
-#line 2102 "wrappedkey_parser.c"
-    break;
-
-  case 99: /* pubkstmt: CKATTR_KEY ':' KEYTYPE  */
-#line 546 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_pubk_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_key), sizeof(CK_KEY_TYPE))!=rc_ok) {
-			yyerror(ctx,"Error during parsing, cannot assign key type value.");
-			YYERROR;
-		    }
-		}
-#line 2113 "wrappedkey_parser.c"
-    break;
-
-  case 100: /* pubkstmt: CKATTR_CLASS ':' OCLASS  */
-#line 553 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_pubk_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_cls), sizeof(CK_OBJECT_CLASS))!=rc_ok) {
-			yyerror(ctx,"Error during parsing, cannot assign object class value.");
-			YYERROR;
-		    }
-		}
-#line 2124 "wrappedkey_parser.c"
-    break;
-
-  case 101: /* $@5: %empty  */
-#line 560 "wrappedkey_parser.y"
-                {
-		    if(ctx->pubkattribs->level==1) {
-			yyerror(ctx, "***Error: nesting templates not allowed");
-			YYERROR;
-		    }
-                    ctx->pubkattribs->level++; /*remind we are in a curly brace */
-		    
-		    ctx->pubkattribs->current_idx = ctx->pubkattribs->saved_idx + 1; /*increment current idx from ctx->saved_idx */
-		    if(ctx->pubkattribs->current_idx>=4) {
-			/* There exist only 3 templates */
-			yyerror(ctx, "***Error: too many templates specified");
-			YYERROR;
-                   } 		    
-		}
-#line 2143 "wrappedkey_parser.c"
-    break;
-
-  case 102: /* pubkstmt: CKATTR_TEMPLATE ':' '{' $@5 pubkstmts '}'  */
-#line 575 "wrappedkey_parser.y"
-                {
-		    if(ctx->pubkattribs->level==0) {
-		        yyerror(ctx, "***Error: no matching opening curly brace");
-			YYERROR;
-                    }
-                    ctx->pubkattribs->level--; /*out of curly brace now */
-
-		    ctx->pubkattribs->saved_idx = ctx->pubkattribs->current_idx; /* remember which index we used last */
-		    ctx->pubkattribs->current_idx = ctx->pubkattribs->mainlist_idx; /* should be always 0 */
-
-		    if(_wrappedkey_parser_pubk_assign_list_to_template(ctx, (yyvsp[-5].ckattr))!=rc_ok) {
-			yyerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
-			YYERROR;
-		    }		    
-		}
-#line 2163 "wrappedkey_parser.c"
-    break;
-
-  case 106: /* wrpjobstmt: P_WRAPPINGKEY '=' STRING  */
-#line 604 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_set_wrapping_key(ctx, (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
-		        yyerror(ctx,"Parsing error with wrapping key identifier.");
-                        YYERROR;
-                    }
-		}
-#line 2174 "wrappedkey_parser.c"
-    break;
-
-  case 107: /* wrpjobstmt: P_FILENAME '=' STRING  */
-#line 611 "wrappedkey_parser.y"
-                {
-		    if(_wrappedkey_parser_wkey_set_filename(ctx, (yyvsp[0].val_str).val)!=rc_ok) {
-		        yyerror(ctx,"Issue when saving filename");
-                        YYERROR;
-		    }
-                }
-#line 2185 "wrappedkey_parser.c"
+#line 1616 "attribctx_parser.c"
     break;
 
 
-#line 2189 "wrappedkey_parser.c"
+#line 1620 "attribctx_parser.c"
 
       default: break;
     }
@@ -2227,7 +1658,7 @@ yyreduce:
 yyerrlab:
   /* Make sure we have latest lookahead translation.  See comments at
      user semantic actions for why this is necessary.  */
-  yytoken = yychar == YYEMPTY ? YYSYMBOL_YYEMPTY : YYTRANSLATE (yychar);
+  yytoken = yychar == CLEMPTY ? YYSYMBOL_YYEMPTY : YYTRANSLATE (yychar);
   /* If not already recovering from an error, report this error.  */
   if (!yyerrstatus)
     {
@@ -2270,17 +1701,17 @@ yyerrlab:
       /* If just tried and failed to reuse lookahead token after an
          error, discard it.  */
 
-      if (yychar <= YYEOF)
+      if (yychar <= CLEOF)
         {
           /* Return failure if at end of input.  */
-          if (yychar == YYEOF)
+          if (yychar == CLEOF)
             YYABORT;
         }
       else
         {
           yydestruct ("Error: discarding",
                       yytoken, &yylval, ctx);
-          yychar = YYEMPTY;
+          yychar = CLEMPTY;
         }
     }
 
@@ -2383,7 +1814,7 @@ yyexhaustedlab:
 | yyreturn -- parsing is finished, clean up and return.  |
 `-------------------------------------------------------*/
 yyreturn:
-  if (yychar != YYEMPTY)
+  if (yychar != CLEMPTY)
     {
       /* Make sure we have latest lookahead translation.  See comments at
          user semantic actions for why this is necessary.  */
@@ -2410,5 +1841,5 @@ yyreturn:
   return yyresult;
 }
 
-#line 620 "wrappedkey_parser.y"
-
+#line 190 "attribctx_parser.y"
+	      

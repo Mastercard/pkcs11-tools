@@ -35,8 +35,8 @@
 #include "cryptoki.h"
 
 /* grammar version, for wrapped keys */
-#define  SUPPORTED_GRAMMAR_VERSION "2.0"
-#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "2.0.0"
+#define  SUPPORTED_GRAMMAR_VERSION "2.1"
+#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "2.4.0"
 
 /* Program Error Codes */
 #define RC_OK                    0x00
@@ -90,6 +90,7 @@ typedef enum e_func_rc {
     rc_error_insecure,
     rc_error_dsa_missing_public_key,
     rc_error_ec_or_ed_missing_public_key,
+    rc_error_lexer,
 } func_rc;
 
 #define AES_WRAP_MECH_SIZE_MAX 8 /* for both rfc3394 and rfc5496, remember the compatible */
@@ -170,7 +171,8 @@ typedef struct s_p11_attrlist {
 
     CK_ATTRIBUTE *attr_array;
     CK_ULONG allocated;
-    int cast;			/* this flag is to know how was the object created */
+    bool cast;			/* this flag is to know how was the object created */
+    bool has_template;		/* this flag to remember if we have template attributes */
 } pkcs11AttrList;
 
 
@@ -215,14 +217,42 @@ typedef enum {
     sha512
 } hash_alg_t ;
 
+
+/* cmdLineCtx contains a context that can hold parameters describing attributes. */
+/* it currently supports these grammars:
+   - CKA_DERIVE=true CKA_LABEL="label" CKA_UNWRAP_TEMPLATE={ CKA_EXTRACTABLE=false ... }
+   - the attributes can be shortened by removing the "CKA_" prefix
+   - boolean attributes can be true/false, CK_TRUE/CK_FALSE, 1/0, yes/no
+   - boolean attributes without a value are set to CK_TRUE
+   - boolean attributes prefixed with "no" are set to CK_FALSE
+ */
+
+typedef struct s_p11_attribctx {
+    size_t current_idx;		/* the current index */
+    size_t mainlist_idx;	/* the index of the main list */
+    size_t wraptemplate_idx;	/* the index of the wrap template list */
+    size_t unwraptemplate_idx;	/* the index of the unwrap template list */
+    size_t derivetemplate_idx;	/* the index of the derive template list */
+    bool has_wrap_template;	/* whether or not we have a wrap template */
+    bool has_unwrap_template;	/* whether or not we have an unwrap template */
+    bool has_derive_template;	/* whether or not we have a derive template */    
+    int level;			/* used by parser to prevent mutli-level templates */
+    size_t saved_idx;	        /* used by lexer to temporary store the index used for the template */
+    
+    struct {
+	CK_ATTRIBUTE *attrlist;	             
+	size_t attrnum;
+    } attrs[4];	
+} attribCtx;
+
 /* pkcs11_unwrap / pkcs11_wrap / pkcs11_wctx */
 
 typedef struct s_p11_wrappedkeyctx {
     pkcs11Context *p11Context;
-    CK_ATTRIBUTE *attrlist;	             /* inner key only */
-    CK_ULONG attrlen;			     /* inner key only */
+
     char *wrappingkeylabel;
     char *wrappedkeylabel;	             /* inner key only - outer key will have random name and ID */
+
     char *filename;			     /* filename used to write wrapping file */
     struct {				     /* inner or outer but never both (by design) */
 	CK_MECHANISM_TYPE aes_wrapping_mech;     /* used when wrapping_meth is w_rfc3394 or w_rfc5649 */
@@ -246,8 +276,10 @@ typedef struct s_p11_wrappedkeyctx {
     CK_BYTE_PTR pubk_buffer;
     CK_ULONG pubk_len;
     CK_OBJECT_HANDLE pubkhandle;
-    CK_ATTRIBUTE *pubkattrlist;
-    CK_ULONG pubkattrlen;
+
+    attribCtx *wrpkattribs;	     /* structure to hold wrappedkey attributes */
+    attribCtx *pubkattribs;	     /* structure to hold public key attributes */
+    
 } wrappedKeyCtx;
 
 /* key index, see pkcs11_wctx.c for a comment explaining how this works */
@@ -261,6 +293,7 @@ typedef struct s_p11_wrappedkeyctx {
 enum contenttype { ct_unknown,	/* unidentified app */
 		   ct_appl_p11,	/* application/pkcs11-tools */
 };
+
 
 /* /\* Supplementary flags for NSS *\/ */
 /* #define NSSCK_VENDOR_NSS 0x4E534350 /\* NSCP *\/ */
@@ -397,7 +430,6 @@ CK_ULONG pkcs11_new_SKI_value_from_pubk(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
 CK_OBJECT_HANDLE pkcs11_importpubk( pkcs11Context * p11Context,
 				    char *filename,
 				    char *label,
-				    int trusted,
 				    CK_ATTRIBUTE attrs[],
 				    CK_ULONG numattrs );
 
@@ -405,7 +437,6 @@ CK_OBJECT_HANDLE pkcs11_importpubk_from_buffer( pkcs11Context * p11Context,
 						unsigned char *buffer,
 						size_t len,
 						char *label,
-						int trusted,
 						CK_ATTRIBUTE attrs[],
 						CK_ULONG numattrs );
 
@@ -597,17 +628,22 @@ pkcs11AttrList *pkcs11_cast_to_attrlist(pkcs11Context *p11Context, CK_ATTRIBUTE_
 
 void pkcs11_attrlist_assign_context(pkcs11AttrList *attrlist, pkcs11Context *p11Context);
 
-CK_BBOOL pkcs11_set_attr_in_attrlist ( pkcs11AttrList *attrlist,
-				       CK_ATTRIBUTE_TYPE attrib,
-				       CK_VOID_PTR pvalue,
-				       CK_ULONG len );
+bool pkcs11_set_attr_in_attrlist ( pkcs11AttrList *attrlist,
+				   CK_ATTRIBUTE_TYPE attrib,
+				   CK_VOID_PTR pvalue,
+				   CK_ULONG len );
 
 bool pkcs11_attrlist_has_attribute(const pkcs11AttrList *attrlist, CK_ATTRIBUTE_TYPE attr);
 CK_ATTRIBUTE_PTR pkcs11_get_attr_in_attrlist ( pkcs11AttrList *attrlist,
 					       CK_ATTRIBUTE_TYPE attrib );
 
-CK_BBOOL pkcs11_read_attr_from_handle ( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle);
-CK_BBOOL pkcs11_read_attr_from_handle_ext ( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle, ... );
+CK_ATTRIBUTE_PTR pkcs11_get_attr_in_array ( CK_ATTRIBUTE_PTR array,
+					    size_t arraysize, /* in bytes */
+					    CK_ATTRIBUTE_TYPE attrib );
+
+bool pkcs11_read_attr_from_handle ( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle);
+bool pkcs11_read_attr_from_handle_ext ( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle, ... );
+bool pkcs11_attr_is_template(CK_ATTRIBUTE_TYPE attrtype);
 
 pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PTR attrs, CK_ULONG numattrs);
 
@@ -678,6 +714,7 @@ CK_OBJECT_HANDLE pkcs11_import_component_final(KeyImportCtx *kctx);
 /* info functions */
 const char *get_mechanism_name(CK_MECHANISM_TYPE mech); /* pkcs11_mechanism.c */
 CK_ATTRIBUTE_TYPE get_attribute_type_from_name(char *name); /* pkcs11_attrdesc.c */
+const char *get_attribute_name_from_type(CK_ATTRIBUTE_TYPE attrtyp); 
 
 func_rc pkcs11_info_library(pkcs11Context *p11Context);
 func_rc pkcs11_info_slot(pkcs11Context *p11Context);
@@ -704,6 +741,14 @@ const CK_OBJECT_HANDLE pkcs11_get_publickeyhandle(wrappedKeyCtx *ctx);
 wrappedKeyCtx *pkcs11_new_wrappedkeycontext(pkcs11Context *p11Context);
 void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx);
 
+/* pkcs11_attribctx */
+attribCtx *pkcs11_new_attribcontext();
+void pkcs11_free_attribcontext(attribCtx *ctx);
+func_rc pkcs11_parse_attribs_from_argv(attribCtx *ctx , int pos, int argc, char **argv, const char *additional);
+CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_attribctx(attribCtx *ctx);
+size_t pkcs11_get_attrnum_from_attribctx(attribCtx *ctx);
+void pkcs11_adjust_attrnum_on_attribctx(attribCtx *ctx, size_t value);
+
 
 /* End - Function Prototypes */
 
@@ -717,7 +762,8 @@ void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx);
 #define MAX_KEY_LABEL_SIZE	32
 #define MAX_BYTE_ARRAY_SIZE	20
 
-#define PARSING_MAX_ATTRS       32   /* max number of attributes for unwrap templates */
+#define PARSING_MAX_ATTRS       32   /* max number of attributes inside a wrap file */
+#define CMDLINE_MAX_ATTRS       32   /* max number of attributes for cmdline parsing */
 
 #endif
 

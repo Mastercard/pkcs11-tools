@@ -93,7 +93,7 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacda
 					    _ATTR_END);
 
 		if( attrs!=NULL) {
-		    if (pkcs11_read_attr_from_handle (attrs, hndl_array[j]) == CK_TRUE) {
+		    if (pkcs11_read_attr_from_handle (attrs, hndl_array[j]) == true) {
 			CK_RV rv;
 			CK_BYTE cleartext[MAX_KCV_CLEARTEXT_SIZE];
 			CK_BYTE processed[64];

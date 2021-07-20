@@ -92,6 +92,11 @@ CKA_START_DATE     { yylval.ckattr = CKA_START_DATE; return CKATTR_DATE; }
 CKA_END_DATE       { yylval.ckattr = CKA_END_DATE; return CKATTR_DATE; }
 CKA_CHECK_VALUE    { yylval.ckattr = CKA_CHECK_VALUE; return CKATTR_STR; }
 CKA_EC_PARAMS      { yylval.ckattr = CKA_EC_PARAMS; return CKATTR_STR; }
+CKA_TRUSTED        { yylval.ckattr = CKA_TRUSTED; return CKATTR_BOOL; }
+CKA_WRAP_WITH_TRUSTED { yylval.ckattr = CKA_WRAP_WITH_TRUSTED; return CKATTR_BOOL; }
+CKA_WRAP_TEMPLATE  { yylval.ckattr = CKA_WRAP_TEMPLATE; return CKATTR_TEMPLATE; }
+CKA_UNWRAP_TEMPLATE { yylval.ckattr = CKA_UNWRAP_TEMPLATE; return CKATTR_TEMPLATE; }
+CKA_DERIVE_TEMPLATE { yylval.ckattr = CKA_DERIVE_TEMPLATE; return CKATTR_TEMPLATE; }
 
 CKK_GENERIC_SECRET { yylval.val_key = CKK_GENERIC_SECRET; return KEYTYPE; }
 CKK_DES            { yylval.val_key = CKK_DES           ; return KEYTYPE; }
@@ -148,8 +153,8 @@ wrappingkey        { return P_WRAPPINGKEY; }
 file(name)?        { return P_FILENAME; }
 algo(rithm)?       { return P_ALGORITHM; }
 
-true|CK_TRUE|yes   { yylval.val_bool = 1; return TOK_BOOLEAN; }
-false|CK_FALSE|no  { yylval.val_bool = 0; return TOK_BOOLEAN; }
+true|CK_TRUE|yes|1  { yylval.val_bool = 1; return TOK_BOOLEAN; }
+false|CK_FALSE|no|0 { yylval.val_bool = 0; return TOK_BOOLEAN; }
 
 
 0x[[:xdigit:]]+ {   if(strlen(yytext)%2==1) {

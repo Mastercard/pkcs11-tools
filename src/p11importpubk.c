@@ -60,13 +60,19 @@ void print_usage(char *progname)
 	     "+-> arguments marked with a plus sign(+) can be repeated\n"
 	     "\n"
 	     " ARGUMENTS: ATTRIBUTE=VALUE pairs\n"
-	     "   supported attributes:\n"
-	     "   rsa:          CKA_WRAP, CKA_ENCRYPT, CKA_VERIFY_RECOVER\n"
-	     "   dh:           CKA_DERIVE\n"
-	     "   rsa,dsa,ec:   CKA_VERIFY\n"
-	     "   all:          CKA_MODIFIABLE\n"
+	     "   supported attributes (applied to private and secret key only):\n"
+	     "                 CKA_LABEL, CKA_ID,\n"
+             "                 CKA_WRAP\n"
+             "                 CKA_ENCRYPT,\n"
+	     "                 CKA_VERIFY,\n"
+	     "                 CKA_VERIFY_RECOVER,\n"
+	     "                 CKA_DERIVE,\n"
+             "                 CKA_TRUSTED, CKA_MODIFIABLE,\n"
+             "                 CKA_EXTRACTABLE, CKA_SENSITIVE\n"
+	     "                 CKA_WRAP_WITH_TRUSTED\n"
+	     "                 CKA_WRAP_TEMPLATE\n"
 	     "   supported values:\n"
-	     "                 true / false \n"
+	     "                 true / false / [ASCII-string] / date / { template attributes }\n"
 	     "\n"
 	     "   if no attribute is given, keys are created with the following defaults:\n"
 	     "   rsa,dsa,dh: all attributes set to true\n"
@@ -96,7 +102,7 @@ int main( int argc, char ** argv )
     extern int optind, optopt;
     int argnum = 0;
     int errflag = 0;
-    int trusted = 0;
+    bool trusted = 0;
     char * library = NULL;
     char * nsscfgdir = NULL;
     char * filename = NULL;
@@ -111,9 +117,13 @@ int main( int argc, char ** argv )
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_error_other_error;
 
-    CK_ATTRIBUTE *attrs=NULL;
-    size_t attrs_cnt=0;
+    attribCtx *actx = NULL;
 
+    actx = pkcs11_new_attribcontext();
+
+    if(actx==NULL) {
+	goto epilog;
+    }
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
@@ -141,7 +151,7 @@ int main( int argc, char ** argv )
 	    break;
 
 	case 'T':
-	    trusted = 1;
+	    trusted = true;
 	    break;
 
 	case 'l' :
@@ -191,35 +201,34 @@ int main( int argc, char ** argv )
 	}
     }
 
-    if(optind<argc) {
-	if( (attrs_cnt=get_attributes_from_argv( &attrs, optind , argc, argv)) == 0 ) {
-	    fprintf( stderr, "Try `%s -h' for more information.\n", argv[0]);
-	    retcode = rc_error_usage;
-	    goto err;
+    if(optind<argc || trusted) {
+	retcode = pkcs11_parse_attribs_from_argv(actx , optind, argc, argv, trusted ? "trusted, not modifiable" : NULL );
+	if(retcode!=rc_ok) {
+	    errflag++;
 	}
     }
 
     if ( errflag ) {
 	fprintf(stderr, "Try `%s -h' for more information.\n", argv[0]);
 	retcode = rc_error_usage;
-	goto err;
+	goto epilog;
     }
 
     if ( library == NULL || label == NULL || filename == NULL ) {
 	fprintf( stderr, "At least one required option or argument is wrong or missing.\n"
 		 "Try `%s -h' for more information.\n", argv[0]);
 	retcode = rc_error_usage;
-	goto err;
+	goto epilog;
     }
 
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
 	retcode = rc_error_library;
-	goto err;
+	goto epilog;
     }
 
     /* validate the given provider library exists and can be opened */
     if (( retcode = pkcs11_initialize( p11Context ) ) != CKR_OK ) {
-	goto err;
+	goto epilog;
     }
 
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
@@ -230,10 +239,14 @@ int main( int argc, char ** argv )
 	if(pkcs11_publickey_exists(p11Context, label)) {
 	    fprintf(stderr, "a public key with this label already exists, aborting\n");
 	    retcode = rc_error_object_exists;
-	    goto err;
+	    goto epilog;
 	}
 
-	imported_pubk = pkcs11_importpubk( p11Context, filename, label, trusted, attrs, attrs_cnt );
+	imported_pubk = pkcs11_importpubk( p11Context,
+					   filename,
+					   label,
+					   pkcs11_get_attrlist_from_attribctx(actx),
+					   pkcs11_get_attrnum_from_attribctx(actx) );
 
 	if(imported_pubk) {
 	    printf( "%s: import of public key succeeded.\n", argv[0]);
@@ -248,9 +261,10 @@ int main( int argc, char ** argv )
 
     pkcs11_finalize( p11Context );
 
-err:
+epilog:
 
     pkcs11_freeContext(p11Context);
+    if(actx) { pkcs11_free_attribcontext(actx); actx = NULL; }
 
     return retcode;
 }

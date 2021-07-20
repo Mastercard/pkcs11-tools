@@ -39,9 +39,13 @@ libp11_la_SOURCES = pkcs11_ll_unix.c
 endif
 
 libp11_la_SOURCES += pkcs11_attr.c \
-	wrappedkey_parser.y \
+	attribctx_lexer.l \
+	attribctx_parser.y \
+	attribctx_helper.c attribctx_helper.h \
 	wrappedkey_lexer.l \
+	wrappedkey_parser.y \
 	wrappedkey_helper.c wrappedkey_helper.h \
+	pkcs11_attribctx.c \
 	pkcs11_wctx.c \
 	pkcs11_wrap.c \
 	pkcs11_unwrap.c \
@@ -86,14 +90,31 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_ossl_fake_sign.c
 
 
-dist_libp11_la_SOURCES = gen_attrinfo_h.pl gen_mechinfo_h.pl wrappedkey_parser.y wrappedkey_lexer.l wrappedkey_lexer.h pkcs11_ossl.h
+dist_libp11_la_SOURCES = \
+	gen_attrinfo_h.pl gen_mechinfo_h.pl pkcs11_ossl.h \
+	wrappedkey_parser.h wrappedkey_parser.c \
+	wrappedkey_lexer.h wrappedkey_lexer.c \
+	attribctx_parser.h attribctx_parser.c \
+	attribctx_lexer.h attribctx_lexer.c
 
 CLEANFILES = _mechinfo.h _attrinfo.h
-BUILT_SOURCES = _mechinfo.h _attrinfo.h wrappedkey_parser.h wrappedkey_lexer.h
+BUILT_SOURCES = _mechinfo.h _attrinfo.h
 
 # The following files depends upon lexer and parser source files
-wrappedkey_lexer.h: wrappedkey_lexer.l
-wrappedkey_helper.c pkcs11_wrap.c pkcs11_unwrap.c pkcs11_wctx.c: wrappedkey_lexer.l wrappedkey_parser.y wrappedkey_lexer.h wrappedkey_parser.h
+wrappedkey_lexer.c wrappedkey_lexer.h: wrappedkey_lexer.l
+wrappedkey_parser.c wrappedkey_parser.h: wrappedkey_parser.y
+
+wrappedkey_helper.c pkcs11_wrap.c pkcs11_unwrap.c pkcs11_wctx.c: \
+			wrappedkey_helper.h \
+			wrappedkey_lexer.c wrappedkey_lexer.h \
+			wrappedkey_parser.c wrappedkey_parser.h
+
+# The following files depends upon lexer and parser source files
+attribctx_lexer.c attribctx_lexer.h: attribctx_lexer.l
+attribctx_parser.c attribctx_parser.h: attribctx_parser.y
+
+attribctx_helper.c pkcs11_attribctx.c: \
+			attribctx_helper.h attribctx_lexer.l attribctx_parser.y
 
 pkcs11_mechanism.$(OBJEXT): _mechinfo.h
 

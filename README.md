@@ -1,11 +1,29 @@
 # PKCS\#11 tools
 
 pkcs11-tools is a toolkit containing a bunch of small utilities to perform key management tasks on cryptographic tokens implementing a PKCS\#11 interface.
-It features a number of commands similar to the unix CLI utilities, such as `ls`, `mv`, `rm`, `od`, and `more`. It also has specific commands to generate keys, generate CSRs, import certificates and other files, in a fashion compatible with most implementations, including both IBM and Oracle JVMs.
+It features a number of commands similar to the unix CLI utilities, such as `ls`, `mv`, `rm`, `od`, and `more`. It also has specific commands to generate keys, generate CSRs, import certificates and other files, in a fashion compatible with most implementations, including both IBM and Oracle JVMs. It is also able to interface with NSS libraries from [mozilla.org](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS).
 
-Amongst other things, it is also able to interface with NSS libraries from [mozilla.org](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS)
+Some features:
+ - support for DES, 3DES, AES, HMAC, RSA, DSA, DH, Elliptic curves (NIST curves, Edwards curves)
+ - generation of PKCS\#10 (CSR) and self-signed certificates
+ - import of certificates, public keys, data files
+ - support for wrapping and unwrapping keys, for both symmetric and asymmetric keys
+ - support for templates during key creation, public key import, key wrapping and key unwrapping
+ - support for session key generation and direct wrapping under one or several keys, in a single command
+ - support for key rewrapping (i.e. key unwrapping and key wrapping)
 
 ## News
+### July 2021
+Version 2.4, to support templates in many commands: `p11keygen`, `p11importpubk`, `p11wrap`, `p11unwrap`, `p11od`, `p11ls`. Keys created with a template can be wrapped, the template attributes will be carried.
+Note that the wrapped key grammar has changed, and the grammar version number has been incremented to `2.1`
+
+### March 2021
+Version 2.2 is slightly changing the layout of `p11slotinfo`. Edwards Curve support enhanced. The toolkit is also adapted to be packaged as a [FreeBSD port](https://www.freshports.org/security/pkcs11-tools/).
+
+### January 2021
+Version 2.1 brings support for Edwards Curve.
+
+### December 2020
 The toolkit has reached v2.0. It features several major changes:
  - it supports (and requires) OpenSSL v1.1.1+
  - signing commands (`p11mkcert`, `p11req` and `masqreq`) implement OpenSSL algorithm methods. This will enable supporting more algorithms in the future.
@@ -26,12 +44,20 @@ $ make install
 To list the methods available on a PKCS#11 token, use `p11slotinfo`, that will return the list of available mechanisms, together with allowed APIs.
 
 ```bash
-$ p11slotinfo -l /usr/local/opt/softhsm/lib/softhsm/libsofthsm2.so
+$ using PKCS11LIB at /opt/softhsm2-devel/lib/softhsm/libsofthsm2.so
+PKCS#11 Library
+---------------
+Name        : /opt/softhsm2-devel/lib/softhsm/libsofthsm2.so
+Lib version : 2.6
+API version : 2.40
+Description : Implementation of PKCS11
+Manufacturer: SoftHSM
+
 PKCS#11 module slot list:
 Slot index: 0
 ----------------
-Description : SoftHSM slot ID 0x14a93125
-Token Label : first token
+Description : SoftHSM slot ID 0x4fbfdc13
+Token Label : token1
 Manufacturer: SoftHSM project
 
 
@@ -39,8 +65,8 @@ Enter slot index: 0
 
 Slot[0]
 -------------
-Slot Number : 346632485
-Description : SoftHSM slot ID 0x14a93125
+Slot Number : 1337973779
+Description : SoftHSM slot ID 0x4fbfdc13
 Manufacturer: SoftHSM project
 Slot Flags  : [ CKF_TOKEN_PRESENT ]
 
@@ -172,7 +198,7 @@ pubk/dh:
 Generating a key is easy: just use `p11keygen` with the proper arguments.
 
 ```bash
-$ p11keygen -k ec -q prime256v1 -i my-ec-key CKA_SIGN=true CKA_VERIFY=true
+$ p11keygen -k ec -q prime256v1 -i my-ec-key sign=true verify=true
 Generating, please wait...
 key generation succeeded
 ```

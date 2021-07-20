@@ -60,7 +60,7 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
 						_ATTR(CKA_ID),
 						_ATTR_END );
 
-		    if( pkcs11_read_attr_from_handle (attrs, hndl) == CK_TRUE) {
+		    if( pkcs11_read_attr_from_handle (attrs, hndl) == true) {
 			char buffer[81];
 			int buffer_len = sizeof buffer;
 
