@@ -17,6 +17,9 @@ Some features:
 Version 2.4, to support templates in many commands: `p11keygen`, `p11importpubk`, `p11wrap`, `p11unwrap`, `p11od`, `p11ls`. Keys created with a template can be wrapped, the template attributes will be carried.
 Note that the wrapped key grammar has changed, and the grammar version number has been incremented to `2.1`
 
+### April 2021
+Version 2.3, that adds extra options to p11kcv, so that tokens not supporting NULL-length HMAC computation can be also supported.
+
 ### March 2021
 Version 2.2 is slightly changing the layout of `p11slotinfo`. Edwards Curve support enhanced. The toolkit is also adapted to be packaged as a [FreeBSD port](https://www.freshports.org/security/pkcs11-tools/).
 
