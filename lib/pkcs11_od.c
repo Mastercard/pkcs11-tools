@@ -184,7 +184,13 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
     unsigned char *pc = (unsigned char*)addr;
     char *info;
 
-    // Output description
+    /* spot early invalid template condition */
+    /* some HSM vendor are messing up with the CKA_XXX_TEMPLATE attributes,  */
+    /* we will detect when it happens and skip them.  */
+    if ( item && item->cast==as_template && ( len==0 || (len % sizeof(CK_ATTRIBUTE) != 0) ) ) {
+	return;			/* bad template, return early, skip any printing */
+    }
+    
     printf (" %s%s:\n", template ? "| " : "" , item->name);
 
     switch(item->cast) {
@@ -589,12 +595,12 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	    
 	    CK_ATTRIBUTE_PTR item = pkcs11_get_attr_in_array(addr, len, list[i].attr );
 
-	    if(item && item->ulValueLen) {
+	    /* if the template does not have a compliant length, do not show it. */
+	    if(item && item->pValue && item->ulValueLen) {
 		hexdump( &list[i], item->pValue, item->ulValueLen, true);
 	    }
 	}	
 	break;
-    
     }
 }
 

@@ -69,7 +69,10 @@ static char* value_for_template( pkcs11AttrList *attrlist,
     attr = pkcs11_get_attr_in_attrlist ( attrlist, attrtype );
 
     if(attr==NULL) return ck_false;
-    else if(attr!=NULL_PTR && attr->pValue!=NULL_PTR && attr->ulValueLen>0) return ck_true;
+    else if( attr!=NULL_PTR &&
+	     attr->pValue!=NULL_PTR &&
+	     attr->ulValueLen>0 &&
+	     attr->ulValueLen % sizeof(CK_ATTRIBUTE) == 0) return ck_true;
     else return ck_false;
 }
 

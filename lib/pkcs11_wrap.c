@@ -982,6 +982,13 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 		fprintf(fp, "CKA_TOKEN: true\n");
 	    } else if (o_attr->ulValueLen == 0) {
 		fprintf(fp, "# %s attribute is empty\n", alist[i].name);
+	    } else if ( ( o_attr->type==CKA_UNWRAP_TEMPLATE ||
+			  o_attr->type==CKA_DERIVE_TEMPLATE ||
+			  o_attr->type==CKA_WRAP_TEMPLATE) &&
+			o_attr->ulValueLen % sizeof(CK_ATTRIBUTE) != 0 ) {
+		/* on Safenet Luna, private keys have, by default, templates that are 1 byte long */
+		/* which is not a valid content for templates */
+		fprintf(fp, "# %s attribute invalid on the source token\n", alist[i].name);
 	    } else {
 		alist[i].func_ptr(fp, alist[i].name, o_attr, alist[i].commented );
 	    }

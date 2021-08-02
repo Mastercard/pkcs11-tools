@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 =======
+# [2.4.1]
+### Fixed
+ - template content is no more wrapped/dipsplayed if length is not a multiple of CK_ATTRIBUTE structure,
+   to ignore templates incorrectly reported by some tokens
+
 # [2.4.0]
 ### Added
  - support for template attributes on most commands
@@ -109,6 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release
 
+[2.4.1]: https://github.com/Mastercard/pkcs11-tools/tree/v2.4.1
+[2.4.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.4.0
 [2.3.1]: https://github.com/Mastercard/pkcs11-tools/tree/v2.3.1
 [2.3.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.3.0
 [2.2.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.2.0
