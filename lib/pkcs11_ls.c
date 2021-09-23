@@ -524,10 +524,7 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_CHECK_VALUE),
 				_ATTR(CKA_TRUSTED),
 				_ATTR(CKA_WRAP_WITH_TRUSTED),
-
-				/* AES Key attributes */
 				_ATTR(CKA_VALUE_LEN),
-				_ATTR(CKA_CHECK_VALUE),
 
 				_ATTR_END );
 
