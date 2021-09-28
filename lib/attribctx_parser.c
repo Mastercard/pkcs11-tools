@@ -147,14 +147,16 @@ extern int cldebug;
     CKATTR_KEY = 262,              /* CKATTR_KEY  */
     CKATTR_CLASS = 263,            /* CKATTR_CLASS  */
     CKATTR_TEMPLATE = 264,         /* CKATTR_TEMPLATE  */
-    TOK_BOOLEAN = 265,             /* TOK_BOOLEAN  */
-    TOK_DATE = 266,                /* TOK_DATE  */
-    KEYTYPE = 267,                 /* KEYTYPE  */
-    OCLASS = 268,                  /* OCLASS  */
-    NO = 269,                      /* NO  */
-    ASSIGN = 270,                  /* ASSIGN  */
-    CURLY_OPEN = 271,              /* CURLY_OPEN  */
-    CURLY_CLOSE = 272              /* CURLY_CLOSE  */
+    CKATTR_ALLOWEDMECH = 265,      /* CKATTR_ALLOWEDMECH  */
+    CKMECH = 266,                  /* CKMECH  */
+    TOK_BOOLEAN = 267,             /* TOK_BOOLEAN  */
+    TOK_DATE = 268,                /* TOK_DATE  */
+    KEYTYPE = 269,                 /* KEYTYPE  */
+    OCLASS = 270,                  /* OCLASS  */
+    NO = 271,                      /* NO  */
+    ASSIGN = 272,                  /* ASSIGN  */
+    CURLY_OPEN = 273,              /* CURLY_OPEN  */
+    CURLY_CLOSE = 274              /* CURLY_CLOSE  */
   };
   typedef enum cltokentype cltoken_kind_t;
 #endif
@@ -169,6 +171,7 @@ union CLSTYPE
     CK_KEY_TYPE val_key;
     CK_OBJECT_CLASS val_cls;
     CK_BBOOL val_bool;
+    CK_MECHANISM_TYPE val_mech;
 
     struct {			/* HEX encoded - or real string */
 	char *val;
@@ -184,7 +187,7 @@ union CLSTYPE
         char as_buffer[8];
     } val_date;
 
-#line 188 "attribctx_parser.c"
+#line 191 "attribctx_parser.c"
 
 };
 typedef union CLSTYPE CLSTYPE;
@@ -205,7 +208,7 @@ YY_DECL;
 extern void clerror(attribCtx *ctx, const char *s, ...);
     
 
-#line 209 "attribctx_parser.c"
+#line 212 "attribctx_parser.c"
 
 #endif /* !YY_CL_ATTRIBCTX_PARSER_H_INCLUDED  */
 /* Symbol kind.  */
@@ -222,20 +225,25 @@ enum yysymbol_kind_t
   YYSYMBOL_CKATTR_KEY = 7,                 /* CKATTR_KEY  */
   YYSYMBOL_CKATTR_CLASS = 8,               /* CKATTR_CLASS  */
   YYSYMBOL_CKATTR_TEMPLATE = 9,            /* CKATTR_TEMPLATE  */
-  YYSYMBOL_TOK_BOOLEAN = 10,               /* TOK_BOOLEAN  */
-  YYSYMBOL_TOK_DATE = 11,                  /* TOK_DATE  */
-  YYSYMBOL_KEYTYPE = 12,                   /* KEYTYPE  */
-  YYSYMBOL_OCLASS = 13,                    /* OCLASS  */
-  YYSYMBOL_NO = 14,                        /* NO  */
-  YYSYMBOL_ASSIGN = 15,                    /* ASSIGN  */
-  YYSYMBOL_CURLY_OPEN = 16,                /* CURLY_OPEN  */
-  YYSYMBOL_CURLY_CLOSE = 17,               /* CURLY_CLOSE  */
-  YYSYMBOL_YYACCEPT = 18,                  /* $accept  */
-  YYSYMBOL_statement = 19,                 /* statement  */
-  YYSYMBOL_expression = 20,                /* expression  */
-  YYSYMBOL_simple_expr = 21,               /* simple_expr  */
-  YYSYMBOL_template_expr = 22,             /* template_expr  */
-  YYSYMBOL_23_1 = 23                       /* $@1  */
+  YYSYMBOL_CKATTR_ALLOWEDMECH = 10,        /* CKATTR_ALLOWEDMECH  */
+  YYSYMBOL_CKMECH = 11,                    /* CKMECH  */
+  YYSYMBOL_TOK_BOOLEAN = 12,               /* TOK_BOOLEAN  */
+  YYSYMBOL_TOK_DATE = 13,                  /* TOK_DATE  */
+  YYSYMBOL_KEYTYPE = 14,                   /* KEYTYPE  */
+  YYSYMBOL_OCLASS = 15,                    /* OCLASS  */
+  YYSYMBOL_NO = 16,                        /* NO  */
+  YYSYMBOL_ASSIGN = 17,                    /* ASSIGN  */
+  YYSYMBOL_CURLY_OPEN = 18,                /* CURLY_OPEN  */
+  YYSYMBOL_CURLY_CLOSE = 19,               /* CURLY_CLOSE  */
+  YYSYMBOL_YYACCEPT = 20,                  /* $accept  */
+  YYSYMBOL_statement = 21,                 /* statement  */
+  YYSYMBOL_expression = 22,                /* expression  */
+  YYSYMBOL_simple_expr = 23,               /* simple_expr  */
+  YYSYMBOL_template_expr = 24,             /* template_expr  */
+  YYSYMBOL_25_1 = 25,                      /* $@1  */
+  YYSYMBOL_allowedmech_expr = 26,          /* allowedmech_expr  */
+  YYSYMBOL_mechanisms = 27,                /* mechanisms  */
+  YYSYMBOL_mechanism = 28                  /* mechanism  */
 };
 typedef enum yysymbol_kind_t yysymbol_kind_t;
 
@@ -555,21 +563,21 @@ union yyalloc
 #endif /* !YYCOPY_NEEDED */
 
 /* YYFINAL -- State number of the termination state.  */
-#define YYFINAL  19
+#define YYFINAL  22
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   46
+#define YYLAST   50
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  18
+#define YYNTOKENS  20
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  6
+#define YYNNTS  9
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  15
+#define YYNRULES  20
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  31
+#define YYNSTATES  40
 
 /* YYMAXUTOK -- Last valid token kind.  */
-#define YYMAXUTOK   272
+#define YYMAXUTOK   274
 
 
 /* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
@@ -610,15 +618,16 @@ static const yytype_int8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
-      15,    16,    17
+      15,    16,    17,    18,    19
 };
 
 #if CLDEBUG
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    85,    85,    86,    89,    90,    93,   100,   109,   118,
-     126,   133,   141,   148,   158,   157
+       0,    87,    87,    88,    91,    92,    93,    96,   103,   112,
+     121,   129,   136,   144,   151,   161,   160,   193,   208,   209,
+     212
 };
 #endif
 
@@ -636,9 +645,10 @@ static const char *const yytname[] =
 {
   "\"end of file\"", "error", "\"invalid token\"", "STRING",
   "CKATTR_BOOL", "CKATTR_STR", "CKATTR_DATE", "CKATTR_KEY", "CKATTR_CLASS",
-  "CKATTR_TEMPLATE", "TOK_BOOLEAN", "TOK_DATE", "KEYTYPE", "OCLASS", "NO",
-  "ASSIGN", "CURLY_OPEN", "CURLY_CLOSE", "$accept", "statement",
-  "expression", "simple_expr", "template_expr", "$@1", YY_NULLPTR
+  "CKATTR_TEMPLATE", "CKATTR_ALLOWEDMECH", "CKMECH", "TOK_BOOLEAN",
+  "TOK_DATE", "KEYTYPE", "OCLASS", "NO", "ASSIGN", "CURLY_OPEN",
+  "CURLY_CLOSE", "$accept", "statement", "expression", "simple_expr",
+  "template_expr", "$@1", "allowedmech_expr", "mechanisms", "mechanism", YY_NULLPTR
 };
 
 static const char *
@@ -654,11 +664,11 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 static const yytype_int16 yytoknum[] =
 {
        0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
-     265,   266,   267,   268,   269,   270,   271,   272
+     265,   266,   267,   268,   269,   270,   271,   272,   273,   274
 };
 #endif
 
-#define YYPACT_NINF (-14)
+#define YYPACT_NINF (-15)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -672,10 +682,10 @@ static const yytype_int16 yytoknum[] =
      STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-      32,   -13,   -11,    -3,    -2,    -1,     2,    12,     1,   -14,
-     -14,   -14,     8,    16,     0,    17,     7,    14,   -14,   -14,
-     -14,   -14,   -14,   -14,   -14,   -14,   -14,   -14,    32,    18,
-     -14
+      30,   -14,   -13,    -4,    -3,    -2,     8,     9,    12,     1,
+     -15,   -15,   -15,   -15,    16,    26,    -1,    17,    28,    23,
+      27,   -15,   -15,   -15,   -15,   -15,   -15,   -15,   -15,   -15,
+     -15,    21,    30,   -15,    31,   -15,    14,   -15,   -15,   -15
 };
 
   /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -683,22 +693,22 @@ static const yytype_int8 yypact[] =
      means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
-       0,     8,     0,     0,     0,     0,     0,     0,     0,     2,
-       4,     5,     0,     0,     0,     0,     0,     0,     7,     1,
-       3,     6,     9,    11,    10,    12,    13,    14,     0,     0,
-      15
+       0,     9,     0,     0,     0,     0,     0,     0,     0,     0,
+       2,     4,     5,     6,     0,     0,     0,     0,     0,     0,
+       0,     8,     1,     3,     7,    10,    12,    11,    13,    14,
+      15,     0,     0,    20,     0,    18,     0,    17,    19,    16
 };
 
   /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
-     -14,     3,    -8,   -14,   -14,   -14
+     -15,    15,    -9,   -15,   -15,   -15,   -15,   -15,    10
 };
 
   /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
-       0,     8,     9,    10,    11,    28
+       0,     9,    10,    11,    12,    32,    13,    34,    35
 };
 
   /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -706,44 +716,48 @@ static const yytype_int8 yydefgoto[] =
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-      20,    19,    12,    23,    13,     1,     2,     3,     4,     5,
-       6,    24,    14,    15,    16,     7,    18,    17,    21,    22,
-      26,    20,     1,     2,     3,     4,     5,     6,     0,    25,
-      27,    29,     7,     0,     0,    30,     1,     2,     3,     4,
-       5,     6,     0,     0,     0,     0,     7
+      23,    22,    26,    14,    15,     1,     2,     3,     4,     5,
+       6,     7,    27,    16,    17,    18,    21,     8,     1,     2,
+       3,     4,     5,     6,     7,    19,    20,    23,    24,    25,
+       8,    28,    33,    39,     1,     2,     3,     4,     5,     6,
+       7,    30,    33,    29,    38,    31,     8,    36,     0,     0,
+      37
 };
 
 static const yytype_int8 yycheck[] =
 {
-       8,     0,    15,     3,    15,     4,     5,     6,     7,     8,
-       9,    11,    15,    15,    15,    14,     4,    15,    10,     3,
-      13,    29,     4,     5,     6,     7,     8,     9,    -1,    12,
-      16,    28,    14,    -1,    -1,    17,     4,     5,     6,     7,
-       8,     9,    -1,    -1,    -1,    -1,    14
+       9,     0,     3,    17,    17,     4,     5,     6,     7,     8,
+       9,    10,    13,    17,    17,    17,     4,    16,     4,     5,
+       6,     7,     8,     9,    10,    17,    17,    36,    12,     3,
+      16,    14,    11,    19,     4,     5,     6,     7,     8,     9,
+      10,    18,    11,    15,    34,    18,    16,    32,    -1,    -1,
+      19
 };
 
   /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
      symbol of state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
-       0,     4,     5,     6,     7,     8,     9,    14,    19,    20,
-      21,    22,    15,    15,    15,    15,    15,    15,     4,     0,
-      20,    10,     3,     3,    11,    12,    13,    16,    23,    19,
-      17
+       0,     4,     5,     6,     7,     8,     9,    10,    16,    21,
+      22,    23,    24,    26,    17,    17,    17,    17,    17,    17,
+      17,     4,     0,    22,    12,     3,     3,    13,    14,    15,
+      18,    18,    25,    11,    27,    28,    21,    19,    28,    19
 };
 
   /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_int8 yyr1[] =
 {
-       0,    18,    19,    19,    20,    20,    21,    21,    21,    21,
-      21,    21,    21,    21,    23,    22
+       0,    20,    21,    21,    22,    22,    22,    23,    23,    23,
+      23,    23,    23,    23,    23,    25,    24,    26,    27,    27,
+      28
 };
 
   /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
 static const yytype_int8 yyr2[] =
 {
-       0,     2,     1,     2,     1,     1,     3,     2,     1,     3,
-       3,     3,     3,     3,     0,     6
+       0,     2,     1,     2,     1,     1,     1,     3,     2,     1,
+       3,     3,     3,     3,     3,     0,     6,     5,     1,     2,
+       1
 };
 
 
@@ -1482,19 +1496,19 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
-  case 6: /* simple_expr: CKATTR_BOOL ASSIGN TOK_BOOLEAN  */
-#line 94 "attribctx_parser.y"
+  case 7: /* simple_expr: CKATTR_BOOL ASSIGN TOK_BOOLEAN  */
+#line 97 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_bool), sizeof(CK_BBOOL) )!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
 		}
-#line 1494 "attribctx_parser.c"
+#line 1508 "attribctx_parser.c"
     break;
 
-  case 7: /* simple_expr: NO CKATTR_BOOL  */
-#line 101 "attribctx_parser.y"
+  case 8: /* simple_expr: NO CKATTR_BOOL  */
+#line 104 "attribctx_parser.y"
                 {
 		    CK_BBOOL bfalse = CK_FALSE;
 		    
@@ -1503,11 +1517,11 @@ yyreduce:
 			YYERROR;
 		    }
 		}
-#line 1507 "attribctx_parser.c"
+#line 1521 "attribctx_parser.c"
     break;
 
-  case 8: /* simple_expr: CKATTR_BOOL  */
-#line 110 "attribctx_parser.y"
+  case 9: /* simple_expr: CKATTR_BOOL  */
+#line 113 "attribctx_parser.y"
                 {
 		    CK_BBOOL btrue = CK_TRUE;
 		    
@@ -1516,11 +1530,11 @@ yyreduce:
 			YYERROR;
 		    }
 		}
-#line 1520 "attribctx_parser.c"
+#line 1534 "attribctx_parser.c"
     break;
 
-  case 9: /* simple_expr: CKATTR_STR ASSIGN STRING  */
-#line 119 "attribctx_parser.y"
+  case 10: /* simple_expr: CKATTR_STR ASSIGN STRING  */
+#line 122 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign bytes value.");
@@ -1528,22 +1542,22 @@ yyreduce:
 		    }
 		    free((yyvsp[0].val_str).val); /* we must free() as the buffer was copied */
 		}
-#line 1532 "attribctx_parser.c"
+#line 1546 "attribctx_parser.c"
     break;
 
-  case 10: /* simple_expr: CKATTR_DATE ASSIGN TOK_DATE  */
-#line 127 "attribctx_parser.y"
+  case 11: /* simple_expr: CKATTR_DATE ASSIGN TOK_DATE  */
+#line 130 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_date).as_buffer, sizeof(CK_DATE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
 			YYERROR;
 		    }
 		}
-#line 1543 "attribctx_parser.c"
+#line 1557 "attribctx_parser.c"
     break;
 
-  case 11: /* simple_expr: CKATTR_DATE ASSIGN STRING  */
-#line 134 "attribctx_parser.y"
+  case 12: /* simple_expr: CKATTR_DATE ASSIGN STRING  */
+#line 137 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
@@ -1551,33 +1565,33 @@ yyreduce:
 		    }
 		    free((yyvsp[0].val_str).val); /* we must free() as the buffer was copied */
 		}
-#line 1555 "attribctx_parser.c"
+#line 1569 "attribctx_parser.c"
     break;
 
-  case 12: /* simple_expr: CKATTR_KEY ASSIGN KEYTYPE  */
-#line 142 "attribctx_parser.y"
+  case 13: /* simple_expr: CKATTR_KEY ASSIGN KEYTYPE  */
+#line 145 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_key), sizeof(CK_KEY_TYPE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign key type value.");
 			YYERROR;
 		    }
 		}
-#line 1566 "attribctx_parser.c"
+#line 1580 "attribctx_parser.c"
     break;
 
-  case 13: /* simple_expr: CKATTR_CLASS ASSIGN OCLASS  */
-#line 149 "attribctx_parser.y"
+  case 14: /* simple_expr: CKATTR_CLASS ASSIGN OCLASS  */
+#line 152 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_cls), sizeof(CK_OBJECT_CLASS))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign object class value.");
 			YYERROR;
 		    }
 		}
-#line 1577 "attribctx_parser.c"
+#line 1591 "attribctx_parser.c"
     break;
 
-  case 14: /* $@1: %empty  */
-#line 158 "attribctx_parser.y"
+  case 15: /* $@1: %empty  */
+#line 161 "attribctx_parser.y"
                 {
 		    if(ctx->level==1) {
 			clerror(ctx, "***Error: nesting templates not allowed");
@@ -1591,11 +1605,11 @@ yyreduce:
 			YYERROR;
                    } 		    
 		}
-#line 1595 "attribctx_parser.c"
+#line 1609 "attribctx_parser.c"
     break;
 
-  case 15: /* template_expr: CKATTR_TEMPLATE ASSIGN CURLY_OPEN $@1 statement CURLY_CLOSE  */
-#line 172 "attribctx_parser.y"
+  case 16: /* template_expr: CKATTR_TEMPLATE ASSIGN CURLY_OPEN $@1 statement CURLY_CLOSE  */
+#line 175 "attribctx_parser.y"
                 {
 
 		    if(ctx->level==0) {
@@ -1612,11 +1626,39 @@ yyreduce:
 			YYERROR;
 		    }		    
 		}
-#line 1616 "attribctx_parser.c"
+#line 1630 "attribctx_parser.c"
+    break;
+
+  case 17: /* allowedmech_expr: CKATTR_ALLOWEDMECH ASSIGN CURLY_OPEN mechanisms CURLY_CLOSE  */
+#line 194 "attribctx_parser.y"
+                {
+		    if( _attribctx_parser_append_attr( ctx,
+						       (yyvsp[-4].ckattr),
+						       pkcs11_attribctx_get_allowed_mechanisms(ctx),
+						       pkcs11_attribctx_get_allowed_mechanisms_len(ctx))
+			!= rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign object class value.");
+			YYERROR;
+		    }
+		    /* pointer stolen, we must free it */
+		    pkcs11_attribctx_free_mechanisms(ctx); 
+		}
+#line 1647 "attribctx_parser.c"
+    break;
+
+  case 20: /* mechanism: CKMECH  */
+#line 213 "attribctx_parser.y"
+                {
+		    if( pkcs11_attribctx_add_mechanism(ctx, (yyvsp[0].val_mech))!=rc_ok) {
+			clerror(ctx, "Error during parsing, cannot assign mechanism to allowed mechanisms.");
+			YYERROR;
+		    }
+		}
+#line 1658 "attribctx_parser.c"
     break;
 
 
-#line 1620 "attribctx_parser.c"
+#line 1662 "attribctx_parser.c"
 
       default: break;
     }
@@ -1841,5 +1883,5 @@ yyreturn:
   return yyresult;
 }
 
-#line 190 "attribctx_parser.y"
+#line 220 "attribctx_parser.y"
 	      

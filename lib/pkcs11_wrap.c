@@ -554,6 +554,20 @@ static void fprintf_template_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, C
     fprintf(fp, "%s}\n", commented == CK_TRUE ? "# " : "");
 }
 
+static void fprintf_mechanism_type_array(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
+{
+    int i;
+    CK_MECHANISM_TYPE_PTR mech_array = attr->pValue; /* attr_array will be used as the array to walk mechanisms */
+    size_t mech_arrayitems = attr->ulValueLen / sizeof(CK_MECHANISM_TYPE);
+
+    fprintf(fp, "%s%s: {\n", commented == CK_TRUE ? "# " : "", name);
+
+    for(i=0; i<mech_arrayitems; i++) {	
+	fprintf(fp, "%s    %s\n",	commented == CK_TRUE ? "# " : "", pkcs11_get_mechanism_name_from_type(mech_array[i]));
+    }        
+
+    fprintf(fp, "%s}\n", commented == CK_TRUE ? "# " : "");
+}
 
 /*------------------------------------------------------------------------*/
 
@@ -756,11 +770,16 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	    "#     CKA_START_DATE\n"
 	    "#     CKA_END_DATE\n"
 	    "#     CKA_CHECK_VALUE\n"
+	    "#     CKA_WRAP_TEMPLATE\n"
+	    "#     CKA_UNWRAP_TEMPLATE\n"
+	    "#     CKA_ALLOWED_MECHANISMS\n"
 	    "#   where, depending on the attribute, [VALUE] can be one of the following:\n"
             "#     \"Hello world\" (printable string)\n"
 	    "#      0x1A2B3C4D (hex bytes)\n"
 	    "#      20150630   (date)\n"
 	    "#      true/false/CK_TRUE/CK_FALSE/yes/no (boolean)\n"
+	    "#      { attribute=value attribute=value ... }"
+	    "#      { mechanism mechanism ... }"
 	    "#\n"
 	    "# - wrapped key is contained between -----BEGIN WRAPPED KEY-----\n"
             "#   and -----END WRAPPED KEY----- marks and is Base64 encoded\n"
@@ -851,6 +870,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE  },
 	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", CK_FALSE  },
 	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", CK_FALSE  },
+	{ CKA_ALLOWED_MECHANISMS, fprintf_mechanism_type_array, "CKA_ALLOWED_MECHANISMS", CK_FALSE },
 	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", CK_FALSE },
 	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", CK_FALSE },
 	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", CK_FALSE },
@@ -876,6 +896,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE },
 	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", CK_FALSE },
 	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", CK_FALSE },
+	{ CKA_ALLOWED_MECHANISMS, fprintf_mechanism_type_array, "CKA_ALLOWED_MECHANISMS", CK_FALSE },
 	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", CK_TRUE }, /* Not valid in C_Unwrap() template */
 	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", CK_FALSE },
 	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", CK_FALSE },
@@ -905,6 +926,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 					       _ATTR(CKA_CLASS),
 					       _ATTR(CKA_TOKEN),
 					       _ATTR(CKA_KEY_TYPE),
+					       _ATTR(CKA_ALLOWED_MECHANISMS),
 					       _ATTR(CKA_ENCRYPT),
 					       _ATTR(CKA_DECRYPT),
 					       _ATTR(CKA_WRAP),
@@ -934,6 +956,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 					       _ATTR(CKA_CLASS),
 					       _ATTR(CKA_TOKEN),
 					       _ATTR(CKA_KEY_TYPE),
+					       _ATTR(CKA_ALLOWED_MECHANISMS),
 					       _ATTR(CKA_EC_PARAMS),
 					       _ATTR(CKA_SUBJECT),
 					       _ATTR(CKA_DECRYPT),
@@ -1046,6 +1069,7 @@ static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE  },
 	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", CK_FALSE  },
 	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", CK_FALSE  },
+	{ CKA_ALLOWED_MECHANISMS, fprintf_mechanism_type_array, "CKA_ALLOWED_MECHANISMS", CK_FALSE },
 	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", CK_TRUE },
 	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", CK_FALSE },
 	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", CK_FALSE },
@@ -1067,6 +1091,7 @@ static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 					   _ATTR(CKA_CLASS),
 					   _ATTR(CKA_TOKEN),
 					   _ATTR(CKA_KEY_TYPE),
+					   _ATTR(CKA_ALLOWED_MECHANISMS),
 					   _ATTR(CKA_EC_PARAMS),
 					   _ATTR(CKA_SUBJECT),
 					   _ATTR(CKA_ENCRYPT),
@@ -1600,7 +1625,7 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 							    &wrappedkeybuffersize );
 	    if(rv!=CKR_OK) {
 		pkcs11_error(rv, "C_WrapKey");
-		fprintf(stderr, "***Warning: It didn't work with %s\n", get_mechanism_name(mechanism.mechanism));
+		fprintf(stderr, "***Warning: It didn't work with %s\n", pkcs11_get_mechanism_name_from_type(mechanism.mechanism));
 	    } else {
 		/* it worked, let's remember in wctx the actual mechanism used */
 		/* unless it was already supplied */

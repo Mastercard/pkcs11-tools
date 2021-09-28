@@ -99,8 +99,21 @@ func_rc _wrappedkey_parser_wkey_set_wrapping_alg(wrappedKeyCtx *wctx, enum wrapp
 /* parser/lexer guarantee we are with oaep */
 func_rc _wrappedkey_parser_wkey_set_wrapping_param_hash(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE hash)
 {
-    wctx->oaep_params->hashAlg = hash;
-    return rc_ok;
+    switch(hash) {
+    case CKM_SHA_1:
+    case CKM_SHA224:
+    case CKM_SHA256:
+    case CKM_SHA384:
+    case CKM_SHA512:
+	wctx->oaep_params->hashAlg = hash;
+	return rc_ok;
+
+    default:
+	fprintf(stderr,
+		"***Error: the mechanism provided (%s)is not a supported hash algorithm for OAEP hash argument\n",
+		pkcs11_get_mechanism_name_from_type(hash) );
+	return rc_error_invalid_argument;
+    }
 }
 
 /* dealing with mgf=xxxxx parameter */
@@ -197,15 +210,8 @@ static func_rc _wrappedkey_parser_append_attr(wrappedKeyCtx *wctx, CK_ATTRIBUTE_
 
     /* we need to create the buffer and stuff it with what is passed as parameter */
     stuffing.type   = attrtyp;
-    stuffing.pValue = malloc(len);
 
-    if(stuffing.pValue == NULL) {
-	fprintf(stderr, "Memory error\n");
-	rc = rc_error_memory;
-	goto error;
-    }
-
-    if(pkcs11_attr_is_template(attrtyp)) {
+    if(pkcs11_attr_is_template(attrtyp) || pkcs11_attr_is_allowed_mechanisms(attrtyp)) {
 	stuffing.pValue = buffer; /* we pass the pointer, we don't allocate */
     } else {
 	stuffing.pValue = malloc(len);
@@ -454,6 +460,30 @@ inline func_rc _wrappedkey_parser_wkey_assign_list_to_template(wrappedKeyCtx *wc
 inline func_rc _wrappedkey_parser_pubk_assign_list_to_template(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE attrtyp)
 {
     return _wrappedkey_parser_assign_list_to_template(wctx, attrtyp, target_pubk);
+}
+
+
+/* this function stores the mechanism type passed as an argument */
+/* into the allowed mechanisms array of the attribCtx structure */
+/* we grow the array of allowed mechanisms one entry at a time */
+/* it is not the most optimal way, but since we have to cope */
+/* with a few mechanisms only, that's fine. */
+func_rc _wrappedkey_parser_add_mechanism(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE attrtype)
+{
+    func_rc rc = rc_error_invalid_argument;
+    if(wctx) {
+	CK_MECHANISM_TYPE_PTR realloced = realloc(wctx->allowedmechs, sizeof(CK_MECHANISM_TYPE) + wctx->allowedmechs_len);
+	if(realloced==NULL) {
+	    fprintf(stderr, "***Error: could not realloc memory for allowed mechanisms\n");
+	    rc = rc_error_memory;
+	} else {
+	    wctx->allowedmechs = realloced;
+	    wctx->allowedmechs_len += sizeof(CK_MECHANISM_TYPE);
+	    wctx->allowedmechs[wctx->allowedmechs_len/sizeof(CK_MECHANISM_TYPE) - 1] = attrtype; /* assign value */
+	    rc = rc_ok;
+	}
+    }
+    return rc;
 }
 
     

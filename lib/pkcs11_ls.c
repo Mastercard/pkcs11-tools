@@ -59,10 +59,11 @@ static char* value_for_boolattr( pkcs11AttrList *attrlist,
     return rv;
 }
 
-static char* value_for_template( pkcs11AttrList *attrlist,
-					CK_ATTRIBUTE_TYPE attrtype,
-					char *ck_true,
-				        char *ck_false )
+static char* value_for_array_content( pkcs11AttrList *attrlist,
+				      CK_ATTRIBUTE_TYPE attrtype,
+				      size_t itemsize,
+				      char *ck_true,
+				      char *ck_false )
 {
     CK_ATTRIBUTE_PTR attr;
 
@@ -72,8 +73,21 @@ static char* value_for_template( pkcs11AttrList *attrlist,
     else if( attr!=NULL_PTR &&
 	     attr->pValue!=NULL_PTR &&
 	     attr->ulValueLen>0 &&
-	     attr->ulValueLen % sizeof(CK_ATTRIBUTE) == 0) return ck_true;
+	     attr->ulValueLen % itemsize == 0) return ck_true;
     else return ck_false;
+}
+
+static inline char* value_for_template( pkcs11AttrList *attrlist,
+					CK_ATTRIBUTE_TYPE attrtype,
+					char *ck_true,
+					char *ck_false ) {
+    return value_for_array_content(attrlist, attrtype, sizeof(CK_ATTRIBUTE), ck_true, ck_false);
+}
+
+static inline char* value_for_allowed_mechanisms( pkcs11AttrList *attrlist,
+						  char *ck_true,
+						  char *ck_false ) {
+    return value_for_array_content(attrlist, CKA_ALLOWED_MECHANISMS, sizeof(CK_MECHANISM_TYPE), ck_true, ck_false);
 }
 
 static char* value_for_keytype( pkcs11AttrList *attrlist )
@@ -254,6 +268,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_LOCAL),
 				_ATTR(CKA_KEY_TYPE),
 				_ATTR(CKA_KEY_GEN_MECHANISM), /* NSS: unknown? */
+				_ATTR(CKA_ALLOWED_MECHANISMS),
 
 				/* Public Key attributes */
 				_ATTR(CKA_SUBJECT),
@@ -327,7 +342,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 	    label_or_id(label, id, buffer, buffer_len);
 
-	    printf("pubk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	    printf("pubk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs,CKA_TOKEN, "tok,", "ses,", ""),
@@ -343,6 +358,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		   value_for_boolattr(attrs,CKA_TRUSTED, "tru,", "", ""),
 		   value_for_template(attrs,CKA_WRAP_TEMPLATE, "wrt,", ""),
 		   value_for_template(attrs,CKA_DERIVE_TEMPLATE, "drt,", ""),
+		   value_for_allowed_mechanisms(attrs, "alm,", ""),
 		   keykind
 		);
 	}
@@ -376,6 +392,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_LOCAL),
 				_ATTR(CKA_KEY_TYPE),
 				_ATTR(CKA_KEY_GEN_MECHANISM), /* NSS: unknown? */
+				_ATTR(CKA_ALLOWED_MECHANISMS),
 
 				/* Private Key attributes */
 				_ATTR(CKA_SUBJECT),
@@ -454,7 +471,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 	    label_or_id(label, id, buffer, buffer_len);
 
-	    printf("prvk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	    printf("prvk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs,CKA_TOKEN, "tok,", "ses,", ""),
@@ -475,6 +492,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		   value_for_boolattr(attrs,CKA_WRAP_WITH_TRUSTED, "wwt,", "", ""),
 		   value_for_template(attrs,CKA_UNWRAP_TEMPLATE, "uwt,", ""),
 		   value_for_template(attrs,CKA_DERIVE_TEMPLATE, "drt,", ""),
+		   value_for_allowed_mechanisms(attrs, "alm,", ""),
 		   keykind
 		);
 	}
@@ -507,6 +525,7 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_DERIVE_TEMPLATE),
 				_ATTR(CKA_LOCAL),
 				_ATTR(CKA_KEY_GEN_MECHANISM), /* NSS: unknown? */
+				_ATTR(CKA_ALLOWED_MECHANISMS),
 
 				/* Secret Key attributes */
 				_ATTR(CKA_ENCRYPT),
@@ -539,7 +558,7 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 	    label_or_id(label, id, buffer, buffer_len);
 
-	    printf("seck/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	    printf("seck/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs,CKA_TOKEN, "tok,", "ses,", ""),
@@ -563,6 +582,7 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		   value_for_template(attrs,CKA_WRAP_TEMPLATE, "wrt,", ""),
 		   value_for_template(attrs,CKA_UNWRAP_TEMPLATE, "uwt,", ""),
 		   value_for_template(attrs,CKA_DERIVE_TEMPLATE, "drt,", ""),
+		   value_for_allowed_mechanisms(attrs, "alm,", ""),		   
 		   value_for_keytype(attrs)
 		);
 	}

@@ -35,8 +35,8 @@
 #include "cryptoki.h"
 
 /* grammar version, for wrapped keys */
-#define  SUPPORTED_GRAMMAR_VERSION "2.1"
-#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "2.4.0"
+#define  SUPPORTED_GRAMMAR_VERSION "2.2"
+#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "2.5.0"
 
 /* Program Error Codes */
 #define RC_OK                    0x00
@@ -242,7 +242,11 @@ typedef struct s_p11_attribctx {
     struct {
 	CK_ATTRIBUTE *attrlist;	             
 	size_t attrnum;
-    } attrs[4];	
+    } attrs[4];
+
+    /* the following two members keep track of allowed mechanisms, when specified */
+    CK_MECHANISM_TYPE_PTR allowedmechs;
+    size_t allowedmechs_len;
 } attribCtx;
 
 /* pkcs11_unwrap / pkcs11_wrap / pkcs11_wctx */
@@ -254,6 +258,11 @@ typedef struct s_p11_wrappedkeyctx {
     char *wrappedkeylabel;	             /* inner key only - outer key will have random name and ID */
 
     char *filename;			     /* filename used to write wrapping file */
+
+    /* the following two members keep track of allowed mechanisms, when specified */
+    CK_MECHANISM_TYPE_PTR allowedmechs;
+    size_t allowedmechs_len;
+
     struct {				     /* inner or outer but never both (by design) */
 	CK_MECHANISM_TYPE aes_wrapping_mech;     /* used when wrapping_meth is w_rfc3394 or w_rfc5649 */
 	CK_BYTE_PTR iv;			     /* used for CKM_XXX_CBC_PAD and CKM_AES_KEY_WRAP_PAD */
@@ -644,6 +653,7 @@ CK_ATTRIBUTE_PTR pkcs11_get_attr_in_array ( CK_ATTRIBUTE_PTR array,
 bool pkcs11_read_attr_from_handle ( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle);
 bool pkcs11_read_attr_from_handle_ext ( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle, ... );
 bool pkcs11_attr_is_template(CK_ATTRIBUTE_TYPE attrtype);
+bool pkcs11_attr_is_allowed_mechanisms(CK_ATTRIBUTE_TYPE attrtype);
 
 pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PTR attrs, CK_ULONG numattrs);
 
@@ -712,10 +722,11 @@ CK_OBJECT_HANDLE pkcs11_import_component_final(KeyImportCtx *kctx);
 
 
 /* info functions */
-const char *get_mechanism_name(CK_MECHANISM_TYPE mech); /* pkcs11_mechanism.c */
-CK_ATTRIBUTE_TYPE get_attribute_type_from_name(char *name); /* pkcs11_attrdesc.c */
-const char *get_attribute_name_from_type(CK_ATTRIBUTE_TYPE attrtyp); 
-
+CK_MECHANISM_TYPE pkcs11_get_mechanism_type_from_name(char *name); /* pkcs11_mechanism.c */
+const char *pkcs11_get_mechanism_name_from_type(CK_MECHANISM_TYPE mech); /* pkcs11_mechanism.c */
+CK_ATTRIBUTE_TYPE pkcs11_get_attribute_type_from_name(char *name); /* pkcs11_attrdesc.c */
+const char *pkcs11_get_attribute_name_from_type(CK_ATTRIBUTE_TYPE attrtyp); /* pkcs11_attrdesc.c */
+    
 func_rc pkcs11_info_library(pkcs11Context *p11Context);
 func_rc pkcs11_info_slot(pkcs11Context *p11Context);
 func_rc pkcs11_info_ecsupport(pkcs11Context *p11Context);
@@ -740,6 +751,10 @@ const CK_OBJECT_HANDLE pkcs11_get_publickeyhandle(wrappedKeyCtx *ctx);
 
 wrappedKeyCtx *pkcs11_new_wrappedkeycontext(pkcs11Context *p11Context);
 void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx);
+CK_MECHANISM_TYPE_PTR pkcs11_wctx_get_allowed_mechanisms(wrappedKeyCtx *ctx);
+size_t pkcs11_wctx_get_allowed_mechanisms_len(wrappedKeyCtx *ctx);
+void pkcs11_wctx_free_mechanisms(wrappedKeyCtx *wctx); /* to free allowed mechanisms */
+void pkcs11_wctx_forget_mechanisms(wrappedKeyCtx *wctx); /* for transfer of ownership */
 
 /* pkcs11_attribctx */
 attribCtx *pkcs11_new_attribcontext();
@@ -748,6 +763,11 @@ func_rc pkcs11_parse_attribs_from_argv(attribCtx *ctx , int pos, int argc, char 
 CK_ATTRIBUTE_PTR pkcs11_get_attrlist_from_attribctx(attribCtx *ctx);
 size_t pkcs11_get_attrnum_from_attribctx(attribCtx *ctx);
 void pkcs11_adjust_attrnum_on_attribctx(attribCtx *ctx, size_t value);
+
+func_rc pkcs11_attribctx_add_mechanism(attribCtx *ctx, CK_MECHANISM_TYPE attrtype);
+func_rc pkcs11_attribctx_free_mechanisms(attribCtx *ctx);
+CK_MECHANISM_TYPE_PTR pkcs11_attribctx_get_allowed_mechanisms(attribCtx *ctx);
+size_t pkcs11_attribctx_get_allowed_mechanisms_len(attribCtx *ctx);
 
 
 /* End - Function Prototypes */

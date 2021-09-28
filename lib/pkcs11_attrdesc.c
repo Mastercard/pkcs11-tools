@@ -57,7 +57,7 @@ static int compare_CKA_type( const void *a, const void *b)
 }
 
 
-CK_ATTRIBUTE_TYPE get_attribute_type_from_name(char *name)
+CK_ATTRIBUTE_TYPE pkcs11_get_attribute_type_from_name(char *name)
 {
 
     CK_ATTRIBUTE_TYPE retval = 0xFFFFFFFF;
@@ -72,7 +72,7 @@ CK_ATTRIBUTE_TYPE get_attribute_type_from_name(char *name)
 }
 
 
-const char *get_attribute_name_from_type(CK_ATTRIBUTE_TYPE attrtyp)
+const char *pkcs11_get_attribute_name_from_type(CK_ATTRIBUTE_TYPE attrtyp)
 {
 
     static char * attr_unknown = "CKA_UNKNOWN_ATTRIBUTE";

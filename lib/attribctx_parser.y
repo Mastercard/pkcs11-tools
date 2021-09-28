@@ -48,6 +48,7 @@ extern void clerror(attribCtx *ctx, const char *s, ...);
     CK_KEY_TYPE val_key;
     CK_OBJECT_CLASS val_cls;
     CK_BBOOL val_bool;
+    CK_MECHANISM_TYPE val_mech;
 
     struct {			/* HEX encoded - or real string */
 	char *val;
@@ -67,7 +68,8 @@ extern void clerror(attribCtx *ctx, const char *s, ...);
 /* declare tokens */
 %token <val_str> STRING
 
-%token <ckattr> CKATTR_BOOL CKATTR_STR CKATTR_DATE CKATTR_KEY CKATTR_CLASS CKATTR_TEMPLATE
+%token <ckattr> CKATTR_BOOL CKATTR_STR CKATTR_DATE CKATTR_KEY CKATTR_CLASS CKATTR_TEMPLATE CKATTR_ALLOWEDMECH
+%token <val_mech> CKMECH		
 %token <val_bool> TOK_BOOLEAN
 %token <val_date> TOK_DATE
 %token <val_key>  KEYTYPE
@@ -88,6 +90,7 @@ statement:	expression
 
 expression:	simple_expr
 	|	template_expr
+	|	allowedmech_expr
 	;
 
 simple_expr:	CKATTR_BOOL ASSIGN TOK_BOOLEAN
@@ -119,6 +122,7 @@ simple_expr:	CKATTR_BOOL ASSIGN TOK_BOOLEAN
                 {
 		    if(_attribctx_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign bytes value.");
+			free($3.val); /* we must free() as the buffer was copied */
 			YYERROR;
 		    }
 		    free($3.val); /* we must free() as the buffer was copied */
@@ -134,6 +138,7 @@ simple_expr:	CKATTR_BOOL ASSIGN TOK_BOOLEAN
                 {
 		    if(_attribctx_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
+			free($3.val); /* we must free() as the buffer was copied */
 			YYERROR;
 		    }
 		    free($3.val); /* we must free() as the buffer was copied */
@@ -187,4 +192,31 @@ template_expr:	CKATTR_TEMPLATE ASSIGN CURLY_OPEN
 		}
 	;
 
+allowedmech_expr: CKATTR_ALLOWEDMECH ASSIGN CURLY_OPEN mechanisms CURLY_CLOSE
+		{
+		    if( _attribctx_parser_append_attr( ctx,
+						       $1,
+						       pkcs11_attribctx_get_allowed_mechanisms(ctx),
+						       pkcs11_attribctx_get_allowed_mechanisms_len(ctx))
+			!= rc_ok) {
+			clerror(ctx,"Error during parsing, cannot assign object class value.");
+			YYERROR;
+		    }
+		    /* pointer stolen, we must free it */
+		    pkcs11_wctx_forget_mechanisms(ctx);
+		}
+		;
+
+mechanisms:	mechanism
+	|	mechanisms mechanism
+	;
+
+mechanism:	CKMECH
+		{
+		    if( pkcs11_attribctx_add_mechanism(ctx, $1)!=rc_ok) {
+			clerror(ctx, "Error during parsing, cannot assign mechanism to allowed mechanisms.");
+			YYERROR;
+		    }
+		}
+	;
 %%	      

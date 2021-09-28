@@ -94,6 +94,7 @@ void print_usage(char *progname)
 	     " NAS : (historical) key has not always been sensitive\n"
 	     " NSE : key is not sensitive (clear text value could leave token boudary)\n"
 	     " WXT : (historical) key has been once extractable\n"
+	     " alm : the key is restricted to (a) specific algorithm(s)\n"
 	     " ase : (historical) key has always been sensitive\n"
 	     " dec : supports decryption\n"
 	     " drv : supports derivation\n"

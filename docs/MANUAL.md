@@ -312,9 +312,10 @@ For each object, a quick list of attributes is displayed. The following table li
  |--------------|-----------------------------------------------------------------------|
  |    `AAU`     |the key requires authentication each time it is used                   |
  |    `ase`     |the key has always been sensitive                                      |
+ |    `alm`     |the key has associated allowed mechanisms (use `p11od` to reveal)      |
  |    `dec`     |the key can be used for decryption                                     |
  |    `der`     |the key can be used for key derivation                                 |
- |    `drt`     |the key has a derive template                                          |
+ |    `drt`     |the key has a derive template (use `p11od` to reveal)                  |
  |    `enc`     |the key can be used for encryption                                     |
  |    `imp`     |the key has been imported (e.g. unwrapped)                             |
  |    `loc`     |the key has been generated locally                                     |
@@ -331,11 +332,11 @@ For each object, a quick list of attributes is displayed. The following table li
  |    `tok`     |the object is on token (always true)                                   |
  |    `tru`     |the object is trusted (`CKA_TRUST` attribute is set to `true`)         |
  |    `unw`     |the key can be used for key unwrapping                                 |
- |    `uwt`     |the key has an unwrap template                                         |
+ |    `uwt`     |the key has an unwrap template (use `p11od` to reveal)                 |
  |    `vfy`     |the key can be used for signature verification                         |
  |    `vre`     |the key can be used for signature verification with recovery           |
  |    `wra`     |the key can be used for key wrapping                                   |
- |    `wrt`     |the key has a wrap template                                            |
+ |    `wrt`     |the key has a wrap template (use `p11od` to reveal)                    |
  |    `wtt`     |the key may be wrapped only with a trusted key                         |
  |    `WXT`     |the key has been at least once extractable                             |
  |    `XTR`     |the key is extractable                                                 |
@@ -348,13 +349,13 @@ Here is an example of execution:
 ```
 $ p11ls
 seck/aes-wrapping-key                 tok,prv,r/w,loc,wra,unw,sen,ase,XTR,WXT,aes(256)
-prvk/rsa-2048                         tok,prv,r/w,imp,dec,sig,sen,NAS,XTR,WXT,rsa(2048)
-pubk/rsa-overarching-wrapping-key     tok,pub,r/w,imp,enc,vfy,vre,wra,rsa(4096)
+prvk/rsa-2048                         tok,prv,r/w,imp,dec,sig,sen,NAS,XTR,WXT,alm,rsa(2048)
+pubk/rsa-overarching-wrapping-key     tok,pub,r/w,imp,enc,vfy,vre,wra,wrt,rsa(4096)
 ```
 In the example above, three objects are found on the token:
  - a 256 bits AES secret key called `aes-wrapping-key` which is extractable - it can be wrapped - (`XTR`), and that can wrap (`wra`) and unwrap (`unw`) other keys. That key has been created locally (`loc`), and is a private object, i.e. requiring to login against the token, (`prv`).
- - an RSA 2048 bits private key called `rsa-2048`, which is also extractable (`XTR`), that can sign (`sig`) and decrypt (`dec`). the key has been imported to the token (`imp`); consequently, the historical attribute "was extractable" (`WXT`) is set.  Although the key is sensitive i.e. operated within the boundaries of the cryptographic token (`sen`), and since it has been imported, the token is setting the other historical attribute "not always sensitive" (`NAS`).
- - an RSA 4096 bits public key called `rsa-overarching-wrapping-key`, which is a public object, i.e. not requiring to login (`pub`). It is also imported (`imp`) and has the capability to wrap other keys (`wra`).
+ - an RSA 2048 bits private key called `rsa-2048`, which is also extractable (`XTR`), that can sign (`sig`) and decrypt (`dec`). the key has been imported to the token (`imp`); consequently, the historical attribute "was extractable" (`WXT`) is set.  Although the key is sensitive i.e. operated within the boundaries of the cryptographic token (`sen`), and since it has been imported, the token is setting the other historical attribute "not always sensitive" (`NAS`). Finally, the key is restricted in the mechanisms it may use (`alm`).
+ - an RSA 4096 bits public key called `rsa-overarching-wrapping-key`, which is a public object, i.e. not requiring to login (`pub`). It is also imported (`imp`) and has the capability to wrap other keys (`wra`), that conform with the key wrap template (`wrt`).
  ## p11cat
 Given an object identifier, exctract the content in DER, base64 encoded format ( aka PEM format). The output of the command can be used to pipe in another command. Additionally, when used in conjuction with `-x` parameter on public keys, the output is tuned either to yield native format for RSA keys, and parameter files for DH, DSA, and EC keys.
 -   if the object is a certificate, then the certificate value is exported
@@ -543,7 +544,10 @@ seck/aes-wrapping-key:
  |  0000  01                                               CK_TRUE
  | CKA_DERIVE:
  |  0000  00                                               CK_FALSE
-```
+ CKA_ALLOWED_MECHANISMS:
+  0000  81 10 00 00 00 00 00 00                            CKM_AES_ECB
+  0008  82 10 00 00 00 00 00 00                            CKM_AES_CBC
+  ```
 
 ## p11keygen
 Generate a key or a key pair on a PKCS\#11 token, or generate and wrap under one or several key(s). There are multiple options, but the more important are:
@@ -551,24 +555,139 @@ Generate a key or a key pair on a PKCS\#11 token, or generate and wrap under one
 -   `-k`: the key algorithm: `rsa`, `ec`, `des`, `aes`, `generic`, `hmac` (`hmac` and `generic` are synonyms), `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512` (these are nCipher-specific, and only available when the toolkit is compiled with nCipher extentions)
 -   `-b`: the key length in bits / `-q`: curve parameter name for elliptic curve. Please check out `openssl ecparam -list_curves` for a list of supported curves (obviously, the PKCS\#11 token must support it).
 
-Moreover, it is possible to specify attributes to set at key inception. This is very important as usually attributes cannot be enabled on a key once it has been disabled, so make sure to specify any required attribute here.
+### attributes
+It is possible (and usually needed) to specify attributes to set at key inception.
 
 For key pairs, the tool will dispatch attributes pertaining to the relevant key (public or private).
-For RSA key pairs, `CKA_ID` is adjusted to match IBM PKCS\#11 JCE algorithm (the value is the SHA-1 of the key modulus).
+On assymetric key pairs, `CKA_ID` is adjusted to match IBM PKCS\#11 JCE algorithm (the value is the SHA-1 of the key modulus, for RSA keys; for other key types, please consult source code).
 
 ```
 $ p11keygen -k rsa -b 2048 -i test-rsa-2048 encrypt decrypt sign verify
 Generating, please wait... Key Generation succeeded
 ```
 
-For HMAC key (excepting on nCipher HSMs), you need to specify `derive`. The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
+By default, `p11keygen` creates keys/key pairs using default safe values; you must explicitely specify what function you want to enable on a key. All attribute names are case-insensitive. They can be specified either using their canonical PKCS\#11 name  in the form `CKA_XXXX`, or using the shortened version, when removing the `CKA_` prefix. If you need to specify more than one attribute, you must separate them with whitespaces and/or commas `,`.
+
+Assigning a value to an attribute is peformed using the following syntax: (with an exception for boolean attributes)
+`ATTRIBUTE = VALUE `
+
+#### boolean value
+A boolean attribute value can be one of the following keywords: `true`, `false`, `yes`, `no`, `on`, `off`. In addition, a boolean attribute can be specified without a value, in which case it is set to `true`, or `false` when prefixed with the `no` keyword or with an exclamation mark `!`.
+Valid Examples: 
+ - `encrypt=true`, `encrypt=yes`, `encrypt` are all equivalents to `CKA_ENCRYPT=true` 
+ - `encrypt=false`, `encrypt=off`, `no encrypt` and `!encrypt` are all equivalents to `CKA_ENCRYPT=false`
+
+#### string value
+A string value is any value surrounded by __double quotes__. Note that the toolkit does not support UTF8 conversion at this point.
+Valid examples: 
+ -  `"this-is-a-valid-string"`
+ -  `"another with spaces"`
+
+#### date value
+A date attribute value is an 8 digits number, encoded in the following format: `YYYYMMDD`.
+Valid examples: 
+ - `20200101` (January 1st, 2020)
+ - `20210623` (June 23rd, 2021)
+
+#### hexadecimal value
+A hexadecimal value contains an even number of hexadecimal digits, and is prefixed with `0x`.
+Valid examples: 
+ - `0x01`
+ - `0xabcdef`
+
+#### mechanism value
+A mechanism value is one of the mechanisms defined in the PKCS\#11 specification. It always start with `CKM_`.
+Valid examples: 
+ - `CKM_RSA_PKCS`
+ - `CKM_AES_GCM`
+
+#### mechanism array value
+A mechanism array value is specified as a list of whitespace and/or comma-separated mechanism values, surrounded by curly braces.
+Valid examples: 
+ - `{ CKM_RSA_PKCS, CKM_RSA_PKCS_OAEP }`
+ - `{ CKM_AES_CBC CKM_AES_GCM }`
+
+#### attribute array value
+For template attributes such as `CKA_UNWRAP_TEMPLATE` and `CKA_WRAP_TEMPLATE`, the value is provided as a list of attributes, delimited by curly braces `{` and `}`, each attribute being separated by whitespaces and/or commas `,`.
+Valid examples: 
+ - `{ encrypt decrypt sensitive !extractable }`
+ - `{ CKA_DERIVE=true, CKA_LABEL="only-this-label" }`
+
+#### object class value
+The value must match the definitions found in the PKCS\#11 specification.
+Valid examples: `CKO_DATA`, `CKO_SECRET_KEY`
+
+#### key type value
+These are corresponding object classes as found in the PKCS\#11 specification. In addition, abbreviated names (without `CKK_`) can be used. Note that all key types are not supported.
+Valid examples: `generic`, `CKA_AES`
+
+The following table provides a list of currently supported key types:
+
+| key type           | alias                         |
+|--------------------|-------------------------------|
+|`CKK_AES`           |`aes`                          |
+|`CKK_DES2`          |`des2`                         |
+|`CKK_DES3`          |`des3`                         |
+|`CKK_DES`           |`des`                          |
+|`CKK_DH`            |`dh`                           |
+|`CKK_DSA`           |`dsa`                          |
+|`CKK_EC_EDWARDS`    |`ec_edwards`, `edwards`, `ed`  |
+|`CKK_EC`            |`ec`                           |
+|`CKK_GENERIC_SECRET`|`generic_secret`, `generic`    |
+|`CKK_MD5_HMAC`      |`md5_hmac`                     |
+|`CKK_RSA`           |`rsa`                          |
+|`CKK_SHA224_HMAC`   |`sha224_hmac`                  |
+|`CKK_SHA256_HMAC`   |`sha256_hmac`                  |
+|`CKK_SHA384_HMAC`   |`sha384_hmac`                  |
+|`CKK_SHA512_HMAC`   |`sha512_hmac`                  |
+|`CKK_SHA_1_HMAC`    |`sha_1_hmac`, `sha1_hmac`      |
+
+
+### supported attributes
+
+The following table describes a list of all supported attributes.
+
+| attribute                | alternate name       | type             | default (when available)                    |
+|--------------------------|----------------------|------------------|---------------------------------------------|
+| `CKA_ALLOWED_MECHANISMS` | `allowed_mechanisms` | mechanisms array |                                             |
+| `CKA_CLASS`              | `class`              | class            |                                             |
+| `CKA_COPYABLE`           | `copyable`           | boolean          |                                             |
+| `CKA_DECRYPT`            | `decrypt`            | boolean          | `false`                                     |
+| `CKA_DERIVE`             | `derive`             | boolean          | `false`                                     |
+| `CKA_EC_PARAMS`          | `ec_params`          | hex              |                                             |
+| `CKA_ENCRYPT`            | `encrypt`            | boolean          | `false`                                     |
+| `CKA_END_DATE`           | `end_date`           | date             |                                             |
+| `CKA_EXTRACTABLE`        | `extractable`        | boolean          | `false`                                     |
+| `CKA_ID`                 | `id`                 | string / hex     | computed on keys at creation                |
+| `CKA_ISSUER`             | `issuer`             | hex              |                                             |
+| `CKA_LABEL`              | `label`              | string / hex     |                                             |
+| `CKA_MODIFIABLE`         | `modifiable`         | boolean          |                                             |
+| `CKA_PRIVATE`            | `private`            | boolean          | `true`                                      |
+| `CKA_SENSITIVE`          | `sensitive`          | boolean          | `true`                                      |
+| `CKA_SIGN_RECOVER`       | `sign_recover`       | boolean          | `false`                                     |
+| `CKA_SIGN`               | `sign`               | boolean          | `false`                                     |
+| `CKA_START_DATE`         | `start_date`         | date             |                                             |
+| `CKA_SUBJECT`            | `subject`            | hex              |                                             |
+| `CKA_TOKEN`              | `token`              | boolean          | `true`                                      |
+| `CKA_TRUSTED`            | `trusted`            | boolean          | `false` (can be set when logged as SO only) |
+| `CKA_UNWRAP_TEMPLATE`    | `unwrap_template`    | attributes array |                                             |
+| `CKA_UNWRAP`             | `unwrap`             | boolean          | `false`                                     |
+| `CKA_VERIFY_RECOVER`     | `verify_recover`     | boolean          | `false`                                     |
+| `CKA_VERIFY`             | `verify`             | boolean          | `false`                                     |
+| `CKA_WRAP_TEMPLATE`      | `wrap_template`      | attributes array |                                             |
+| `CKA_WRAP_WITH_TRUSTED`  | `wrap_with_trusted`  | boolean          |                                             |
+| `CKA_WRAP`               | `wrap`               | boolean          |                                             |
+
+
+### HMAC keys
+For HMAC key, you need to specify `derive` (but please check with your HSM vendor, there are sometimes variations). The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
 
 ```
 $ p11keygen -k generic -b 256 -i test-hmac-32-bytes derive
 Generating, please wait... Key Generation succeeded
 ```
 
-For generating HMAC key on nCipher, you need to use one of the following key types: `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512`; In addition, specify `sign` and `verify`. The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
+For generating HMAC key on Entrust HSM, you need to use one of the following key types: `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512`; In addition, specify `sign` and `verify`. The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
 
 ### creating wrapped keys
 using `p11keygen`, it is possible to generate a session key and wrap it immediately under one or several wrapping keys. To achieve this, you simply need to add the `-W` optional parameter, followed by the wrapping parameters string, as explained in `p11wrap`. Note that by default, `p11keygen` will attempt to store a copy of the session key on the token. To prevent this (some PKCS\#11 library do not support this), add the `-r` optional parameter.
@@ -616,7 +735,7 @@ dOaYPtY2vDku2as4Y5oj9g4Aht26yqNsYQFNKw==
 ```
 
 ## p11mkcert
-Generate a self-signed certificate, suitable for Java JCA. The main use is for code-signing platforms. 
+Generate a self-signed certificate, suitable for Java JCA. The main use is for code-signing platforms.
 Note that the key must have the `CKA_SIGN` attribute set to `true`, unless you are specifying the `-F` optional parameter (see below).
 
 
@@ -755,7 +874,7 @@ The syntax is `-W 'wrappingkey="<wrappingkeylabel>"[,algorithm=<algorithm>[,file
 #### envelope wrapping
 It is possible to combine private key and symmetric key wrapping together, to allow wrapping any key material, given a single private key. To do this, use `-a envelope` or `-a envelope(args...)`; `args...` can be one or several of the following parameters (separated by commas)
     * `inner=<algorithm>`: specifies the algorithm that wraps the target key. It must be one of `cbcpad`, `rfc3394` or `rfc5649`. In turn, algorithms can be specified with their own set of parameters. If not specified, default is `cbcpad`.
-	* `outer=<algorithm>`: specifies the algoritom that wraps the inner key, using the specified wrapping key. It must be one of `pkcs1` or `oaep`. If not speficied, default is `oaep`.
+    * `outer=<algorithm>`: specifies the algoritom that wraps the inner key, using the specified wrapping key. It must be one of `pkcs1` or `oaep`. If not speficied, default is `oaep`.
 
 ### p11unwrap syntax
 you must at least provide:

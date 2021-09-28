@@ -76,14 +76,16 @@ extern int cldebug;
     CKATTR_KEY = 262,              /* CKATTR_KEY  */
     CKATTR_CLASS = 263,            /* CKATTR_CLASS  */
     CKATTR_TEMPLATE = 264,         /* CKATTR_TEMPLATE  */
-    TOK_BOOLEAN = 265,             /* TOK_BOOLEAN  */
-    TOK_DATE = 266,                /* TOK_DATE  */
-    KEYTYPE = 267,                 /* KEYTYPE  */
-    OCLASS = 268,                  /* OCLASS  */
-    NO = 269,                      /* NO  */
-    ASSIGN = 270,                  /* ASSIGN  */
-    CURLY_OPEN = 271,              /* CURLY_OPEN  */
-    CURLY_CLOSE = 272              /* CURLY_CLOSE  */
+    CKATTR_ALLOWEDMECH = 265,      /* CKATTR_ALLOWEDMECH  */
+    CKMECH = 266,                  /* CKMECH  */
+    TOK_BOOLEAN = 267,             /* TOK_BOOLEAN  */
+    TOK_DATE = 268,                /* TOK_DATE  */
+    KEYTYPE = 269,                 /* KEYTYPE  */
+    OCLASS = 270,                  /* OCLASS  */
+    NO = 271,                      /* NO  */
+    ASSIGN = 272,                  /* ASSIGN  */
+    CURLY_OPEN = 273,              /* CURLY_OPEN  */
+    CURLY_CLOSE = 274              /* CURLY_CLOSE  */
   };
   typedef enum cltokentype cltoken_kind_t;
 #endif
@@ -98,6 +100,7 @@ union CLSTYPE
     CK_KEY_TYPE val_key;
     CK_OBJECT_CLASS val_cls;
     CK_BBOOL val_bool;
+    CK_MECHANISM_TYPE val_mech;
 
     struct {			/* HEX encoded - or real string */
 	char *val;
@@ -113,7 +116,7 @@ union CLSTYPE
         char as_buffer[8];
     } val_date;
 
-#line 117 "attribctx_parser.h"
+#line 120 "attribctx_parser.h"
 
 };
 typedef union CLSTYPE CLSTYPE;
@@ -134,6 +137,6 @@ YY_DECL;
 extern void clerror(attribCtx *ctx, const char *s, ...);
     
 
-#line 138 "attribctx_parser.h"
+#line 141 "attribctx_parser.h"
 
 #endif /* !YY_CL_ATTRIBCTX_PARSER_H_INCLUDED  */

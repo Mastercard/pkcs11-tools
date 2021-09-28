@@ -985,7 +985,7 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 
 	    if(rv!=CKR_OK) {
 		pkcs11_error(rv, "C_UnwrapKey");
-		fprintf(stderr, "***Warning: It didn't work with %s\n", get_mechanism_name(mechanism.mechanism));
+		fprintf(stderr, "***Warning: It didn't work with %s\n", pkcs11_get_mechanism_name_from_type(mechanism.mechanism));
 	    } else {
 		/* it worked, let's remember in wctx the actual mechanism used */
 		/* unless it was already supplied */

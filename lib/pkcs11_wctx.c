@@ -100,6 +100,34 @@ error:
     return NULL;
 }
 
+inline void pkcs11_wctx_free_mechanisms(wrappedKeyCtx *wctx)
+{
+    if(wctx && wctx->allowedmechs) {
+	free(wctx->allowedmechs);
+	wctx->allowedmechs = NULL;
+	wctx->allowedmechs_len = 0;
+    }
+}
+
+/* to use only for transfer of ownership */
+inline void pkcs11_wctx_forget_mechanisms(wrappedKeyCtx *wctx)
+{
+    if(wctx && wctx->allowedmechs) {
+	wctx->allowedmechs = NULL;
+	wctx->allowedmechs_len = 0;
+    }
+}
+
+inline CK_MECHANISM_TYPE_PTR pkcs11_wctx_get_allowed_mechanisms(wrappedKeyCtx *ctx)
+{
+    return ctx ? ctx->allowedmechs : NULL;
+}
+
+inline size_t pkcs11_wctx_get_allowed_mechanisms_len(wrappedKeyCtx *ctx)
+{
+    return ctx ? ctx->allowedmechs_len : 0;
+}
+
 
 void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx)
 {
@@ -124,6 +152,9 @@ void pkcs11_free_wrappedkeycontext(wrappedKeyCtx *wctx)
 	    wctx->filename = NULL;
 	}
 
+	/* free up allowed mechanisms array */
+	pkcs11_wctx_free_mechanisms(wctx);
+	
 	/* free up buffers */
 	int i;
 	for(i=0; i<2; ++i) {

@@ -19,6 +19,7 @@
 %option case-insensitive
 %option noyywrap yylineno
 %option header-file="wrappedkey_lexer.h"
+%option never-interactive
 
 %{
 #include "config.h"
@@ -52,7 +53,7 @@
 <STR><<EOF>>    { yyerror(NULL, "Unterminated quoted string"); yyterminate(); }
 <STR>[\"]   {   /* special case: if we have an empty string, regular rule is never executed */
 		/* in which case, we perform the empty string assignment from here */
-    if (yylval.val_str.len==0) { yylval.val_str.val=strdup(""); } BEGIN(INITIAL); return STRING;
+                if (yylval.val_str.len==0) { yylval.val_str.val=strdup(""); } BEGIN(INITIAL); return STRING;
 	    }
 
 Content-Type       { return CTYPE; }
@@ -97,6 +98,7 @@ CKA_WRAP_WITH_TRUSTED { yylval.ckattr = CKA_WRAP_WITH_TRUSTED; return CKATTR_BOO
 CKA_WRAP_TEMPLATE  { yylval.ckattr = CKA_WRAP_TEMPLATE; return CKATTR_TEMPLATE; }
 CKA_UNWRAP_TEMPLATE { yylval.ckattr = CKA_UNWRAP_TEMPLATE; return CKATTR_TEMPLATE; }
 CKA_DERIVE_TEMPLATE { yylval.ckattr = CKA_DERIVE_TEMPLATE; return CKATTR_TEMPLATE; }
+CKA_ALLOWED_MECHANISMS { yylval.ckattr = CKA_ALLOWED_MECHANISMS; return CKATTR_ALLOWEDMECH; }
 
 CKK_GENERIC_SECRET { yylval.val_key = CKK_GENERIC_SECRET; return KEYTYPE; }
 CKK_DES            { yylval.val_key = CKK_DES           ; return KEYTYPE; }
@@ -135,16 +137,19 @@ CKG_MGF1_SHA384    { yylval.val_mgf = CKG_MGF1_SHA384; return MGFTYPE; }
 CKG_MGF1_SHA512    { yylval.val_mgf = CKG_MGF1_SHA512; return MGFTYPE; }
 
 hash                 { return PARAMHASH; }
-CKM_SHA_1|CKM_SHA1   { yylval.val_hashalg = CKM_SHA_1; return HASHALG; }
-CKM_SHA224           { yylval.val_hashalg = CKM_SHA224; return HASHALG; }
-CKM_SHA256           { yylval.val_hashalg = CKM_SHA256; return HASHALG; }
-CKM_SHA384           { yylval.val_hashalg = CKM_SHA384; return HASHALG; }
-CKM_SHA512           { yylval.val_hashalg = CKM_SHA512; return HASHALG; }
+
+CKM_[a-z0-9_]+     { yylval.val_mech = pkcs11_get_mechanism_type_from_name(yytext);
+                     if (yylval.val_mech==0xFFFFFFFF) {
+			yyerror(NULL, "Unknown mechanism identifier <%s>", yytext);
+                        yyterminate();
+                     }
+                     return CKMECH;
+                   }
 
 label              { return PARAMLABEL; }
 iv                 { return PARAMIV; }
 flavo[u]?r         { return PARAMFLAVOUR; }
-nss                { yylval.val_wrapalg = CKM_NSS_AES_KEY_WRAP_PAD; return WRAPALG; }
+nss                { yylval.val_mech = CKM_NSS_AES_KEY_WRAP_PAD; return CKMECH; }
 outer              { return PARAMOUTER; }
 inner              { return PARAMINNER; }
 

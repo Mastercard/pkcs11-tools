@@ -557,6 +557,7 @@ func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
 	    case CKA_MODIFIABLE:
 	    case CKA_DERIVE_TEMPLATE:
 	    case CKA_UNWRAP_TEMPLATE:
+	    case CKA_ALLOWED_MECHANISMS:
 	    {
 		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
 						  prvktemplate,
@@ -594,6 +595,7 @@ func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
 	    case CKA_MODIFIABLE:
 	    case CKA_WRAP_TEMPLATE:
 	    case CKA_DERIVE_TEMPLATE:
+	    case CKA_ALLOWED_MECHANISMS:
 	    {
 		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
 						  pubktemplate,
@@ -786,6 +788,7 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
 	    case CKA_MODIFIABLE:
 	    case CKA_UNWRAP_TEMPLATE:
 	    case CKA_DERIVE_TEMPLATE:
+	    case CKA_ALLOWED_MECHANISMS:
 	    {
 		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
 						  prvktemplate,
@@ -823,6 +826,7 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
 	    case CKA_MODIFIABLE:
 	    case CKA_WRAP_TEMPLATE:
 	    case CKA_DERIVE_TEMPLATE:
+	    case CKA_ALLOWED_MECHANISMS:
 	    {
 		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
 						  pubktemplate,

@@ -130,7 +130,7 @@ func_rc pkcs11_info_slot(pkcs11Context *p11Context)
 	
 	for(i=0; i<mechlist_len; i++) {
 	    CK_MECHANISM_INFO mechinfo;
-	    const char *mname = get_mechanism_name(mechlist[i]);
+	    const char *mname = pkcs11_get_mechanism_name_from_type(mechlist[i]);
 	    
 	    if (( rv = p11Context->FunctionList.C_GetMechanismInfo( p11Context->slot, mechlist[i], &mechinfo ) ) != CKR_OK ) {
 		pkcs11_error( rv, "C_GetMechanismInfo" );
