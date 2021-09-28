@@ -182,15 +182,6 @@ int main( int argc, char ** argv )
 	wrappingjob[i].fullstring_allocated = 0;
     }
 
-    typedef enum
-    {
-	option_unknown,
-	option_separate,
-	option_combined
-    } option_t;
-
-    option_t option = option_unknown;
-
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
     tokenlabel = getenv("PKCS11TOKENLABEL");
@@ -270,7 +261,6 @@ int main( int argc, char ** argv )
 		errflag++;
 	    } else {
 		wrappingjob[numjobs].fullstring = optarg;
-		option = option_combined;
 		numjobs++;
 	    }
 	    break;
@@ -408,7 +398,7 @@ epilog:
     case rc_ok:
 	if(numfailed>0) {
 	    p11rewraprc = numfailed;
-	    fprintf(stderr, "Some (%d) rewrapping jobs failed - returning code %d (0x%04.4x) to calling process\n", numfailed, p11rewraprc, p11rewraprc);
+	    fprintf(stderr, "Some (%d) rewrapping jobs failed - returning code %d (0x%4.4x) to calling process\n", numfailed, p11rewraprc, p11rewraprc);
 	} else {
 	    fprintf(stderr, "Key rewrapping operations succeeded\n");
 	    p11rewraprc = EX_OK;
@@ -422,7 +412,7 @@ epilog:
 
     default:
 	p11rewraprc = retcode;
-	fprintf(stderr, "Key rewrapping operations failed - returning code %d (0x%04.4x) to calling process\n", p11rewraprc, p11rewraprc);
+	fprintf(stderr, "Key rewrapping operations failed - returning code %d (0x%4.4x) to calling process\n", p11rewraprc, p11rewraprc);
     }
     return p11rewraprc;
 }

@@ -233,16 +233,13 @@ int main( int argc, char ** argv )
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
 
     if ( retcode == rc_ok )
-    {
-	char *label;
-	
+    {	
 	if(optind==argc) {
 	    pkcs11_ls( p11Context, "CKA_TOKEN/{01}");
 
 	} else {
-
-	    for(label=argv[optind];optind<argc; optind++) {
-		pkcs11_ls(p11Context, argv[optind]);
+	    while(optind<argc) {
+		pkcs11_ls(p11Context, argv[optind++]);
 	    }
 	}
 

@@ -148,7 +148,10 @@ func_rc pkcs11_parse_attribs_from_argv(attribCtx *ctx , int pos, int argc, char 
 
     /* put additional upfront, to prevent argv interfering */
     if(additional) {
+	/* GCC incorrectly reports that length is inferred from source, setting a pragma to ignore warning */
+#pragma GCC diagnostic ignored "-Wstringop-overflow="
 	strncat(parsebuf, additional, len-1); /* add additional */
+#pragma GCC diagnostic pop
 	strncat(parsebuf, " ", len-1); /* add space before the additional */
     }
     /* now concatenate to it */

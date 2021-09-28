@@ -250,7 +250,7 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 	    strcpy(value, keyid_prefix);
 	    
 	    for(i=0; i<attr->ulValueLen; i++) {
-		sprintf(&value[sizeof keyid_prefix - 1 + i*2], "%02.2x", ((unsigned char *)attr->pValue)[i]);
+		sprintf(&value[sizeof keyid_prefix - 1 + i*2], "%2.2x", ((unsigned char *)attr->pValue)[i]);
 	    }
 
 	    x509_add_ext(crt, NID_subject_key_identifier, &value[sizeof keyid_prefix - 1]); /* for SKI, we skip the 'keyid:' prefix */

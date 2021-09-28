@@ -424,7 +424,7 @@ epilog:
     case rc_ok:
 	if(numfailed>0) {
 	    p11wraprc = numfailed;
-	    fprintf(stderr, "Some (%d) wrapping jobs failed - returning code %d (0x%04.4x) to calling process\n", numfailed, p11wraprc, p11wraprc);
+	    fprintf(stderr, "Some (%d) wrapping jobs failed - returning code %d (0x%4.4x) to calling process\n", numfailed, p11wraprc, p11wraprc);
 	} else {
 	    p11wraprc = EX_OK;
 	    fprintf(stderr, "Key wrapping operations succeeded\n");
@@ -438,7 +438,7 @@ epilog:
 
     default:
 	p11wraprc = retcode;
-	fprintf(stderr, "Key wrapping operations failed - returning code %d (0x%04.4x) to calling process\n", p11wraprc, p11wraprc);
+	fprintf(stderr, "Key wrapping operations failed - returning code %d (0x%4.4x) to calling process\n", p11wraprc, p11wraprc);
     }
     return p11wraprc;
 }

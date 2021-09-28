@@ -210,7 +210,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	}
 
 	// And print cast to CK_ULONG
-	printf ("  %s%ld (0x%08.8lx)\n", template ? "" : "  ", *((CK_ULONG *)addr), *((CK_ULONG *)addr));
+	printf ("  %s%ld (0x%8.8lx)\n", template ? "" : "  ", *((CK_ULONG *)addr), *((CK_ULONG *)addr));
 	break;
 
     case as_bool:

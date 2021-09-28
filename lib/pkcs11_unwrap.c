@@ -81,7 +81,7 @@ static inline size_t wrpk_get_attrnum(wrappedKeyCtx *wctx)
 
 static inline void wrpk_set_attrnum(wrappedKeyCtx *wctx, size_t value)
 {
-    return pkcs11_adjust_attrnum_on_attribctx(wctx->wrpkattribs, value);
+    pkcs11_adjust_attrnum_on_attribctx(wctx->wrpkattribs, value);
 }
 
 static inline CK_ATTRIBUTE_PTR pubk_get_attrlist(wrappedKeyCtx *wctx)
@@ -96,7 +96,7 @@ static inline size_t pubk_get_attrnum(wrappedKeyCtx *wctx)
 
 static inline void pubk_set_attrnum(wrappedKeyCtx *wctx, size_t value)
 {
-    return pkcs11_adjust_attrnum_on_attribctx(wctx->pubkattribs, value);
+    pkcs11_adjust_attrnum_on_attribctx(wctx->pubkattribs, value);
 }
 
 

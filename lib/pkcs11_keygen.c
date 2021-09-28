@@ -185,7 +185,6 @@ func_rc pkcs11_genDESX( pkcs11Context * p11ctx,
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
     CK_BYTE id[16];
-    CK_ULONG bytes;
     CK_MECHANISM mechanism = {
 	CKM_DES_KEY_GEN, NULL_PTR, 0
     };
@@ -210,8 +209,6 @@ func_rc pkcs11_genDESX( pkcs11Context * p11ctx,
 	goto error;
     }
 
-    bytes = bits>>3;
-
     snprintf((char *)id, sizeof id, "des%d-%ld", (int)bits, time(NULL));
 
     {
@@ -219,7 +216,7 @@ func_rc pkcs11_genDESX( pkcs11Context * p11ctx,
 
 	CK_ATTRIBUTE secktemplate[] = {
 	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof(CK_BBOOL)},
-/*	    {CKA_VALUE_LEN, &bytes, sizeof(bytes)}, */ // implicit with DES2/DES3
+	    /* CKA_VALUE_LEN is never specified for DES keys, implicit with key type */
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
 	    /* what can we do with this key */

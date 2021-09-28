@@ -202,9 +202,8 @@ int main( int argc, char ** argv )
 
     if ( retcode == rc_ok )
     {
-	char *label;
-	for(label=argv[optind];optind<argc; optind++) {
-	    pkcs11_display_kcv(p11Context, argv[optind], hmacdatasize);
+	while(optind<argc) {
+	    pkcs11_display_kcv(p11Context, argv[optind++], hmacdatasize);
 	}
 
 	pkcs11_close_session( p11Context );

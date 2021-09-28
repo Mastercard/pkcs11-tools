@@ -114,7 +114,7 @@ bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_typ
 
 		i2dlen = i2d_ASN1_OBJECT(obj, &pp);
 
-		if(len<0) {
+		if(i2dlen<0) {
 		    P_ERR();
 		    goto err;
 		}
