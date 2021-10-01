@@ -117,7 +117,7 @@ func_rc pkcs11_parse_attribs_from_argv(attribCtx *ctx , int pos, int argc, char 
     int i;
     size_t len=0;
     char *parsebuf = NULL;
-    YY_BUFFER_STATE bp;
+    YY_BUFFER_STATE bp = NULL;
     
     /* we need to allocate a buffer that can hold a concatenated list of argv[], */
     /* starting from pos, and ending at argc, */
@@ -149,9 +149,13 @@ func_rc pkcs11_parse_attribs_from_argv(attribCtx *ctx , int pos, int argc, char 
     /* put additional upfront, to prevent argv interfering */
     if(additional) {
 	/* GCC incorrectly reports that length is inferred from source, setting a pragma to ignore warning */
-#pragma GCC diagnostic ignored "-Wstringop-overflow="
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 	strncat(parsebuf, additional, len-1); /* add additional */
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
+#endif
 	strncat(parsebuf, " ", len-1); /* add space before the additional */
     }
     /* now concatenate to it */
