@@ -218,13 +218,15 @@ typedef enum {
 } hash_alg_t ;
 
 
-/* cmdLineCtx contains a context that can hold parameters describing attributes. */
-/* it currently supports these grammars:
+/* attribCtx contains a context that can hold parameters parsed from command line
+   that contains attributes.
+   It currently supports these grammars:
    - CKA_DERIVE=true CKA_LABEL="label" CKA_UNWRAP_TEMPLATE={ CKA_EXTRACTABLE=false ... }
    - the attributes can be shortened by removing the "CKA_" prefix
-   - boolean attributes can be true/false, CK_TRUE/CK_FALSE, 1/0, yes/no
+   - boolean attributes can be true/false, CK_TRUE/CK_FALSE, yes/no, on/off
    - boolean attributes without a value are set to CK_TRUE
    - boolean attributes prefixed with "no" are set to CK_FALSE
+   - other attributes follow the same value syntax as for wrappedKeyCtx
  */
 
 typedef struct s_p11_attribctx {
@@ -766,6 +768,7 @@ void pkcs11_adjust_attrnum_on_attribctx(attribCtx *ctx, size_t value);
 
 func_rc pkcs11_attribctx_add_mechanism(attribCtx *ctx, CK_MECHANISM_TYPE attrtype);
 func_rc pkcs11_attribctx_free_mechanisms(attribCtx *ctx);
+void pkcs11_attribctx_forget_mechanisms(attribCtx *ctx);
 CK_MECHANISM_TYPE_PTR pkcs11_attribctx_get_allowed_mechanisms(attribCtx *ctx);
 size_t pkcs11_attribctx_get_allowed_mechanisms_len(attribCtx *ctx);
 

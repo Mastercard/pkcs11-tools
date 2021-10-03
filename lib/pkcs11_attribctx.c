@@ -241,6 +241,15 @@ func_rc pkcs11_attribctx_free_mechanisms(attribCtx *ctx)
     return rc_ok;
 }
 
+/* to use only for transfer of ownership */
+inline void pkcs11_attribctx_forget_mechanisms(attribCtx *ctx)
+{
+    if(ctx && ctx->allowedmechs) {
+	ctx->allowedmechs = NULL;
+	ctx->allowedmechs_len = 0;
+    }
+}
+
 
 inline CK_MECHANISM_TYPE_PTR pkcs11_attribctx_get_allowed_mechanisms(attribCtx *ctx)
 {

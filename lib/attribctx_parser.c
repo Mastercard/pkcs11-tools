@@ -626,8 +626,8 @@ static const yytype_int8 yytranslate[] =
 static const yytype_uint8 yyrline[] =
 {
        0,    87,    87,    88,    91,    92,    93,    96,   103,   112,
-     121,   129,   136,   144,   151,   161,   160,   193,   208,   209,
-     212
+     121,   130,   137,   146,   153,   163,   162,   195,   210,   211,
+     214
 };
 #endif
 
@@ -1538,60 +1538,62 @@ yyreduce:
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign bytes value.");
+			free((yyvsp[0].val_str).val); /* we must free() as the buffer was copied */
 			YYERROR;
 		    }
 		    free((yyvsp[0].val_str).val); /* we must free() as the buffer was copied */
 		}
-#line 1546 "attribctx_parser.c"
+#line 1547 "attribctx_parser.c"
     break;
 
   case 11: /* simple_expr: CKATTR_DATE ASSIGN TOK_DATE  */
-#line 130 "attribctx_parser.y"
+#line 131 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_date).as_buffer, sizeof(CK_DATE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
 			YYERROR;
 		    }
 		}
-#line 1557 "attribctx_parser.c"
+#line 1558 "attribctx_parser.c"
     break;
 
   case 12: /* simple_expr: CKATTR_DATE ASSIGN STRING  */
-#line 137 "attribctx_parser.y"
+#line 138 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
+			free((yyvsp[0].val_str).val); /* we must free() as the buffer was copied */
 			YYERROR;
 		    }
 		    free((yyvsp[0].val_str).val); /* we must free() as the buffer was copied */
 		}
-#line 1569 "attribctx_parser.c"
+#line 1571 "attribctx_parser.c"
     break;
 
   case 13: /* simple_expr: CKATTR_KEY ASSIGN KEYTYPE  */
-#line 145 "attribctx_parser.y"
+#line 147 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_key), sizeof(CK_KEY_TYPE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign key type value.");
 			YYERROR;
 		    }
 		}
-#line 1580 "attribctx_parser.c"
+#line 1582 "attribctx_parser.c"
     break;
 
   case 14: /* simple_expr: CKATTR_CLASS ASSIGN OCLASS  */
-#line 152 "attribctx_parser.y"
+#line 154 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_cls), sizeof(CK_OBJECT_CLASS))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign object class value.");
 			YYERROR;
 		    }
 		}
-#line 1591 "attribctx_parser.c"
+#line 1593 "attribctx_parser.c"
     break;
 
   case 15: /* $@1: %empty  */
-#line 161 "attribctx_parser.y"
+#line 163 "attribctx_parser.y"
                 {
 		    if(ctx->level==1) {
 			clerror(ctx, "***Error: nesting templates not allowed");
@@ -1605,11 +1607,11 @@ yyreduce:
 			YYERROR;
                    } 		    
 		}
-#line 1609 "attribctx_parser.c"
+#line 1611 "attribctx_parser.c"
     break;
 
   case 16: /* template_expr: CKATTR_TEMPLATE ASSIGN CURLY_OPEN $@1 statement CURLY_CLOSE  */
-#line 175 "attribctx_parser.y"
+#line 177 "attribctx_parser.y"
                 {
 
 		    if(ctx->level==0) {
@@ -1626,11 +1628,11 @@ yyreduce:
 			YYERROR;
 		    }		    
 		}
-#line 1630 "attribctx_parser.c"
+#line 1632 "attribctx_parser.c"
     break;
 
   case 17: /* allowedmech_expr: CKATTR_ALLOWEDMECH ASSIGN CURLY_OPEN mechanisms CURLY_CLOSE  */
-#line 194 "attribctx_parser.y"
+#line 196 "attribctx_parser.y"
                 {
 		    if( _attribctx_parser_append_attr( ctx,
 						       (yyvsp[-4].ckattr),
@@ -1641,24 +1643,24 @@ yyreduce:
 			YYERROR;
 		    }
 		    /* pointer stolen, we must free it */
-		    pkcs11_attribctx_free_mechanisms(ctx); 
+		    pkcs11_attribctx_forget_mechanisms(ctx);
 		}
-#line 1647 "attribctx_parser.c"
+#line 1649 "attribctx_parser.c"
     break;
 
   case 20: /* mechanism: CKMECH  */
-#line 213 "attribctx_parser.y"
+#line 215 "attribctx_parser.y"
                 {
 		    if( pkcs11_attribctx_add_mechanism(ctx, (yyvsp[0].val_mech))!=rc_ok) {
 			clerror(ctx, "Error during parsing, cannot assign mechanism to allowed mechanisms.");
 			YYERROR;
 		    }
 		}
-#line 1658 "attribctx_parser.c"
+#line 1660 "attribctx_parser.c"
     break;
 
 
-#line 1662 "attribctx_parser.c"
+#line 1664 "attribctx_parser.c"
 
       default: break;
     }
@@ -1883,5 +1885,5 @@ yyreturn:
   return yyresult;
 }
 
-#line 220 "attribctx_parser.y"
+#line 222 "attribctx_parser.y"
 	      

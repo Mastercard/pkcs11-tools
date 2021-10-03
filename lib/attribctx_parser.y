@@ -203,7 +203,7 @@ allowedmech_expr: CKATTR_ALLOWEDMECH ASSIGN CURLY_OPEN mechanisms CURLY_CLOSE
 			YYERROR;
 		    }
 		    /* pointer stolen, we must free it */
-		    pkcs11_wctx_forget_mechanisms(ctx);
+		    pkcs11_attribctx_forget_mechanisms(ctx);
 		}
 		;
 
