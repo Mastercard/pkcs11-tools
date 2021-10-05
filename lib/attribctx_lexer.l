@@ -26,6 +26,7 @@
 %{
 #include "config.h"
 #include <stdarg.h>
+#include "pkcs11lib.h"
 #include "attribctx_parser.h"
 
 %}
@@ -72,6 +73,7 @@ CKA_UNWRAP_TEMPLATE|UNWRAP_TEMPLATE { cllval.ckattr = CKA_UNWRAP_TEMPLATE; retur
 CKA_DERIVE_TEMPLATE|DERIVE_TEMPLATE { cllval.ckattr = CKA_DERIVE_TEMPLATE; return CKATTR_TEMPLATE; }
 CKA_WRAP_WITH_TRUSTED|WRAP_WITH_TRUSTED { cllval.ckattr = CKA_WRAP_WITH_TRUSTED; return CKATTR_BOOL; }
 CKA_TRUSTED|TRUSTED                 { cllval.ckattr = CKA_TRUSTED; return CKATTR_BOOL; }
+CKA_ALLOWED_MECHANISMS|ALLOWED_MECHANISMS { cllval.ckattr = CKA_ALLOWED_MECHANISMS; return CKATTR_ALLOWEDMECH; }
 
 
 CKK_GENERIC_SECRET|GENERIC_SECRET|GENERIC { cllval.val_key = CKK_GENERIC_SECRET; return KEYTYPE; }
@@ -102,6 +104,14 @@ CKO_HW_FEATURE|HW_FEATURE                 { cllval.val_cls = CKO_HW_FEATURE ; re
 CKO_DOMAIN_PARAMETERS|DOMAIN_PARAMETERS   { cllval.val_cls = CKO_DOMAIN_PARAMETERS ; return OCLASS; }
 CKO_MECHANISM|MECHANISM                   { cllval.val_cls = CKO_MECHANISM ; return OCLASS; }
 CKO_OTP_KEY|OTP_KEY                       { cllval.val_cls = CKO_OTP_KEY ; return OCLASS; }
+
+CKM_[a-z0-9_]+     { cllval.val_mech = pkcs11_get_mechanism_type_from_name(cltext);
+                     if (cllval.val_mech==0xFFFFFFFF) {
+			clerror(NULL, "Unknown mechanism identifier <%s>", cltext);
+                        yyterminate();
+                     }
+                     return CKMECH;
+                   }
 
 0x[[:xdigit:]]+ {   if(strlen(cltext)%2==1) {
 			clerror(NULL, "Invalid hexadecimal string <%s>: odd length", cltext);

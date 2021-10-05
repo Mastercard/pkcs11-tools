@@ -252,7 +252,7 @@ pkcs11IdTemplate * pkcs11_make_idtemplate(char *resourceid)
 		memcpy(compare_buf, &resourceid[regex_group[2].rm_so], regex_group[2].rm_eo - regex_group[2].rm_so - 1);
 		compare_buf[ regex_group[2].rm_eo - regex_group[2].rm_so -1  ] = 0; /* null-terminate string */
 
-		cka_resourceid =  get_attribute_type_from_name(compare_buf);
+		cka_resourceid = pkcs11_get_attribute_type_from_name(compare_buf);
 
 		if(cka_resourceid == 0xFFFFFFFF) {
 		    fprintf(stderr, "***ERROR: cannot parse attribute in regular expression - attribute not managed or unknown\n");

@@ -343,7 +343,7 @@ CK_OBJECT_HANDLE pkcs11_import_component_final(KeyImportCtx *kctx)
 		CK_ATTRIBUTE_PTR kcv = pkcs11_get_attr_in_attrlist ( kcv_attrs, CKA_CHECK_VALUE );
 		
 		if(kcv && kcv->pValue!=NULL_PTR && kcv->ulValueLen!=0 ) {
-		    printf("KCV = %02.2x%02.2x%02.2x\n", 
+		    printf("KCV = %2.2x%2.2x%2.2x\n", 
 			   ((char *)kcv->pValue)[0], 
 			   ((char *)kcv->pValue)[1], 
 			   ((char *)kcv->pValue)[2]);
@@ -377,7 +377,7 @@ CK_OBJECT_HANDLE pkcs11_import_component_final(KeyImportCtx *kctx)
 			goto error;
 		    }
 
-		    printf("KCV = %02.2x%02.2x%02.2x\n", 
+		    printf("KCV = %2.2x%2.2x%2.2x\n", 
 			   encrypted[0], 
 			   encrypted[1], 
 			   encrypted[2]);

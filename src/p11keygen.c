@@ -572,7 +572,7 @@ epilog:
     case rc_ok:
 	if(numfailed>0) {
 	    p11keygenrc = numfailed;
-	    fprintf(stderr, "some (%d) wrapping jobs failed - returning code %d (0x%04.4x) to calling process\n", numfailed, p11keygenrc, p11keygenrc);
+	    fprintf(stderr, "some (%d) wrapping jobs failed - returning code %d (0x%4.4x) to calling process\n", numfailed, p11keygenrc, p11keygenrc);
 	} else {
 	    fprintf(stderr, "key generation succeeded\n");
 	}
@@ -585,7 +585,7 @@ epilog:
 
     default:
 	p11keygenrc = retcode;
-	fprintf(stderr, "key generation failed - returning code %d (0x%04.4x) to calling process\n", p11keygenrc, p11keygenrc);
+	fprintf(stderr, "key generation failed - returning code %d (0x%4.4x) to calling process\n", p11keygenrc, p11keygenrc);
     }
     return p11keygenrc;
 }

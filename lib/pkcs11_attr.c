@@ -552,4 +552,8 @@ inline bool pkcs11_attr_is_template(CK_ATTRIBUTE_TYPE attrtype)
     return attrtype == CKA_WRAP_TEMPLATE || attrtype == CKA_UNWRAP_TEMPLATE || attrtype == CKA_DERIVE_TEMPLATE;
 }		     
 
+inline bool pkcs11_attr_is_allowed_mechanisms(CK_ATTRIBUTE_TYPE attrtype)
+{
+    return attrtype == CKA_ALLOWED_MECHANISMS;
+}
 /* EOF */

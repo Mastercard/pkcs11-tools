@@ -40,6 +40,11 @@ static int compare_CKA( const void *a, const void *b)
     return ((CK_ATTRIBUTE_PTR)a)->type == ((CK_ATTRIBUTE_PTR)b)->type ? 0 : -1;
 }
 
+/* append an attribute to the attribute context */
+/* when the attribute is a template, the buffer is simply transmitted (as it remains within the attribctx structure) */
+/* when the attribute is CKM_ALLOWED_MECHANISMS, the buffer is stolen (note that the caller must free it) */
+/* when the attribute is not a template attribute, the buffer is copied */
+
 func_rc _attribctx_parser_append_attr(attribCtx *clctx, CK_ATTRIBUTE_TYPE attrtyp, void *buffer, size_t len)
 {
     func_rc rc = rc_ok;
@@ -56,7 +61,7 @@ func_rc _attribctx_parser_append_attr(attribCtx *clctx, CK_ATTRIBUTE_TYPE attrty
     /* we need to create the buffer and stuff it with what is passed as parameter */
     stuffing.type   = attrtyp;
 
-    if(pkcs11_attr_is_template(attrtyp)) {
+    if(pkcs11_attr_is_template(attrtyp) || pkcs11_attr_is_allowed_mechanisms(attrtyp)) {
 	stuffing.pValue = buffer; /* we pass the pointer, we don't allocate */
     } else {
 	stuffing.pValue = malloc(len);
@@ -87,8 +92,10 @@ func_rc _attribctx_parser_append_attr(attribCtx *clctx, CK_ATTRIBUTE_TYPE attrty
 
     *attrnum = argnum; /* trick to adapt on 32 bits architecture, as size(CK_ULONG)!=sizeof int */
 
-    if( match == &stuffing) { /* match, we may need to adjust the content */
-	if(match->pValue && !pkcs11_attr_is_template(match->type)) { free(match->pValue); /* just in case */ }
+    if(match == &stuffing) { /* match, we may need to adjust the content */
+	if(match->pValue != NULL && !pkcs11_attr_is_template(match->type)) {
+	    free(match->pValue); /* just in case */
+	}
 	
 	match->ulValueLen = stuffing.ulValueLen;
 	match->pValue = stuffing.pValue; /* we steal the pointer  */
@@ -102,7 +109,11 @@ func_rc _attribctx_parser_append_attr(attribCtx *clctx, CK_ATTRIBUTE_TYPE attrty
 
 error:
     /* clean up */
-    if (stuffing.pValue != NULL && !pkcs11_attr_is_template(stuffing.type)) { free(stuffing.pValue); }
+    if(stuffing.pValue != NULL
+       && !pkcs11_attr_is_template(stuffing.type)
+       && !pkcs11_attr_is_allowed_mechanisms(stuffing.type)) {
+	free(stuffing.pValue);
+    }
 
     return rc;
 }
@@ -156,6 +167,7 @@ func_rc _attribctx_parser_assign_list_to_template(attribCtx *clctx, CK_ATTRIBUTE
 error:
     return rc;
 }
+
 
 
 /* EOF */

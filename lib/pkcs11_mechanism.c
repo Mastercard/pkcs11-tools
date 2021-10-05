@@ -20,6 +20,7 @@
 #include <config.h>
 #include <search.h>
 #include <stdlib.h>
+#include <string.h>
 #include "pkcs11lib.h"
 
 
@@ -29,39 +30,59 @@ typedef struct s_mechanism_desc {
     const char *desc;
 } MechanismDesc;
 
-
+/* ordered by type - the default in _mechinfo.h */
 static MechanismDesc _m[] = {
 
 #include "_mechinfo.h"
 
 };
 
+/* ordered by name - we must sort before first use */
+static MechanismDesc _n[] = {
 
+#include "_mechinfo.h"
 
-static int compare_CKM( const void *a, const void *b)
+};
+
+static bool _n_sorted = false;
+
+static int compare_CKM_desc( const void *a, const void *b)
 {
-    int rc;
-
-    if( ((MechanismDesc *)a)->type > ((MechanismDesc *)b)->type ) {
-	rc = 1;
-    } else if ( ((MechanismDesc *)a)->type < ((MechanismDesc *)b)->type ) {
-	rc = -1;
-    } else {
-	rc = 0;
-    }
-    
-    return rc;
+    return strcasecmp(((MechanismDesc *)a)->desc, ((MechanismDesc *)b)->desc);
 }
 
 
+static int compare_CKM_type( const void *a, const void *b)
+{
+    return (int) (((MechanismDesc *)a)->type - ((MechanismDesc *)b)->type);
+}
 
-const char *get_mechanism_name(CK_MECHANISM_TYPE mech)
+CK_MECHANISM_TYPE pkcs11_get_mechanism_type_from_name(char *name)
 {
 
-    const char *retval = "unknown mechanism";
+    CK_MECHANISM_TYPE retval = 0xFFFFFFFF;
+
+    size_t array_size = sizeof(_n)/sizeof(MechanismDesc);
+    MechanismDesc candidate = { 0xFFFFFFFF, name };
+
+    if(_n_sorted == false) {	/* sort the table using type member*/
+	qsort( _n, array_size, sizeof(MechanismDesc), compare_CKM_desc);
+	_n_sorted = true;
+    }
+    
+    MechanismDesc *match = bsearch( &candidate, _n, array_size, sizeof(MechanismDesc), compare_CKM_desc);
+    
+    if(match) { retval = ((MechanismDesc *)match)->type; }
+
+    return retval;
+}
+
+const char *pkcs11_get_mechanism_name_from_type(CK_MECHANISM_TYPE mech)
+{
+    const char *retval = "CKM_UNKNOWN_MECHANISM";
     size_t array_size = sizeof(_m)/sizeof(MechanismDesc);
     MechanismDesc candidate = { mech, "" };
-    MechanismDesc *match = bsearch( &candidate, _m, array_size, sizeof(MechanismDesc), compare_CKM);
+    MechanismDesc *match = bsearch( &candidate, _m, array_size, sizeof(MechanismDesc), compare_CKM_type);
     
     if(match) { retval = ((MechanismDesc *)match)->desc; }
     else if(mech & CKM_VENDOR_DEFINED) {

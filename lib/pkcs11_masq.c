@@ -108,7 +108,7 @@ inline x509_req_handle_t *pkcs11_get_X509_REQ_from_file(char *csrfilename) {
 
 inline void x509_req_handle_t_free(x509_req_handle_t *hndl)
 {
-    return free_X509_REQ_handle((X509_REQ *) hndl);
+    free_X509_REQ_handle((X509_REQ *) hndl);
 }
 
 bool pkcs11_masq_X509_REQ(x509_req_handle_t *req,
@@ -223,7 +223,7 @@ bool pkcs11_masq_X509_REQ(x509_req_handle_t *req,
 		int i;
 
 		for(i=0; i<ski_len; i++) {
-		    sprintf(&value[i*2], "%02.2x", ski[i]);
+		    sprintf(&value[i*2], "%2.2x", ski[i]);
 		}
 
 		req_add_ext(exts, NID_subject_key_identifier, &value[0]);

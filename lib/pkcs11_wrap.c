@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <ctype.h>
 #include <time.h>
 #include <unistd.h>
@@ -33,6 +34,8 @@
 #include "wrappedkey_lexer.h"
 #include "wrappedkey_parser.h"
 
+#define INDENTATION_OFFSET 4
+
 typedef enum  {
     meth_label,
     meth_keyhandle
@@ -40,9 +43,9 @@ typedef enum  {
 
 typedef struct {
     CK_ATTRIBUTE_TYPE attr_type;
-    void (*func_ptr) (FILE *, char *, CK_ATTRIBUTE_PTR, CK_BBOOL );
+    void (*func_ptr) (FILE *, char *, CK_ATTRIBUTE_PTR, bool, int);
     char *name;
-    CK_BBOOL commented;
+    bool commented;
 } attr_printer ;
 
 
@@ -50,13 +53,18 @@ typedef struct {
 static char const *_get_str_for_wrapping_algorithm(enum wrappingmethod w, CK_MECHANISM_TYPE m);
 static char const *get_wrapping_algorithm_short(wrappedKeyCtx *wctx);
 static func_rc fprintf_wrapping_algorithm_full(FILE *fp, wrappedKeyCtx *wctx, char *buffer, size_t buffer_len, int keyindex);
-static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, CK_BBOOL unused2);
-static void fprintf_object_class(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, CK_BBOOL unused2);
-static void fprintf_boolean_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented);
-static void fprintf_hex_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented);
-static void _fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented);
-static void fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented);
-static void fprintf_date_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented);
+static void fprintf_template_attr_member(FILE *fp, CK_ATTRIBUTE_PTR attr, int offset);
+
+static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, bool unused2, int offset);
+static void fprintf_object_class(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, bool unused2, int offset);
+static void fprintf_boolean_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset);
+static void fprintf_hex_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset);
+static void _fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset);
+static void fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset);
+static void fprintf_date_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset);
+static void fprintf_template_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset);
+static void fprintf_mechanism_type_array(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset);
+
 static char * sprintf_hex_buffer(CK_BYTE_PTR buffer, CK_ULONG len);
 static char * _sprintf_str_buffer(CK_BYTE_PTR buffer, CK_ULONG len);
 static char * sprintf_str_buffer_safe(CK_BYTE_PTR buffer, CK_ULONG len);
@@ -275,7 +283,7 @@ static func_rc fprintf_wrapping_algorithm_full(FILE *fp, wrappedKeyCtx *wctx, ch
 
 
 
-static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, CK_BBOOL unused2)
+static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, bool unused2, int offset)
 {
 
     char *value;
@@ -357,16 +365,15 @@ static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, CK_B
 	value = "unsupported";
     }
 
-    fprintf(fp, "CKA_KEY_TYPE: %s\n", value);
+    fprintf(fp, "%*sCKA_KEY_TYPE: %s\n", offset, "", value);
 
 }
 
 
-static void fprintf_object_class(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, CK_BBOOL unused2)
+static void fprintf_object_class(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, bool unused2, int offset)
 {
 
     char *value;
-
 
     switch( *(CK_OBJECT_CLASS *)attr->pValue ) {
     case CKO_DATA:
@@ -410,20 +417,20 @@ static void fprintf_object_class(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, 
 	break;
     }
 
-    fprintf(fp, "CKA_CLASS: %s\n", value);
+    fprintf(fp, "%*sCKA_CLASS: %s\n", offset, "", value);
 }
 
 
-static void fprintf_boolean_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
+static void fprintf_boolean_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset)
 {
-    fprintf (fp, "%s%s: %s\n", commented == CK_TRUE ? "# " : "", name, *((CK_BBOOL *)(attr->pValue))== CK_TRUE ? "true" : "false");
+    fprintf (fp, "%s%*s%s: %s\n", commented ? "# " : "", offset, "", name, *((CK_BBOOL *)(attr->pValue))== CK_TRUE ? "true" : "false");
 }
 
-static void fprintf_hex_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
+static void fprintf_hex_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset)
 {
     int i;
 
-    fprintf(fp, "%s%s: 0x", commented == CK_TRUE ? "# " : "", name);
+    fprintf(fp, "%s%*s%s: 0x", commented ? "# " : "", offset, "", name);
     for(i=0; i<attr->ulValueLen; i++) {
 	fprintf(fp, "%02x", ((unsigned char* )(attr->pValue))[i] );
     }
@@ -433,18 +440,18 @@ static void fprintf_hex_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBO
 
 /* _fprintf_str_attr not meant to be used directly, as there is no check about printability */
 /* use fprintf_str_attr or fprintf_date_attr instead */
-static void _fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
+static void _fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset)
 {
-    fprintf(fp, "%s%s: \"%.*s\"\n", commented == CK_TRUE ? "# " : "", name, (int)(attr->ulValueLen), (unsigned char* )(attr->pValue));
+    fprintf(fp, "%s%*s%s: \"%.*s\"\n", commented ? "# " : "", offset, "", name, (int)(attr->ulValueLen), (unsigned char* )(attr->pValue));
 }
 
 
 /* check if we can print it as a string (i.e. no special character) */
 /* otherwise, print as hex. */
 
-static void fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
+static void fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset)
 {
-    int seems_printable = 0;
+    bool seems_printable = false;
     int i;
 
     /* simple check: verify all can be printed */
@@ -453,21 +460,21 @@ static void fprintf_str_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBO
 	    goto not_printable; /* exit loop prematurely */
 	}
     }
-    seems_printable = 1;
+    seems_printable = true;
 
 not_printable:
 	/* do nothing, seems_printable worths 0 */
 
-    seems_printable ? _fprintf_str_attr(fp,name,attr,commented) : fprintf_hex_attr(fp,name,attr,commented);
+    seems_printable ? _fprintf_str_attr(fp,name,attr,commented,offset) : fprintf_hex_attr(fp,name,attr,commented,offset);
 
 }
 
 /* date is a special case. If it looks like a date, print it in plain characters */
 /* otherwise take no risk and print as hex value */
 
-static void fprintf_date_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
+static void fprintf_date_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset)
 {
-    int looks_like_a_date = 0;
+    bool looks_like_a_date = false;
 
     if(attr->ulValueLen==8) {
 	int i;
@@ -475,16 +482,16 @@ static void fprintf_date_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BB
 	/* a more sophisticated one would check if it looks like a REAL date... */
 	for(i=0; i<8; i++) {
 	    if(!isdigit(((unsigned char *)(attr->pValue))[i])) {
-		goto not_a_digit; /* exit loop prematurely */
+		goto not_a_date; /* exit loop prematurely */
 	    }
 	}
-	looks_like_a_date = 1;
+	looks_like_a_date = true;
     }
 
-not_a_digit:
-	/* do nothing, looks_like_a_date worths 0 */
+not_a_date:
+	/* do nothing, looks_like_a_date worths false */
 
-    looks_like_a_date ? _fprintf_str_attr(fp,name,attr,commented) : fprintf_hex_attr(fp,name,attr,commented);
+    looks_like_a_date ? _fprintf_str_attr(fp,name,attr,commented,offset) : fprintf_hex_attr(fp,name,attr,commented,offset);
 }
 
 /* fprintf_template_attr() function and support functions */
@@ -495,65 +502,79 @@ static int compare_attr( const void *a, const void *b)
 }
 
 
-static void fprintf_template_attr_member(FILE *fp, CK_ATTRIBUTE_PTR attr)
+
+static void fprintf_mechanism_type_array(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset)
+{
+    int i;
+    CK_MECHANISM_TYPE_PTR mech_array = attr->pValue; /* attr_array will be used as the array to walk mechanisms */
+    size_t mech_arrayitems = attr->ulValueLen / sizeof(CK_MECHANISM_TYPE);
+
+    fprintf(fp, "%s%*s%s: {\n", commented ? "# " : "", offset, "", name);
+
+    for(i=0; i<mech_arrayitems; i++) {	
+	fprintf(fp, "%s%*s%s\n", commented ? "# " : "", offset+INDENTATION_OFFSET, "", pkcs11_get_mechanism_name_from_type(mech_array[i]));
+    }        
+
+    fprintf(fp, "%s%*s}\n", commented ? "# " : "", offset, "");
+}
+
+static void fprintf_template_attr_member(FILE *fp, CK_ATTRIBUTE_PTR attr, int offset)
 {
     
     /* a collection of possible values found in templates */
     /* all attributes are uncommented */
     static const attr_printer attriblist[] = {
-	{ CKA_CHECK_VALUE, fprintf_hex_attr, "CKA_CHECK_VALUE", CK_TRUE },
-	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE  },
-	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", CK_FALSE },
-	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", CK_FALSE },
-	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", CK_TRUE },
-	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", CK_FALSE },
-	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", CK_FALSE },
-	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", CK_FALSE },
-	{ CKA_ID, fprintf_str_attr, "CKA_ID", CK_FALSE },
-	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", CK_FALSE },
-	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", CK_FALSE },
-	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", CK_FALSE },
-	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", CK_FALSE },
-	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", CK_FALSE },
-	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN", CK_FALSE },
-	{ CKA_SIGN_RECOVER, fprintf_boolean_attr, "CKA_SIGN_RECOVER", CK_FALSE },
-	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", CK_FALSE },
-	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", CK_FALSE },
-	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", CK_FALSE },
-	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP", CK_FALSE },
-	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY", CK_FALSE },
-	{ CKA_VERIFY_RECOVER, fprintf_boolean_attr, "CKA_VERIFY_RECOVER", CK_FALSE },
-	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", CK_FALSE },
+	{ CKA_ALLOWED_MECHANISMS, fprintf_mechanism_type_array, "CKA_ALLOWED_MECHANISMS", false },
+	{ CKA_CHECK_VALUE, fprintf_hex_attr, "CKA_CHECK_VALUE", true },
+	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", false  },
+	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", false },
+	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", false },
+	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", true },
+	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", false },
+	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", false },
+	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", false },
+	{ CKA_ID, fprintf_str_attr, "CKA_ID", false },
+	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", false },
+	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", false },
+	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", false },
+	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", false },
+	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", false },
+	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN", false },
+	{ CKA_SIGN_RECOVER, fprintf_boolean_attr, "CKA_SIGN_RECOVER", false },
+	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", false },
+	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", false },
+	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", false },
+	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP", false },
+	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY", false },
+	{ CKA_VERIFY_RECOVER, fprintf_boolean_attr, "CKA_VERIFY_RECOVER", false },
+	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", false },
     };
 
     size_t nelem = sizeof attriblist / sizeof(attr_printer);
-    attr_printer key = { attr->type, NULL, NULL, CK_FALSE };
+    attr_printer key = { attr->type, NULL, NULL, false };
     attr_printer *match = lfind(&key, attriblist, &nelem, sizeof(attr_printer), compare_attr);
 
     if(match) {
-	match->func_ptr(fp, match->name, attr, CK_FALSE ); /* we ignore the comment argument */
+	match->func_ptr(fp, match->name, attr, false, offset ); /* we ignore the comment argument */
     }
 
 }
 
-
-static void fprintf_template_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, CK_BBOOL commented)
+static void fprintf_template_attr(FILE *fp, char *name, CK_ATTRIBUTE_PTR attr, bool commented, int offset)
 {
     int i;
     CK_ATTRIBUTE_PTR attr_array = attr->pValue; /* attr_array will be used as the array to walk template */
     size_t attr_arrayitems = attr->ulValueLen / sizeof(CK_ATTRIBUTE);
 
-    fprintf(fp, "%s%s: {\n", commented == CK_TRUE ? "# " : "", name);
+    fprintf(fp, "%s%*s%s: {\n", commented ? "# " : "", offset, "", name);
 
     for(i=0; i<attr_arrayitems; i++) {	
-//	fprintf(fp, "%s    %08lx", commented == CK_TRUE ? "# " : "", attr_array[i].type );
-	fprintf(fp, "%s    ", commented == CK_TRUE ? "# " : "");
-	fprintf_template_attr_member(fp, &attr_array[i]);
+	fprintf(fp, "%s", commented ? "# " : "");
+	fprintf_template_attr_member(fp, &attr_array[i], offset+INDENTATION_OFFSET);
     }        
 
-    fprintf(fp, "%s}\n", commented == CK_TRUE ? "# " : "");
+    fprintf(fp, "%s%*s}\n", commented ? "# " : "", offset, "");
 }
-
 
 /*------------------------------------------------------------------------*/
 
@@ -756,11 +777,16 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp)
 	    "#     CKA_START_DATE\n"
 	    "#     CKA_END_DATE\n"
 	    "#     CKA_CHECK_VALUE\n"
+	    "#     CKA_WRAP_TEMPLATE\n"
+	    "#     CKA_UNWRAP_TEMPLATE\n"
+	    "#     CKA_ALLOWED_MECHANISMS\n"
 	    "#   where, depending on the attribute, [VALUE] can be one of the following:\n"
             "#     \"Hello world\" (printable string)\n"
 	    "#      0x1A2B3C4D (hex bytes)\n"
 	    "#      20150630   (date)\n"
 	    "#      true/false/CK_TRUE/CK_FALSE/yes/no (boolean)\n"
+	    "#      { attribute=value attribute=value ... }"
+	    "#      { mechanism mechanism ... }"
 	    "#\n"
 	    "# - wrapped key is contained between -----BEGIN WRAPPED KEY-----\n"
             "#   and -----END WRAPPED KEY----- marks and is Base64 encoded\n"
@@ -844,53 +870,55 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
     pkcs11AttrList *wrappedkey_attrs = NULL;
     CK_ATTRIBUTE_PTR o_attr = NULL;
     size_t alist_len=0;
-
+    
     static attr_printer seckalist[] = {
-	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", CK_FALSE },
-	{ CKA_ID, fprintf_str_attr, "CKA_ID", CK_FALSE },
-	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE  },
-	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", CK_FALSE  },
-	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", CK_FALSE  },
-	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", CK_FALSE },
-	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", CK_FALSE },
-	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", CK_FALSE },
-	{ CKA_WRAP_TEMPLATE, fprintf_template_attr, "CKA_WRAP_TEMPLATE", CK_FALSE },
-	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP", CK_FALSE },
-	{ CKA_UNWRAP_TEMPLATE, fprintf_template_attr, "CKA_UNWRAP_TEMPLATE", CK_FALSE },
-	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN", CK_FALSE },
-	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY", CK_FALSE },
-	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", CK_FALSE },
-	{ CKA_DERIVE_TEMPLATE, fprintf_template_attr, "CKA_DERIVE_TEMPLATE", CK_FALSE },
-	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", CK_FALSE },
-	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", CK_FALSE },
-	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", CK_FALSE },
-	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", CK_FALSE },
-	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", CK_FALSE },
-	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", CK_FALSE },
-	{ CKA_CHECK_VALUE, fprintf_hex_attr, "CKA_CHECK_VALUE", CK_TRUE }, /* Not valid in C_Unwrap() template */
+	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", false },
+	{ CKA_ID, fprintf_str_attr, "CKA_ID", false },
+	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", false  },
+	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", false  },
+	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", false  },
+	{ CKA_ALLOWED_MECHANISMS, fprintf_mechanism_type_array, "CKA_ALLOWED_MECHANISMS", false },
+	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", false },
+	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", false },
+	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", false },
+	{ CKA_WRAP_TEMPLATE, fprintf_template_attr, "CKA_WRAP_TEMPLATE", false },
+	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP", false },
+	{ CKA_UNWRAP_TEMPLATE, fprintf_template_attr, "CKA_UNWRAP_TEMPLATE", false },
+	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN", false },
+	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY", false },
+	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", false },
+	{ CKA_DERIVE_TEMPLATE, fprintf_template_attr, "CKA_DERIVE_TEMPLATE", false },
+	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", false },
+	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", false },
+	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", false },
+	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", false },
+	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", false },
+	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", false },
+	{ CKA_CHECK_VALUE, fprintf_hex_attr, "CKA_CHECK_VALUE", true }, /* Not valid in C_Unwrap() template */
     };
 
     static attr_printer prvkalist[] = {
-	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", CK_FALSE },
-	{ CKA_ID, fprintf_str_attr, "CKA_ID", CK_FALSE },
-	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE },
-	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", CK_FALSE },
-	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", CK_FALSE },
-	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", CK_TRUE }, /* Not valid in C_Unwrap() template */
-	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", CK_FALSE },
-	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", CK_FALSE },
-	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP", CK_FALSE },
-	{ CKA_UNWRAP_TEMPLATE, fprintf_template_attr, "CKA_UNWRAP_TEMPLATE", CK_FALSE },
-	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN", CK_FALSE },
-	{ CKA_SIGN_RECOVER, fprintf_boolean_attr, "CKA_SIGN_RECOVER", CK_FALSE },
-	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", CK_FALSE },
-	{ CKA_DERIVE_TEMPLATE, fprintf_template_attr, "CKA_DERIVE_TEMPLATE", CK_FALSE },
-	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", CK_FALSE },
-	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", CK_FALSE },
-	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", CK_FALSE },
-	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", CK_FALSE },
-	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", CK_FALSE },
-	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", CK_FALSE },
+	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", false },
+	{ CKA_ID, fprintf_str_attr, "CKA_ID", false },
+	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", false },
+	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", false },
+	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", false },
+	{ CKA_ALLOWED_MECHANISMS, fprintf_mechanism_type_array, "CKA_ALLOWED_MECHANISMS", false },
+	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", true }, /* Not valid in C_Unwrap() template */
+	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", false },
+	{ CKA_DECRYPT, fprintf_boolean_attr, "CKA_DECRYPT", false },
+	{ CKA_UNWRAP, fprintf_boolean_attr, "CKA_UNWRAP", false },
+	{ CKA_UNWRAP_TEMPLATE, fprintf_template_attr, "CKA_UNWRAP_TEMPLATE", false },
+	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN", false },
+	{ CKA_SIGN_RECOVER, fprintf_boolean_attr, "CKA_SIGN_RECOVER", false },
+	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", false },
+	{ CKA_DERIVE_TEMPLATE, fprintf_template_attr, "CKA_DERIVE_TEMPLATE", false },
+	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", false },
+	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", false },
+	{ CKA_EXTRACTABLE, fprintf_boolean_attr, "CKA_EXTRACTABLE", false },
+	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", false },
+	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", false },
+	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", false },
     };
 
     attr_printer *alist=NULL;
@@ -905,6 +933,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 					       _ATTR(CKA_CLASS),
 					       _ATTR(CKA_TOKEN),
 					       _ATTR(CKA_KEY_TYPE),
+					       _ATTR(CKA_ALLOWED_MECHANISMS),
 					       _ATTR(CKA_ENCRYPT),
 					       _ATTR(CKA_DECRYPT),
 					       _ATTR(CKA_WRAP),
@@ -934,6 +963,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 					       _ATTR(CKA_CLASS),
 					       _ATTR(CKA_TOKEN),
 					       _ATTR(CKA_KEY_TYPE),
+					       _ATTR(CKA_ALLOWED_MECHANISMS),
 					       _ATTR(CKA_EC_PARAMS),
 					       _ATTR(CKA_SUBJECT),
 					       _ATTR(CKA_DECRYPT),
@@ -966,8 +996,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
     }
 
     {
-
-	int i;
+	size_t i;
 
 	for(i=0;i<alist_len;i++) {
 	    o_attr = pkcs11_get_attr_in_attrlist(wrappedkey_attrs, alist[i].attr_type);
@@ -990,7 +1019,7 @@ static func_rc _output_wrapped_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 		/* which is not a valid content for templates */
 		fprintf(fp, "# %s attribute invalid on the source token\n", alist[i].name);
 	    } else {
-		alist[i].func_ptr(fp, alist[i].name, o_attr, alist[i].commented );
+		alist[i].func_ptr(fp, alist[i].name, o_attr, alist[i].commented, 0 );
 	    }
 	}
     }
@@ -1033,31 +1062,25 @@ static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
     CK_ATTRIBUTE_PTR o_attr = NULL;
     size_t alist_len=0;
 
-    typedef struct {
-	CK_ATTRIBUTE_TYPE attr_type;
-	void (*func_ptr) (FILE *, char *, CK_ATTRIBUTE_PTR, CK_BBOOL );
-	char *name;
-	CK_BBOOL commented;
-    } attr_printer ;
-
     static attr_printer alist[] = {
-	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", CK_FALSE },
-	{ CKA_ID, fprintf_str_attr, "CKA_ID", CK_FALSE },
-	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", CK_FALSE  },
-	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", CK_FALSE  },
-	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", CK_FALSE  },
-	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", CK_TRUE },
-	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", CK_FALSE },
-	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", CK_FALSE },
-	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", CK_FALSE },
-	{ CKA_WRAP_TEMPLATE, fprintf_template_attr, "CKA_WRAP_TEMPLATE", CK_FALSE },
-	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY", CK_FALSE },
-	{ CKA_VERIFY_RECOVER, fprintf_boolean_attr, "CKA_VERIFY_RECOVER", CK_FALSE },
-	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", CK_FALSE },
-	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", CK_FALSE },
-	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", CK_FALSE },
-	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", CK_FALSE },
-	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", CK_FALSE },
+	{ CKA_LABEL, fprintf_str_attr, "CKA_LABEL", false },
+	{ CKA_ID, fprintf_str_attr, "CKA_ID", false },
+	{ CKA_CLASS, fprintf_object_class, "CKA_CLASS", false  },
+	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", false  },
+	{ CKA_KEY_TYPE, fprintf_key_type, "CKA_KEY_TYPE", false  },
+	{ CKA_ALLOWED_MECHANISMS, fprintf_mechanism_type_array, "CKA_ALLOWED_MECHANISMS", false },
+	{ CKA_EC_PARAMS, fprintf_hex_attr, "CKA_EC_PARAMS", true },
+	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", false },
+	{ CKA_ENCRYPT, fprintf_boolean_attr, "CKA_ENCRYPT", false },
+	{ CKA_WRAP, fprintf_boolean_attr, "CKA_WRAP", false },
+	{ CKA_WRAP_TEMPLATE, fprintf_template_attr, "CKA_WRAP_TEMPLATE", false },
+	{ CKA_VERIFY, fprintf_boolean_attr, "CKA_VERIFY", false },
+	{ CKA_VERIFY_RECOVER, fprintf_boolean_attr, "CKA_VERIFY_RECOVER", false },
+	{ CKA_DERIVE, fprintf_boolean_attr, "CKA_DERIVE", false },
+	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", false },
+	{ CKA_MODIFIABLE, fprintf_boolean_attr, "CKA_MODIFIABLE", false },
+	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", false },
+	{ CKA_END_DATE, fprintf_date_attr, "CKA_END_DATE", false },
     };
 
     alist_len = sizeof(alist)/sizeof(attr_printer);
@@ -1067,6 +1090,7 @@ static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 					   _ATTR(CKA_CLASS),
 					   _ATTR(CKA_TOKEN),
 					   _ATTR(CKA_KEY_TYPE),
+					   _ATTR(CKA_ALLOWED_MECHANISMS),
 					   _ATTR(CKA_EC_PARAMS),
 					   _ATTR(CKA_SUBJECT),
 					   _ATTR(CKA_ENCRYPT),
@@ -1087,7 +1111,7 @@ static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	goto error;
     }
 
-    int i;
+    size_t i;
 
     for(i=0;i<alist_len;i++) {
 	o_attr = pkcs11_get_attr_in_attrlist(wrappedkey_attrs, alist[i].attr_type);
@@ -1103,7 +1127,7 @@ static func_rc _output_public_key_attributes(wrappedKeyCtx *wctx, FILE *fp)
 	} else if (o_attr->ulValueLen == 0) {
 	    fprintf(fp, "# %s attribute is empty\n", alist[i].name);
 	} else {
-	    alist[i].func_ptr(fp, alist[i].name, o_attr, alist[i].commented );
+	    alist[i].func_ptr(fp, alist[i].name, o_attr, alist[i].commented, 0 );
 	}
     }
 
@@ -1600,7 +1624,7 @@ static func_rc _wrap_aes_key_wrap_mech(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE me
 							    &wrappedkeybuffersize );
 	    if(rv!=CKR_OK) {
 		pkcs11_error(rv, "C_WrapKey");
-		fprintf(stderr, "***Warning: It didn't work with %s\n", get_mechanism_name(mechanism.mechanism));
+		fprintf(stderr, "***Warning: It didn't work with %s\n", pkcs11_get_mechanism_name_from_type(mechanism.mechanism));
 	    } else {
 		/* it worked, let's remember in wctx the actual mechanism used */
 		/* unless it was already supplied */

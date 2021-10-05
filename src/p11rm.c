@@ -198,9 +198,8 @@ int main( int argc, char ** argv )
 
     if ( retcode == rc_ok )
     {
-	char *label;
-	for(label=argv[optind];optind<argc; optind++) {
-	    pkcs11_rm_objects_with_label(p11Context, argv[optind], ask_confirm, verbose);
+	while(optind<argc) {
+	    pkcs11_rm_objects_with_label(p11Context, argv[optind++], ask_confirm, verbose);
 	}
 	
 	pkcs11_close_session( p11Context );

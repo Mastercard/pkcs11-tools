@@ -445,6 +445,7 @@ char *pkcs11_alloclabelforhandle(pkcs11Context *p11Context, CK_OBJECT_HANDLE hnd
 		}
 	    }
 	}
+	pkcs11_delete_attrlist(attrs); /* cleanup after use */
     }
 
     return label;

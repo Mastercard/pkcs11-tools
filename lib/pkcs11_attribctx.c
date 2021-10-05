@@ -87,6 +87,8 @@ void pkcs11_free_attribcontext(attribCtx *ctx)
 		for(j=0; j<ctx->attrs[i].attrnum; j++) {
 		    if(ctx->attrs[i].attrlist[j].pValue) {
 			if(!pkcs11_attr_is_template(ctx->attrs[i].attrlist[j].type)) {
+			    /* don't free structure if template. */
+			    /* this will be freed when wctx will be destroyed */
 			    free(ctx->attrs[i].attrlist[j].pValue);
 			}
 			ctx->attrs[i].attrlist[j].pValue=NULL;
@@ -101,6 +103,9 @@ void pkcs11_free_attribcontext(attribCtx *ctx)
 	    }
 	}
 
+	/* free allowed mechanism array if any */
+	pkcs11_attribctx_free_mechanisms(ctx);
+	
 	free(ctx);		/* eventually free up context mem */
     }
 }
@@ -112,7 +117,7 @@ func_rc pkcs11_parse_attribs_from_argv(attribCtx *ctx , int pos, int argc, char 
     int i;
     size_t len=0;
     char *parsebuf = NULL;
-    YY_BUFFER_STATE bp;
+    YY_BUFFER_STATE bp = NULL;
     
     /* we need to allocate a buffer that can hold a concatenated list of argv[], */
     /* starting from pos, and ending at argc, */
@@ -143,7 +148,14 @@ func_rc pkcs11_parse_attribs_from_argv(attribCtx *ctx , int pos, int argc, char 
 
     /* put additional upfront, to prevent argv interfering */
     if(additional) {
+	/* GCC incorrectly reports that length is inferred from source, setting a pragma to ignore warning */
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 	strncat(parsebuf, additional, len-1); /* add additional */
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 	strncat(parsebuf, " ", len-1); /* add space before the additional */
     }
     /* now concatenate to it */
@@ -193,4 +205,58 @@ inline size_t pkcs11_get_attrnum_from_attribctx(attribCtx *ctx)
 inline void pkcs11_adjust_attrnum_on_attribctx(attribCtx *ctx, size_t value)
 {
     ctx->attrs[ctx->mainlist_idx].attrnum = value;
+}
+
+
+/* this function stores the mechanism type passed as an argument */
+/* into the allowed mechanisms array of the attribCtx structure */
+/* we grow the array of allowed mechanisms one entry at a time */
+/* it is not the most optimal way, but since we have to cope */
+/* with a few mechanisms only, that's fine. */
+func_rc pkcs11_attribctx_add_mechanism(attribCtx *ctx, CK_MECHANISM_TYPE attrtype)
+{
+    func_rc rc = rc_error_invalid_argument;
+    if(ctx) {
+	CK_MECHANISM_TYPE_PTR realloced = realloc(ctx->allowedmechs, sizeof(CK_MECHANISM_TYPE) + ctx->allowedmechs_len);
+	if(realloced==NULL) {
+	    fprintf(stderr, "***Error: could not realloc memory for allowed mechanisms\n");
+	    rc = rc_error_memory;
+	} else {
+	    ctx->allowedmechs = realloced;
+	    ctx->allowedmechs_len += sizeof(CK_MECHANISM_TYPE);
+	    ctx->allowedmechs[ctx->allowedmechs_len/sizeof(CK_MECHANISM_TYPE) - 1] = attrtype; /* assign value */
+	    rc = rc_ok;
+	}
+    }
+    return rc;
+}
+
+func_rc pkcs11_attribctx_free_mechanisms(attribCtx *ctx)
+{
+    if(ctx && ctx->allowedmechs) {
+	free(ctx->allowedmechs);
+	ctx->allowedmechs = NULL;
+	ctx->allowedmechs_len = 0;
+    }
+    return rc_ok;
+}
+
+/* to use only for transfer of ownership */
+inline void pkcs11_attribctx_forget_mechanisms(attribCtx *ctx)
+{
+    if(ctx && ctx->allowedmechs) {
+	ctx->allowedmechs = NULL;
+	ctx->allowedmechs_len = 0;
+    }
+}
+
+
+inline CK_MECHANISM_TYPE_PTR pkcs11_attribctx_get_allowed_mechanisms(attribCtx *ctx)
+{
+    return ctx ? ctx->allowedmechs : NULL;
+}
+
+inline size_t pkcs11_attribctx_get_allowed_mechanisms_len(attribCtx *ctx)
+{
+    return ctx ? ctx->allowedmechs_len : 0;
 }

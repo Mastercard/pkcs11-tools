@@ -81,7 +81,7 @@ static inline size_t wrpk_get_attrnum(wrappedKeyCtx *wctx)
 
 static inline void wrpk_set_attrnum(wrappedKeyCtx *wctx, size_t value)
 {
-    return pkcs11_adjust_attrnum_on_attribctx(wctx->wrpkattribs, value);
+    pkcs11_adjust_attrnum_on_attribctx(wctx->wrpkattribs, value);
 }
 
 static inline CK_ATTRIBUTE_PTR pubk_get_attrlist(wrappedKeyCtx *wctx)
@@ -96,7 +96,7 @@ static inline size_t pubk_get_attrnum(wrappedKeyCtx *wctx)
 
 static inline void pubk_set_attrnum(wrappedKeyCtx *wctx, size_t value)
 {
-    return pkcs11_adjust_attrnum_on_attribctx(wctx->pubkattribs, value);
+    pkcs11_adjust_attrnum_on_attribctx(wctx->pubkattribs, value);
 }
 
 
@@ -985,7 +985,7 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 
 	    if(rv!=CKR_OK) {
 		pkcs11_error(rv, "C_UnwrapKey");
-		fprintf(stderr, "***Warning: It didn't work with %s\n", get_mechanism_name(mechanism.mechanism));
+		fprintf(stderr, "***Warning: It didn't work with %s\n", pkcs11_get_mechanism_name_from_type(mechanism.mechanism));
 	    } else {
 		/* it worked, let's remember in wctx the actual mechanism used */
 		/* unless it was already supplied */

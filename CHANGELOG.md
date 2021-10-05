@@ -4,10 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-=======
+# [2.5.0]
+### Added
+ - `CKA_ALLOWED_MECHANISMS` support for all key management utilities (`p11keygen`, `p11wrap`, `p11unwrap`, `p11rewrap`, `p11ls`, `p11od`)
+ 
+### Fixed
+ - `p11wrap`: fixed memory leaks
+
 # [2.4.2]
 ### Fixed
-- `p11ls`: removed duplicate `CKA_CHECK_VALUE` attribute from `C_GetAttributeValue()` call on secret keys (may cause issues on some PKCS\#11 tokens)
+ - `p11ls`: removed duplicate `CKA_CHECK_VALUE` attribute from `C_GetAttributeValue()` call on secret keys (may cause issues on some PKCS\#11 tokens)
 
 # [2.4.1]
 ### Fixed
@@ -118,6 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release
 
+[2.5.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.5.0
 [2.4.2]: https://github.com/Mastercard/pkcs11-tools/tree/v2.4.2
 [2.4.1]: https://github.com/Mastercard/pkcs11-tools/tree/v2.4.1
 [2.4.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.4.0

@@ -94,6 +94,7 @@ void print_usage(char *progname)
 	     " NAS : (historical) key has not always been sensitive\n"
 	     " NSE : key is not sensitive (clear text value could leave token boudary)\n"
 	     " WXT : (historical) key has been once extractable\n"
+	     " alm : the key is restricted to (a) specific algorithm(s)\n"
 	     " ase : (historical) key has always been sensitive\n"
 	     " dec : supports decryption\n"
 	     " drv : supports derivation\n"
@@ -232,16 +233,13 @@ int main( int argc, char ** argv )
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
 
     if ( retcode == rc_ok )
-    {
-	char *label;
-	
+    {	
 	if(optind==argc) {
 	    pkcs11_ls( p11Context, "CKA_TOKEN/{01}");
 
 	} else {
-
-	    for(label=argv[optind];optind<argc; optind++) {
-		pkcs11_ls(p11Context, argv[optind]);
+	    while(optind<argc) {
+		pkcs11_ls(p11Context, argv[optind++]);
 	    }
 	}
 

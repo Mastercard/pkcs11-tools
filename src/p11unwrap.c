@@ -274,7 +274,7 @@ err:
 	
     default:
 	p11unwraprc = retcode;
-	fprintf(stderr, "Key wrapping operations failed - returning code %d (0x%04.4x) to calling process\n", p11unwraprc, p11unwraprc);
+	fprintf(stderr, "Key wrapping operations failed - returning code %d (0x%4.4x) to calling process\n", p11unwraprc, p11unwraprc);
     }    
     return p11unwraprc;
 }

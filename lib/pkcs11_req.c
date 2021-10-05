@@ -211,7 +211,7 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 		int i;
 
 		for(i=0; i<attr->ulValueLen; i++) {
-		    sprintf(&value[i*2], "%02.2x", ((unsigned char *)attr->pValue)[i]);
+		    sprintf(&value[i*2], "%2.2x", ((unsigned char *)attr->pValue)[i]);
 		}
 
 		req_add_ext(exts, NID_subject_key_identifier, &value[0]);

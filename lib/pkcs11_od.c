@@ -33,7 +33,7 @@ typedef enum { no_cast,
 	       as_key_type,
 	       as_cert_type,
 	       as_mech_type,
-	       as_template
+	       as_template,
 } ck_cast;
 
 
@@ -42,8 +42,6 @@ typedef struct {
     char *name;
     ck_cast cast;
 } attrib_repr;
-
-
 
 
 static attrib_repr list[] = {
@@ -164,7 +162,7 @@ static attrib_repr list[] = {
     { CKA_REQUIRED_CMS_ATTRIBUTES, "CKA_REQUIRED_CMS_ATTRIBUTES", no_cast },
     { CKA_DEFAULT_CMS_ATTRIBUTES, "CKA_DEFAULT_CMS_ATTRIBUTES", no_cast },
     { CKA_SUPPORTED_CMS_ATTRIBUTES, "CKA_SUPPORTED_CMS_ATTRIBUTES", no_cast },
-    { CKA_ALLOWED_MECHANISMS, "CKA_ALLOWED_MECHANISMS", no_cast },
+    { CKA_ALLOWED_MECHANISMS, "CKA_ALLOWED_MECHANISMS", as_mech_type },
 
 #if defined(HAVE_NCIPHER)	/* added only when nCipher support is requested */
     { CKA_NFKM_ID, "CKA_NFKM_ID", no_cast },
@@ -212,7 +210,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	}
 
 	// And print cast to CK_ULONG
-	printf ("  %s%ld (0x%08.8lx)\n", template ? "" : "  ", *((CK_ULONG *)addr), *((CK_ULONG *)addr));
+	printf ("  %s%ld (0x%8.8lx)\n", template ? "" : "  ", *((CK_ULONG *)addr), *((CK_ULONG *)addr));
 	break;
 
     case as_bool:
@@ -532,23 +530,31 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	break;
 
     case as_mech_type:
+    {
+	CK_MECHANISM_TYPE_PTR pmech = NULL;	
 	for (i = 0; i < len; i++) {
-	    if ((i % 16) == 0) {
+	    if ( i % sizeof(CK_MECHANISM_TYPE) == 0) {
 		// Output the offset.
 		printf (" %s %04lx ", template ? "| " : "", i);
+		/* the current position in buffer is a mechanism, remember it */
+		/* tricky cast in action... */
+		pmech = (CK_MECHANISM_TYPE_PTR) (&((uint8_t *)addr)[i]);
 	    }
 
 	    printf (" %02x", pc[i]);
-	}
 
-	// Pad out last line if not exactly 16 characters.
-	while ((i % 16) != 0) {
-	    printf ("   ");
-	    i++;
+	    if (i && ( i % sizeof(CK_MECHANISM_TYPE)) == sizeof(CK_MECHANISM_TYPE)-1 ) {
+		/* a few words: a full line is displaying 16 hex bytes (separated by one space) */
+		/* however, CK_MECHANISM_TYPE len may differ (depends on the platform) */
+		/* we compensate by adding white characters */
+		printf ("%*s  %s%s\n",
+			(int)(16-sizeof(CK_MECHANISM_TYPE))*3,
+			"",
+			template ? "" : "  ", pkcs11_get_mechanism_name_from_type( *pmech ) );
+	    }
 	}
-
-	printf ("  %s%s\n", template ? "" : "  ", get_mechanism_name( *(CK_CERTIFICATE_TYPE *)addr ) );
-	break;
+    }
+    break;
 
     case no_cast:
     case as_string:

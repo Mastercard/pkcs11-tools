@@ -55,7 +55,7 @@ case $(uname -s) in
 	PKCS11_LIBNAME=libsoftokn3.so
 	;;
 esac
-PKCS11_LIBPATHS=( /usr/lib /usr/lib/$(uname -m)-linux-gnu/nss /usr/local/lib /usr/local/opt/nss/lib )
+PKCS11_LIBPATHS=( /usr/lib /usr/lib/$(uname -m)-linux-gnu/nss /usr/lib64 /usr/local/lib /usr/local/opt/nss/lib )
 
 LIB_ENVVARS=()
 

@@ -39,35 +39,39 @@
 
 PKCS11PASSWORD=${PKCS11PASSWORD:-changeit}
 
-#specific to vendor
-PKCS11_LIBNAME=libcs_pkcs11_R2.so
-
-# since there is no standard install, we are making a few guesses
+# Specific to vendor
+# Utimaco: since there is no standard install, we are making a few guesses
 PKCS11_LIBPATHS=( /usr/lib/pkcs11 /usr/lib /usr/local/lib/pkcs11 /usr/local/lib /opt/utimaco/lib $HOME/utimaco/pkcs11/lib $HOME/utimaco/lib )
-LIB_ENVVARS=( CS_PKCS11_R2_CFG )
+# Utimaco: we try to detect setups for either R3 or R2 clients
+PKCS11_LIBNAMES=( libcs_pkcs11_R3.so libcs_pkcs11_R2.so )
+PKCS11_CFGNAMES=( cs_pkcs11_R3.cfg cs_pkcs11_R2.cfg )
+PKCS11_CFGPATHS=( /opt/utimaco /usr/local/etc /etc $HOME/utimaco/pkcs11 $HOME/utimaco )
 
-# setup of CS_PKCS11_R2_CFG
-# we expect to find it in /opt/utimaco/cs_pkcs11_R2.cfg, or
-#                      in /usr/local/etc/cs_pkcs11_R2.cfg
+LIB_ENVVARS=( CS_PKCS11_R2_CFG CS_PKCS11_R3_CFG )
+
+
+# setup of CS_PKCS11_R2_CFG / CS_PKCS11_R3_CFG
+# we expect to find it in /opt/utimaco or in /usr/local/etc
 function find_utimaco_cfg_file()
 {
-    file=cs_pkcs11_R2.cfg               
-    paths=( /opt/utimaco /usr/local/etc /etc $HOME/utimaco/pkcs11 $HOME/utimaco )	# possible locations
-    
-    for path in ${paths[@]}; do
-	if [ -e $path/$lib ]; then
-	    echo $path/$lib
-	    return 0
-	fi
+    for path in ${PKCS11_CFGPATHS[@]}; do
+	for file in ${PKCS11_CFGNAMES[@]}; do
+	    if [ -e $path/$file ]; then
+		echo $path/$file
+		return 0
+	    fi
+	done
     done
 
     echo "NOT FOUND"
     return 1
 }
 
+CS_PKCS11_R3_CFG=${CS_PKCS11_R3_CFG:-$(find_utimaco_cfg_file)}
 CS_PKCS11_R2_CFG=${CS_PKCS11_R2_CFG:-$(find_utimaco_cfg_file)}
-if [ "$CS_PKCS11_R2_CFG" == "NOT FOUND" ]; then
-    echo "***Error: Utimaco configuration file not found, please set CS_PKCS11_R2_CFG accordingly."
+
+if [ "$CS_PKCS11_R2_CFG" == "NOT FOUND" -a "$CS_PKCS11_R3_CFG" == "NOT FOUND" ]; then
+    echo "***Error: Utimaco configuration file not found, please set CS_PKCS11_R3_CFG/CS_PKCS11_R2_CFG accordingly."
     exit 1
 fi
 
@@ -76,14 +80,13 @@ fi
 # find_p11_lib: a trivial function to find a library.
 function find_p11_lib()
 {
-    lib=${PKCS11_LIBNAME}
-    paths=${PKCS11_LIBPATHS[@]}
-
-    for path in ${paths[@]}; do
-	if [ -e $path/$lib ]; then
-	    echo $path/$lib
-	    return 0
-	fi
+    for path in ${PKCS11_LIBPATHS[@]}; do
+	for lib in ${PKCS11_LIBNAMES[@]}; do
+	    if [ -e $path/$lib ]; then
+		echo $path/$lib
+		return 0
+	    fi
+	done
     done
 
     echo "NOT FOUND"

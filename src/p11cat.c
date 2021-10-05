@@ -202,11 +202,10 @@ int main( int argc, char ** argv )
 
     if ( retcode == rc_ok )
     {
-	char *label;
-	for(label=argv[optind];optind<argc; optind++) {
-	    pkcs11_cat_object_with_label(p11Context, argv[optind], openssl_native, NULL);
+	while(optind<argc) {
+	    pkcs11_cat_object_with_label(p11Context, argv[optind++], openssl_native, NULL);
 	}
-
+	
 	pkcs11_close_session( p11Context );
     }
 

@@ -194,9 +194,8 @@ int main( int argc, char ** argv )
 	
     if ( retcode == rc_ok )
     {
-	char *label;
-	for(label=argv[optind];optind<argc; optind++) {
-	    pkcs11_more_object_with_label(p11Context, argv[optind]);
+	while(optind<argc) {
+	    pkcs11_more_object_with_label(p11Context, argv[optind++]);
 	}
 	
 	pkcs11_close_session( p11Context );

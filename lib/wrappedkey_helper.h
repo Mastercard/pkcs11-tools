@@ -41,5 +41,6 @@ func_rc _wrappedkey_parser_wkey_set_filename(wrappedKeyCtx *wctx, char *filename
 
 func_rc _wrappedkey_parser_wkey_assign_list_to_template(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE attrtyp);
 func_rc _wrappedkey_parser_pubk_assign_list_to_template(wrappedKeyCtx *wctx, CK_ATTRIBUTE_TYPE attrtyp);
+func_rc _wrappedkey_parser_add_mechanism(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE attrtype);
 
 #endif

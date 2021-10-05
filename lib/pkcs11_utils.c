@@ -665,7 +665,7 @@ char * label_or_id(CK_ATTRIBUTE_PTR label, CK_ATTRIBUTE_PTR id, char *buffer, in
 	idptr = (CK_BYTE_PTR)id->pValue;
 	
 	while(hexidptr-buffer<(buffer_len - 2) && idcnt<id->ulValueLen) {
-	    sprintf(hexidptr,"%02.2x", idptr[idcnt++]);
+	    sprintf(hexidptr,"%2.2x", idptr[idcnt++]);
 	    hexidptr+=2;
 	}		    
 	*hexidptr++='}';

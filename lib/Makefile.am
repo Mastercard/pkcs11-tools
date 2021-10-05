@@ -110,6 +110,9 @@ wrappedkey_helper.c pkcs11_wrap.c pkcs11_unwrap.c pkcs11_wctx.c: \
 			wrappedkey_parser.c wrappedkey_parser.h
 
 # The following files depends upon lexer and parser source files
+# note: _lexermech.h is actually needed by attribctx_lexer.l,
+#       but this dependency is not set directly, as it would lead
+#       to systematically invoke flex. We put it on the produced files instead.
 attribctx_lexer.c attribctx_lexer.h: attribctx_lexer.l
 attribctx_parser.c attribctx_parser.h: attribctx_parser.y
 
@@ -131,5 +134,6 @@ _attrinfo.h: Makefile gen_attrinfo_h.pl
 				$(top_srcdir)/include/cryptoki/*.h \
 				$(top_srcdir)/include/oasis-pkcs11/working/3-00-current/*.h \
 				>$@
+
 
 

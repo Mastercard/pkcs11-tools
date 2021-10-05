@@ -39,7 +39,7 @@
 # define YY_YY_WRAPPEDKEY_PARSER_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
-# define YYDEBUG 1
+# define YYDEBUG 0
 #endif
 #if YYDEBUG
 extern int yydebug;
@@ -82,25 +82,25 @@ extern int yylex(void);
     RFC5649ALGO = 271,             /* RFC5649ALGO  */
     ENVELOPEALGO = 272,            /* ENVELOPEALGO  */
     PARAMHASH = 273,               /* PARAMHASH  */
-    HASHALG = 274,                 /* HASHALG  */
-    PARAMMGF = 275,                /* PARAMMGF  */
-    MGFTYPE = 276,                 /* MGFTYPE  */
-    PARAMLABEL = 277,              /* PARAMLABEL  */
-    PARAMIV = 278,                 /* PARAMIV  */
-    PARAMFLAVOUR = 279,            /* PARAMFLAVOUR  */
-    WRAPALG = 280,                 /* WRAPALG  */
-    PARAMOUTER = 281,              /* PARAMOUTER  */
-    PARAMINNER = 282,              /* PARAMINNER  */
-    CKATTR_BOOL = 283,             /* CKATTR_BOOL  */
-    CKATTR_STR = 284,              /* CKATTR_STR  */
-    CKATTR_DATE = 285,             /* CKATTR_DATE  */
-    CKATTR_KEY = 286,              /* CKATTR_KEY  */
-    CKATTR_CLASS = 287,            /* CKATTR_CLASS  */
-    CKATTR_TEMPLATE = 288,         /* CKATTR_TEMPLATE  */
-    TOK_BOOLEAN = 289,             /* TOK_BOOLEAN  */
-    TOK_DATE = 290,                /* TOK_DATE  */
-    KEYTYPE = 291,                 /* KEYTYPE  */
-    OCLASS = 292,                  /* OCLASS  */
+    PARAMMGF = 274,                /* PARAMMGF  */
+    MGFTYPE = 275,                 /* MGFTYPE  */
+    PARAMLABEL = 276,              /* PARAMLABEL  */
+    PARAMIV = 277,                 /* PARAMIV  */
+    PARAMFLAVOUR = 278,            /* PARAMFLAVOUR  */
+    PARAMOUTER = 279,              /* PARAMOUTER  */
+    PARAMINNER = 280,              /* PARAMINNER  */
+    CKATTR_BOOL = 281,             /* CKATTR_BOOL  */
+    CKATTR_STR = 282,              /* CKATTR_STR  */
+    CKATTR_DATE = 283,             /* CKATTR_DATE  */
+    CKATTR_KEY = 284,              /* CKATTR_KEY  */
+    CKATTR_CLASS = 285,            /* CKATTR_CLASS  */
+    CKATTR_TEMPLATE = 286,         /* CKATTR_TEMPLATE  */
+    CKATTR_ALLOWEDMECH = 287,      /* CKATTR_ALLOWEDMECH  */
+    TOK_BOOLEAN = 288,             /* TOK_BOOLEAN  */
+    TOK_DATE = 289,                /* TOK_DATE  */
+    KEYTYPE = 290,                 /* KEYTYPE  */
+    OCLASS = 291,                  /* OCLASS  */
+    CKMECH = 292,                  /* CKMECH  */
     DOTTEDNUMBER = 293,            /* DOTTEDNUMBER  */
     WRAPPINGJOBHEADER = 294,       /* WRAPPINGJOBHEADER  */
     P_WRAPPINGKEY = 295,           /* P_WRAPPINGKEY  */
@@ -120,7 +120,7 @@ union YYSTYPE
     CK_KEY_TYPE val_key;
     CK_OBJECT_CLASS val_cls;
     CK_BBOOL val_bool;
-    CK_MECHANISM_TYPE val_hashalg;
+    CK_MECHANISM_TYPE val_mech;
     CK_RSA_PKCS_MGF_TYPE val_mgf;
 
     enum contenttype val_contenttype;

@@ -238,7 +238,7 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacda
 			}
 
 			/* now, the display job */
-			printf("%-*s: KCV = %02.2x%02.2x%02.2x (%s)\n",
+			printf("%-*s: KCV = %2.2x%2.2x%2.2x (%s)\n",
 			       LABEL_WIDTH,
 			       buffer,
 			       processed[0],
