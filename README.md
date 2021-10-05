@@ -13,9 +13,13 @@ Some features:
  - support for key rewrapping (i.e. key unwrapping and key wrapping)
 
 ## News
+### October 2021
+Version 2.5, that brings support for `CKA_ALLOWED_MECHANISMS`, on many key management commands: `p11keygen`, `p11wrap`, `p11unwrap`, `p11rewrap`, `p11od`, `p11ls`.
+Note that the wrapped key grammar has changed; the grammar version number has been incremented to `2.2`.
+
 ### July 2021
 Version 2.4, to support templates in many commands: `p11keygen`, `p11importpubk`, `p11wrap`, `p11unwrap`, `p11od`, `p11ls`. Keys created with a template can be wrapped, the template attributes will be carried.
-Note that the wrapped key grammar has changed, and the grammar version number has been incremented to `2.1`
+Note that the wrapped key grammar has changed, and the grammar version number has been incremented to `2.1`.
 
 ### April 2021
 Version 2.3, that adds extra options to p11kcv, so that tokens not supporting NULL-length HMAC computation can be also supported.
