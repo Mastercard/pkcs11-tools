@@ -8,6 +8,11 @@
 .deps/
 .libs/
 
+## development tools
+.gdb_history
+.python_version
+*.patch
+
 ## autotools
 /aclocal.m4
 /ar-lib
@@ -51,5 +56,17 @@ Makefile.in
 *.pkg
 /pkg/
 
-# emacs backup files
+# emacs files
 *~
+/TAGS
+
+# key files
+*.pubk
+*.prvk
+*.crt
+*.pem
+*.wrap
+
+# pkcs11 wrapper script files
+.pkcs11rc
+
