@@ -62,6 +62,7 @@ void print_usage(char *progname)
 	     "  -s <slot number>\n"
 	     "  -t <token label> : if present, -s option is ignored\n"
 	     "  -p <token PIN> | :::exec:<command> | :::nologin\n"
+	     "  -S : login with SO privilege\n"
 	     "* -i <key_alias>: label/alias of the key\n"
 	     "* -k <key type> : aes, des, rsa, dsa, dh, ec, ed, generic / hmac"
 #if defined(HAVE_NCIPHER)
@@ -179,6 +180,7 @@ int main( int argc, char ** argv )
     int interactive = 1;
     char * tokenlabel = NULL;
     char * label = NULL;
+    int so=0;
 
     pkcs11Context * p11Context = NULL;
     func_rc retcode;
@@ -227,7 +229,7 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:k:b:q:d:rhVW:" ) ) != -1 ) {
+    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:k:b:q:d:rhVW:S" ) ) != -1 ) {
 	switch ( argnum ) {
 	case 'l' :
 	    library =  optarg;
@@ -334,6 +336,11 @@ int main( int argc, char ** argv )
 	    removetokencopy = 1;
 	    break;
 
+	case 'S':
+	    so=1;
+	    break;
+
+
 	default:
 	    errflag++;
 	    break;
@@ -377,7 +384,7 @@ int main( int argc, char ** argv )
     }
 
     {
-	retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, 0, interactive);
+	retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
 
 	if ( retcode == rc_ok )
 	{
