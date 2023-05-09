@@ -134,11 +134,11 @@ On previous FreeBSD versions, you will have to build it. Deploy first the OpenSS
 ```bash
 $ pkg install openssl
 ```
-Then proceed as with Linux. 
+Then proceed as with Linux. Note that clang should be used instead of gcc.
 
 If you had to install OpenSSL differently (e.g. older versions of FreeBSD), and if the path to OpenSSL libraries is not configured on the system, you need to specify an additional parameter (`LIBCRYPTO_RPATH`) when configuring the pkcs11-tools package, to set a run path to the libraries. See [rtld(1)](https://www.freebsd.org/cgi/man.cgi?query=rtld&apropos=0&sektion=1&manpath=FreeBSD+12.0-RELEASE&arch=default&format=html) for more information.
 ```bash
-$ ./configure PKG_CONFIG_PATH=/opt/openssl-1.1.1/lib/pkgconfig LIBCRYPTO_RPATH=/opt/openssl-1.1.1/lib
+$ ./configure CC=clang PKG_CONFIG_PATH=/opt/openssl-1.1.1/lib/pkgconfig LIBCRYPTO_RPATH=/opt/openssl-1.1.1/lib
 $ make
 $ sudo make install
 ```

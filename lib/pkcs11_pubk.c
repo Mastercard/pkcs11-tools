@@ -453,6 +453,7 @@ static CK_ULONG get_EC_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
     EC_KEY* ec=NULL;
     int i2dlen=0;
     unsigned char *octp = NULL, *octbuf = NULL;
+    ASN1_OCTET_STRING *wrapped = NULL;
 
     if ( pubkey && EVP_PKEY_base_id(pubkey)==EVP_PKEY_EC  ) {
 
@@ -508,7 +509,7 @@ static CK_ULONG get_EC_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
 	/* DER-encoded of point in octbuf  */
 	/* now wrap this into OCTET_STRING */
 
-	ASN1_OCTET_STRING *wrapped = ASN1_OCTET_STRING_new();
+	wrapped = ASN1_OCTET_STRING_new();
 
 	if(wrapped==NULL) {
 	    P_ERR();
@@ -551,6 +552,7 @@ static CK_ULONG get_EC_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
     }
 error:
     if(octbuf != NULL) { OPENSSL_free(octbuf); }
+    if(wrapped != NULL) { ASN1_OCTET_STRING_free(wrapped); }
 
     return rv;
 }
@@ -624,7 +626,7 @@ static CK_ULONG get_ED_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
 
     const uint8_t *pk;
     int pklen;
-    
+
     X509_PUBKEY_get0_param(NULL, &pk, &pklen, NULL, x509_pk); /* nothing to test, always returns 1 */
 
     if( (point = ASN1_OCTET_STRING_new()) == NULL ) {
@@ -632,7 +634,7 @@ static CK_ULONG get_ED_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
 	goto error;
     }
     ASN1_OCTET_STRING_set(point, pk, pklen); /* assign */
-    
+
     len = i2d_ASN1_OCTET_STRING(point, buf);
     if(len<0) {
 	P_ERR();
@@ -640,11 +642,11 @@ static CK_ULONG get_ED_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
     }
 
     rv = len;
-    
+
 error:
     if(point) { ASN1_OCTET_STRING_free(point); }
     if(x509_pk) { X509_PUBKEY_free(x509_pk); }
-    if(pkeybuf) { OPENSSL_free(pkeybuf); } 
+    if(pkeybuf) { OPENSSL_free(pkeybuf); }
     return rv;
 }
 
@@ -652,14 +654,14 @@ static CK_ULONG get_ED_params(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
 {
     CK_ULONG rv = 0;
     ASN1_OBJECT *obj = NULL;
-    
+
     obj = OBJ_nid2obj(EVP_PKEY_base_id(pubkey));
     if(!obj) {
 	P_ERR();
 	goto error;
     }
 
-    assert( *buf == NULL );		/* make sure we point to nowhere */    
+    assert( *buf == NULL );		/* make sure we point to nowhere */
     int len = i2d_ASN1_OBJECT(obj, buf);
     if(len<0) {
 	P_ERR();
@@ -667,7 +669,7 @@ static CK_ULONG get_ED_params(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
     }
 
     rv = len;
-    
+
 error:
     if(obj) { ASN1_OBJECT_free(obj); }
     return rv;
@@ -870,7 +872,6 @@ static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
 		    }
 		    /* get0 on ec_point & ec_group, we can safely forget */
 		}
-		EC_KEY_free(ec);
 	    }
 	}
 	    break;
@@ -904,7 +905,7 @@ static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
 	    }
 	}
 	    break;
-	    
+
 
 	case EVP_PKEY_DH: {
 	    DH *dh;
@@ -1043,7 +1044,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		{0L, NULL, 0L},
 		{0L, NULL, 0L},
 	    };
-	    
+
 	    size_t pubk_template_len_max = (sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE));
 	    size_t pubk_template_len_min = pubk_template_len_max - 12;
 	    size_t pubk_num_elems = pubk_template_len_min;
@@ -1077,7 +1078,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		    case CKA_VERIFY:
 		    case CKA_VERIFY_RECOVER: /* not in template onwards */
 		    case CKA_DERIVE:
-		    case CKA_TRUSTED: 
+		    case CKA_TRUSTED:
 		    case CKA_PRIVATE:
 		    case CKA_WRAP_TEMPLATE:
 		    case CKA_COPYABLE:
@@ -1089,7 +1090,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		    case CKA_PUBLIC_KEY_INFO:
 		    {
 			size_t next_pubk_num_elems = pubk_num_elems;
-			
+
 			CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
 							  pubktemplate,
 							  &next_pubk_num_elems,
@@ -1108,7 +1109,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 			    else {
 				/* everything was copied by lsearch */
 				/* just increment array length */
-				pubk_num_elems = next_pubk_num_elems;      
+				pubk_num_elems = next_pubk_num_elems;
 			    }
 			} else {
 			    fprintf(stderr, "***Error: can't update attribute array - skipping 0x%08lx\n", attrs[i].type);
@@ -1125,7 +1126,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 			break;
 		    }
 		}
-		
+
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
 								  pubktemplate,
 								  pubk_num_elems,
@@ -1229,7 +1230,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		    case CKA_VERIFY:
 		    case CKA_VERIFY_RECOVER: /* not in template onwards */
 		    case CKA_DERIVE:
-		    case CKA_TRUSTED: 
+		    case CKA_TRUSTED:
 		    case CKA_PRIVATE:
 		    case CKA_COPYABLE:
 		    case CKA_MODIFIABLE:
@@ -1240,7 +1241,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		    case CKA_PUBLIC_KEY_INFO:
 		    {
 			size_t next_pubk_num_elems = pubk_num_elems;
-			
+
 			CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
 							  pubktemplate,
 							  &next_pubk_num_elems,
@@ -1259,7 +1260,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 			    else {
 				/* everything was copied by lsearch */
 				/* just increment array length */
-				pubk_num_elems = next_pubk_num_elems;      
+				pubk_num_elems = next_pubk_num_elems;
 			    }
 			} else {
 			    fprintf(stderr, "***Error: can't update attribute array - skipping 0x%08lx\n", attrs[i].type);
@@ -1380,7 +1381,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		    case CKA_PUBLIC_KEY_INFO:
 		    {
 			size_t next_pubk_num_elems = pubk_num_elems;
-			
+
 			CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
 							  pubktemplate,
 							  &next_pubk_num_elems,
@@ -1399,7 +1400,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 			    else {
 				/* everything was copied by lsearch */
 				/* just increment array length */
-				pubk_num_elems = next_pubk_num_elems;      
+				pubk_num_elems = next_pubk_num_elems;
 			    }
 			} else {
 			    fprintf(stderr, "***Error: can't update attribute array - skipping 0x%08lx\n", attrs[i].type);
@@ -1416,7 +1417,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 			break;
 		    }
 		}
-		
+
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
 								  pubktemplate,
 								  pubk_num_elems,
@@ -1500,7 +1501,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		    case CKA_VERIFY:
 		    case CKA_VERIFY_RECOVER: /* not in template onwards */
 		    case CKA_DERIVE:
-		    case CKA_TRUSTED: 
+		    case CKA_TRUSTED:
 		    case CKA_PRIVATE:
 		    case CKA_COPYABLE:
 		    case CKA_MODIFIABLE:
@@ -1511,7 +1512,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		    case CKA_PUBLIC_KEY_INFO:
 		    {
 			size_t next_pubk_num_elems = pubk_num_elems;
-			
+
 			CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
 							  pubktemplate,
 							  &next_pubk_num_elems,
@@ -1530,7 +1531,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 			    else {
 				/* everything was copied by lsearch */
 				/* just increment array length */
-				pubk_num_elems = next_pubk_num_elems;      
+				pubk_num_elems = next_pubk_num_elems;
 			    }
 			} else {
 			    fprintf(stderr, "***Error: can't update attribute array - skipping 0x%08lx\n", attrs[i].type);
@@ -1547,7 +1548,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 			break;
 		    }
 		}
-		
+
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
 								  pubktemplate,
 								  pubk_num_elems,
@@ -1595,9 +1596,9 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		{0L, NULL, 0L},
 		{0L, NULL, 0L},
 		{0L, NULL, 0L},
-		{0L, NULL, 0L},		
 		{0L, NULL, 0L},
-		{0L, NULL, 0L},		
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
 	    };
 
 	    size_t pubk_template_len_max = (sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE));
@@ -1633,7 +1634,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		    case CKA_VERIFY:
 		    case CKA_VERIFY_RECOVER: /* not in template onwards */
 		    case CKA_DERIVE:
-		    case CKA_TRUSTED: 
+		    case CKA_TRUSTED:
 		    case CKA_PRIVATE:
 		    case CKA_WRAP_TEMPLATE:
 		    case CKA_COPYABLE:
@@ -1645,7 +1646,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		    case CKA_PUBLIC_KEY_INFO:
 		    {
 			size_t next_pubk_num_elems = pubk_num_elems;
-			
+
 			CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
 							  pubktemplate,
 							  &next_pubk_num_elems,
@@ -1664,7 +1665,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 			    else {
 				/* everything was copied by lsearch */
 				/* just increment array length */
-				pubk_num_elems = next_pubk_num_elems;      
+				pubk_num_elems = next_pubk_num_elems;
 			    }
 			} else {
 			    fprintf(stderr, "***Error: can't update attribute array - skipping 0x%08lx\n", attrs[i].type);
@@ -1681,7 +1682,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 			break;
 		    }
 		}
-		
+
 		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
 								  pubktemplate,
 								  pubk_num_elems,
@@ -1705,7 +1706,7 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 	    break;
 	}
 
-	OPENSSL_free(pubk);
+	EVP_PKEY_free(pubk);
 
     }
     return pubkhandle;
@@ -1734,4 +1735,3 @@ inline CK_OBJECT_HANDLE pkcs11_importpubk_from_buffer( pkcs11Context * p11Contex
 						       CK_ULONG numattrs ) {
     return _importpubk(p11Context, NULL, buffer, len, label, attrs, numattrs, source_buffer);
 }
-
