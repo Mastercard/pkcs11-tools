@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 3.7.6.  */
+/* A Bison parser, made by GNU Bison 3.8.2.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
@@ -46,10 +46,10 @@
    USER NAME SPACE" below.  */
 
 /* Identify Bison output, and Bison version.  */
-#define YYBISON 30706
+#define YYBISON 30802
 
 /* Bison version string.  */
-#define YYBISON_VERSION "3.7.6"
+#define YYBISON_VERSION "3.8.2"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -66,11 +66,12 @@
 /* "%code top" blocks.  */
 #line 23 "attribctx_parser.y"
 
+#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#line 74 "attribctx_parser.c"
+#line 75 "attribctx_parser.c"
 /* Substitute the type names.  */
 #define YYSTYPE         CLSTYPE
 /* Substitute the variable and function names.  */
@@ -124,12 +125,12 @@
 extern int cldebug;
 #endif
 /* "%code requires" blocks.  */
-#line 30 "attribctx_parser.y"
+#line 31 "attribctx_parser.y"
 
 #include "pkcs11lib.h"
 #include "attribctx_helper.h"
 
-#line 133 "attribctx_parser.c"
+#line 134 "attribctx_parser.c"
 
 /* Token kinds.  */
 #ifndef CLTOKENTYPE
@@ -165,7 +166,7 @@ extern int cldebug;
 #if ! defined CLSTYPE && ! defined CLSTYPE_IS_DECLARED
 union CLSTYPE
 {
-#line 46 "attribctx_parser.y"
+#line 47 "attribctx_parser.y"
 
     CK_ATTRIBUTE_TYPE ckattr;
     CK_KEY_TYPE val_key;
@@ -184,10 +185,10 @@ union CLSTYPE
 	    char month[2];
 	    char day[2];
 	} as_ck_date;
-        char as_buffer[8];
+	char as_buffer[8];
     } val_date;
 
-#line 191 "attribctx_parser.c"
+#line 192 "attribctx_parser.c"
 
 };
 typedef union CLSTYPE CLSTYPE;
@@ -198,17 +199,19 @@ typedef union CLSTYPE CLSTYPE;
 
 extern CLSTYPE cllval;
 
+
 int clparse (attribCtx *ctx);
+
 /* "%code provides" blocks.  */
-#line 35 "attribctx_parser.y"
+#line 36 "attribctx_parser.y"
 
 #define YY_DECL int yylex(attribCtx* ctx)
 
 YY_DECL;
 extern void clerror(attribCtx *ctx, const char *s, ...);
-    
 
-#line 212 "attribctx_parser.c"
+
+#line 215 "attribctx_parser.c"
 
 #endif /* !YY_CL_ATTRIBCTX_PARSER_H_INCLUDED  */
 /* Symbol kind.  */
@@ -401,12 +404,18 @@ typedef int yy_state_fast_t;
 # define YY_USE(E) /* empty */
 #endif
 
-#if defined __GNUC__ && ! defined __ICC && 407 <= __GNUC__ * 100 + __GNUC_MINOR__
 /* Suppress an incorrect diagnostic about yylval being uninitialized.  */
-# define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN                            \
+#if defined __GNUC__ && ! defined __ICC && 406 <= __GNUC__ * 100 + __GNUC_MINOR__
+# if __GNUC__ * 100 + __GNUC_MINOR__ < 407
+#  define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN                           \
+    _Pragma ("GCC diagnostic push")                                     \
+    _Pragma ("GCC diagnostic ignored \"-Wuninitialized\"")
+# else
+#  define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN                           \
     _Pragma ("GCC diagnostic push")                                     \
     _Pragma ("GCC diagnostic ignored \"-Wuninitialized\"")              \
     _Pragma ("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+# endif
 # define YY_IGNORE_MAYBE_UNINITIALIZED_END      \
     _Pragma ("GCC diagnostic pop")
 #else
@@ -622,12 +631,12 @@ static const yytype_int8 yytranslate[] =
 };
 
 #if CLDEBUG
-  /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
+/* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    87,    87,    88,    91,    92,    93,    96,   103,   112,
-     121,   130,   137,   146,   153,   163,   162,   195,   210,   211,
-     214
+       0,    88,    88,    89,    92,    93,    94,    97,   104,   113,
+     122,   131,   138,   147,   154,   164,   163,   196,   211,   212,
+     215
 };
 #endif
 
@@ -658,16 +667,6 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
-#ifdef YYPRINT
-/* YYTOKNUM[NUM] -- (External) token number corresponding to the
-   (internal) symbol number NUM (which must be that of a token).  */
-static const yytype_int16 yytoknum[] =
-{
-       0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
-     265,   266,   267,   268,   269,   270,   271,   272,   273,   274
-};
-#endif
-
 #define YYPACT_NINF (-15)
 
 #define yypact_value_is_default(Yyn) \
@@ -678,8 +677,8 @@ static const yytype_int16 yytoknum[] =
 #define yytable_value_is_error(Yyn) \
   0
 
-  /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
-     STATE-NUM.  */
+/* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
+   STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
       30,   -14,   -13,    -4,    -3,    -2,     8,     9,    12,     1,
@@ -688,9 +687,9 @@ static const yytype_int8 yypact[] =
      -15,    21,    30,   -15,    31,   -15,    14,   -15,   -15,   -15
 };
 
-  /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
-     Performed when YYTABLE does not specify something else to do.  Zero
-     means the default is an error.  */
+/* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
+   Performed when YYTABLE does not specify something else to do.  Zero
+   means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
        0,     9,     0,     0,     0,     0,     0,     0,     0,     0,
@@ -699,21 +698,21 @@ static const yytype_int8 yydefact[] =
       15,     0,     0,    20,     0,    18,     0,    17,    19,    16
 };
 
-  /* YYPGOTO[NTERM-NUM].  */
+/* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
      -15,    15,    -9,   -15,   -15,   -15,   -15,   -15,    10
 };
 
-  /* YYDEFGOTO[NTERM-NUM].  */
+/* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
        0,     9,    10,    11,    12,    32,    13,    34,    35
 };
 
-  /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
-     positive, shift that token.  If negative, reduce the rule whose
-     number is the opposite.  If YYTABLE_NINF, syntax error.  */
+/* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
+   positive, shift that token.  If negative, reduce the rule whose
+   number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
       23,    22,    26,    14,    15,     1,     2,     3,     4,     5,
@@ -734,8 +733,8 @@ static const yytype_int8 yycheck[] =
       19
 };
 
-  /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
-     symbol of state STATE-NUM.  */
+/* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
+   state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
        0,     4,     5,     6,     7,     8,     9,    10,    16,    21,
@@ -744,7 +743,7 @@ static const yytype_int8 yystos[] =
       18,    18,    25,    11,    27,    28,    21,    19,    28,    19
 };
 
-  /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
+/* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr1[] =
 {
        0,    20,    21,    21,    22,    22,    22,    23,    23,    23,
@@ -752,7 +751,7 @@ static const yytype_int8 yyr1[] =
       28
 };
 
-  /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
+/* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr2[] =
 {
        0,     2,     1,     2,     1,     1,     1,     3,     2,     1,
@@ -769,6 +768,7 @@ enum { YYENOMEM = -2 };
 #define YYACCEPT        goto yyacceptlab
 #define YYABORT         goto yyabortlab
 #define YYERROR         goto yyerrorlab
+#define YYNOMEM         goto yyexhaustedlab
 
 
 #define YYRECOVERING()  (!!yyerrstatus)
@@ -809,10 +809,7 @@ do {                                            \
     YYFPRINTF Args;                             \
 } while (0)
 
-/* This macro is provided for backward compatibility. */
-# ifndef YY_LOCATION_PRINT
-#  define YY_LOCATION_PRINT(File, Loc) ((void) 0)
-# endif
+
 
 
 # define YY_SYMBOL_PRINT(Title, Kind, Value, Location)                    \
@@ -840,10 +837,6 @@ yy_symbol_value_print (FILE *yyo,
   YY_USE (ctx);
   if (!yyvaluep)
     return;
-# ifdef YYPRINT
-  if (yykind < YYNTOKENS)
-    YYPRINT (yyo, yytoknum[yykind], *yyvaluep);
-# endif
   YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
   YY_USE (yykind);
   YY_IGNORE_MAYBE_UNINITIALIZED_END
@@ -1299,6 +1292,7 @@ yyparse (attribCtx *ctx)
   YYDPRINTF ((stderr, "Starting parse\n"));
 
   yychar = CLEMPTY; /* Cause a token to be read.  */
+
   goto yysetstate;
 
 
@@ -1324,7 +1318,7 @@ yysetstate:
 
   if (yyss + yystacksize - 1 <= yyssp)
 #if !defined yyoverflow && !defined YYSTACK_RELOCATE
-    goto yyexhaustedlab;
+    YYNOMEM;
 #else
     {
       /* Get the current used size of the three stacks, in elements.  */
@@ -1352,7 +1346,7 @@ yysetstate:
 # else /* defined YYSTACK_RELOCATE */
       /* Extend the stack our own way.  */
       if (YYMAXDEPTH <= yystacksize)
-        goto yyexhaustedlab;
+        YYNOMEM;
       yystacksize *= 2;
       if (YYMAXDEPTH < yystacksize)
         yystacksize = YYMAXDEPTH;
@@ -1363,7 +1357,7 @@ yysetstate:
           YY_CAST (union yyalloc *,
                    YYSTACK_ALLOC (YY_CAST (YYSIZE_T, YYSTACK_BYTES (yystacksize))));
         if (! yyptr)
-          goto yyexhaustedlab;
+          YYNOMEM;
         YYSTACK_RELOCATE (yyss_alloc, yyss);
         YYSTACK_RELOCATE (yyvs_alloc, yyvs);
 #  undef YYSTACK_RELOCATE
@@ -1384,6 +1378,7 @@ yysetstate:
         YYABORT;
     }
 #endif /* !defined yyoverflow && !defined YYSTACK_RELOCATE */
+
 
   if (yystate == YYFINAL)
     YYACCEPT;
@@ -1497,44 +1492,44 @@ yyreduce:
   switch (yyn)
     {
   case 7: /* simple_expr: CKATTR_BOOL ASSIGN TOK_BOOLEAN  */
-#line 97 "attribctx_parser.y"
+#line 98 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_bool), sizeof(CK_BBOOL) )!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
 		}
-#line 1508 "attribctx_parser.c"
+#line 1503 "attribctx_parser.c"
     break;
 
   case 8: /* simple_expr: NO CKATTR_BOOL  */
-#line 104 "attribctx_parser.y"
+#line 105 "attribctx_parser.y"
                 {
 		    CK_BBOOL bfalse = CK_FALSE;
-		    
+
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[0].ckattr), &bfalse, sizeof(CK_BBOOL) )!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
 		}
-#line 1521 "attribctx_parser.c"
+#line 1516 "attribctx_parser.c"
     break;
 
   case 9: /* simple_expr: CKATTR_BOOL  */
-#line 113 "attribctx_parser.y"
+#line 114 "attribctx_parser.y"
                 {
 		    CK_BBOOL btrue = CK_TRUE;
-		    
+
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[0].ckattr), &btrue, sizeof(CK_BBOOL) )!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
 		}
-#line 1534 "attribctx_parser.c"
+#line 1529 "attribctx_parser.c"
     break;
 
   case 10: /* simple_expr: CKATTR_STR ASSIGN STRING  */
-#line 122 "attribctx_parser.y"
+#line 123 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign bytes value.");
@@ -1543,22 +1538,22 @@ yyreduce:
 		    }
 		    free((yyvsp[0].val_str).val); /* we must free() as the buffer was copied */
 		}
-#line 1547 "attribctx_parser.c"
+#line 1542 "attribctx_parser.c"
     break;
 
   case 11: /* simple_expr: CKATTR_DATE ASSIGN TOK_DATE  */
-#line 131 "attribctx_parser.y"
+#line 132 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_date).as_buffer, sizeof(CK_DATE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
 			YYERROR;
 		    }
 		}
-#line 1558 "attribctx_parser.c"
+#line 1553 "attribctx_parser.c"
     break;
 
   case 12: /* simple_expr: CKATTR_DATE ASSIGN STRING  */
-#line 138 "attribctx_parser.y"
+#line 139 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), (yyvsp[0].val_str).val, (yyvsp[0].val_str).len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
@@ -1567,58 +1562,58 @@ yyreduce:
 		    }
 		    free((yyvsp[0].val_str).val); /* we must free() as the buffer was copied */
 		}
-#line 1571 "attribctx_parser.c"
+#line 1566 "attribctx_parser.c"
     break;
 
   case 13: /* simple_expr: CKATTR_KEY ASSIGN KEYTYPE  */
-#line 147 "attribctx_parser.y"
+#line 148 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_key), sizeof(CK_KEY_TYPE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign key type value.");
 			YYERROR;
 		    }
 		}
-#line 1582 "attribctx_parser.c"
+#line 1577 "attribctx_parser.c"
     break;
 
   case 14: /* simple_expr: CKATTR_CLASS ASSIGN OCLASS  */
-#line 154 "attribctx_parser.y"
+#line 155 "attribctx_parser.y"
                 {
 		    if(_attribctx_parser_append_attr(ctx, (yyvsp[-2].ckattr), &(yyvsp[0].val_cls), sizeof(CK_OBJECT_CLASS))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign object class value.");
 			YYERROR;
 		    }
 		}
-#line 1593 "attribctx_parser.c"
+#line 1588 "attribctx_parser.c"
     break;
 
   case 15: /* $@1: %empty  */
-#line 163 "attribctx_parser.y"
+#line 164 "attribctx_parser.y"
                 {
 		    if(ctx->level==1) {
 			clerror(ctx, "***Error: nesting templates not allowed");
 			YYERROR;
 		    }
-                    ctx->level++; /*remind we are in a curly brace */
-		    
+		    ctx->level++; /*remind we are in a curly brace */
+
 		    ctx->current_idx = ctx->saved_idx + 1; /*increment current idx from ctx->saved_idx */
 		    if(ctx->current_idx>=4) {
 			clerror(ctx, "***Error: too many templates specified");
 			YYERROR;
-                   } 		    
+		   }
 		}
-#line 1611 "attribctx_parser.c"
+#line 1606 "attribctx_parser.c"
     break;
 
   case 16: /* template_expr: CKATTR_TEMPLATE ASSIGN CURLY_OPEN $@1 statement CURLY_CLOSE  */
-#line 177 "attribctx_parser.y"
+#line 178 "attribctx_parser.y"
                 {
 
 		    if(ctx->level==0) {
-		        clerror(ctx, "***Error: no matching opening curly brace");
+			clerror(ctx, "***Error: no matching opening curly brace");
 			YYERROR;
-                    }
-                    ctx->level--; /*out of curly brace now */
+		    }
+		    ctx->level--; /*out of curly brace now */
 
 		    ctx->saved_idx = ctx->current_idx; /* remember which index we used last */
 		    ctx->current_idx = ctx->mainlist_idx; /* should be always 0 */
@@ -1626,13 +1621,13 @@ yyreduce:
 		    if(_attribctx_parser_assign_list_to_template(ctx, (yyvsp[-5].ckattr))!=rc_ok) {
 			clerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
 			YYERROR;
-		    }		    
+		    }
 		}
-#line 1632 "attribctx_parser.c"
+#line 1627 "attribctx_parser.c"
     break;
 
   case 17: /* allowedmech_expr: CKATTR_ALLOWEDMECH ASSIGN CURLY_OPEN mechanisms CURLY_CLOSE  */
-#line 196 "attribctx_parser.y"
+#line 197 "attribctx_parser.y"
                 {
 		    if( _attribctx_parser_append_attr( ctx,
 						       (yyvsp[-4].ckattr),
@@ -1645,22 +1640,22 @@ yyreduce:
 		    /* pointer stolen, we must free it */
 		    pkcs11_attribctx_forget_mechanisms(ctx);
 		}
-#line 1649 "attribctx_parser.c"
+#line 1644 "attribctx_parser.c"
     break;
 
   case 20: /* mechanism: CKMECH  */
-#line 215 "attribctx_parser.y"
+#line 216 "attribctx_parser.y"
                 {
 		    if( pkcs11_attribctx_add_mechanism(ctx, (yyvsp[0].val_mech))!=rc_ok) {
 			clerror(ctx, "Error during parsing, cannot assign mechanism to allowed mechanisms.");
 			YYERROR;
 		    }
 		}
-#line 1660 "attribctx_parser.c"
+#line 1655 "attribctx_parser.c"
     break;
 
 
-#line 1664 "attribctx_parser.c"
+#line 1659 "attribctx_parser.c"
 
       default: break;
     }
@@ -1736,7 +1731,7 @@ yyerrlab:
           }
         yyerror (ctx, yymsgp);
         if (yysyntax_error_status == YYENOMEM)
-          goto yyexhaustedlab;
+          YYNOMEM;
       }
     }
 
@@ -1772,6 +1767,7 @@ yyerrorlab:
      label yyerrorlab therefore never appears in user code.  */
   if (0)
     YYERROR;
+  ++yynerrs;
 
   /* Do not reclaim the symbols of the rule whose action triggered
      this YYERROR.  */
@@ -1832,7 +1828,7 @@ yyerrlab1:
 `-------------------------------------*/
 yyacceptlab:
   yyresult = 0;
-  goto yyreturn;
+  goto yyreturnlab;
 
 
 /*-----------------------------------.
@@ -1840,24 +1836,22 @@ yyacceptlab:
 `-----------------------------------*/
 yyabortlab:
   yyresult = 1;
-  goto yyreturn;
+  goto yyreturnlab;
 
 
-#if 1
-/*-------------------------------------------------.
-| yyexhaustedlab -- memory exhaustion comes here.  |
-`-------------------------------------------------*/
+/*-----------------------------------------------------------.
+| yyexhaustedlab -- YYNOMEM (memory exhaustion) comes here.  |
+`-----------------------------------------------------------*/
 yyexhaustedlab:
   yyerror (ctx, YY_("memory exhausted"));
   yyresult = 2;
-  goto yyreturn;
-#endif
+  goto yyreturnlab;
 
 
-/*-------------------------------------------------------.
-| yyreturn -- parsing is finished, clean up and return.  |
-`-------------------------------------------------------*/
-yyreturn:
+/*----------------------------------------------------------.
+| yyreturnlab -- parsing is finished, clean up and return.  |
+`----------------------------------------------------------*/
+yyreturnlab:
   if (yychar != CLEMPTY)
     {
       /* Make sure we have latest lookahead translation.  See comments at
@@ -1885,5 +1879,5 @@ yyreturn:
   return yyresult;
 }
 
-#line 222 "attribctx_parser.y"
-	      
+#line 223 "attribctx_parser.y"
+

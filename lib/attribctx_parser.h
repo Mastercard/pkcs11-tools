@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 3.7.6.  */
+/* A Bison parser, made by GNU Bison 3.8.2.  */
 
 /* Bison interface for Yacc-like parsers in C
 
@@ -53,7 +53,7 @@
 extern int cldebug;
 #endif
 /* "%code requires" blocks.  */
-#line 30 "attribctx_parser.y"
+#line 31 "attribctx_parser.y"
 
 #include "pkcs11lib.h"
 #include "attribctx_helper.h"
@@ -94,7 +94,7 @@ extern int cldebug;
 #if ! defined CLSTYPE && ! defined CLSTYPE_IS_DECLARED
 union CLSTYPE
 {
-#line 46 "attribctx_parser.y"
+#line 47 "attribctx_parser.y"
 
     CK_ATTRIBUTE_TYPE ckattr;
     CK_KEY_TYPE val_key;
@@ -113,7 +113,7 @@ union CLSTYPE
 	    char month[2];
 	    char day[2];
 	} as_ck_date;
-        char as_buffer[8];
+	char as_buffer[8];
     } val_date;
 
 #line 120 "attribctx_parser.h"
@@ -127,16 +127,18 @@ typedef union CLSTYPE CLSTYPE;
 
 extern CLSTYPE cllval;
 
+
 int clparse (attribCtx *ctx);
+
 /* "%code provides" blocks.  */
-#line 35 "attribctx_parser.y"
+#line 36 "attribctx_parser.y"
 
 #define YY_DECL int yylex(attribCtx* ctx)
 
 YY_DECL;
 extern void clerror(attribCtx *ctx, const char *s, ...);
-    
 
-#line 141 "attribctx_parser.h"
+
+#line 143 "attribctx_parser.h"
 
 #endif /* !YY_CL_ATTRIBCTX_PARSER_H_INCLUDED  */

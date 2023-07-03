@@ -59,7 +59,7 @@ autoreconf -vfi
 
 cat <<EOF
 ========================================================================
-Bootstrap complete. 
+Bootstrap complete.
 Execute './configure' and 'make' to build the project.
 
 EOF

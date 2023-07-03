@@ -24,6 +24,7 @@
 %expect 11
 
 %{
+#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,7 +73,7 @@ extern int yylex(void);
 	    char month[2];
 	    char day[2];
 	} as_ck_date;
-        char as_buffer[8];
+	char as_buffer[8];
     } val_date;
 
     unsigned char *val_pem;	/* used to hold PEM-encoded blocks */
@@ -103,7 +104,7 @@ extern int yylex(void);
 %token <val_date> TOK_DATE
 %token <val_key>  KEYTYPE
 %token <val_cls>  OCLASS
-%token <val_mech> CKMECH		
+%token <val_mech> CKMECH
 %token <val_dottednumber> DOTTEDNUMBER
 
 %token WRAPPINGJOBHEADER
@@ -141,9 +142,9 @@ innerblock:	INNER
 			yyerror(ctx,"Error when parsing encrypted key cryptogram (inner)");
 			YYERROR;
 		    }
-                    free($1);	/* free up mem */
+		    free($1);	/* free up mem */
 		}
-                ;
+		;
 
 outerblock:	OUTER
 		{
@@ -151,9 +152,9 @@ outerblock:	OUTER
 			yyerror(ctx,"Error when parsing encrypted key cryptogram (outer)");
 			YYERROR;
 		    }
-                    free($1);	/* free up mem */
+		    free($1);	/* free up mem */
 		}
-                ;
+		;
 
 wkeystmts:	wkeystmt
 	|	wkeystmts wkeystmt
@@ -184,11 +185,11 @@ metastmt:	CTYPE ':' CTYPE_VAL
 	|	WRAPPING_KEY ':' STRING /* for the time being, we capture just a key label */
 		{
 		    if(_wrappedkey_parser_wkey_set_wrapping_key(ctx, $3.val, $3.len)!=rc_ok) {
-		        yyerror(ctx,"Parsing error with wrapping key identifier.");
+			yyerror(ctx,"Parsing error with wrapping key identifier.");
 			free($3.val);
-                        YYERROR;
-                    }
-                    free($3.val);
+			YYERROR;
+		    }
+		    free($3.val);
 		}
 	;
 
@@ -197,14 +198,14 @@ assignstmts:	assignstmt
 	;
 
 assignstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
-                {
+		{
 		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, &$3, sizeof(CK_BBOOL) )!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_STR ':' STRING
-                {
+		{
 		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign bytes value.");
 			free($3.val);
@@ -213,14 +214,14 @@ assignstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 		    free($3.val);
 		}
 	|	CKATTR_DATE ':' TOK_DATE
-                {
+		{
 		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, $3.as_buffer, sizeof(CK_DATE))!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign date value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_DATE  ':' STRING /* if the date comes as 0x... format (not preferred but accepted) */
-                {
+		{
 		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign date value.");
 			free($3.val);
@@ -229,41 +230,41 @@ assignstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 		    free($3.val);
 		}
 	|	CKATTR_KEY   ':' KEYTYPE
-                {
+		{
 		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, &$3, sizeof(CK_KEY_TYPE))!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign key type value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_CLASS ':' OCLASS
-                {
+		{
 		    if(_wrappedkey_parser_wkey_append_attr(ctx, $1, &$3, sizeof(CK_OBJECT_CLASS))!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign object class value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_TEMPLATE ':' '{'
-	        {
+		{
 		    if(ctx->wrpkattribs->level==1) {
 			yyerror(ctx, "***Error: nesting templates not allowed");
 			YYERROR;
 		    }
-                    ctx->wrpkattribs->level++; /*remind we are in a curly brace */
-		    
+		    ctx->wrpkattribs->level++; /*remind we are in a curly brace */
+
 		    ctx->wrpkattribs->current_idx = ctx->wrpkattribs->saved_idx + 1; /*increment current idx from ctx->saved_idx */
 		    if(ctx->wrpkattribs->current_idx>=4) {
 			/* There exist only 3 templates */
 			yyerror(ctx, "***Error: too many templates specified");
 			YYERROR;
-                   } 		    
+		   }
 		}
 		assignstmts '}'
 		{
 		    if(ctx->wrpkattribs->level==0) {
-		        yyerror(ctx, "***Error: no matching opening curly brace");
+			yyerror(ctx, "***Error: no matching opening curly brace");
 			YYERROR;
-                    }
-                    ctx->wrpkattribs->level--; /*out of curly brace now */
+		    }
+		    ctx->wrpkattribs->level--; /*out of curly brace now */
 
 		    ctx->wrpkattribs->saved_idx = ctx->wrpkattribs->current_idx; /* remember which index we used last */
 		    ctx->wrpkattribs->current_idx = ctx->wrpkattribs->mainlist_idx; /* should be always 0 */
@@ -271,11 +272,11 @@ assignstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 		    if(_wrappedkey_parser_wkey_assign_list_to_template(ctx, $1)!=rc_ok) {
 			yyerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
 			YYERROR;
-		    }		    
+		    }
 		}
 	|	CKATTR_ALLOWEDMECH ':' '{' mechanisms '}'
-      	        {
-	            if( _wrappedkey_parser_wkey_append_attr( ctx,
+		{
+		    if( _wrappedkey_parser_wkey_append_attr( ctx,
 							     $1,
 							     pkcs11_wctx_get_allowed_mechanisms(ctx),
 							     pkcs11_wctx_get_allowed_mechanisms_len(ctx))
@@ -283,7 +284,7 @@ assignstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 			yyerror(ctx,"Error during parsing, cannot assign object class value.");
 			YYERROR;
 		    }
-		    /* pointer stolen, we must forget it */		
+		    /* pointer stolen, we must forget it */
 		    pkcs11_wctx_forget_mechanisms(ctx);
 		}
 		;
@@ -300,16 +301,16 @@ mechanism:	CKMECH
 		    }
 		}
 	;
-		
+
 
 /* we support these wrapping algorithms so far. */
 /* algorithms themselves are tokenized separately to allow parameter check against requested algorithm */
 algo:		pkcs1algo
 		| oaepalgo
 		| cbcpadalgo
-                | rfc3394algo
-                | rfc5649algo
-                | envelopealgo
+		| rfc3394algo
+		| rfc5649algo
+		| envelopealgo
 		;
 
 pkcs1algo:	pkcs1algoheader
@@ -375,10 +376,10 @@ oaepparam:	PARAMHASH '=' CKMECH
 		{
 		    if(_wrappedkey_parser_wkey_set_wrapping_param_label(ctx, $3.val, $3.len)!=rc_ok) {
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
-                        free($3.val);
+			free($3.val);
 			YYERROR;
 		    }
-                    free($3.val);
+		    free($3.val);
 		}
 		;
 
@@ -413,12 +414,12 @@ cbcpadparam:	PARAMIV '=' STRING
 		{
 		    if(_wrappedkey_parser_wkey_set_wrapping_param_iv(ctx, $3.val, $3.len)!=rc_ok) {
 			yyerror(ctx,"Parsing error with specified wrapping algorithm.");
-                        free($3.val);
+			free($3.val);
 			YYERROR;
 		    }
-                    free($3.val);
+		    free($3.val);
 		}
-	        ;
+		;
 
 /* RFC3394: using CKM_AES_KEY_WRAP */
 
@@ -478,11 +479,11 @@ rfc5649param:   PARAMFLAVOUR '=' CKMECH
 			YYERROR;
 		    }
 		}
-	        ;
+		;
 /* envelope(): to support double wrapping */
 envelopealgo:	envelopealgoheader	/*take default parameters: all SHA1, label="" */
 	|	envelopealgoheader '('
-                {
+		{
 		    if(++parsing_envelope>1) {
 			yyerror(ctx, "Nested envelope() algorithm not allowed.");
 			YYERROR;
@@ -506,7 +507,7 @@ envelopealgoheader:	envelopealgoid
 /* TODO: check DOTTEDNUMBER to see if we agree with version     */
 /* there should be at least a warning if version is beyond supported one  */
 envelopealgoid:	ENVELOPEALGO
-             |	ENVELOPEALGO '/' DOTTEDNUMBER { free($3); }
+	     |	ENVELOPEALGO '/' DOTTEDNUMBER { free($3); }
 	     ;
 
 envelopeparamlist:	envelopeparam
@@ -523,15 +524,15 @@ envelopeparam:	PARAMOUTER '='
 		    envelope_keyindex = WRAPPEDKEYCTX_INNER_KEY_INDEX;
 		}
 		inneralgo
-        	;
-
-outeralgo:      pkcs1algo
-	|     	oaepalgo
 		;
 
-inneralgo: 	cbcpadalgo
+outeralgo:      pkcs1algo
+	|	oaepalgo
+		;
+
+inneralgo:	cbcpadalgo
 	|       rfc3394algo
-        |       rfc5649algo
+	|       rfc5649algo
 		;
 
 
@@ -545,24 +546,24 @@ pubkblock:	PUBK
 			yyerror(ctx,"Error when parsing public key information");
 			YYERROR;
 		    }
-                    free($1);	/* free up mem */
+		    free($1);	/* free up mem */
 		}
-                ;
+		;
 
-pubkstmts: 	pubkstmt
+pubkstmts:	pubkstmt
 	|	pubkstmts pubkstmt
 		;
 
 
 pubkstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
-                {
+		{
 		    if(_wrappedkey_parser_pubk_append_attr(ctx, $1, &$3, sizeof(CK_BBOOL) )!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_STR ':' STRING
-                {
+		{
 		    if(_wrappedkey_parser_pubk_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign bytes value.");
 			free($3.val);
@@ -571,14 +572,14 @@ pubkstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 		    free($3.val);
 		}
 	|	CKATTR_DATE ':' TOK_DATE
-                {
+		{
 		    if(_wrappedkey_parser_pubk_append_attr(ctx, $1, $3.as_buffer, sizeof(CK_DATE))!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign date value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_DATE  ':' STRING /* if the date comes as 0x... format (not preferred but accepted) */
-                {
+		{
 		    if(_wrappedkey_parser_pubk_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign date value.");
 			free($3.val);
@@ -587,41 +588,41 @@ pubkstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 		    free($3.val);
 		}
 	|	CKATTR_KEY   ':' KEYTYPE
-                {
+		{
 		    if(_wrappedkey_parser_pubk_append_attr(ctx, $1, &$3, sizeof(CK_KEY_TYPE))!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign key type value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_CLASS ':' OCLASS
-                {
+		{
 		    if(_wrappedkey_parser_pubk_append_attr(ctx, $1, &$3, sizeof(CK_OBJECT_CLASS))!=rc_ok) {
 			yyerror(ctx,"Error during parsing, cannot assign object class value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_TEMPLATE ':' '{'
-	        {
+		{
 		    if(ctx->pubkattribs->level==1) {
 			yyerror(ctx, "***Error: nesting templates not allowed");
 			YYERROR;
 		    }
-                    ctx->pubkattribs->level++; /*remind we are in a curly brace */
-		    
+		    ctx->pubkattribs->level++; /*remind we are in a curly brace */
+
 		    ctx->pubkattribs->current_idx = ctx->pubkattribs->saved_idx + 1; /*increment current idx from ctx->saved_idx */
 		    if(ctx->pubkattribs->current_idx>=4) {
 			/* There exist only 3 templates */
 			yyerror(ctx, "***Error: too many templates specified");
 			YYERROR;
-                   } 		    
+		   }
 		}
 		pubkstmts '}'
 		{
 		    if(ctx->pubkattribs->level==0) {
-		        yyerror(ctx, "***Error: no matching opening curly brace");
+			yyerror(ctx, "***Error: no matching opening curly brace");
 			YYERROR;
-                    }
-                    ctx->pubkattribs->level--; /*out of curly brace now */
+		    }
+		    ctx->pubkattribs->level--; /*out of curly brace now */
 
 		    ctx->pubkattribs->saved_idx = ctx->pubkattribs->current_idx; /* remember which index we used last */
 		    ctx->pubkattribs->current_idx = ctx->pubkattribs->mainlist_idx; /* should be always 0 */
@@ -629,7 +630,7 @@ pubkstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 		    if(_wrappedkey_parser_pubk_assign_list_to_template(ctx, $1)!=rc_ok) {
 			yyerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
 			YYERROR;
-		    }		    
+		    }
 		}
 		;
 
@@ -640,28 +641,28 @@ pubkstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 wrappingjob:	WRAPPINGJOBHEADER wrpjobstmts
 		;
 
-wrpjobstmts: 	wrpjobstmt
+wrpjobstmts:	wrpjobstmt
 	|	wrpjobstmts ',' wrpjobstmt
 		;
 
 wrpjobstmt:	P_WRAPPINGKEY '=' STRING
 		{
 		    if(_wrappedkey_parser_wkey_set_wrapping_key(ctx, $3.val, $3.len)!=rc_ok) {
-		        yyerror(ctx,"Parsing error with wrapping key identifier.");
+			yyerror(ctx,"Parsing error with wrapping key identifier.");
 			free($3.val);
-                        YYERROR;
-                    }
+			YYERROR;
+		    }
 		    free($3.val);
 		}
 	|	P_FILENAME '=' STRING
 		{
 		    if(_wrappedkey_parser_wkey_set_filename(ctx, $3.val)!=rc_ok) {
-		        yyerror(ctx,"Issue when saving filename");
+			yyerror(ctx,"Issue when saving filename");
 			free($3.val);
-                        YYERROR;
+			YYERROR;
 		    }
 		    free($3.val);
-                }
+		}
 	|	P_ALGORITHM '=' algo
 	;
 
