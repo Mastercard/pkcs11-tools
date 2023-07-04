@@ -23,8 +23,11 @@
 %option prefix="cl"
 %option outfile="lex.yy.c"
 
+%top{
+#include <config.h>
+}
+
 %{
-#include "config.h"
 #include <stdarg.h>
 #include "pkcs11lib.h"
 #include "attribctx_parser.h"

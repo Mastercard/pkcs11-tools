@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 3.7.6.  */
+/* A Bison parser, made by GNU Bison 3.8.2.  */
 
 /* Bison interface for Yacc-like parsers in C
 
@@ -45,7 +45,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 39 "wrappedkey_parser.y"
+#line 40 "wrappedkey_parser.y"
 
 
 #include "pkcs11lib.h"
@@ -114,7 +114,7 @@ extern int yylex(void);
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 52 "wrappedkey_parser.y"
+#line 53 "wrappedkey_parser.y"
 
     CK_ATTRIBUTE_TYPE ckattr;
     CK_KEY_TYPE val_key;
@@ -138,7 +138,7 @@ union YYSTYPE
 	    char month[2];
 	    char day[2];
 	} as_ck_date;
-        char as_buffer[8];
+	char as_buffer[8];
     } val_date;
 
     unsigned char *val_pem;	/* used to hold PEM-encoded blocks */
@@ -155,6 +155,8 @@ typedef union YYSTYPE YYSTYPE;
 
 extern YYSTYPE yylval;
 
+
 int yyparse (wrappedKeyCtx *ctx);
+
 
 #endif /* !YY_YY_WRAPPEDKEY_PARSER_H_INCLUDED  */

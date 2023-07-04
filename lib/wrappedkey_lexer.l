@@ -21,8 +21,11 @@
 %option header-file="wrappedkey_lexer.h"
 %option never-interactive
 
+%top{
+#include <config.h>
+}
+
 %{
-#include "config.h"
 #include <stdarg.h>
 #include "wrappedkey_parser.h"
 

@@ -12,7 +12,7 @@ In order to build the project from scratch, you will need
    ```sh
    $ sudo apt-get install gcc make perl
    ```
- - the autotools suite: `autoconf`, `automake`, `libtool`, and `autoconf-archive`, as well as `pkg-config`.
+ - the autotools suite: `autoconf`, `automake`>=1.14, `libtool`, and `autoconf-archive`, as well as `pkg-config`.
    If your host is Debian-based (e.g. Ubuntu), you can execute the following command:
    ```sh
    $ sudo apt-get install autoconf-archive autoconf automake libtool pkg-config

@@ -2,7 +2,8 @@
 #define clHEADER_H 1
 #define clIN_HEADER 1
 
-#line 6 "attribctx_lexer.h"
+#line 5 "attribctx_lexer.h"
+#include <config.h>
 
 #line 8 "attribctx_lexer.h"
 
@@ -12,23 +13,247 @@
 
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
-#define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 37
+#define YY_FLEX_MINOR_VERSION 6
+#define YY_FLEX_SUBMINOR_VERSION 4
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
 
-/* First, we deal with  platform-specific or compiler-specific issues. */
-
-#if defined(__FreeBSD__)
-#ifndef __STDC_LIMIT_MACROS
-#define	__STDC_LIMIT_MACROS
-#endif
-#include <sys/cdefs.h>
-#include <stdint.h>
+#ifdef yy_create_buffer
+#define cl_create_buffer_ALREADY_DEFINED
 #else
-#define	__dead2
+#define yy_create_buffer cl_create_buffer
 #endif
+
+#ifdef yy_delete_buffer
+#define cl_delete_buffer_ALREADY_DEFINED
+#else
+#define yy_delete_buffer cl_delete_buffer
+#endif
+
+#ifdef yy_scan_buffer
+#define cl_scan_buffer_ALREADY_DEFINED
+#else
+#define yy_scan_buffer cl_scan_buffer
+#endif
+
+#ifdef yy_scan_string
+#define cl_scan_string_ALREADY_DEFINED
+#else
+#define yy_scan_string cl_scan_string
+#endif
+
+#ifdef yy_scan_bytes
+#define cl_scan_bytes_ALREADY_DEFINED
+#else
+#define yy_scan_bytes cl_scan_bytes
+#endif
+
+#ifdef yy_init_buffer
+#define cl_init_buffer_ALREADY_DEFINED
+#else
+#define yy_init_buffer cl_init_buffer
+#endif
+
+#ifdef yy_flush_buffer
+#define cl_flush_buffer_ALREADY_DEFINED
+#else
+#define yy_flush_buffer cl_flush_buffer
+#endif
+
+#ifdef yy_load_buffer_state
+#define cl_load_buffer_state_ALREADY_DEFINED
+#else
+#define yy_load_buffer_state cl_load_buffer_state
+#endif
+
+#ifdef yy_switch_to_buffer
+#define cl_switch_to_buffer_ALREADY_DEFINED
+#else
+#define yy_switch_to_buffer cl_switch_to_buffer
+#endif
+
+#ifdef yypush_buffer_state
+#define clpush_buffer_state_ALREADY_DEFINED
+#else
+#define yypush_buffer_state clpush_buffer_state
+#endif
+
+#ifdef yypop_buffer_state
+#define clpop_buffer_state_ALREADY_DEFINED
+#else
+#define yypop_buffer_state clpop_buffer_state
+#endif
+
+#ifdef yyensure_buffer_stack
+#define clensure_buffer_stack_ALREADY_DEFINED
+#else
+#define yyensure_buffer_stack clensure_buffer_stack
+#endif
+
+#ifdef yylex
+#define cllex_ALREADY_DEFINED
+#else
+#define yylex cllex
+#endif
+
+#ifdef yyrestart
+#define clrestart_ALREADY_DEFINED
+#else
+#define yyrestart clrestart
+#endif
+
+#ifdef yylex_init
+#define cllex_init_ALREADY_DEFINED
+#else
+#define yylex_init cllex_init
+#endif
+
+#ifdef yylex_init_extra
+#define cllex_init_extra_ALREADY_DEFINED
+#else
+#define yylex_init_extra cllex_init_extra
+#endif
+
+#ifdef yylex_destroy
+#define cllex_destroy_ALREADY_DEFINED
+#else
+#define yylex_destroy cllex_destroy
+#endif
+
+#ifdef yyget_debug
+#define clget_debug_ALREADY_DEFINED
+#else
+#define yyget_debug clget_debug
+#endif
+
+#ifdef yyset_debug
+#define clset_debug_ALREADY_DEFINED
+#else
+#define yyset_debug clset_debug
+#endif
+
+#ifdef yyget_extra
+#define clget_extra_ALREADY_DEFINED
+#else
+#define yyget_extra clget_extra
+#endif
+
+#ifdef yyset_extra
+#define clset_extra_ALREADY_DEFINED
+#else
+#define yyset_extra clset_extra
+#endif
+
+#ifdef yyget_in
+#define clget_in_ALREADY_DEFINED
+#else
+#define yyget_in clget_in
+#endif
+
+#ifdef yyset_in
+#define clset_in_ALREADY_DEFINED
+#else
+#define yyset_in clset_in
+#endif
+
+#ifdef yyget_out
+#define clget_out_ALREADY_DEFINED
+#else
+#define yyget_out clget_out
+#endif
+
+#ifdef yyset_out
+#define clset_out_ALREADY_DEFINED
+#else
+#define yyset_out clset_out
+#endif
+
+#ifdef yyget_leng
+#define clget_leng_ALREADY_DEFINED
+#else
+#define yyget_leng clget_leng
+#endif
+
+#ifdef yyget_text
+#define clget_text_ALREADY_DEFINED
+#else
+#define yyget_text clget_text
+#endif
+
+#ifdef yyget_lineno
+#define clget_lineno_ALREADY_DEFINED
+#else
+#define yyget_lineno clget_lineno
+#endif
+
+#ifdef yyset_lineno
+#define clset_lineno_ALREADY_DEFINED
+#else
+#define yyset_lineno clset_lineno
+#endif
+
+#ifdef yywrap
+#define clwrap_ALREADY_DEFINED
+#else
+#define yywrap clwrap
+#endif
+
+#ifdef yyalloc
+#define clalloc_ALREADY_DEFINED
+#else
+#define yyalloc clalloc
+#endif
+
+#ifdef yyrealloc
+#define clrealloc_ALREADY_DEFINED
+#else
+#define yyrealloc clrealloc
+#endif
+
+#ifdef yyfree
+#define clfree_ALREADY_DEFINED
+#else
+#define yyfree clfree
+#endif
+
+#ifdef yytext
+#define cltext_ALREADY_DEFINED
+#else
+#define yytext cltext
+#endif
+
+#ifdef yyleng
+#define clleng_ALREADY_DEFINED
+#else
+#define yyleng clleng
+#endif
+
+#ifdef yyin
+#define clin_ALREADY_DEFINED
+#else
+#define yyin clin
+#endif
+
+#ifdef yyout
+#define clout_ALREADY_DEFINED
+#else
+#define yyout clout
+#endif
+
+#ifdef yy_flex_debug
+#define cl_flex_debug_ALREADY_DEFINED
+#else
+#define yy_flex_debug cl_flex_debug
+#endif
+
+#ifdef yylineno
+#define cllineno_ALREADY_DEFINED
+#else
+#define yylineno cllineno
+#endif
+
+/* First, we deal with  platform-specific or compiler-specific issues. */
 
 /* begin standard C headers. */
 #include <stdio.h>
@@ -99,34 +324,36 @@ typedef unsigned int flex_uint32_t;
 #define UINT32_MAX             (4294967295U)
 #endif
 
+#ifndef SIZE_MAX
+#define SIZE_MAX               (~(size_t)0)
+#endif
+
 #endif /* ! C99 */
 
 #endif /* ! FLEXINT_H */
 
-#ifdef __cplusplus
+/* begin standard C++ headers. */
 
-/* The "const" storage-class-modifier is valid. */
-#define YY_USE_CONST
-
-#else	/* ! __cplusplus */
-
-/* C99 requires __STDC__ to be defined as 1. */
-#if defined (__STDC__)
-
-#define YY_USE_CONST
-
-#endif	/* defined (__STDC__) */
-#endif	/* ! __cplusplus */
-
-#ifdef YY_USE_CONST
+/* TODO: this is always defined, so inline it */
 #define yyconst const
+
+#if defined(__GNUC__) && __GNUC__ >= 3
+#define yynoreturn __attribute__((__noreturn__))
 #else
-#define yyconst
+#define yynoreturn
 #endif
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k.
+ * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
+ * Ditto for the __ia64__ case accordingly.
+ */
+#define YY_BUF_SIZE 32768
+#else
 #define YY_BUF_SIZE 16384
+#endif /* __ia64__ */
 #endif
 
 #ifndef YY_TYPEDEF_YY_BUFFER_STATE
@@ -139,9 +366,9 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 typedef size_t yy_size_t;
 #endif
 
-extern yy_size_t clleng;
+extern int yyleng;
 
-extern FILE *clin, *clout;
+extern FILE *yyin, *yyout;
 
 #ifndef YY_STRUCT_YY_BUFFER_STATE
 #define YY_STRUCT_YY_BUFFER_STATE
@@ -155,12 +382,12 @@ struct yy_buffer_state
 	/* Size of input buffer in bytes, not including room for EOB
 	 * characters.
 	 */
-	yy_size_t yy_buf_size;
+	int yy_buf_size;
 
 	/* Number of characters read into yy_ch_buf, not including EOB
 	 * characters.
 	 */
-	yy_size_t yy_n_chars;
+	int yy_n_chars;
 
 	/* Whether we "own" the buffer - i.e., we know we created it,
 	 * and can realloc() it to grow it, and should free() it to
@@ -183,7 +410,7 @@ struct yy_buffer_state
 
     int yy_bs_lineno; /**< The line count. */
     int yy_bs_column; /**< The column count. */
-    
+
 	/* Whether to try to fill the input buffer when we reach the
 	 * end of it.
 	 */
@@ -194,31 +421,34 @@ struct yy_buffer_state
 	};
 #endif /* !YY_STRUCT_YY_BUFFER_STATE */
 
-void clrestart (FILE *input_file  );
-void cl_switch_to_buffer (YY_BUFFER_STATE new_buffer  );
-YY_BUFFER_STATE cl_create_buffer (FILE *file,int size  );
-void cl_delete_buffer (YY_BUFFER_STATE b  );
-void cl_flush_buffer (YY_BUFFER_STATE b  );
-void clpush_buffer_state (YY_BUFFER_STATE new_buffer  );
-void clpop_buffer_state (void );
+void yyrestart ( FILE *input_file  );
+void yy_switch_to_buffer ( YY_BUFFER_STATE new_buffer  );
+YY_BUFFER_STATE yy_create_buffer ( FILE *file, int size  );
+void yy_delete_buffer ( YY_BUFFER_STATE b  );
+void yy_flush_buffer ( YY_BUFFER_STATE b  );
+void yypush_buffer_state ( YY_BUFFER_STATE new_buffer  );
+void yypop_buffer_state ( void );
 
-YY_BUFFER_STATE cl_scan_buffer (char *base,yy_size_t size  );
-YY_BUFFER_STATE cl_scan_string (yyconst char *yy_str  );
-YY_BUFFER_STATE cl_scan_bytes (yyconst char *bytes,yy_size_t len  );
+YY_BUFFER_STATE yy_scan_buffer ( char *base, yy_size_t size  );
+YY_BUFFER_STATE yy_scan_string ( const char *yy_str  );
+YY_BUFFER_STATE yy_scan_bytes ( const char *bytes, int len  );
 
-void *clalloc (yy_size_t  );
-void *clrealloc (void *,yy_size_t  );
-void clfree (void *  );
+void *yyalloc ( yy_size_t  );
+void *yyrealloc ( void *, yy_size_t  );
+void yyfree ( void *  );
 
 /* Begin user sect3 */
 
-#define clwrap() 1
+#define clwrap() (/*CONSTCOND*/1)
 #define YY_SKIP_YYWRAP
 
-extern int cllineno;
+extern int yylineno;
 
-extern char *cltext;
-#define yytext_ptr cltext
+extern char *yytext;
+#ifdef yytext_ptr
+#undef yytext_ptr
+#endif
+#define yytext_ptr yytext
 
 #ifdef YY_HEADER_EXPORT_START_CONDITIONS
 #define INITIAL 0
@@ -241,31 +471,31 @@ extern char *cltext;
 /* Accessor methods to globals.
    These are made visible to non-reentrant scanners for convenience. */
 
-int cllex_destroy (void );
+int yylex_destroy ( void );
 
-int clget_debug (void );
+int yyget_debug ( void );
 
-void clset_debug (int debug_flag  );
+void yyset_debug ( int debug_flag  );
 
-YY_EXTRA_TYPE clget_extra (void );
+YY_EXTRA_TYPE yyget_extra ( void );
 
-void clset_extra (YY_EXTRA_TYPE user_defined  );
+void yyset_extra ( YY_EXTRA_TYPE user_defined  );
 
-FILE *clget_in (void );
+FILE *yyget_in ( void );
 
-void clset_in  (FILE * in_str  );
+void yyset_in  ( FILE * _in_str  );
 
-FILE *clget_out (void );
+FILE *yyget_out ( void );
 
-void clset_out  (FILE * out_str  );
+void yyset_out  ( FILE * _out_str  );
 
-yy_size_t clget_leng (void );
+			int yyget_leng ( void );
 
-char *clget_text (void );
+char *yyget_text ( void );
 
-int clget_lineno (void );
+int yyget_lineno ( void );
 
-void clset_lineno (int line_number  );
+void yyset_lineno ( int _line_number  );
 
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
@@ -273,18 +503,18 @@ void clset_lineno (int line_number  );
 
 #ifndef YY_SKIP_YYWRAP
 #ifdef __cplusplus
-extern "C" int clwrap (void );
+extern "C" int yywrap ( void );
 #else
-extern int clwrap (void );
+extern int yywrap ( void );
 #endif
 #endif
 
 #ifndef yytext_ptr
-static void yy_flex_strncpy (char *,yyconst char *,int );
+static void yy_flex_strncpy ( char *, const char *, int );
 #endif
 
 #ifdef YY_NEED_STRLEN
-static int yy_flex_strlen (yyconst char * );
+static int yy_flex_strlen ( const char * );
 #endif
 
 #ifndef YY_NO_INPUT
@@ -293,7 +523,12 @@ static int yy_flex_strlen (yyconst char * );
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k */
+#define YY_READ_BUF_SIZE 16384
+#else
 #define YY_READ_BUF_SIZE 8192
+#endif /* __ia64__ */
 #endif
 
 /* Number of entries by which start-condition stack grows. */
@@ -307,9 +542,9 @@ static int yy_flex_strlen (yyconst char * );
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-extern int cllex (void);
+extern int yylex (void);
 
-#define YY_DECL int cllex (void)
+#define YY_DECL int yylex (void)
 #endif /* !YY_DECL */
 
 /* yy_get_previous_state - get the state just before the EOB char was reached */
@@ -326,9 +561,154 @@ extern int cllex (void);
 #undef YY_DECL
 #endif
 
-#line 156 "attribctx_lexer.l"
+#ifndef cl_create_buffer_ALREADY_DEFINED
+#undef yy_create_buffer
+#endif
+#ifndef cl_delete_buffer_ALREADY_DEFINED
+#undef yy_delete_buffer
+#endif
+#ifndef cl_scan_buffer_ALREADY_DEFINED
+#undef yy_scan_buffer
+#endif
+#ifndef cl_scan_string_ALREADY_DEFINED
+#undef yy_scan_string
+#endif
+#ifndef cl_scan_bytes_ALREADY_DEFINED
+#undef yy_scan_bytes
+#endif
+#ifndef cl_init_buffer_ALREADY_DEFINED
+#undef yy_init_buffer
+#endif
+#ifndef cl_flush_buffer_ALREADY_DEFINED
+#undef yy_flush_buffer
+#endif
+#ifndef cl_load_buffer_state_ALREADY_DEFINED
+#undef yy_load_buffer_state
+#endif
+#ifndef cl_switch_to_buffer_ALREADY_DEFINED
+#undef yy_switch_to_buffer
+#endif
+#ifndef clpush_buffer_state_ALREADY_DEFINED
+#undef yypush_buffer_state
+#endif
+#ifndef clpop_buffer_state_ALREADY_DEFINED
+#undef yypop_buffer_state
+#endif
+#ifndef clensure_buffer_stack_ALREADY_DEFINED
+#undef yyensure_buffer_stack
+#endif
+#ifndef cllex_ALREADY_DEFINED
+#undef yylex
+#endif
+#ifndef clrestart_ALREADY_DEFINED
+#undef yyrestart
+#endif
+#ifndef cllex_init_ALREADY_DEFINED
+#undef yylex_init
+#endif
+#ifndef cllex_init_extra_ALREADY_DEFINED
+#undef yylex_init_extra
+#endif
+#ifndef cllex_destroy_ALREADY_DEFINED
+#undef yylex_destroy
+#endif
+#ifndef clget_debug_ALREADY_DEFINED
+#undef yyget_debug
+#endif
+#ifndef clset_debug_ALREADY_DEFINED
+#undef yyset_debug
+#endif
+#ifndef clget_extra_ALREADY_DEFINED
+#undef yyget_extra
+#endif
+#ifndef clset_extra_ALREADY_DEFINED
+#undef yyset_extra
+#endif
+#ifndef clget_in_ALREADY_DEFINED
+#undef yyget_in
+#endif
+#ifndef clset_in_ALREADY_DEFINED
+#undef yyset_in
+#endif
+#ifndef clget_out_ALREADY_DEFINED
+#undef yyget_out
+#endif
+#ifndef clset_out_ALREADY_DEFINED
+#undef yyset_out
+#endif
+#ifndef clget_leng_ALREADY_DEFINED
+#undef yyget_leng
+#endif
+#ifndef clget_text_ALREADY_DEFINED
+#undef yyget_text
+#endif
+#ifndef clget_lineno_ALREADY_DEFINED
+#undef yyget_lineno
+#endif
+#ifndef clset_lineno_ALREADY_DEFINED
+#undef yyset_lineno
+#endif
+#ifndef clget_column_ALREADY_DEFINED
+#undef yyget_column
+#endif
+#ifndef clset_column_ALREADY_DEFINED
+#undef yyset_column
+#endif
+#ifndef clwrap_ALREADY_DEFINED
+#undef yywrap
+#endif
+#ifndef clget_lval_ALREADY_DEFINED
+#undef yyget_lval
+#endif
+#ifndef clset_lval_ALREADY_DEFINED
+#undef yyset_lval
+#endif
+#ifndef clget_lloc_ALREADY_DEFINED
+#undef yyget_lloc
+#endif
+#ifndef clset_lloc_ALREADY_DEFINED
+#undef yyset_lloc
+#endif
+#ifndef clalloc_ALREADY_DEFINED
+#undef yyalloc
+#endif
+#ifndef clrealloc_ALREADY_DEFINED
+#undef yyrealloc
+#endif
+#ifndef clfree_ALREADY_DEFINED
+#undef yyfree
+#endif
+#ifndef cltext_ALREADY_DEFINED
+#undef yytext
+#endif
+#ifndef clleng_ALREADY_DEFINED
+#undef yyleng
+#endif
+#ifndef clin_ALREADY_DEFINED
+#undef yyin
+#endif
+#ifndef clout_ALREADY_DEFINED
+#undef yyout
+#endif
+#ifndef cl_flex_debug_ALREADY_DEFINED
+#undef yy_flex_debug
+#endif
+#ifndef cllineno_ALREADY_DEFINED
+#undef yylineno
+#endif
+#ifndef cltables_fload_ALREADY_DEFINED
+#undef yytables_fload
+#endif
+#ifndef cltables_destroy_ALREADY_DEFINED
+#undef yytables_destroy
+#endif
+#ifndef clTABLES_NAME_ALREADY_DEFINED
+#undef yyTABLES_NAME
+#endif
+
+#line 159 "attribctx_lexer.l"
 
 
-#line 333 "attribctx_lexer.h"
+#line 712 "attribctx_lexer.h"
 #undef clIN_HEADER
 #endif /* clHEADER_H */

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [UNRELEASED]
+### Fixed
+- with recent versions of GCC, compilation issue with lexx and yacc produced source code.
+
+### Updated
+- `gnulib` in now built from a stable branch, `stable-202307`
+
 # [2.5.1]
 - adding `-S` option flag for `p11keygen`, for enabling key generation when logged in as Security Officer (PR #33)
 - fixed a few memory management issues, preventing to import EC public keys when using `p11keygen`, `p11unwrap` and `p11importpubk`.

@@ -21,12 +21,13 @@
 /* %define lr.type canonical-lr */
 
 %code top {
+#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 }
 
-			
+
 %code requires {
 #include "pkcs11lib.h"
 #include "attribctx_helper.h"
@@ -37,9 +38,9 @@
 
 YY_DECL;
 extern void clerror(attribCtx *ctx, const char *s, ...);
-    
+
 }
-			
+
 %param { attribCtx *ctx }
 
 
@@ -61,7 +62,7 @@ extern void clerror(attribCtx *ctx, const char *s, ...);
 	    char month[2];
 	    char day[2];
 	} as_ck_date;
-        char as_buffer[8];
+	char as_buffer[8];
     } val_date;
 }
 
@@ -69,13 +70,13 @@ extern void clerror(attribCtx *ctx, const char *s, ...);
 %token <val_str> STRING
 
 %token <ckattr> CKATTR_BOOL CKATTR_STR CKATTR_DATE CKATTR_KEY CKATTR_CLASS CKATTR_TEMPLATE CKATTR_ALLOWEDMECH
-%token <val_mech> CKMECH		
+%token <val_mech> CKMECH
 %token <val_bool> TOK_BOOLEAN
 %token <val_date> TOK_DATE
 %token <val_key>  KEYTYPE
 %token <val_cls>  OCLASS
 %nonassoc NO
-%token ASSIGN CURLY_OPEN CURLY_CLOSE			
+%token ASSIGN CURLY_OPEN CURLY_CLOSE
 
 %%
 
@@ -94,32 +95,32 @@ expression:	simple_expr
 	;
 
 simple_expr:	CKATTR_BOOL ASSIGN TOK_BOOLEAN
-                {
+		{
 		    if(_attribctx_parser_append_attr(ctx, $1, &$3, sizeof(CK_BBOOL) )!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
 		}
 	|	NO CKATTR_BOOL
-                {
+		{
 		    CK_BBOOL bfalse = CK_FALSE;
-		    
+
 		    if(_attribctx_parser_append_attr(ctx, $2, &bfalse, sizeof(CK_BBOOL) )!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
-		}		
+		}
 	|	CKATTR_BOOL
-                {
+		{
 		    CK_BBOOL btrue = CK_TRUE;
-		    
+
 		    if(_attribctx_parser_append_attr(ctx, $1, &btrue, sizeof(CK_BBOOL) )!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign boolean value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_STR ASSIGN STRING
-                {
+		{
 		    if(_attribctx_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign bytes value.");
 			free($3.val); /* we must free() as the buffer was copied */
@@ -128,14 +129,14 @@ simple_expr:	CKATTR_BOOL ASSIGN TOK_BOOLEAN
 		    free($3.val); /* we must free() as the buffer was copied */
 		}
 	|	CKATTR_DATE ASSIGN TOK_DATE
-                {
+		{
 		    if(_attribctx_parser_append_attr(ctx, $1, $3.as_buffer, sizeof(CK_DATE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_DATE  ASSIGN STRING /* if the date comes as 0x... format (not preferred but accepted) */
-                {
+		{
 		    if(_attribctx_parser_append_attr(ctx, $1, $3.val, $3.len)!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign date value.");
 			free($3.val); /* we must free() as the buffer was copied */
@@ -144,14 +145,14 @@ simple_expr:	CKATTR_BOOL ASSIGN TOK_BOOLEAN
 		    free($3.val); /* we must free() as the buffer was copied */
 		}
 	|	CKATTR_KEY ASSIGN KEYTYPE
-                {
+		{
 		    if(_attribctx_parser_append_attr(ctx, $1, &$3, sizeof(CK_KEY_TYPE))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign key type value.");
 			YYERROR;
 		    }
 		}
 	|	CKATTR_CLASS ASSIGN OCLASS
-                {
+		{
 		    if(_attribctx_parser_append_attr(ctx, $1, &$3, sizeof(CK_OBJECT_CLASS))!=rc_ok) {
 			clerror(ctx,"Error during parsing, cannot assign object class value.");
 			YYERROR;
@@ -165,22 +166,22 @@ template_expr:	CKATTR_TEMPLATE ASSIGN CURLY_OPEN
 			clerror(ctx, "***Error: nesting templates not allowed");
 			YYERROR;
 		    }
-                    ctx->level++; /*remind we are in a curly brace */
-		    
+		    ctx->level++; /*remind we are in a curly brace */
+
 		    ctx->current_idx = ctx->saved_idx + 1; /*increment current idx from ctx->saved_idx */
 		    if(ctx->current_idx>=4) {
 			clerror(ctx, "***Error: too many templates specified");
 			YYERROR;
-                   } 		    
+		   }
 		}
 		statement CURLY_CLOSE
 		{
 
 		    if(ctx->level==0) {
-		        clerror(ctx, "***Error: no matching opening curly brace");
+			clerror(ctx, "***Error: no matching opening curly brace");
 			YYERROR;
-                    }
-                    ctx->level--; /*out of curly brace now */
+		    }
+		    ctx->level--; /*out of curly brace now */
 
 		    ctx->saved_idx = ctx->current_idx; /* remember which index we used last */
 		    ctx->current_idx = ctx->mainlist_idx; /* should be always 0 */
@@ -188,7 +189,7 @@ template_expr:	CKATTR_TEMPLATE ASSIGN CURLY_OPEN
 		    if(_attribctx_parser_assign_list_to_template(ctx, $1)!=rc_ok) {
 			clerror(ctx, "Error during parsing, cannot assign attribute list to a template attribute.");
 			YYERROR;
-		    }		    
+		    }
 		}
 	;
 
@@ -219,4 +220,4 @@ mechanism:	CKMECH
 		    }
 		}
 	;
-%%	      
+%%
