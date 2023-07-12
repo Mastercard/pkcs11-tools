@@ -250,7 +250,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 {
 
     int rv=0;
-    pkcs11AttrList *attrs;
+    pkcs11AttrList *attrs, *specialized_attrs=NULL;
 
     attrs = pkcs11_new_attrlist(p11Context,
 				/* storage object attributes */
@@ -264,7 +264,9 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_START_DATE),
 				_ATTR(CKA_END_DATE),
 				_ATTR(CKA_DERIVE),
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */
 				_ATTR(CKA_DERIVE_TEMPLATE),
+#endif
 				_ATTR(CKA_LOCAL),
 				_ATTR(CKA_KEY_TYPE),
 				_ATTR(CKA_KEY_GEN_MECHANISM), /* NSS: unknown? */
@@ -274,21 +276,14 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_SUBJECT),
 				_ATTR(CKA_ENCRYPT),
 				_ATTR(CKA_VERIFY),
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */				
 				_ATTR(CKA_VERIFY_RECOVER),
+#endif
 				_ATTR(CKA_WRAP),
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */
 				_ATTR(CKA_WRAP_TEMPLATE),
+#endif
 				_ATTR(CKA_TRUSTED), /* NSS: unknown */
-
-				/* RSA Public Key attributes */
-				_ATTR(CKA_MODULUS),
-				_ATTR(CKA_PUBLIC_EXPONENT),
-
-				/* EC Public Key attribute */
-				_ATTR(CKA_EC_PARAMS),
-				_ATTR(CKA_EC_POINT),
-
-				/* DH/DSA Public Key attribute - for key length determ. */
-				_ATTR(CKA_PRIME),
 
 				_ATTR_END );
 
@@ -306,34 +301,61 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 	    switch( *((CK_KEY_TYPE *)(keytype->pValue)) ) {
 	    case CKK_RSA:
-		modulus = pkcs11_get_attr_in_attrlist ( attrs, CKA_MODULUS );
-		sprintf(keykind, "rsa(%d)", (int) ((modulus->ulValueLen)<<3));
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_MODULUS),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    modulus = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_MODULUS );
+		    sprintf(keykind, "rsa(%d)", (int) ((modulus->ulValueLen)<<3));
+		    
+		}
 		break;
 
 	    case CKK_EC:
-		ec_params = pkcs11_get_attr_in_attrlist ( attrs, CKA_EC_PARAMS );
-		sprintf(keykind, "ec(%s)", pkcs11_ec_oid2curvename( (CK_BYTE*)(ec_params->pValue),
-								    ec_params->ulValueLen,
-								    ecname,
-								    sizeof ecname ));
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_EC_PARAMS),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    ec_params = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_EC_PARAMS );
+		    sprintf(keykind, "ec(%s)", pkcs11_ec_oid2curvename( (CK_BYTE*)(ec_params->pValue),
+									ec_params->ulValueLen,
+									ecname,
+									sizeof ecname ));
+		}
 		break;
 
 	    case CKK_EC_EDWARDS:
-		ec_params = pkcs11_get_attr_in_attrlist ( attrs, CKA_EC_PARAMS );
-		sprintf(keykind, "ed(%s)", pkcs11_ed_oid2curvename( (CK_BYTE*)(ec_params->pValue),
-								    ec_params->ulValueLen,
-								    ecname,
-								    sizeof ecname ));
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_EC_PARAMS),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    ec_params = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_EC_PARAMS );
+		    sprintf(keykind, "ed(%s)", pkcs11_ed_oid2curvename( (CK_BYTE*)(ec_params->pValue),
+									ec_params->ulValueLen,
+									ecname,
+									sizeof ecname ));
+		}
 		break;
 
 	    case CKK_DSA:
-		prime = pkcs11_get_attr_in_attrlist ( attrs, CKA_PRIME );
-		sprintf(keykind, "dsa(%d)", (int) ((prime->ulValueLen)<<3));
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_PRIME),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    prime = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_PRIME );
+		    sprintf(keykind, "dsa(%d)", (int) ((prime->ulValueLen)<<3));
+		}
 		break;
+		    
 
 	    case CKK_DH:
-		prime = pkcs11_get_attr_in_attrlist ( attrs, CKA_PRIME );
-		sprintf(keykind, "dh(%d)", (int) ((prime->ulValueLen)<<3));
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_PRIME),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    prime = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_PRIME );
+		    sprintf(keykind, "dh(%d)", (int) ((prime->ulValueLen)<<3));
+		}
 		break;
 
 	    default:
@@ -362,6 +384,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		   keykind
 		);
 	}
+	if(specialized_attrs) { pkcs11_delete_attrlist(specialized_attrs); }
 	pkcs11_delete_attrlist(attrs);
     }
 
@@ -374,7 +397,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 {
 
     int rv=0;
-    pkcs11AttrList *attrs;
+    pkcs11AttrList *attrs, *specialized_attrs=NULL;
 
     attrs = pkcs11_new_attrlist(p11Context,
 				/* storage object attributes */
@@ -388,7 +411,9 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_START_DATE),
 				_ATTR(CKA_END_DATE),
 				_ATTR(CKA_DERIVE),
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */
 				_ATTR(CKA_DERIVE_TEMPLATE),
+#endif
 				_ATTR(CKA_LOCAL),
 				_ATTR(CKA_KEY_TYPE),
 				_ATTR(CKA_KEY_GEN_MECHANISM), /* NSS: unknown? */
@@ -398,16 +423,20 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_SUBJECT),
 				_ATTR(CKA_DECRYPT),
 				_ATTR(CKA_SIGN),
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */	
 				_ATTR(CKA_SIGN_RECOVER),
+#endif
 				_ATTR(CKA_UNWRAP),
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */
 				_ATTR(CKA_UNWRAP_TEMPLATE),
+#endif
 				_ATTR(CKA_SENSITIVE),
 				_ATTR(CKA_ALWAYS_SENSITIVE),
 				_ATTR(CKA_EXTRACTABLE),
 				_ATTR(CKA_NEVER_EXTRACTABLE),
 				_ATTR(CKA_ALWAYS_AUTHENTICATE),
 				_ATTR(CKA_WRAP_WITH_TRUSTED),
-
+#if 0
 				/* RSA Public Key attributes */
 				_ATTR(CKA_MODULUS),
 				_ATTR(CKA_PUBLIC_EXPONENT),
@@ -418,6 +447,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 				/* DH/DSA Public Key attribute - for key length determ. */
 				_ATTR(CKA_PRIME),
+#endif
 
 				_ATTR_END );
 
@@ -435,34 +465,60 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 
 	    switch( *((CK_KEY_TYPE *)(keytype->pValue)) ) {
 	    case CKK_RSA:
-		modulus = pkcs11_get_attr_in_attrlist ( attrs, CKA_MODULUS );
-		sprintf(keykind, "rsa(%d)", (int) ((modulus->ulValueLen)<<3));
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_MODULUS),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    modulus = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_MODULUS );
+		    sprintf(keykind, "rsa(%d)", (int) ((modulus->ulValueLen)<<3));
+		}
 		break;
 
 	    case CKK_EC:
-		ec_params = pkcs11_get_attr_in_attrlist ( attrs, CKA_EC_PARAMS );
-		sprintf(keykind, "ec(%s)", pkcs11_ec_oid2curvename( (CK_BYTE*)(ec_params->pValue),
-								    ec_params->ulValueLen,
-								    ecname,
-								    sizeof ecname ));
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_EC_PARAMS),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    ec_params = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_EC_PARAMS );
+		    sprintf(keykind, "ec(%s)", pkcs11_ec_oid2curvename( (CK_BYTE*)(ec_params->pValue),
+									ec_params->ulValueLen,
+									ecname,
+									sizeof ecname ));
+		}
 		break;
 
 	    case CKK_EC_EDWARDS:
-		ec_params = pkcs11_get_attr_in_attrlist ( attrs, CKA_EC_PARAMS );
-		sprintf(keykind, "ed(%s)", pkcs11_ed_oid2curvename( (CK_BYTE*)(ec_params->pValue),
-								    ec_params->ulValueLen,
-								    ecname,
-								    sizeof ecname ));
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_EC_PARAMS),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    ec_params = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_EC_PARAMS );
+		    sprintf(keykind, "ed(%s)", pkcs11_ed_oid2curvename( (CK_BYTE*)(ec_params->pValue),
+									ec_params->ulValueLen,
+									ecname,
+									sizeof ecname ));
+		}
 		break;
 
 	    case CKK_DSA:
-		prime = pkcs11_get_attr_in_attrlist ( attrs, CKA_PRIME );
-		sprintf(keykind, "dsa(%d)", (int) ((prime->ulValueLen)<<3));
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_PRIME),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    prime = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_PRIME );
+		    sprintf(keykind, "dsa(%d)", (int) ((prime->ulValueLen)<<3));
+		}
 		break;
 
 	    case CKK_DH:
-		prime = pkcs11_get_attr_in_attrlist ( attrs, CKA_PRIME );
-		sprintf(keykind, "dh(%d)", (int) ((prime->ulValueLen)<<3));
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_PRIME),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    prime = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_PRIME );
+		    
+		    sprintf(keykind, "dh(%d)", (int) ((prime->ulValueLen)<<3));
+		}
 		break;
 
 	    default:
@@ -522,7 +578,9 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_START_DATE),
 				_ATTR(CKA_END_DATE),
 				_ATTR(CKA_DERIVE),
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */
 				_ATTR(CKA_DERIVE_TEMPLATE),
+#endif
 				_ATTR(CKA_LOCAL),
 				_ATTR(CKA_KEY_GEN_MECHANISM), /* NSS: unknown? */
 				_ATTR(CKA_ALLOWED_MECHANISMS),
@@ -533,18 +591,20 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_SIGN),
 				_ATTR(CKA_VERIFY),
 				_ATTR(CKA_WRAP),
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */
 				_ATTR(CKA_WRAP_TEMPLATE),
+#endif
 				_ATTR(CKA_UNWRAP),
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */
 				_ATTR(CKA_UNWRAP_TEMPLATE),
+#endif
 				_ATTR(CKA_SENSITIVE),
 				_ATTR(CKA_ALWAYS_SENSITIVE),
 				_ATTR(CKA_EXTRACTABLE),
 				_ATTR(CKA_NEVER_EXTRACTABLE),
-				_ATTR(CKA_CHECK_VALUE),
 				_ATTR(CKA_TRUSTED),
 				_ATTR(CKA_WRAP_WITH_TRUSTED),
 				_ATTR(CKA_VALUE_LEN),
-
 				_ATTR_END );
 
     if( attrs!=NULL) {

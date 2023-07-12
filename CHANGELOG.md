@@ -4,9 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [UNRELEASED]
+# [2.6.0]
+### Added
+- support for AWS Cloud HSM. See [README.md] for limitations.
+
 ### Fixed
 - with recent versions of GCC, compilation issue with lexx and yacc produced source code.
+- when `automake`<1.14 is used, use an older, compatible commit for `gnulib`
 
 ### Updated
 - `gnulib` in now built from a stable branch, `stable-202307`
@@ -18,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [2.5.0]
 ### Added
  - `CKA_ALLOWED_MECHANISMS` support for all key management utilities (`p11keygen`, `p11wrap`, `p11unwrap`, `p11rewrap`, `p11ls`, `p11od`)
- 
+
 ### Fixed
  - `p11wrap`: fixed memory leaks
 
@@ -135,6 +139,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release
 
+[2.6.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.6.0
 [2.5.1]: https://github.com/Mastercard/pkcs11-tools/tree/v2.5.1
 [2.5.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.5.0
 [2.4.2]: https://github.com/Mastercard/pkcs11-tools/tree/v2.4.2

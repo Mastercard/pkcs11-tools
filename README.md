@@ -13,6 +13,18 @@ Some features:
  - support for key rewrapping (i.e. key unwrapping and key wrapping)
 
 ## News
+### July 2023
+Version 2.6 brings support for the AWS CloudHSM platform, library version 5.9.
+Limitations are:
+ - Certificates are not supported by the platform, therefore any command handling certificates will fail
+ - Changing attributes values is not supported by the platform; several commands rely on that capability to adjust `CKA_ID` accross objects. These commands may occasionally report an error when executed; key material is usually created.
+ - For the same reason, `p11mv` and `p11setattr`  will not operate on this platform.
+ - The platform does not allow for duplicate `CKA_ID` attributes, which occasionally brings issues when generating key material. This will be adjusted in a later release.
+ - `p11od` command will not work, due to the way CloudHSM handles attributes.
+ - When using wrapped key files, `CKA_SIGN_RECOVER` and `CKA_VERIFY_RECOVER` are not supported, and should be commented out.
+ - Wrap and unwrap templates are not supported by this platform. These should also be commented out in wrapped key files.
+AWS CloudHSM support is disabled by default; please refer to [installation instructions](docs/INSTALL.md) for more details.
+ 
 ### October 2021
 Version 2.5, that brings support for `CKA_ALLOWED_MECHANISMS`, on many key management commands: `p11keygen`, `p11wrap`, `p11unwrap`, `p11rewrap`, `p11od`, `p11ls`.
 Note that the wrapped key grammar has changed; the grammar version number has been incremented to `2.2`.

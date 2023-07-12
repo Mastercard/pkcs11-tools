@@ -540,7 +540,9 @@ static void fprintf_template_attr_member(FILE *fp, CK_ATTRIBUTE_PTR attr, int of
 	{ CKA_PRIVATE, fprintf_boolean_attr, "CKA_PRIVATE", false },
 	{ CKA_SENSITIVE, fprintf_boolean_attr, "CKA_SENSITIVE", false },
 	{ CKA_SIGN, fprintf_boolean_attr, "CKA_SIGN", false },
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */	
 	{ CKA_SIGN_RECOVER, fprintf_boolean_attr, "CKA_SIGN_RECOVER", false },
+#endif
 	{ CKA_START_DATE, fprintf_date_attr, "CKA_START_DATE", false },
 	{ CKA_SUBJECT, fprintf_hex_attr, "CKA_SUBJECT", false },
 	{ CKA_TOKEN, fprintf_boolean_attr, "CKA_TOKEN", false },

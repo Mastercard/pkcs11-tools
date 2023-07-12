@@ -495,7 +495,9 @@ func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
 	    {CKA_ENCRYPT, &ck_false, sizeof ck_false},
 	    {CKA_WRAP, &ck_false, sizeof ck_false},
 	    {CKA_VERIFY, &ck_false, sizeof ck_false},
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */
 	    {CKA_VERIFY_RECOVER, &ck_false, sizeof ck_false},
+#endif
 	    {CKA_DERIVE, &ck_false, sizeof ck_false},
 	    /* leave room for up to 5 additional attributes */
 	    {0L, NULL, 0L},
@@ -522,7 +524,9 @@ func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
 	    {CKA_DECRYPT, &ck_false, sizeof ck_false},
 	    {CKA_UNWRAP, &ck_false, sizeof ck_false},
 	    {CKA_SIGN, &ck_false, sizeof ck_false},
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */	    
 	    {CKA_SIGN_RECOVER, &ck_false, sizeof ck_false},
+#endif
 	    {CKA_DERIVE, &ck_false, sizeof ck_false},
 	    /* leave room for up to 5 additional attributes */
 	    {0L, NULL, 0L},
@@ -726,7 +730,9 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
 	    {CKA_ENCRYPT, &ck_false, sizeof ck_false},
 	    {CKA_WRAP, &ck_false, sizeof ck_false},
 	    {CKA_VERIFY, &ck_false, sizeof ck_false},
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */
 	    {CKA_VERIFY_RECOVER, &ck_false, sizeof ck_false},
+#endif
 	    {CKA_DERIVE, &ck_false, sizeof ck_false},
 	    /* leave room for up to 5 additional attributes */
 	    {0L, NULL, 0L},
@@ -753,7 +759,9 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
 	    {CKA_DECRYPT, &ck_false, sizeof ck_false},
 	    {CKA_UNWRAP, &ck_false, sizeof ck_false},
 	    {CKA_SIGN, &ck_false, sizeof ck_false},
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */
 	    {CKA_SIGN_RECOVER, &ck_false, sizeof ck_false},
+#endif
 	    {CKA_DERIVE, &ck_false, sizeof ck_false},
 	    /* leave room for up to 5 additional attributes */
 	    {0L, NULL, 0L},
@@ -965,7 +973,9 @@ int pkcs11_testgenEC_support( pkcs11Context * p11ctx, const char *param)
 	    {CKA_ENCRYPT, &ck_false, sizeof ck_false},
 	    {CKA_WRAP, &ck_false, sizeof ck_false},
 	    {CKA_VERIFY, &ck_true, sizeof ck_false},
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */	    
 	    {CKA_VERIFY_RECOVER, &ck_false, sizeof ck_false},
+#endif
 	    {CKA_DERIVE, &ck_false, sizeof ck_false},
 	};
 
@@ -981,7 +991,9 @@ int pkcs11_testgenEC_support( pkcs11Context * p11ctx, const char *param)
 	    {CKA_DECRYPT, &ck_false, sizeof ck_false},
 	    {CKA_UNWRAP, &ck_false, sizeof ck_false},
 	    {CKA_SIGN, &ck_true, sizeof ck_false},
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */
 	    {CKA_SIGN_RECOVER, &ck_false, sizeof ck_false},
+#endif
 	    {CKA_DERIVE, &ck_false, sizeof ck_false},
 	};
 

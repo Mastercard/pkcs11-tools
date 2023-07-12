@@ -54,7 +54,12 @@ static int compare_CKM_desc( const void *a, const void *b)
 
 static int compare_CKM_type( const void *a, const void *b)
 {
-    return (int) (((MechanismDesc *)a)->type - ((MechanismDesc *)b)->type);
+    /* because we are making a comparison between unsigned long, int might not reflect well */
+    /* we need to use an intermediary value and divide it by itself (as absolute value)     */
+    
+    long long item = ((MechanismDesc *)a)->type - ((MechanismDesc *)b)->type;
+
+    return item ? item/llabs(item) : 0;
 }
 
 CK_MECHANISM_TYPE pkcs11_get_mechanism_type_from_name(char *name)

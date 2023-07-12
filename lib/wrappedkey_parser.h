@@ -1,9 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.8.2.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2021 Free Software Foundation,
-   Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +15,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -31,10 +30,6 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-/* DO NOT RELY ON FEATURES THAT ARE NOT DOCUMENTED in the manual,
-   especially those whose name start with YY_ or yy_.  They are
-   private implementation details that can be changed or removed.  */
-
 #ifndef YY_YY_WRAPPEDKEY_PARSER_H_INCLUDED
 # define YY_YY_WRAPPEDKEY_PARSER_H_INCLUDED
 /* Debug traces.  */
@@ -45,7 +40,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 40 "wrappedkey_parser.y"
+#line 40 "wrappedkey_parser.y" /* yacc.c:1909  */
 
 
 #include "pkcs11lib.h"
@@ -55,66 +50,62 @@ extern void yyerror(wrappedKeyCtx *ctx, const char *s, ...);
 extern int yylex(void);
 
 
-#line 59 "wrappedkey_parser.h"
+#line 54 "wrappedkey_parser.h" /* yacc.c:1909  */
 
-/* Token kinds.  */
+/* Token type.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
   enum yytokentype
   {
-    YYEMPTY = -2,
-    YYEOF = 0,                     /* "end of file"  */
-    YYerror = 256,                 /* error  */
-    YYUNDEF = 257,                 /* "invalid token"  */
-    OUTER = 258,                   /* OUTER  */
-    INNER = 259,                   /* INNER  */
-    PUBK = 260,                    /* PUBK  */
-    STRING = 261,                  /* STRING  */
-    CTYPE = 262,                   /* CTYPE  */
-    GRAMMAR_VERSION = 263,         /* GRAMMAR_VERSION  */
-    CTYPE_VAL = 264,               /* CTYPE_VAL  */
-    WRAPPING_ALG = 265,            /* WRAPPING_ALG  */
-    WRAPPING_KEY = 266,            /* WRAPPING_KEY  */
-    PKCS1ALGO = 267,               /* PKCS1ALGO  */
-    OAEPALGO = 268,                /* OAEPALGO  */
-    CBCPADALGO = 269,              /* CBCPADALGO  */
-    RFC3394ALGO = 270,             /* RFC3394ALGO  */
-    RFC5649ALGO = 271,             /* RFC5649ALGO  */
-    ENVELOPEALGO = 272,            /* ENVELOPEALGO  */
-    PARAMHASH = 273,               /* PARAMHASH  */
-    PARAMMGF = 274,                /* PARAMMGF  */
-    MGFTYPE = 275,                 /* MGFTYPE  */
-    PARAMLABEL = 276,              /* PARAMLABEL  */
-    PARAMIV = 277,                 /* PARAMIV  */
-    PARAMFLAVOUR = 278,            /* PARAMFLAVOUR  */
-    PARAMOUTER = 279,              /* PARAMOUTER  */
-    PARAMINNER = 280,              /* PARAMINNER  */
-    CKATTR_BOOL = 281,             /* CKATTR_BOOL  */
-    CKATTR_STR = 282,              /* CKATTR_STR  */
-    CKATTR_DATE = 283,             /* CKATTR_DATE  */
-    CKATTR_KEY = 284,              /* CKATTR_KEY  */
-    CKATTR_CLASS = 285,            /* CKATTR_CLASS  */
-    CKATTR_TEMPLATE = 286,         /* CKATTR_TEMPLATE  */
-    CKATTR_ALLOWEDMECH = 287,      /* CKATTR_ALLOWEDMECH  */
-    TOK_BOOLEAN = 288,             /* TOK_BOOLEAN  */
-    TOK_DATE = 289,                /* TOK_DATE  */
-    KEYTYPE = 290,                 /* KEYTYPE  */
-    OCLASS = 291,                  /* OCLASS  */
-    CKMECH = 292,                  /* CKMECH  */
-    DOTTEDNUMBER = 293,            /* DOTTEDNUMBER  */
-    WRAPPINGJOBHEADER = 294,       /* WRAPPINGJOBHEADER  */
-    P_WRAPPINGKEY = 295,           /* P_WRAPPINGKEY  */
-    P_FILENAME = 296,              /* P_FILENAME  */
-    P_ALGORITHM = 297              /* P_ALGORITHM  */
+    OUTER = 258,
+    INNER = 259,
+    PUBK = 260,
+    STRING = 261,
+    CTYPE = 262,
+    GRAMMAR_VERSION = 263,
+    CTYPE_VAL = 264,
+    WRAPPING_ALG = 265,
+    WRAPPING_KEY = 266,
+    PKCS1ALGO = 267,
+    OAEPALGO = 268,
+    CBCPADALGO = 269,
+    RFC3394ALGO = 270,
+    RFC5649ALGO = 271,
+    ENVELOPEALGO = 272,
+    PARAMHASH = 273,
+    PARAMMGF = 274,
+    MGFTYPE = 275,
+    PARAMLABEL = 276,
+    PARAMIV = 277,
+    PARAMFLAVOUR = 278,
+    PARAMOUTER = 279,
+    PARAMINNER = 280,
+    CKATTR_BOOL = 281,
+    CKATTR_STR = 282,
+    CKATTR_DATE = 283,
+    CKATTR_KEY = 284,
+    CKATTR_CLASS = 285,
+    CKATTR_TEMPLATE = 286,
+    CKATTR_ALLOWEDMECH = 287,
+    TOK_BOOLEAN = 288,
+    TOK_DATE = 289,
+    KEYTYPE = 290,
+    OCLASS = 291,
+    CKMECH = 292,
+    DOTTEDNUMBER = 293,
+    WRAPPINGJOBHEADER = 294,
+    P_WRAPPINGKEY = 295,
+    P_FILENAME = 296,
+    P_ALGORITHM = 297
   };
-  typedef enum yytokentype yytoken_kind_t;
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
+
 union YYSTYPE
 {
-#line 53 "wrappedkey_parser.y"
+#line 53 "wrappedkey_parser.y" /* yacc.c:1909  */
 
     CK_ATTRIBUTE_TYPE ckattr;
     CK_KEY_TYPE val_key;
@@ -144,9 +135,9 @@ union YYSTYPE
     unsigned char *val_pem;	/* used to hold PEM-encoded blocks */
     char *val_dottednumber;
 
-#line 148 "wrappedkey_parser.h"
-
+#line 139 "wrappedkey_parser.h" /* yacc.c:1909  */
 };
+
 typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
@@ -155,8 +146,6 @@ typedef union YYSTYPE YYSTYPE;
 
 extern YYSTYPE yylval;
 
-
 int yyparse (wrappedKeyCtx *ctx);
-
 
 #endif /* !YY_YY_WRAPPEDKEY_PARSER_H_INCLUDED  */

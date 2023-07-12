@@ -223,6 +223,13 @@ $ ./configure PKG_CONFIG_PATH=/usr/local/opt/openssl@1.1/lib/pkgconfig LIBCRYPTO
 $ make
 $ sudo make install
 ```
+
+### AWS CloudHSM support
+By default, AWS CloudHSM support is disabled, as it removes some functionality from the `p11ls` command. If you want to build the toolkit with AWS CloudHSM support, add the `--with-awscloudhsm` argument to `configure`:
+```bash
+$ ./configure --with-awscloudhsm
+```
+
 ## Packaging
 ### all platforms
 To build a generic binary distribution tarball (all platforms):
@@ -250,3 +257,9 @@ $ rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec
 ```
 
 RPMs and SRPMs are found in `$HOME/rpmbuild/RPMS` and `$HOME/rpmbuild/SRPMS`, respectively.
+
+#### AWS CloudHSM support in RPM
+To build the RPM package with AWS CloudHSM support, use the following command when building:
+```bash
+$ rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec --with awscloudhsm
+```

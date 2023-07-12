@@ -14,7 +14,7 @@ dnl limitations under the License.
 
 
 AC_PREREQ([2.64])
-AC_INIT([pkcs11-tools], [2.5.1], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
+AC_INIT([pkcs11-tools], [2.6.0], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
 AC_CONFIG_MACRO_DIR([m4])
 
 dnl adding AM_MAINTAINER_MODE to address autotools issues with git
@@ -75,6 +75,10 @@ PKG_PROG_PKG_CONFIG
 dnl for libcrypto, we are first detecting libcrypo11,
 dnl as older distros may still run on top of openssl 1.0,
 dnl but have v1.1.x accessible through libcrypto11.pc file
+dnl if libcrypto11 is detected, a guess is made that for redhat-based systems,
+dnl the rpm package will have a "11" suffix in the nam; openssl_rpm_suffix variable
+dnl is substituted for that purpose.
+
 PKG_CHECK_MODULES([LIBCRYPTO],
 	          [libcrypto11 >= 1.1.1e],
 		  [ ac_save_CPPFLAGS=$CPPFLAGS
@@ -83,7 +87,9 @@ PKG_CHECK_MODULES([LIBCRYPTO],
 		                  [AC_MSG_FAILURE([The OpenSSL crypto library is missing features/algorithm to allow compilation])],
     				  [],
 				  [[ #include <openssl/opensslconf.h> ]])
-		    CPPFLAGS=${ac_save_CPPFLAGS} ],
+		    CPPFLAGS=${ac_save_CPPFLAGS}
+		    AC_SUBST([openssl_rpm_suffix],[11])
+		    ],
 		    [ PKG_CHECK_MODULES([LIBCRYPTO],
 					[libcrypto >= 1.1.1e],
 				    	[ ac_save_CPPFLAGS=$CPPFLAGS
@@ -92,7 +98,8 @@ PKG_CHECK_MODULES([LIBCRYPTO],
 		                      	  	     	 [AC_MSG_FAILURE([The OpenSSL crypto library is missing features/algorithm to allow compilation])],
 						     	 [],
 						     	 [[ #include <openssl/opensslconf.h> ]])
-					  CPPFLAGS=${ac_save_CPPFLAGS} ])])
+					  CPPFLAGS=${ac_save_CPPFLAGS}
+					  AC_SUBST([openssl_rpm_suffix],[]) ])])
 
 dnl on UNIX platforms, check for dynamic loader lib
 AM_COND_IF( [TARGET_OS_MINGW32],
@@ -112,7 +119,7 @@ dnl support for pthread is needed if we link with a statically-linked version of
 AX_PTHREAD( [], [ AC_MSG_WARN(Caution: no pthread library found, might be an issue when linking)] )
 
 
-dnl check if nCipher extensions can be compiled. If requested, specific file
+dnl check if nCipher extensions can be compiled. If requested, specific file must exist in include/cryptoki
 AC_ARG_WITH([ncipher],
 	[AS_HELP_STRING([--with-ncipher],
 	[enable support for the nCipher extensions (requires a separate ncipher.h header file inside include/cryptoki to compile)])],
@@ -131,7 +138,7 @@ AS_IF([test "x$with_ncipher" != xno],
                fi
               ] )])
 
-dnl check if Gemalto Luna extensions can be compiled. If requested, specific file
+dnl check if Gemalto Luna extensions can be compiled. If requested, specific file must exist in include/cryptoki
 AC_ARG_WITH([luna],
 	[AS_HELP_STRING([--with-luna],
 	[enable support for the Gemalto Safenet Luna extensions (requires a separate luna.h header file inside include/cryptoki to compile)])],
@@ -150,13 +157,33 @@ AS_IF([test "x$with_luna" != xno],
                fi
               ] )])
 
+dnl check if aws CloudHSM extensions can be compiled. If requested, specific file must exist in include/cryptoki
+dnl Note that awscloudhsm is set to "no" instead of "check" by default, as the file is shipped with source code
+dnl and as enabling awscloudhsm disable support for template attributes on p11ls.
+AC_ARG_WITH([awscloudhsm],
+	[AS_HELP_STRING([--with-awscloudhsm],
+	[enable support for the AWS CloudHSM extensions (requires a separate awscloudhsm.h header file inside include/cryptoki to compile)])],
+        [],
+        [with_awscloudhsm=no])
+
+hasawscloudhsm="no"
+AS_IF([test "x$with_awscloudhsm" != xno],
+      [AS_IF([test -r $srcdir/include/cryptoki/awscloudhsm.h],
+              [AC_DEFINE([HAVE_AWSCLOUDHSM], [1], [define to compile with the AWS CloudHSM extensions.])
+	      hasawscloudhsm="yes"
+              ],
+              [if test "x$with_awscloudhsm" != xcheck; then
+                 AC_MSG_FAILURE(
+                   [--with-awscloudhsm was given, but required awscloudhsm.h include file missing])
+               fi
+              ] )])
+
 dnl check if a specific rpath is provided when linking.
 dnl this option is needed when openssl is not deployed to a system-wide location
 AC_ARG_VAR([LIBCRYPTO_RPATH], 	[provide RPATH to LIBCRYPTO, e.g. LIBCRYPTO_RPATH=/usr/local/ssl/lib (useful when openssl is not deployed to a system-wide location)])
 AM_CONDITIONAL([HAS_LIBCRYPTO_RPATH], [test "x$LIBCRYPTO_RPATH" != "x"])
 
 
-#### TODO HERE
 AS_IF([test "x$with_libcrypto_rpath" != xno] && [test "x$with_libcrypto_rpath" != xyes],
       [AC_DEFINE([LIBCRYPTO_RPATH], [$with_libcrypto_rpath], [RPATH to libcrypto]) ])
 
@@ -181,16 +208,17 @@ AC_OUTPUT
 AX_CREATE_TARGET_H([include/target.h])
 
 AC_MSG_NOTICE([------------------------------------------------------------------------])
-AC_MSG_NOTICE([compiler       : $CC])
-AC_MSG_NOTICE([compiler flags : ${LIBCRYPTO_CFLAGS} ${PTHREAD_CFLAGS} $CFLAGS])
-AC_MSG_NOTICE([linker         : $LD])
-AC_MSG_NOTICE([linker flags   : $LDFLAGS])
-AC_MSG_NOTICE([libraries      : ${LIBCRYPTO_LIBS} ${PTHREAD_LIBS} $LIBS])
-AC_MSG_NOTICE([lexer          : $LEX])
-AC_MSG_NOTICE([parser         : $YACC])
-AC_MSG_NOTICE([parser flags   : $YFLAGS])
-AC_MSG_NOTICE([with_luna      : $hasluna])
-AC_MSG_NOTICE([with_ncipher   : $hasncipher])
-AC_MSG_NOTICE([libcrypto rpath: $LIBCRYPTO_RPATH])
+AC_MSG_NOTICE([compiler           : $CC])
+AC_MSG_NOTICE([compiler flags     : ${LIBCRYPTO_CFLAGS} ${PTHREAD_CFLAGS} $CFLAGS])
+AC_MSG_NOTICE([linker             : $LD])
+AC_MSG_NOTICE([linker flags       : $LDFLAGS])
+AC_MSG_NOTICE([libraries          : ${LIBCRYPTO_LIBS} ${PTHREAD_LIBS} $LIBS])
+AC_MSG_NOTICE([lexer              : $LEX])
+AC_MSG_NOTICE([parser             : $YACC])
+AC_MSG_NOTICE([parser flags       : $YFLAGS])
+AC_MSG_NOTICE([with_luna          : $hasluna])
+AC_MSG_NOTICE([with_ncipher       : $hasncipher])
+AC_MSG_NOTICE([with_awscloudhsm   : $hasawscloudhsm])
+AC_MSG_NOTICE([libcrypto rpath    : $LIBCRYPTO_RPATH])
 AC_MSG_NOTICE([------------------------------------------------------------------------])
 

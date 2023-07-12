@@ -37,5 +37,8 @@ void print_version_info(char *progname)
 #if defined(HAVE_LUNA)
     fprintf( stderr, "compiled with Gemalto Safenet Luna extensions\n");
 #endif
+#if defined(HAVE_AWSCLOUDHSM)
+    fprintf( stderr, "compiled with AWS CloudHSM extensions\n");
+#endif
     exit( RC_ERROR_USAGE );
 }

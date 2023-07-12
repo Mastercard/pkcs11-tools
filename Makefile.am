@@ -16,7 +16,7 @@ EXTRA_DIST = \
 	m4/ax_create_target_h.m4 \
 	m4/ax_lib_socket_nsl.m4  \
 	m4/ax_with_dmalloc.m4	 \
-	include/cryptoki         \
+	include/cryptoki	 \
 	include/pkcs11lib.h      \
 	include/oasis-pkcs11/working/3-00-current \
 	with_beid	         \
@@ -25,9 +25,11 @@ EXTRA_DIST = \
 	with_nss                 \
 	with_softhsm             \
 	with_utimaco	         \
+	with_aws		 \
 	docs/INSTALL.md	         \
 	docs/CONTRIBUTING.md     \
 	docs/MANUAL.md           \
+	docs/TPLICENSES.md	 \
 	README.md                \
 	LICENSE.md               \
 	CHANGELOG.md             \
@@ -47,6 +49,7 @@ install-exec-hook:
 		$(srcdir)/with_nss     \
 		$(srcdir)/with_softhsm \
 		$(srcdir)/with_utimaco \
+		$(srcdir)/with_aws     \
 		$(DESTDIR)$(bindir)
 
 dist-hook:
@@ -58,7 +61,7 @@ dist-solaris: install
 	pkgmk -o -f dist/solaris/pkgproto -p @pkginfo_timestamp@ -r . -d pkg
 	@echo
 	pkgtrans pkg ../$(distdir).pkg @pkginfo_pkgname@
-	rm docs/COPYING docs/README.md docs/CHANGELOG.md docs/LICENSE.md
+	rm docs/COPYING docs/README.md docs/CHANGELOG.md docs/LICENSE.md docs/TPLICENSES.md
 	@echo "----------------------------------"
 	@echo "package saved under $(distdir).pkg"
 	@echo

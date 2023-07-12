@@ -39,6 +39,14 @@ if [ -d .git ]; then
     git submodule update --init
     #    git submodule update --init .gnulib
     #    git submodule update --init include/oasis-pkcs11
+
+    # if running automake 1.13, checkout specific (older) commit
+    if (automake --version  | head -1 | grep -q 1\.13); then
+	echo "Automake 1.13 detected, using an older, compatible version of gnulib"
+	cd .gnulib
+	git checkout 34e1754363b105180e7a85d319c2e1f464b93fb2
+	cd ..
+    fi
 else
     # if not a git repo, then two possibilities:
     # 1) we are building a FreeBSD port, in which case
