@@ -62,22 +62,23 @@ typedef enum e_func_rc {
     rc_error_memory,
     rc_error_invalid_slot_or_token,
     rc_error_library,
-    rc_error_getopt,
-    rc_error_read_input,
+//    rc_error_getopt,
+//    rc_error_read_input,
     rc_error_usage,
     rc_error_prompt,
-    rc_error_invalid_handle,
+//    rc_error_invalid_handle,
     rc_error_object_exists,
     rc_error_pkcs11_api,
     rc_error_object_not_found,
-    rc_error_keygen_failed,
+//    rc_error_keygen_failed,
     rc_error_invalid_label,
+    rc_error_envelope_wrapping_unsupported, /* issue for JWK which does not support envelope wrapping */
     rc_error_wrapping_key_too_short,
     rc_error_openssl_api,
-    rc_error_regex_compile,
-    rc_error_regex_nomatch,
+//    rc_error_regex_compile,
+//    rc_error_regex_nomatch,
     rc_error_unknown_wrapping_alg,
-    rc_error_not_yet_implemented,
+//    rc_error_not_yet_implemented,
     rc_error_invalid_parameter_for_method,
     rc_error_invalid_argument,
     rc_error_unsupported,
@@ -94,7 +95,7 @@ typedef enum e_func_rc {
 } func_rc;
 
 #define AES_WRAP_MECH_SIZE_MAX 8 /* for both rfc3394 and rfc5496, remember the compatible */
-                                 /* mechanisms. We don't anticipate that list to be large */
+				 /* mechanisms. We don't anticipate that list to be large */
 
 typedef struct s_p11_ctx {
     char *library;
@@ -167,7 +168,8 @@ typedef void * KeyImportCtx;
 typedef struct s_p11_attrlist {
     pkcs11Context *p11Context;
     CK_C_GetAttributeValue GetAttributeValue;
-    CK_C_SetAttributeValue SetAttributeValue;
+    // SetAttributeValue was never read, only set - removing
+    // CK_C_SetAttributeValue SetAttributeValue;
 
     CK_ATTRIBUTE *attr_array;
     CK_ULONG allocated;
@@ -232,17 +234,18 @@ typedef enum {
 typedef struct s_p11_attribctx {
     size_t current_idx;		/* the current index */
     size_t mainlist_idx;	/* the index of the main list */
-    size_t wraptemplate_idx;	/* the index of the wrap template list */
-    size_t unwraptemplate_idx;	/* the index of the unwrap template list */
-    size_t derivetemplate_idx;	/* the index of the derive template list */
+    // the following three were only ever written, but never read - removing for now.
+//    size_t wraptemplate_idx;	/* the index of the wrap template list */
+//    size_t unwraptemplate_idx;	/* the index of the unwrap template list */
+//    size_t derivetemplate_idx;	/* the index of the derive template list */
     bool has_wrap_template;	/* whether or not we have a wrap template */
     bool has_unwrap_template;	/* whether or not we have an unwrap template */
-    bool has_derive_template;	/* whether or not we have a derive template */    
+    bool has_derive_template;	/* whether or not we have a derive template */
     int level;			/* used by parser to prevent mutli-level templates */
-    size_t saved_idx;	        /* used by lexer to temporary store the index used for the template */
-    
+    size_t saved_idx;		/* used by lexer to temporary store the index used for the template */
+
     struct {
-	CK_ATTRIBUTE *attrlist;	             
+	CK_ATTRIBUTE *attrlist;
 	size_t attrnum;
     } attrs[4];
 
@@ -257,7 +260,7 @@ typedef struct s_p11_wrappedkeyctx {
     pkcs11Context *p11Context;
 
     char *wrappingkeylabel;
-    char *wrappedkeylabel;	             /* inner key only - outer key will have random name and ID */
+    char *wrappedkeylabel;		     /* inner key only - outer key will have random name and ID */
 
     char *filename;			     /* filename used to write wrapping file */
 
@@ -269,6 +272,7 @@ typedef struct s_p11_wrappedkeyctx {
 	CK_MECHANISM_TYPE aes_wrapping_mech;     /* used when wrapping_meth is w_rfc3394 or w_rfc5649 */
 	CK_BYTE_PTR iv;			     /* used for CKM_XXX_CBC_PAD and CKM_AES_KEY_WRAP_PAD */
 	CK_ULONG iv_len;                         /* used for CBC_XXX_CBC_PAD and CKM_AES_KEY_WRAP_PAD */
+    CK_ULONG keysize;           // to handle AES key wrapping with JWK, where identifiers require key size
     } aes_params;
     CK_RSA_PKCS_OAEP_PARAMS_PTR oaep_params; /* inner or outer but never both (by design) */
 
@@ -290,7 +294,7 @@ typedef struct s_p11_wrappedkeyctx {
 
     attribCtx *wrpkattribs;	     /* structure to hold wrappedkey attributes */
     attribCtx *pubkattribs;	     /* structure to hold public key attributes */
-    
+
 } wrappedKeyCtx;
 
 /* key index, see pkcs11_wctx.c for a comment explaining how this works */
@@ -350,9 +354,9 @@ void pkcs11_prompt_free_buffer(char *arg);
 char * pkcs11_pipe_password( char * passwordexec );
 func_rc prompt_for_hex(char *message, char *prompt, char *target, int len);
 
-char * print_keyClass( CK_ULONG );
-char * print_keyType( CK_ULONG );
-CK_ULONG get_object_class(char *);
+// char * print_keyClass( CK_ULONG );
+// char * print_keyType( CK_ULONG );
+// CK_ULONG get_object_class(char *);
 CK_ATTRIBUTE_TYPE get_attribute_type(char *arg);
 
 void release_attribute( CK_ATTRIBUTE_PTR arg );
@@ -379,7 +383,7 @@ void pkcs11_ll_clear_screen(void);
 void pkcs11_ll_echo_on(void);
 void pkcs11_ll_echo_off(void);
 void pkcs11_ll_clear_screen(void);
-void pkcs11_ll_release_screen(void);
+// void pkcs11_ll_release_screen(void);
 char *pkcs11_ll_basename(char *path);
 void pkcs11_ll_set_binary(FILE *fp);
 unsigned long pkcs11_ll_bigendian_ul(unsigned long argul);
@@ -394,8 +398,8 @@ func_rc pkcs11_finalize( pkcs11Context * );
 func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenlabel, char * password, int so, int interactive );
 func_rc pkcs11_close_session( pkcs11Context * p11Context );
 
-int setKeyLabel( pkcs11Context *, CK_OBJECT_HANDLE, char * );
-int showKey( pkcs11Context *, CK_OBJECT_HANDLE );
+// int setKeyLabel( pkcs11Context *, CK_OBJECT_HANDLE, char * );
+// int showKey( pkcs11Context *, CK_OBJECT_HANDLE );
 
 /* pkcs11_idtemplate.c */
 pkcs11IdTemplate * pkcs11_make_idtemplate(char *labelorid);
@@ -407,22 +411,22 @@ func_rc pkcs11_getrandombytes(pkcs11Context *p11Context, CK_BYTE_PTR buffer, CK_
 
 /* pkcs11_peekpoke.c */
 CK_OBJECT_HANDLE pkcs11_getObjectHandle( pkcs11Context * p11Context, CK_OBJECT_CLASS oclass, CK_ATTRIBUTE_TYPE idorlabel, CK_BYTE_PTR byteArrayPtr, CK_ULONG byteArrayLen );
-CK_OBJECT_HANDLE pkcs11_findPrivateKeyByLabel( pkcs11Context * p11Context, char *label );
-CK_OBJECT_HANDLE pkcs11_findPublicKeyByLabel( pkcs11Context * p11Context, char *label );
-CK_BBOOL pkcs11_is_mech_supported(pkcs11Context *p11ctx, CK_MECHANISM_TYPE m);
+// CK_OBJECT_HANDLE pkcs11_findPrivateKeyByLabel( pkcs11Context * p11Context, char *label );
+// CK_OBJECT_HANDLE pkcs11_findPublicKeyByLabel( pkcs11Context * p11Context, char *label );
+// CK_BBOOL pkcs11_is_mech_supported(pkcs11Context *p11ctx, CK_MECHANISM_TYPE m);
 
 
 CK_RV pkcs11_setObjectAttribute( pkcs11Context * p11Context, CK_OBJECT_HANDLE objectHandle, CK_ATTRIBUTE_PTR attr);
-CK_RV pkcs11_setObjectAttributes( pkcs11Context * p11Context, CK_OBJECT_HANDLE objectHandle, CK_ATTRIBUTE attrs[], size_t cnt );
+// CK_RV pkcs11_setObjectAttributes( pkcs11Context * p11Context, CK_OBJECT_HANDLE objectHandle, CK_ATTRIBUTE attrs[], size_t cnt );
 
-int pkcs11_getObjectAttributes( pkcs11Context * p11Context, CK_OBJECT_HANDLE objectHandle, CK_ATTRIBUTE attr[], int attrlen );
-void pkcs11_freeObjectAttributesValues( CK_ATTRIBUTE attr[], int attrlen);
+// int pkcs11_getObjectAttributes( pkcs11Context * p11Context, CK_OBJECT_HANDLE objectHandle, CK_ATTRIBUTE attr[], int attrlen );
+// void pkcs11_freeObjectAttributesValues( CK_ATTRIBUTE attr[], int attrlen);
 
 func_rc pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPublicKey, CK_OBJECT_HANDLE hPrivateKey);
 CK_ULONG pkcs11_get_object_size(pkcs11Context *p11ctx, CK_OBJECT_HANDLE obj);
 void pkcs11_adjust_des_key_parity(CK_BYTE* pucKey, int nKeyLen);
-int pkcs11_get_rsa_modulus_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE obj);
-int pkcs11_get_dsa_pubkey_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
+// int pkcs11_get_rsa_modulus_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE obj);
+// int pkcs11_get_dsa_pubkey_bits(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
 CK_OBJECT_CLASS pkcs11_get_object_class(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
 key_type_t pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
 char *pkcs11_alloclabelforhandle(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl);
@@ -468,9 +472,9 @@ bool pkcs11_ec_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len);
 char * pkcs11_ec_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *where, size_t maxlen);
 void pkcs11_ec_freeoid(CK_BYTE_PTR buf);
 
-bool pkcs11_ed_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len);
+// bool pkcs11_ed_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len);
 char * pkcs11_ed_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *where, size_t maxlen);
-void pkcs11_ed_freeoid(CK_BYTE_PTR buf);
+// void pkcs11_ed_freeoid(CK_BYTE_PTR buf);
 
 /* pkcs11_keygen.c */
 typedef enum {
@@ -593,7 +597,7 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 void write_X509_CERT(CK_VOID_PTR req, char *filename, bool verbose);
 
 
-CK_ULONG pkcs11_allocate_and_hash_sha1(CK_BYTE_PTR data, CK_ULONG datalen, CK_VOID_PTR_PTR buf);
+// CK_ULONG pkcs11_allocate_and_hash_sha1(CK_BYTE_PTR data, CK_ULONG datalen, CK_VOID_PTR_PTR buf);
 
 /* pkcs11_masq.c */
 
@@ -637,7 +641,7 @@ pkcs11AttrList *pkcs11_new_attrlist(pkcs11Context *p11Context, ...);
 pkcs11AttrList *pkcs11_new_attrlist_from_array(pkcs11Context *p11Context, CK_ATTRIBUTE_PTR attrs, CK_ULONG attrlen);
 pkcs11AttrList *pkcs11_cast_to_attrlist(pkcs11Context *p11Context, CK_ATTRIBUTE_PTR attrs, CK_ULONG numattrs);
 
-void pkcs11_attrlist_assign_context(pkcs11AttrList *attrlist, pkcs11Context *p11Context);
+// void pkcs11_attrlist_assign_context(pkcs11AttrList *attrlist, pkcs11Context *p11Context);
 
 bool pkcs11_set_attr_in_attrlist ( pkcs11AttrList *attrlist,
 				   CK_ATTRIBUTE_TYPE attrib,
@@ -690,11 +694,11 @@ void pkcs11_eddsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HA
 
 
 /* list functions */
-int pkcs11_ls_certs(pkcs11Context *p11Context);
-int pkcs11_ls_pubk(pkcs11Context *p11Context);
-int pkcs11_ls_privk(pkcs11Context *p11Context);
-int pkcs11_ls_secrk(pkcs11Context *p11Context);
-int pkcs11_ls_data(pkcs11Context *p11Context);
+// int pkcs11_ls_certs(pkcs11Context *p11Context);
+// int pkcs11_ls_pubk(pkcs11Context *p11Context);
+// int pkcs11_ls_privk(pkcs11Context *p11Context);
+// int pkcs11_ls_secrk(pkcs11Context *p11Context);
+// int pkcs11_ls_data(pkcs11Context *p11Context);
 func_rc pkcs11_ls( pkcs11Context *p11Context, char *pattern);
 
 
@@ -727,8 +731,8 @@ CK_OBJECT_HANDLE pkcs11_import_component_final(KeyImportCtx *kctx);
 CK_MECHANISM_TYPE pkcs11_get_mechanism_type_from_name(char *name); /* pkcs11_mechanism.c */
 const char *pkcs11_get_mechanism_name_from_type(CK_MECHANISM_TYPE mech); /* pkcs11_mechanism.c */
 CK_ATTRIBUTE_TYPE pkcs11_get_attribute_type_from_name(char *name); /* pkcs11_attrdesc.c */
-const char *pkcs11_get_attribute_name_from_type(CK_ATTRIBUTE_TYPE attrtyp); /* pkcs11_attrdesc.c */
-    
+// const char *pkcs11_get_attribute_name_from_type(CK_ATTRIBUTE_TYPE attrtyp); /* pkcs11_attrdesc.c */
+
 func_rc pkcs11_info_library(pkcs11Context *p11Context);
 func_rc pkcs11_info_slot(pkcs11Context *p11Context);
 func_rc pkcs11_info_ecsupport(pkcs11Context *p11Context);
@@ -744,7 +748,7 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacda
 func_rc pkcs11_prepare_wrappingctx(wrappedKeyCtx *wctx, char *wrappingjob);
 func_rc pkcs11_wrap_from_label(wrappedKeyCtx *wctx, char *wrappedkeylabel);
 func_rc pkcs11_wrap_from_handle(wrappedKeyCtx *wctx, CK_OBJECT_HANDLE wrappedkeyhandle, CK_OBJECT_HANDLE pubkhandle);
-func_rc pkcs11_output_wrapped_key( wrappedKeyCtx *wctx);
+func_rc pkcs11_output_wrapped_key( wrappedKeyCtx *wctx, bool jwkoutput, char* wrapping_key_id);
 
 wrappedKeyCtx *pkcs11_new_wrapped_key_from_file(pkcs11Context *p11Context, char *filename);
 func_rc pkcs11_unwrap(pkcs11Context *p11Context, wrappedKeyCtx *ctx, char *wrappingkeylabel, char *wrappedkeylabel, CK_ATTRIBUTE attrs[], CK_ULONG numattrs, key_generation_t keygentype );
@@ -778,12 +782,12 @@ size_t pkcs11_attribctx_get_allowed_mechanisms_len(attribCtx *ctx);
 /* Callback Prompt Strings */
 #define SLOT_PROMPT_STRING			"Enter slot index: "
 #define PASS_PROMPT_STRING			"Enter passphrase for token: "
-#define TOKEN_PASS_PROMPT_STRING		"Enter passphrase for token '%s': "
+// #define TOKEN_PASS_PROMPT_STRING		"Enter passphrase for token '%s': "
 
 #define MAXBUFSIZE              1024
-#define MAXKEYS			2000
-#define MAX_KEY_LABEL_SIZE	32
-#define MAX_BYTE_ARRAY_SIZE	20
+// #define MAXKEYS			2000
+// #define MAX_KEY_LABEL_SIZE	32
+// #define MAX_BYTE_ARRAY_SIZE	20
 
 #define PARSING_MAX_ATTRS       32   /* max number of attributes inside a wrap file */
 #define CMDLINE_MAX_ATTRS       32   /* max number of attributes for cmdline parsing */

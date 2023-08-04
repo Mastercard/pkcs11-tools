@@ -65,6 +65,9 @@ fi
 # create configure scripts
 autoreconf -vfi
 
+# make sure configure script is executable
+chmod +x ./configure
+
 cat <<EOF
 ========================================================================
 Bootstrap complete.

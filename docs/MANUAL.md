@@ -1,41 +1,61 @@
 # Introduction
+
 ## Motivations for this project
-Cryptographic tokens (smart cards, HSMs, software crypto libraries) implementing the [PKCS\#11 standard](https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=pkcs11) have taken an increasingly important place in key management and operation, for various reasons:
--   Virtually all HSM and smart card vendors support this interface
--   Software libraries, such a [SoftHSM](https://www.opendnssec.org/softhsm/) supports it; [NSS](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS) also exposes a PKCS\#11 interface, although it requires specific API call to initialize
--   Java platforms ([IBM](https://www.ibm.com/support/knowledgecenter/SSYKE2_8.0.0/com.ibm.java.security.component.80.doc/security-component/pkcs11implDocs/ibmpkcs11.html) and [Oracle](https://docs.oracle.com/en/java/javase/11/security/pkcs11-reference-guide1.html)) both support, through JCE providers, access to PKCS\#11-protected keys and certificates
--   It is also widely supported in many other languages and platforms (C++, Python, Rust, Ruby, ...)
 
-However, these implementations suffers from several issues:
--   Although the specification is quite comprehensive, some aspects are not mandated. For example, there is no direction upon how to define a label, or an ID attribute accross related objects such as public and private keys, and certificates;
--   JVMs from Sun and IBM are using these differences to implement keys and certificates that are not easily interoperable
+Cryptographic tokens (smart cards, HSMs, software crypto libraries) implementing
+the [PKCS\#11 standard](https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=pkcs11) have taken an increasingly
+important place in key management and operation, for various reasons:
 
-Moreover, setting up a JVM for using PKCS\#11 keys and certs is cumbersome. Also, the setup is different, depending on the intent: for key management, some attributes must be tweaked to generate keys properly, that you don't necessarily want to keep on a production system.
+- Virtually all HSM and smart card vendors support this interface
+- Software libraries, such a [SoftHSM](https://www.opendnssec.org/softhsm/) supports
+  it; [NSS](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS) also exposes a PKCS\#11 interface, although
+  it requires specific API calls to initialize
+- Java
+  platforms ([IBM](https://www.ibm.com/support/knowledgecenter/SSYKE2_8.0.0/com.ibm.java.security.component.80.doc/security-component/pkcs11implDocs/ibmpkcs11.html)
+  and [Oracle](https://docs.oracle.com/en/java/javase/11/security/pkcs11-reference-guide1.html)) both support, through
+  JCE providers, access to PKCS\#11-protected keys and certificates
+- It is also widely supported in many other languages and platforms (C++, Python, Rust, Ruby, ...)
+
+However, these implementations suffer from several issues:
+
+- Although the specification is quite comprehensive, some aspects are not mandated. For example, there is no direction
+  upon how to define a label, or an ID attribute across related objects such as public and private keys, and
+  certificates;
+- JVMs from Sun and IBM are using these differences to implement keys and certificates that are not easily interoperable
+
+Moreover, setting up a JVM for using PKCS\#11 keys and certs is cumbersome. Also, the setup is different, depending on
+the intent: for key management, some attributes must be tweaked to generate keys properly, that you don't necessarily
+want to keep on a production system.
 
 Finally, HSM vendors provides tools to deal with PKCS\#11 tokens, but they are proprietary and not interoperable.
 
 For these reasons, this toolkit was created in order to bring the following functionalities:
--   unified basic key management primitives
--   support for certificate management (generation of CSR, import of certificates)
--   support different OS (Linux, BSD, Solaris, AIX, Windows)
--   Generate key pairs and certificates in a fashion that makes them interoperable between IBM and Sun JVM
--   Whenever possible, "unix"-like style commands
--   support for advanced key management techniques (key exchange among tokens via key wrapping)
 
+- unified basic key management primitives
+- support for certificate management (generation of CSR, import of certificates)
+- support different OS (Linux, BSD, Solaris, AIX, Windows)
+- Generate key pairs and certificates in a fashion that makes them interoperable between IBM and Sun JVM
+- Whenever possible, "unix"-like style commands
+- support for advanced key management techniques (key exchange among tokens via key wrapping)
 
 ## CKA\_ID common value
-The `CKA_ID` attribute being central in the way how some JVMs are managing their keystore, its value is set according to the rules below:
--   If the key is of type RSA, `CKA_ID` is the SHA-1 of the public modulus (stored in `CKA_MODULUS` attribute)
--   If the key is of type DSA or DH, `CKA_ID` is the SHA-1 of the public key (stored in `CKA_VALUE` attribute)
--   if the key is of type EC/ECDSA, `CKA_ID` is the SHA-1 of the curve point, uncompressed, in its octet-string representation (stored in `CKA_EC_POINT` attribute)
 
- |Key type   |`CKA_ID` is the SHA1 of                                                        |
+The `CKA_ID` attribute being central in the way how some JVMs are managing their keystore, its value is set according to
+the rules below:
+
+- If the key is of type RSA, `CKA_ID` is the SHA-1 of the public modulus (stored in `CKA_MODULUS` attribute)
+- If the key is of type DSA or DH, `CKA_ID` is the SHA-1 of the public key (stored in `CKA_VALUE` attribute)
+- if the key is of type EC/ECDSA, `CKA_ID` is the SHA-1 of the curve point, uncompressed, in its octet-string
+  representation (stored in `CKA_EC_POINT` attribute)
+
+|Key type   |`CKA_ID` is the SHA1 of                                                        |
  |-----------|-------------------------------------------------------------------------------|
- |RSA        |The public key modulus stored in `CKA_MODULUS`                                 |
- |DSA or DH  |The public key stored in `CKA_VALUE`                                           |
- |EC/ECDSA   |The curve point in its `OCTET-STRING` representation stored in `CKA_EC_POINT`  |
+|RSA        |The public key modulus stored in `CKA_MODULUS`                                 |
+|DSA or DH  |The public key stored in `CKA_VALUE`                                           |
+|EC/ECDSA   |The curve point in its `OCTET-STRING` representation stored in `CKA_EC_POINT`  |
 
 ## List of commands
+
 The following commands are supported:
 
 |command name    |description                                                                       |
@@ -61,40 +81,67 @@ The following commands are supported:
 |`p11mkcert`     |generates a self-signed certificate, suitable for Java JCA                        |
 
 ## common arguments
+
 The following arguments are common to almost every command:
+
 * `-l <pkcs#11 library path>` allows to specify a path to the PKCS\#11 library to use
-* `-m <NSS config dir>` ( e.g. `'.'` or `'sql:.'` ) is used to locate the NSS db directory, for NSS keystores, see [below](#working-with-nss-library) for more details.
-* `-s <slot index>` specifies the slot index number, starting from `0`. *Caution:* The slot index is the order into which the slot appears, when fetched from the library, it is NOT the slot _number_. Don't use a slot _number_ with `pkcs11-tools`.
-* `-t <token label>` speficies the token label. If both a slot index and a token label are specified, the token label takes precedence.
-* `-p <token PIN | :::exec:<command> | :::nologin >` specified the password used to access the token, see [below](#fetching-password-from-a-subprocess) for more details. Optionally, a command to execute can be specified when prefixed with `:::exec:`; to use token public objects only, (i.e. without invoking `C_Login()`) use `:::nologin` value. See [below](#accessing-public-objects) for
+* `-m <NSS config dir>` ( e.g. `'.'` or `'sql:.'` ) is used to locate the NSS db directory, for NSS keystores,
+  see [below](#Interfacing-with-NSS-tokens) for more details.
+* `-s <slot index>` specifies the slot index number, starting from `0`. *Caution:* The slot index is the order into
+  which the slot appears, when fetched from the library, it is NOT the slot _number_. Don't use a slot _number_
+  with `pkcs11-tools`.
+* `-t <token label>` specifies the token label. If both a slot index and a token label are specified, the token label
+  takes precedence.
+* `-p <token PIN | :::exec:<command> | :::nologin >` specified the password used to access the token,
+  see [below](#fetching-password-from-a-subprocess) for more details. Optionally, a command to execute can be specified
+  when prefixed with `:::exec:`; to use token public objects only, (i.e. without invoking `C_Login()`) use `:::nologin`
+  value. See [below](#accessing-public-objects) for
 * `-S` will login to the token with Security Officer privilege
 * `-h` will print usage information
 * `-V` will print version information
 
 ## Interfacing with NSS tokens
-NSS has a comprehensive set of mechanisms implemented in software, and given certain conditions, its keystores can be turned into FIPS 140-2 level 2 containers. However, there is one API call that is not compliant with the PKCS\#11 standard, it's the call to `C_Initialize`. NSS requires to use a supplementary member in the structure passed as an argument, to contain (amongst other things) the location of the NSS database.
-`pkcs11-tools` can interface with NSS tokens. There are two ways to specify where to find the key and cert databases:
--   either by setting the `PKCS11NSSDIR` environment variable
--   or by using the `-m` optional argument.
 
-For both the environment variable and the optional argument, when used, it must contain the path to the directory where the NSS database is located (where you will find `key3.db`, `cert8.db` and `secmod.db`); It can be prefixed with `sql:` if you are using SQLite-style NSS database (`key4.db`, `cert9.db` and `pkcs11.txt`).
+NSS has a comprehensive set of mechanisms implemented in software, and given certain conditions, its keystores can be
+turned into FIPS 140-2 level 2 containers. However, there is one API call that is not compliant with the PKCS\#11
+standard, it's the call to `C_Initialize`. NSS requires to use a supplementary member in the structure passed as an
+argument, to contain (amongst other things) the location of the NSS database.
+`pkcs11-tools` can interface with NSS tokens. There are two ways to specify where to find the key and cert databases:
+
+- either by setting the `PKCS11NSSDIR` environment variable
+- or by using the `-m` optional argument.
+
+For both the environment variable and the optional argument, when used, it must contain the path to the directory where
+the NSS database is located (where you will find `key3.db`, `cert8.db` and `secmod.db`); It can be prefixed with `sql:`
+if you are using SQLite-style NSS database (`key4.db`, `cert9.db` and `pkcs11.txt`).
 
 ## Interactive mode
-If not token label or slot index number is specified, then the utility will present a list of slots with token information and ask to choose one. Then password entry will happen interactively.
+
+If not token label or slot index number is specified, then the utility will present a list of slots with token
+information and ask to choose one. Then password entry will happen interactively.
 
 ## Accessing public objects
-It is possible, for certain commands, to proceed without login in against the token, e.g. to access only public objects. To do so, use `-p` parameter with `:::nologin`
+
+It is possible, for certain commands, to proceed without login in against the token, e.g. to access only public objects.
+To do so, use `-p` parameter with `:::nologin`
 
 ## Fetching password from a subprocess
-It is possible to specify a command to execute to retrieve the password. Use `-p` parameter with `:::exec:` followed by the command to launch, between simple or double quotes (use simple quotes to avoid variable expansion on the quoted expression, and double quotes to allow it). This enables to interface with a vault, to prevent storing the password in a script or in an environment variable.
+
+It is possible to specify a command to execute to retrieve the password. Use `-p` parameter with `:::exec:` followed by
+the command to launch, between simple or double quotes (use simple quotes to avoid variable expansion on the quoted
+expression, and double quotes to allow it). This enables to interface with a vault, to prevent storing the password in a
+script or in an environment variable.
 
 ```
 $ p11ls -s 1 -p :::exec:\"getpasswordfromvaultcommand -label password-label\"
 ```
-## Environment variables
-Each command can be invoked without the need of any environment variable. However, it can be cumbersome, as all token information must be passed as arguments. To ease the pain, a few environment variables can be specified:
 
-| environemt variable | argument equivalent | usage                      |
+## Environment variables
+
+Each command can be invoked without the need of any environment variable. However, it can be cumbersome, as all token
+information must be passed as arguments. To ease the pain, a few environment variables can be specified:
+
+| environment variable | argument equivalent | usage                      |
 |---------------------|---------------------|----------------------------|
 | `PKCS11LIB`         | `-l`                | path to PKCS\#11 library   |
 | `PKCS11NSSDIR`      | `-m`                | NSS configuration location |
@@ -102,21 +149,27 @@ Each command can be invoked without the need of any environment variable. Howeve
 | `PKCS11TOKENLABEL`  | `-t`                | token label                |
 | `PKCS11PASSWORD`    | `-p`                | password                   |
 
-Environment variables obbey to the same syntax as the corresponding arguments. Note that any argument present in the command line will override the corresponding environment variable.
+Environment variables obey to the same syntax as the corresponding arguments. Note that any argument present in the
+command line will override the corresponding environment variable.
 
 ## wrapper scripts
-To facilitate setting environment variables and/or arguments, there are wrapper scripts that can be used to interface with the cryptographic tokens. All wrapper scripts begin with `with_` and are followed by the name of the platform. The following table lists existing scripts:
+
+To facilitate setting environment variables and/or arguments, there are wrapper scripts that can be used to interface
+with the cryptographic tokens. All wrapper scripts begin with `with_` and are followed by the name of the platform. The
+following table lists existing scripts:
 
 | script name    | library              | equipment                                            |
 |----------------|----------------------|------------------------------------------------------|
-| `with_beid`    | `libbeidpkcs11.so`   | Belgian national electonic ID card PKCS#11 interface |
+| `with_beid`    | `libbeidpkcs11.so`   | Belgian national electronic ID card PKCS#11 interface |
 | `with_luna`    | `libCryptoki2_64.so` | Thales (Gemalto) Safenet Luna HSM                    |
 | `with_nfast`   | `libcknfast.so`      | Entrust (nCipher) nShield HSM                        |
 | `with_nss`     | `libsoftokn3.so`     | Mozilla.org NSS soft token                           |
 | `with_softhsm` | `libsofthsm2.so`     | OpenDNSSSEC SoftHSM v2                               |
 | `with_utimaco` | `libcs_pkcs11_R2.so` | Utimaco Security Server HSM                          |
 
-Each wrapper script is looking for a file `.pkcs11rc` within the current directory, or within any parent directory up to the root. This file is sourced as a shell script; default variables defined here will override defaults from the wrapper script.
+Each wrapper script is looking for a file `.pkcs11rc` within the current directory, or within any parent directory up to
+the root. This file is sourced as a shell script; default variables defined here will override defaults from the wrapper
+script.
 
 As an example, you could create a `.pkcs11rc` file to access your favorite SoftHSM token:
 
@@ -125,82 +178,97 @@ $ cat >$HOME/.pkcs11rc
 PKCS11PASSWORD=mytokenpassword
 PKCS11TOKENLABEL=my-token-label
 ```
+
 Then just invoke `with_softhsm` in front of your pkcs11-tools command:
+
 ```
 $ with_softhsm p11ls
 ```
 
 when invoking the wrapper scripts, a few environment variables may be specified:
- - `NOSLOT`: when set to `1`, slot or token are unset. It allows you to trigger the interactive mode (handy if you need to check what slots are availables)
- - `SPY`: set this value to a target log file, or to `/dev/stdout` or `/dev/stderr` to invoke `pkcs11-spy.so`, a shim PKCS#11 interface that will trace calls and forward them to the library. Please refer to the [OpenSC project](https://github.com/OpenSC/OpenSC) for more information about the spy module.
+
+- `NOSLOT`: when set to `1`, slot or token are unset. It allows you to trigger the interactive mode (handy if you need
+  to check which slots are available)
+- `SPY`: set this value to a target log file, or to `/dev/stdout` or `/dev/stderr` to invoke `pkcs11-spy.so`, a shim
+  PKCS#11 interface that will trace calls and forward them to the library. Please refer to
+  the [OpenSC project](https://github.com/OpenSC/OpenSC) for more information about the spy module.
 
 example:
+
 ```
 $ NOSLOT=1 with_softhsm p11slotinfo
 ```
 
 ## Addressing objects
+
 When an object has a label value, it is represented as `[object_class]/[label]`, where:
--   `[object_class]` can be one of `pubk`, `prvk`, `seck`, `cert`, `data`
--   `[label]` is the value of the `CKA_LABEL` attribute
+
+- `[object_class]` can be one of `pubk`, `prvk`, `seck`, `cert`, `data`
+- `[label]` is the value of the `CKA_LABEL` attribute
 
 e.g.: `pubk/my-public-key-label`
 
-When an object does not have a label value, then the `CKA_ID` attribute is used, and it is listed as `[object_class]/id/{[hex-string-of-CKA_ID-value]}`
+When an object does not have a label value, then the `CKA_ID` attribute is used, and it is listed
+as `[object_class]/id/{[hex-string-of-CKA_ID-value]}`
 
 e.g.: `prvk/id/{39363231313338383739}`
 
 ## Commands accepting PKCS\#11 attributes
+
 Some commands accept attributes. These attributes can be entered in different ways:
+
 - using the formal name; e.g. `CKA_LABEL`
 - this name is not case-sensitive, `cka_label` is also valid
 - the prefix `CKA_` can be removed, for convenience. `label` is therefore a valid token.
-- for attributes accepting a boolean value, the following tokens are accepted: `CK_TRUE`, `CK_FALSE`, `true`, `false`, `yes`, `no`
+- for attributes accepting a boolean value, the following tokens are accepted: `CK_TRUE`, `CK_FALSE`, `true`, `false`
+  , `yes`, `no`
 - for boolean attributes, the value may be omitted, in which case, the attribute value is considered set to `true`
 - boolean attributes can be prefixed with a `no` keyword, in which case the attribute value is considered set to `false`
 - attributes may be separated by a comma `,` for readability, but it is optional
-- template attributes have attributes as values; these attributes can be specified by grouping them between curly brackets.
+- template attributes have attributes as values; these attributes can be specified by grouping them between curly
+  brackets.
 
 Here is an example of valid grammar for attributes:
+
 ```
 encrypt decrypt=true sign=on verify=off wrap, no unwrap, unwrap_template = { not extractable, sign }
 ```
 
 # Commands details
+
 ## p11slotinfo
-This command provides basic information about library, slots and tokens, given a library.
-Slot and token features and flags are described, and all mechanisms are listed, along with their enabled function(s).
+
+This command provides basic information about library, slots and tokens, given a library. Slot and token features and
+flags are described, and all mechanisms are listed, along with their enabled function(s).
 
 The following table lists the meaning of abbreviations:
 
- |abbreviation|corresponding function      |
+|abbreviation|corresponding function      |
  |------------|----------------------------|
- |`enc`       |Encryption                  |
- |`dec`       |Decryption                  |
- |`hsh`       |Hashing                     |
- |`sig`       |Signature                   |
- |`sir`       |Signature with recovery     |
- |`vfy`       |Verification                |
- |`vre`       |Verification with recovery  |
- |`gen`       |Key generation              |
- |`gkp`       |Key pair generation         |
- |`wra`       |Wrapping                    |
- |`unw`       |Unwrapping                  |
- |`der`       |Derivation                  |
+|`enc`       |Encryption                  |
+|`dec`       |Decryption                  |
+|`hsh`       |Hashing                     |
+|`sig`       |Signature                   |
+|`sir`       |Signature with recovery     |
+|`vfy`       |Verification                |
+|`vre`       |Verification with recovery  |
+|`gen`       |Key generation              |
+|`gkp`       |Key pair generation         |
+|`wra`       |Wrapping                    |
+|`unw`       |Unwrapping                  |
+|`der`       |Derivation                  |
 
-The last column tells wether the operation takes place inside the bondaries of the cryptographic module (`HW`) or at the library level (`SW`).
+The last column tells whether the operation takes place inside the boundaries of the cryptographic module (`HW`) or at the
+library level (`SW`).
 
 Finally, for mechanisms supporting elliptic curve cryptography, there are additional capabilities printed:
- |abbreviation|capability meaning                              |
- |------------|------------------------------------------------|
- |`F^p`       |Supports curves defined over prime-based fields |
- |`F^2m`      |Supports curves defined over power of 2 fields  |
- |`par`       |Supports custom parameters curves               |
- |`nam`       |Supports well-known named curves                |
- |`unc`       |Supports compressed points representation       |
- |`cmp`       |Supports compressed points representation       |
+|abbreviation|capability meaning | |------------|------------------------------------------------| |`F^p`
+|Supports curves defined over prime-based fields | |`F^2m`      |Supports curves defined over power of 2 fields | |`par`
+|Supports custom parameters curves | |`nam`       |Supports well-known named curves | |`unc`       |Supports compressed
+points representation | |`cmp`       |Supports compressed points representation |
 
 Here is an example of `p11slotinfo` executed with SoftHSMv2:
+
 ```
 $ p11slotinfo -l /usr/local/opt/softhsm/lib/softhsm/libsofthsm2.so -s 0
 PKCS#11 Library
@@ -298,72 +366,94 @@ CKM_ECDH1_DERIVE                          --- --- --- --- --- --- --- --- --- --
 ```
 
 ## p11ls
-This command allows to list the content of a token. Objects are grouped by type (certificates, secret keys, public keys, private keys, data objects). If a label is found, it is printed, otherwise the `CKA_ID` attribute is printed between curly brakets.
 
-It is also possible to filter through an object identifier, or a part of it.
-e.g. the following command will list all secret keys:
+This command allows to list the content of a token. Objects are grouped by type (certificates, secret keys, public keys,
+private keys, data objects). If a label is found, it is printed, otherwise the `CKA_ID` attribute is printed between
+curly brackets.
+
+It is also possible to filter through an object identifier, or a part of it. e.g. the following command will list all
+secret keys:
+
 ```bash
 $ p11ls seck/
 ```
 
 For each object, a quick list of attributes is displayed. The following table lists the meaning of these abbreviations:
 
- | abbreviation | meaning                                                               |
+| abbreviation | meaning                                                               |
  |--------------|-----------------------------------------------------------------------|
- |    `AAU`     |the key requires authentication each time it is used                   |
- |    `ase`     |the key has always been sensitive                                      |
- |    `alm`     |the key has associated allowed mechanisms (use `p11od` to reveal)      |
- |    `dec`     |the key can be used for decryption                                     |
- |    `der`     |the key can be used for key derivation                                 |
- |    `drt`     |the key has a derive template (use `p11od` to reveal)                  |
- |    `enc`     |the key can be used for encryption                                     |
- |    `imp`     |the key has been imported (e.g. unwrapped)                             |
- |    `loc`     |the key has been generated locally                                     |
- |    `NAS`     |the key has not always been sensitive                                  |
- |    `NSE`     |the key is not sensitive (clear text value could leave token boundary) |
- |    `nxt`     |the key has never been extractable                                     |
- |    `prv`     |the object is private, i.e. requires login to access                   |
- |    `pub`     |the object is public, i.e. can be accessed without login               |
- |    `r/o`     |the object attributes are unmodifiable                                 |
- |    `r/w`     |the object attributess are modifiable                                  |
- |    `sen`     |the key is sensitive                                                   |
- |    `sig`     |the key can be used for signature                                      |
- |    `sir`     |the key can be used for signature with recovery                        |
- |    `tok`     |the object is on token (always true)                                   |
- |    `tru`     |the object is trusted (`CKA_TRUST` attribute is set to `true`)         |
- |    `unw`     |the key can be used for key unwrapping                                 |
- |    `uwt`     |the key has an unwrap template (use `p11od` to reveal)                 |
- |    `vfy`     |the key can be used for signature verification                         |
- |    `vre`     |the key can be used for signature verification with recovery           |
- |    `wra`     |the key can be used for key wrapping                                   |
- |    `wrt`     |the key has a wrap template (use `p11od` to reveal)                    |
- |    `wtt`     |the key may be wrapped only with a trusted key                         |
- |    `WXT`     |the key has been at least once extractable                             |
- |    `XTR`     |the key is extractable                                                 |
+|    `AAU`     |the key requires authentication each time it is used                   |
+|    `ase`     |the key has always been sensitive                                      |
+|    `alm`     |the key has associated allowed mechanisms (use `p11od` to reveal)      |
+|    `dec`     |the key can be used for decryption                                     |
+|    `der`     |the key can be used for key derivation                                 |
+|    `drt`     |the key has a derive template (use `p11od` to reveal)                  |
+|    `enc`     |the key can be used for encryption                                     |
+|    `imp`     |the key has been imported (e.g. unwrapped)                             |
+|    `loc`     |the key has been generated locally                                     |
+|    `NAS`     |the key has not always been sensitive                                  |
+|    `NSE`     |the key is not sensitive (clear text value could leave token boundary) |
+|    `nxt`     |the key has never been extractable                                     |
+|    `prv`     |the object is private, i.e. requires login to access                   |
+|    `pub`     |the object is public, i.e. can be accessed without login               |
+|    `r/o`     |the object attributes are unmodifiable                                 |
+|    `r/w`     |the object attributes are modifiable                                  |
+|    `sen`     |the key is sensitive                                                   |
+|    `sig`     |the key can be used for signature                                      |
+|    `sir`     |the key can be used for signature with recovery                        |
+|    `tok`     |the object is on token (always true)                                   |
+|    `tru`     |the object is trusted (`CKA_TRUST` attribute is set to `true`)         |
+|    `unw`     |the key can be used for key unwrapping                                 |
+|    `uwt`     |the key has an unwrap template (use `p11od` to reveal)                 |
+|    `vfy`     |the key can be used for signature verification                         |
+|    `vre`     |the key can be used for signature verification with recovery           |
+|    `wra`     |the key can be used for key wrapping                                   |
+|    `wrt`     |the key has a wrap template (use `p11od` to reveal)                    |
+|    `wtt`     |the key may be wrapped only with a trusted key                         |
+|    `WXT`     |the key has been at least once extractable                             |
+|    `XTR`     |the key is extractable                                                 |
 
-For keys, the last attribute is always `KEY(PARAM)`, with `KEY` representing the key algorithm, and `PARAM` the key parameter(s).
+For keys, the last attribute is always `KEY(PARAM)`, with `KEY` representing the key algorithm, and `PARAM` the key
+parameter(s).
 
 Note: the attributes with upper case letter have an impact on security that should be considered by the user.
 
 Here is an example of execution:
+
 ```
 $ p11ls
 seck/aes-wrapping-key                 tok,prv,r/w,loc,wra,unw,sen,ase,XTR,WXT,aes(256)
 prvk/rsa-2048                         tok,prv,r/w,imp,dec,sig,sen,NAS,XTR,WXT,alm,rsa(2048)
 pubk/rsa-overarching-wrapping-key     tok,pub,r/w,imp,enc,vfy,vre,wra,wrt,rsa(4096)
 ```
+
 In the example above, three objects are found on the token:
- - a 256 bits AES secret key called `aes-wrapping-key` which is extractable - it can be wrapped - (`XTR`), and that can wrap (`wra`) and unwrap (`unw`) other keys. That key has been created locally (`loc`), and is a private object, i.e. requiring to login against the token, (`prv`).
- - an RSA 2048 bits private key called `rsa-2048`, which is also extractable (`XTR`), that can sign (`sig`) and decrypt (`dec`). the key has been imported to the token (`imp`); consequently, the historical attribute "was extractable" (`WXT`) is set.  Although the key is sensitive i.e. operated within the boundaries of the cryptographic token (`sen`), and since it has been imported, the token is setting the other historical attribute "not always sensitive" (`NAS`). Finally, the key is restricted in the mechanisms it may use (`alm`).
- - an RSA 4096 bits public key called `rsa-overarching-wrapping-key`, which is a public object, i.e. not requiring to login (`pub`). It is also imported (`imp`) and has the capability to wrap other keys (`wra`), that conform with the key wrap template (`wrt`).
- ## p11cat
-Given an object identifier, exctract the content in DER, base64 encoded format ( aka PEM format). The output of the command can be used to pipe in another command. Additionally, when used in conjuction with `-x` parameter on public keys, the output is tuned either to yield native format for RSA keys, and parameter files for DH, DSA, and EC keys.
--   if the object is a certificate, then the certificate value is exported
--   if the object is a public key, the public key value is exported
--   if the object is a secret or a private key, the commands refuses to execute
--   if the object is a data file, the raw content is exported
+
+- a 256 bits AES secret key called `aes-wrapping-key` which is extractable - it can be wrapped - (`XTR`), and that can
+  wrap (`wra`) and unwrap (`unw`) other keys. That key has been created locally (`loc`), and is a private object, i.e.
+  it requires a login, so it can be accessed (`prv`).
+- an RSA 2048 bits private key called `rsa-2048`, which is also extractable (`XTR`), that can sign (`sig`) and
+  decrypt (`dec`). the key has been imported to the token (`imp`); consequently, the historical attribute "was
+  extractable" (`WXT`) is set. Although the key is sensitive i.e. operated within the boundaries of the cryptographic
+  token (`sen`), and since it has been imported, the token is setting the other historical attribute "not always
+  sensitive" (`NAS`). Finally, the key is restricted in the mechanisms it may use (`alm`).
+- an RSA 4096 bits public key called `rsa-overarching-wrapping-key`, which is a public object, i.e. no login is required
+  accessing it (`pub`). It is also imported (`imp`) and has the capability to wrap other keys (`wra`), that conform with the
+  key wrap template (`wrt`).
+
+## p11cat
+
+Given an object identifier, extract the content in DER, base64 encoded format ( aka PEM format). The output of the
+command can be used to pipe in another command. Additionally, when used in conjunction with `-x` parameter on public
+keys, the output is tuned either to yield native format for RSA keys, and parameter files for DH, DSA, and EC keys.
+
+- if the object is a certificate, then the certificate value is exported
+- if the object is a public key, the public key value is exported
+- if the object is a secret or a private key, the commands refuses to execute
+- if the object is a data file, the raw content is exported
 
 Here is an example of execution, yielding the public key in SPKI format:
+
 ```
 $ p11cat rsa-overarching-wrapping-key
 -----BEGIN PUBLIC KEY-----
@@ -383,6 +473,7 @@ FHXy65qiBpWndifnFmgOLBsCAwEAAQ==
 ```
 
 Another example demonstrates how to output the same key, in PKCS#1 format:
+
 ```
 $ p11cat -x rsa-overarching-wrapping-key
 -----BEGIN RSA PUBLIC KEY-----
@@ -401,8 +492,10 @@ VjppRh5/+4vzQZ2WK9FJI27On+B2y3ioFHXy65qiBpWndifnFmgOLBsCAwEAAQ==
 ```
 
 ## p11more
-Exctract the content of an object and display it in human-readable format. The same result could be achieved by using `p11cat` and piping the output into the relevant `openssl` command.
-Here is an example of such command output:
+
+Extract the content of an object and display it in human-readable format. The same result could be achieved by
+using `p11cat` and piping the output into the relevant `openssl` command. Here is an example of such command output:
+
 ```
 $ p11more cert/a-self-signed
 Certificate:
@@ -460,9 +553,12 @@ Certificate:
 ```
 
 ## p11mv
-given an object identifier, rename an object or a class of object. If no object class is given ( i.e. `pubk/`, `prvk/`, `cert/`, `seck/` or `data/`) then all objects of the class are renamed.
 
-The tool is interactive by default: if a match is found, the user is requested to confirm the action. To force a non-interactive execution, use `-y` argument.
+given an object identifier, rename an object or a class of object. If no object class is given ( i.e. `pubk/`, `prvk/`
+, `cert/`, `seck/` or `data/`) then all objects of the class are renamed.
+
+The tool is interactive by default: if a match is found, the user is requested to confirm the action. To force a
+non-interactive execution, use `-y` argument.
 
 ``` bash
 $ p11mv wrapperkey other-wrapperkey
@@ -470,10 +566,15 @@ move prvk/wrapperkey to prvk/other-wrapperkey ? (y/N)y
 move pubk/wrapperkey to pubk/other-wrapperkey ? (y/N)y
 $
 ```
-## p11rm
-Given an object identifier, delete an object or a class of object. If no object class is given ( i.e. `pubk/`, `prvk/`, `cert/`, `seck/` or `data/`) then all objects of the class are removed.
 
-The tool is interactive by default: if a match is found, the user is requested to confirm the action. To force a non-interactive execution, use `-y` argument.
+## p11rm
+
+Given an object identifier, delete an object or a class of object. If no object class is given ( i.e. `pubk/`, `prvk/`
+, `cert/`, `seck/` or `data/`) then all objects of the class are removed.
+
+The tool is interactive by default: if a match is found, the user is requested to confirm the action. To force a
+non-interactive execution, use `-y` argument.
+
 ```
 $ p11rm other-wrapperkey
 Delete prvk/other-wrapperkey ? (y/n, default n)n
@@ -482,10 +583,12 @@ $
 ```
 
 ## p11od
-Object Dumper. Given an object identifier, prints attributes and values of an object.
-Note that template attributes are also parsed; these attributes are indented to distinguish them from the main attributes of the object.
+
+Object Dumper. Given an object identifier, prints attributes and values of an object. Note that template attributes are
+also parsed; these attributes are indented to distinguish them from the main attributes of the object.
 
 Example output:
+
 ```
 $ p11od seck/aes-wrapping-key
 seck/aes-wrapping-key:
@@ -550,76 +653,102 @@ seck/aes-wrapping-key:
   ```
 
 ## p11keygen
-Generate a key or a key pair on a PKCS\#11 token, or generate and wrap under one or several key(s). There are multiple options, but the more important are:
--   `-i`: the label of the key
--   `-k`: the key algorithm: `rsa`, `ec`, `des`, `aes`, `generic`, `hmac` (`hmac` and `generic` are synonyms), `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512` (these are nCipher-specific, and only available when the toolkit is compiled with nCipher extentions)
--   `-b`: the key length in bits / `-q`: curve parameter name for elliptic curve. Please check out `openssl ecparam -list_curves` for a list of supported curves (obviously, the PKCS\#11 token must support it).
+
+Generate a key or a key pair on a PKCS\#11 token, or generate and wrap under one or several key(s). There are multiple
+options, but the more important are:
+
+- `-i`: the label of the key
+- `-k`: the key algorithm: `rsa`, `ec`, `des`, `aes`, `generic`, `hmac` (`hmac` and `generic` are synonyms), `hmacsha1`
+  , `hmacsha256`, `hmacsha384`, `hmacsha512` (these are nCipher-specific, and only available when the toolkit is
+  compiled with nCipher extensions)
+- `-b`: the key length in bits / `-q`: curve parameter name for elliptic curve. Please check
+  out `openssl ecparam -list_curves` for a list of supported curves (obviously, the PKCS\#11 token must support it).
 
 ### attributes
+
 It is possible (and usually needed) to specify attributes to set at key inception.
 
-For key pairs, the tool will dispatch attributes pertaining to the relevant key (public or private).
-On assymetric key pairs, `CKA_ID` is adjusted to match IBM PKCS\#11 JCE algorithm (the value is the SHA-1 of the key modulus, for RSA keys; for other key types, please consult source code).
+For key pairs, the tool will dispatch attributes pertaining to the relevant key (public or private). On asymmetric key
+pairs, `CKA_ID` is adjusted to match IBM PKCS\#11 JCE algorithm (the value is the SHA-1 of the key modulus, for RSA
+keys; for other key types, please consult source code).
 
 ```
 $ p11keygen -k rsa -b 2048 -i test-rsa-2048 encrypt decrypt sign verify
 Generating, please wait... Key Generation succeeded
 ```
 
-By default, `p11keygen` creates keys/key pairs using default safe values; you must explicitely specify what function you want to enable on a key. All attribute names are case-insensitive. They can be specified either using their canonical PKCS\#11 name  in the form `CKA_XXXX`, or using the shortened version, when removing the `CKA_` prefix. If you need to specify more than one attribute, you must separate them with whitespaces and/or commas `,`.
+By default, `p11keygen` creates keys/key pairs using default safe values; you must explicitly specify what function you
+want to enable on a key. All attribute names are case-insensitive. They can be specified either using their canonical
+PKCS\#11 name in the form `CKA_XXXX`, or using the shortened version, when removing the `CKA_` prefix. If you need to
+specify more than one attribute, you must separate them with whitespaces and/or commas `,`.
 
-Assigning a value to an attribute is peformed using the following syntax: (with an exception for boolean attributes)
+Assigning a value to an attribute is performed using the following syntax: (with an exception for boolean attributes)
 `ATTRIBUTE = VALUE `
 
 #### boolean value
-A boolean attribute value can be one of the following keywords: `true`, `false`, `yes`, `no`, `on`, `off`. In addition, a boolean attribute can be specified without a value, in which case it is set to `true`, or `false` when prefixed with the `no` keyword or with an exclamation mark `!`.
-Valid Examples: 
- - `encrypt=true`, `encrypt=yes`, `encrypt` are all equivalents to `CKA_ENCRYPT=true` 
- - `encrypt=false`, `encrypt=off`, `no encrypt` and `!encrypt` are all equivalents to `CKA_ENCRYPT=false`
+
+A boolean attribute value can be one of the following keywords: `true`, `false`, `yes`, `no`, `on`, `off`. In addition,
+a boolean attribute can be specified without a value, in which case it is set to `true`, or `false` when prefixed with
+the `no` keyword or with an exclamation mark `!`. Valid Examples:
+
+- `encrypt=true`, `encrypt=yes`, `encrypt` are all equivalents to `CKA_ENCRYPT=true`
+- `encrypt=false`, `encrypt=off`, `no encrypt` and `!encrypt` are all equivalents to `CKA_ENCRYPT=false`
 
 #### string value
-A string value is any value surrounded by __double quotes__. Note that the toolkit does not support UTF8 conversion at this point.
-Valid examples: 
- -  `"this-is-a-valid-string"`
- -  `"another with spaces"`
+
+A string value is any value surrounded by __double quotes__. Note that the toolkit does not support UTF8 conversion at
+this point. Valid examples:
+
+- `"this-is-a-valid-string"`
+- `"another with spaces"`
 
 #### date value
-A date attribute value is an 8 digits number, encoded in the following format: `YYYYMMDD`.
-Valid examples: 
- - `20200101` (January 1st, 2020)
- - `20210623` (June 23rd, 2021)
+
+A date attribute value is an 8 digits number, encoded in the following format: `YYYYMMDD`. Valid examples:
+
+- `20200101` (January 1st, 2020)
+- `20210623` (June 23rd, 2021)
 
 #### hexadecimal value
-A hexadecimal value contains an even number of hexadecimal digits, and is prefixed with `0x`.
-Valid examples: 
- - `0x01`
- - `0xabcdef`
+
+A hexadecimal value contains an even number of hexadecimal digits, and is prefixed with `0x`. Valid examples:
+
+- `0x01`
+- `0xabcdef`
 
 #### mechanism value
-A mechanism value is one of the mechanisms defined in the PKCS\#11 specification. It always start with `CKM_`.
-Valid examples: 
- - `CKM_RSA_PKCS`
- - `CKM_AES_GCM`
+
+A mechanism value is one of the mechanisms defined in the PKCS\#11 specification. It always starts with `CKM_`. Valid
+examples:
+
+- `CKM_RSA_PKCS`
+- `CKM_AES_GCM`
 
 #### mechanism array value
-A mechanism array value is specified as a list of whitespace and/or comma-separated mechanism values, surrounded by curly braces.
-Valid examples: 
- - `{ CKM_RSA_PKCS, CKM_RSA_PKCS_OAEP }`
- - `{ CKM_AES_CBC CKM_AES_GCM }`
+
+A mechanism array value is specified as a list of whitespace and/or comma-separated mechanism values, surrounded by
+curly braces. Valid examples:
+
+- `{ CKM_RSA_PKCS, CKM_RSA_PKCS_OAEP }`
+- `{ CKM_AES_CBC CKM_AES_GCM }`
 
 #### attribute array value
-For template attributes such as `CKA_UNWRAP_TEMPLATE` and `CKA_WRAP_TEMPLATE`, the value is provided as a list of attributes, delimited by curly braces `{` and `}`, each attribute being separated by whitespaces and/or commas `,`.
-Valid examples: 
- - `{ encrypt decrypt sensitive !extractable }`
- - `{ CKA_DERIVE=true, CKA_LABEL="only-this-label" }`
+
+For template attributes such as `CKA_UNWRAP_TEMPLATE` and `CKA_WRAP_TEMPLATE`, the value is provided as a list of
+attributes, delimited by curly braces `{` and `}`, each attribute being separated by whitespaces and/or commas `,`.
+Valid examples:
+
+- `{ encrypt decrypt sensitive !extractable }`
+- `{ CKA_DERIVE=true, CKA_LABEL="only-this-label" }`
 
 #### object class value
-The value must match the definitions found in the PKCS\#11 specification.
-Valid examples: `CKO_DATA`, `CKO_SECRET_KEY`
+
+The value must match the definitions found in the PKCS\#11 specification. Valid examples: `CKO_DATA`, `CKO_SECRET_KEY`
 
 #### key type value
-These are corresponding object classes as found in the PKCS\#11 specification. In addition, abbreviated names (without `CKK_`) can be used. Note that all key types are not supported.
-Valid examples: `generic`, `CKA_AES`
+
+These are corresponding object classes as found in the PKCS\#11 specification. In addition, abbreviated names (
+without `CKK_`) can be used. Note that all key types are not supported. Valid examples: `generic`, `CKA_AES`
 
 The following table provides a list of currently supported key types:
 
@@ -641,7 +770,6 @@ The following table provides a list of currently supported key types:
 |`CKK_SHA384_HMAC`   |`sha384_hmac`                  |
 |`CKK_SHA512_HMAC`   |`sha512_hmac`                  |
 |`CKK_SHA_1_HMAC`    |`sha_1_hmac`, `sha1_hmac`      |
-
 
 ### supported attributes
 
@@ -678,38 +806,60 @@ The following table describes a list of all supported attributes.
 | `CKA_WRAP_WITH_TRUSTED`  | `wrap_with_trusted`  | boolean          |                                             |
 | `CKA_WRAP`               | `wrap`               | boolean          |                                             |
 
-
 ### HMAC keys
-For HMAC key, you need to specify `derive` (but please check with your HSM vendor, there are sometimes variations). The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
+
+For HMAC key, you need to specify `derive` (but please check with your HSM vendor, there are sometimes variations).
+The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
 
 ```
 $ p11keygen -k generic -b 256 -i test-hmac-32-bytes derive
 Generating, please wait... Key Generation succeeded
 ```
 
-For generating HMAC key on Entrust HSM, you need to use one of the following key types: `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512`; In addition, specify `sign` and `verify`. The `-b` parameter specifies how many bits are used to generate the key. It is rounded up to the next byte boundary.
+For generating HMAC key on Entrust HSM, you need to use one of the following key types: `hmacsha1`, `hmacsha256`
+, `hmacsha384`, `hmacsha512`; In addition, specify `sign` and `verify`. The `-b` parameter specifies how many bits are
+used to generate the key. It is rounded up to the next byte boundary.
 
 ### creating wrapped keys
-using `p11keygen`, it is possible to generate a session key and wrap it immediately under one or several wrapping keys. To achieve this, you simply need to add the `-W` optional parameter, followed by the wrapping parameters string, as explained in `p11wrap`. Note that by default, `p11keygen` will attempt to store a copy of the session key on the token. To prevent this (some PKCS\#11 library do not support this), add the `-r` optional parameter.
+
+Using `p11keygen`, it is possible to generate a session key and wrap it immediately under one or several wrapping keys.
+To achieve this, you simply need to add the `-W` optional parameter, followed by the wrapping parameters string, as
+explained in `p11wrap`. Note that by default, `p11keygen` will attempt to store a copy of the session key on the token.
+To prevent this (some PKCS\#11 library do not support this), add the `-r` optional parameter.
+
+`p11keygen` also supports JWK output with the -J parameter if required. See `p11wrap` for details.
 
 ## p11kcv
-Computes the key check value of a symmetric key and prints it. This will work only on secret keys, i.e. DES, AES and HMAC keys.
+
+Computes the key check value of a symmetric key and prints it. This will work only on secret keys, i.e. DES, AES and
+HMAC keys.
 
 The key check value is computed as follows:
-- For DES keys, it performs a a signature (MACing) or an encryption on a block of 8 zeroized bytes, and outputting the 3 first ones.
-- For AES keys, it performs a a signature (MACing) or an encryption on a block of 16 zeroized bytes, and outputting the 3 first ones.
-- For HMAC keys, the key check value is computed by HMACing a null-length buffer. Alternatively, it is possible to specify a length, using the `-b` optional argument, in which case a zeroized buffer of the specified lenght is used as input to the HMAC.
+
+- For DES keys, it performs a signature (MACing) or an encryption on a block of 8 zeroised bytes, and outputs the
+  first 3 bytes.
+- For AES keys, it performs a signature (MACing) or an encryption on a block of 16 zeroised bytes, and outputs the
+  first 3 bytes.
+- For HMAC keys, the key check value is computed by HMACing a null-length buffer. Alternatively, it is possible to
+  specify a length, using the `-b` optional argument, in which case a zeroised buffer of the specified length is used as
+  input to the HMAC.
 
 ## p11req
+
 Generate a PKCS\#10 CSR. Important options are:
 
- - `-i`: the label of the key
- - `-d`: subject DN - Caution: must be specified in strict OpenSSL format, which is with a leading `/` character; however, unlike OpenSSL, the ordering is inverted (to ease human order encoding). It means that when you write `/CN=my cert/O=My Org/C=BE`, the actual (binary) order will start with the `C` attribute, then the `O` and finally the `C`. If however you would like to write the Subject DN in "binary" order, you can specify the `-r` option.
+- `-i`: the label of the key
+- `-d`: subject DN - Caution: must be specified in strict OpenSSL format, which is with a leading `/` character;
+  however, unlike OpenSSL, the ordering is inverted (to ease human order encoding). It means that when you
+  write `/CN=my cert/O=My Org/C=BE`, the actual (binary) order will start with the `C` attribute, then the `O` and
+  finally the `C`. If however you would like to write the Subject DN in "binary" order, you can specify the `-r` option.
 - `-r`: use reverse order when specifying Subject DN (see `-d`for details).
-- `-e` ( may be specified several times): SAN field. It is prefixed with `DNS:` for a DNS entry, `email:` for an email entry, and `IP:` for an IPv4 address.
+- `-e` ( may be specified several times): SAN field. It is prefixed with `DNS:` for a DNS entry, `email:` for an email
+  entry, and `IP:` for an IPv4 address.
 - `-H` : hashing algorithm (`sha1`, `sha256`, \.... )
 - `-X`: add a subject key identifier extension to the CSR.
-- `-F`: do not perform signature. This can be useful in some case where the private key does not have `CKA_SIGN` property asserted, but where a CSR is yet required. The resulting signature is always invalid.
+- `-F`: do not perform signature. This can be useful in some case where the private key does not have `CKA_SIGN`
+  property asserted, but where a CSR is yet required. The resulting signature is always invalid.
 - `-v`: be verbose.
 - `-o [filename]`: output to file
 
@@ -735,27 +885,35 @@ dOaYPtY2vDku2as4Y5oj9g4Aht26yqNsYQFNKw==
 ```
 
 ## p11mkcert
-Generate a self-signed certificate, suitable for Java JCA. The main use is for code-signing platforms.
-Note that the key must have the `CKA_SIGN` attribute set to `true`, unless you are specifying the `-F` optional parameter (see below).
 
+Generate a self-signed certificate, suitable for Java JCA. The main use is for code-signing platforms. Note that the key
+must have the `CKA_SIGN` attribute set to `true`, unless you are specifying the `-F` optional parameter (see below).
 
 Options are:
 
- - `-i`: the label of the key
- - `-d`: subject DN - Caution: must be specified in strict OpenSSL format, which is with a leading `/` character; however, unlike OpenSSL, the ordering is inverted (to ease human order encoding). It means that when you write `/CN=my cert/O=My Org/C=BE`, the actual (binary) order will start with the `C` attribute, then the `O` and finally the `C`. If however you would like to write the Subject DN in "binary" order, you can specify the `-r` option.
+- `-i`: the label of the key
+- `-d`: subject DN - Caution: must be specified in strict OpenSSL format, which is with a leading `/` character;
+  however, unlike OpenSSL, the ordering is inverted (to ease human order encoding). It means that when you
+  write `/CN=my cert/O=My Org/C=BE`, the actual (binary) order will start with the `C` attribute, then the `O` and
+  finally the `C`. If however you would like to write the Subject DN in "binary" order, you can specify the `-r` option.
 - `-r`: use reverse order when specifying Subject DN (see `-d`for details).
-- `-e` ( may be specified several times): SAN field. It is prefixed with `DNS:` for a DNS entry, `email:` for an email entry, and `IP:` for an IPv4 address.
+- `-e` ( may be specified several times): SAN field. It is prefixed with `DNS:` for a DNS entry, `email:` for an email
+  entry, and `IP:` for an IPv4 address.
 - `-H` : hashing algorithm (`sha1`, `sha256`, \.... )
 - `-X`: add a subject key identifier extension to the CSR.
-- `-F`: do not perform signature. This can be useful in some case where the private key does not have `CKA_SIGN` property asserted, but where a CSR is yet required. The resulting signature is always invalid.
+- `-F`: do not perform signature. This can be useful in some case where the private key does not have `CKA_SIGN`
+  property asserted, but where a CSR is yet required. The resulting signature is always invalid.
 - `-v`: be verbose.
 - `-o [filename]`: output to file
 
 ```
 $ p11mkcert -i test-rsa-2048 -d \'/CN=test/OU=my dept/C=BE\' -H sha256 -e DNS:anotherhost.int -e email:writeme\@mastercard.com
 ```
+
 ## p11importcert
-This utility will load a PEM or DER formatted certificate and import it back. The`CKA_ID` attribute will be adjusted according to IBM rules.
+
+This utility will load a PEM or DER formatted certificate and import it back. The`CKA_ID` attribute will be adjusted
+according to IBM rules.
 
 If needed, the trust bit can be set ( using the `-T` option, in combination with the `-S` option).
 
@@ -766,9 +924,11 @@ p11importcert: importing certificate succeeded.
 ```
 
 ## p11importpubk
-Similarily to `p11importcert`, this utility will load a PEM or DER formatted public key and import it into the PKCS\#11 token. The `CKA_ID`
-will be adjusted according to IBM rules.
-Attributes may be specified when importing a public key, in which case, these will replace the default ones.
+
+Similar to `p11importcert`, this utility will load a PEM or DER formatted public key and import it into the PKCS\#11
+token. The `CKA_ID`
+will be adjusted according to IBM rules. Attributes may be specified when importing a public key, in which case, these
+will replace the default ones.
 
 ```
 $ p11importpubk -f test-public-rsa-key.rsa -i test-public-rsa-key
@@ -776,16 +936,18 @@ PEM format detected
 p11importpubk: import of public key succeeded.
 ```
 
-same example, when importing a public key that can be used for wrapping, and with a wrap template accepting to wrap only keys that have encrypt set to `false`:
+same example, when importing a public key that can be used for wrapping, and with a wrap template accepting to wrap only
+keys that have `encrypt` set to `false`:
+
 ```
 $ p11importpubk -f test-public-rsa-key.rsa -i test-public-rsa-key wrap=1 wrap_template={ not encrypt }
 PEM format detected
 p11importpubk: import of public key succeeded.
 ```
 
-
 ## p11importdata
-Similarily to p11importcert, this utility will load an arbitrary file and import it into the PKCS\#11 token.
+
+Similar to p11importcert, this utility will load an arbitrary file and import it into the PKCS\#11 token.
 
 ```
 $ p11importdata -f hello.txt -i dummy_data
@@ -793,19 +955,27 @@ p11importdata: import of data succeeded.
 ```
 
 ## masqreq
-Under certain circumstances, it is desirable to adapt an existing CSR, before submission to CA. A typical use case is CSR generated by an appliance where the structure of the DN is not flexible and must contain some fields that are otherwise rejected by the CA at
-submission. This tool allows to adapt some of the features of a PKCS\#10 request. It does not sign the CSR however, and as such, the signature is invalid.
+
+Under certain circumstances, it is desirable to adapt an existing CSR, before submission to CA. A typical use case is
+CSR generated by an appliance where the structure of the DN is not flexible and must contain some fields that are
+otherwise rejected by the CA at submission. This tool allows to adapt some features of a PKCS\#10 request. It
+does not sign the CSR however, and as such, the signature is invalid.
 
 Options are:
 
- - `-c`: the file name of the CSR to modify
- - `-d`: subject DN - Caution: must be specified in strict OpenSSL format, which is with a leading `/` character; however, unlike OpenSSL, the ordering is inverted (to ease human order encoding). It means that when you write `/CN=my cert/O=My Org/C=BE`, the actual (binary) order will start with the `C` attribute, then the `O` and finally the `C`. If however you would like to write the Subject DN in "binary" order, you can specify the `-r` option.
+- `-c`: the file name of the CSR to modify
+- `-d`: subject DN - Caution: must be specified in strict OpenSSL format, which is with a leading `/` character;
+  however, unlike OpenSSL, the ordering is inverted (to ease human order encoding). It means that when you
+  write `/CN=my cert/O=My Org/C=BE`, the actual (binary) order will start with the `C` attribute, then the `O` and
+  finally the `C`. If however you would like to write the Subject DN in "binary" order, you can specify the `-r` option.
 - `-r`: use reverse order when specifying Subject DN (see `-d`for details).
-- `-e` ( may be specified several times): SAN field. It is prefixed with `DNS:` for a DNS entry, `email:` for an email entry, and `IP:` for an IPv4 address.
+- `-e` ( may be specified several times): SAN field. It is prefixed with `DNS:` for a DNS entry, `email:` for an email
+  entry, and `IP:` for an IPv4 address.
 - `-H` : hashing algorithm (`sha1`, `sha256`, \.... )
 - `-X`: add a subject key identifier extension to the CSR.
 - `-v`: be verbose.
 - `-o [filename]`: output to file
+
 ```
 $ masqreq -c test.req -d'/CN=another CN'
 -----BEGIN CERTIFICATE REQUEST-----
@@ -826,11 +996,13 @@ xL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4o
 ```
 
 ## p11wrap and p11unwrap
-the commands `p11wrap` and `p11unwrap` can be used to respectively wrap and unwrap keys. Several algorithms are available, as described in the table below.
+
+the commands `p11wrap` and `p11unwrap` can be used to respectively wrap and unwrap keys. Several algorithms are
+available, as described in the table below.
 
 | `-a` argument | wrapping algorithm            | PKCS\#11 mechanism    | wrapping key | wrapped key                      | remark                        |
 |---------------|-------------------------------|-----------------------|--------------|----------------------------------|-------------------------------|
-| `pkcs1`       | PKCS#1 v1.5,  RFC8017         | `CKM_RSA_PKCS`        | RSA          | symmetric, secret(HMAC)          | considered insecure Today     |
+| `pkcs1`       | PKCS#1 v1.5, RFC8017         | `CKM_RSA_PKCS`        | RSA          | symmetric, secret(HMAC)          | considered insecure Today     |
 | `oaep`        | OAEP, RFC8017                 | `CKM_RSA_PKCS_OAEP`   | RSA          | symmetric, secret(HMAC)          | default                       |
 | `cbcpad`      | CBC mode, with PKCS#7 padding | `CKM_AES_CBC_PAD`     | AES          | any key type                     | widely supported              |
 |               |                               | `CKM_DES_CBC_PAD`     | DES          | any key type                     |                               |
@@ -841,55 +1013,87 @@ the commands `p11wrap` and `p11unwrap` can be used to respectively wrap and unwr
 |               | `rfc5649`                     |                       |              |                                  |                               |
 
 To wrap a key, you will need:
- - a wrapping key, that must have `CKA_WRAP` attribute set
- - a key to wrap, that must have `CKA_EXTRACTABLE` attribute set
+
+- a wrapping key, that must have `CKA_WRAP` attribute set
+- a key to wrap, that must have `CKA_EXTRACTABLE` attribute set
 
 ### p11wrap syntax
+
 you must at least provide:
- - `-w`, the label of the wrapping key
- - `-i`, the label of the key to wrap
+
+- `-w`, the label of the wrapping key
+- `-i`, the label of the key to wrap
 
 By default, the wrapping algorithm is set to `oaep`. You can change this with the `-a` argument:
- - `-a pkcs1` will choose PKCS#1 1.5 wrapping algorithm. It is considered insecure and should be avoided.
- - `-a oaep` or `-a oaep(args...)` will choose PKCS#1 OAEP (RFC8017).
-   `args...` can be one or several of the following parameters, separated by commas:
-   * `label="label-value"` - OAEP label or source argument, default is empty
-   * `mgf= CKG_MGF1_SHA1 | CKG_MGF1_SHA224 | CKG_MGF1_SHA256 | CKG_MGF1_SHA384 | CKG_MGF1_SHA512` - MGF parameter, default is `CKG_MGF1_SHA1`
-   * `hash= CKM_SHA_1 | CKM_SHA224 | CKM_SHA256 | CKM_SHA384 | CKM_SHA512` - hashing algorithm argument, default is `CKM_SHA_1`
-   Please refer to the RFC for the meaning of these parameters. Depending on the implementation, it is possible that not all combinations are supported. For example, many libraries support only matching mgf and hash arguments. Some libraries do not support the label argument as well.
 
- - `-a cbcpad` or `-a cbcpad(args...)` : private and secret key wrapping (using CKM_xxx_CBC_PAD wrapping mehanisms)
-    `args...` can be one or several of the following parameters (separated by commas)
-    * `iv=[HEX STRING prefixed with 0x]` - Initialisation vector, please refer to PKCS#11 `CKM_AES_CBC_PAD` description for more details.
- - `-a rfc3394`: private and secret key wrapping, as documented in RFC3394 and NIST.SP.800-38F, using `CKM_AES_KEY_WRAP` mechanism or equivalent vendor-specific
- - `-a rfc5649`: private and secret key wrapping, as documented in RFC5649 and NIST.SP.800-38F, using `CKM_AES_KEY_WRAP_PAD` mechanism or equivalent vendor-specific
- - `-a envelope`: private an secret key wrapping, using the envelope wrapping technique (see envelope wrapping below)
+- `-a pkcs1` will choose PKCS#1 1.5 wrapping algorithm. It is considered insecure and should be avoided.
+- `-a oaep` or `-a oaep(args...)` will choose PKCS#1 OAEP (RFC8017).
+  `args...` can be one or several of the following parameters, separated by commas:
+    * `label="label-value"` - OAEP label or source argument, default is empty
+    * `mgf= CKG_MGF1_SHA1 | CKG_MGF1_SHA224 | CKG_MGF1_SHA256 | CKG_MGF1_SHA384 | CKG_MGF1_SHA512` - MGF parameter,
+      default is `CKG_MGF1_SHA1`
+    * `hash= CKM_SHA_1 | CKM_SHA224 | CKM_SHA256 | CKM_SHA384 | CKM_SHA512` - hashing algorithm argument, default
+      is `CKM_SHA_1`
+      Please refer to the RFC for the meaning of these parameters. Depending on the implementation, it is possible that
+      not all combinations are supported. For example, many libraries support only matching mgf and hash arguments. Some
+      libraries do not support the label argument as well.
 
-Alternatively, it is possible to specify one or more key/wrapping algorithm/output filename using `-W` optional and repeatable parameter.
-The syntax is `-W 'wrappingkey="<wrappingkeylabel>"[,algorithm=<algorithm>[,filename="<path>"]]'`, with:
- - `"<wrappingkeylabel>"` is the name of a valid wrapping key on the token (i.e. that has `CKA_WRAP`). Caution: it must be surrounded with double quotes.
- - `<algorithm>` is a valid wrapping algorithm, as specified above
- - `"<path>"` is a valid path to a filename; when specified, the wrapped key is written to that file, instead of standard output. Caution: it must be surrounded with double quotes.
+- `-a cbcpad` or `-a cbcpad(args...)` : private and secret key wrapping (using CKM_xxx_CBC_PAD wrapping mechanisms)
+  `args...` can be one or several of the following parameters (separated by commas)
+    * `iv=[HEX STRING prefixed with 0x]` - Initialisation vector, please refer to PKCS#11 `CKM_AES_CBC_PAD` description
+      for more details.
+- `-a rfc3394`: private and secret key wrapping, as documented in RFC3394 and NIST.SP.800-38F, using `CKM_AES_KEY_WRAP`
+  mechanism or equivalent vendor-specific
+- `-a rfc5649`: private and secret key wrapping, as documented in RFC5649 and NIST.SP.800-38F,
+  using `CKM_AES_KEY_WRAP_PAD` mechanism or equivalent vendor-specific
+- `-a envelope`: private and secret key wrapping, using the envelope wrapping technique (see envelope wrapping below)
+
+Alternatively, it is possible to specify one or more key/wrapping algorithm/output filename using `-W` optional and
+repeatable parameter. The syntax is `-W 'wrappingkey="<wrappingkeylabel>"[,algorithm=<algorithm>[,filename="<path>"]]'`,
+with:
+
+- `"<wrappingkeylabel>"` is the name of a valid wrapping key on the token (i.e. that has `CKA_WRAP`). Caution: it must
+  be surrounded with double quotes.
+- `<algorithm>` is a valid wrapping algorithm, as specified above
+- `"<path>"` is a valid path to a filename; when specified, the wrapped key is written to that file, instead of standard
+  output. Caution: it must be surrounded with double quotes.
+
+#### JWK output
+You can switch the output from the 'typical' pkcs11-tools output to JWK output by specifying the `-J` argument.
+`-J` currently requires a wrapping_key_id parameter, which you can leave empty to suppress the wrapping_key_id output.
+
+The JWK format does not support envelope wrapping (see below).
 
 #### envelope wrapping
-It is possible to combine private key and symmetric key wrapping together, to allow wrapping any key material, given a single private key. To do this, use `-a envelope` or `-a envelope(args...)`; `args...` can be one or several of the following parameters (separated by commas)
-    * `inner=<algorithm>`: specifies the algorithm that wraps the target key. It must be one of `cbcpad`, `rfc3394` or `rfc5649`. In turn, algorithms can be specified with their own set of parameters. If not specified, default is `cbcpad`.
-    * `outer=<algorithm>`: specifies the algoritom that wraps the inner key, using the specified wrapping key. It must be one of `pkcs1` or `oaep`. If not speficied, default is `oaep`.
+
+It is possible to combine private key and symmetric key wrapping together, to allow wrapping any key material, given a
+single private key. To do this, use `-a envelope` or `-a envelope(args...)`; `args...` can be one or several of the
+following parameters (separated by commas)
+* `inner=<algorithm>`: specifies the algorithm that wraps the target key. It must be one of `cbcpad`, `rfc3394`
+or `rfc5649`. In turn, algorithms can be specified with their own set of parameters. If not specified, default
+is `cbcpad`. * `outer=<algorithm>`: specifies the algorithm that wraps the inner key, using the specified wrapping key.
+It must be one of `pkcs1` or `oaep`. If not specified, default is `oaep`.
 
 ### p11unwrap syntax
+
 you must at least provide:
- - `-f`, the path to a wrapping key file produced by `p11wrap`
+
+- `-f`, the path to a wrapping key file produced by `p11wrap`
 
 In addition, PKCS#11 attributes can be specified, that will override attributes from the wrapping key file.
 
 ## p11rewrap
-This command is actually a combination of `p11unwrap` and `p11wrap`, but is not storing the unwrapped key permanently. This way keys can be rewrapped to one or several public key(s).
-The syntax of this command is similar to `p11unwrap`; in addition, rewrapping jobs can be specified using the `-W` repeatable parameter (see `p11wrap` syntax for more details).
+
+This command is actually a combination of `p11unwrap` and `p11wrap`, but is not storing the unwrapped key permanently.
+This way keys can be rewrapped to one or several public key(s). The syntax of this command is similar to `p11unwrap`; in
+addition, rewrapping jobs can be specified using the `-W` repeatable parameter (see `p11wrap` syntax for more details).
 
 ---
+
 ## exchanging a keys between tokens - the long way
 
-In order to exchange all kinds of keys between tokens, you must first exchange a symmetric key (typically AES), which implies this symmetric key to be itself exchanged, typically using an assymetric key.
+In order to exchange all kinds of keys between tokens, you must first exchange a symmetric key (typically AES), which
+implies this symmetric key to be itself exchanged, typically using an asymmetric key.
 
 The following diagram depicts the different steps to execute to establish a key exchange channel between two tokens:
 
@@ -932,30 +1136,36 @@ The following diagram depicts the different steps to execute to establish a key 
 Steps from the figure are explained here below:
 
 1. On the destination token, an RSA key pair can be generated e.g. using the following command:
-`p11keygen -k rsa -b 4096 -i rsa-wrapping-key wrap unwrap`
+   `p11keygen -k rsa -b 4096 -i rsa-wrapping-key wrap unwrap`
 2. On the destination token, the freshly created public key can be extracted as follows:
-`p11cat pubk/rsa-wrapping-key >rsa-wrapping-key.pubk`
+   `p11cat pubk/rsa-wrapping-key >rsa-wrapping-key.pubk`
 3. On the source token, the public key can be imported using:
-`p11importpubk -f rsa-wrapping-key.pubk -i rsa-wrapping-key`
+   `p11importpubk -f rsa-wrapping-key.pubk -i rsa-wrapping-key`
 4. On the source token, generate an AES key that will be used to wrap keys from source token:
-`p11keygen -k aes -b 256 -i aes-wrapping-key wrap unwrap extractable`
+   `p11keygen -k aes -b 256 -i aes-wrapping-key wrap unwrap extractable`
 5. On the source token, wrap that AES key:
-`p11wrap -a oaep -i aes-wrapping-key -w rsa-wrapping-key -o aes-wrapping-key.wrap`
+   `p11wrap -a oaep -i aes-wrapping-key -w rsa-wrapping-key -o aes-wrapping-key.wrap`
 6. On the destination token, unwrap that AES key:
-`p11unwrap -f aes-wrapping-key.wrap`
+   `p11unwrap -f aes-wrapping-key.wrap`
 7. On the source token, flip the extractable attribute back to false:
-`p11setattr seck/aes-wrapping-key CKA_EXTRACTABLE=false`
+   `p11setattr seck/aes-wrapping-key CKA_EXTRACTABLE=false`
 
-Once the AES key has been established on both tokens, it can be used to wrap and exchange any other extractable key (irrespective of key type) from both tokens, using `-a cbcpad`, `-a rfc3394` and `-a rfc5649` argument to specify algorithm (see remarks in table [above](#p11wrap-and-p11unwrap) for each algorithm):
+Once the AES key has been established on both tokens, it can be used to wrap and exchange any other extractable key (
+irrespective of key type) from both tokens, using `-a cbcpad`, `-a rfc3394` and `-a rfc5649` argument to specify
+algorithm (see remarks in table [above](#p11wrap-and-p11unwrap) for each algorithm):
+
 8. On the source token, generate a key (using `p11keygen`)
 9. On the source token, wrap that key under the AES key
 10. On the destination token, unwrap that key
 11. On the source token, remove the extractable bit.
 
-While this procedure works, it is cumbersome and insecure to some degrees, as keys created on the token are extractable for a while.
+While this procedure works, it is cumbersome and insecure to some degrees, as keys created on the token are extractable
+for a while.
 
 ## exchanging keys between tokens - the accelerated way
-All the steps above can be executed in a simpler and more secure fashion, that leverages the PKCS\#11 capability to create session keys, accessible only to the calling process.
+
+All the steps above can be executed in a simpler and more secure fashion, that leverages the PKCS\#11 capability to
+create session keys, accessible only to the calling process.
 
 1. On the destination token, generate an RSA key pair e.g. using the following command:
    ```
@@ -979,6 +1189,7 @@ All the steps above can be executed in a simpler and more secure fashion, that l
    ```
 
 The following diagram illustrate these steps:
+
 ```
 +--+ DEST TOKEN +--------------+      +---+ SOURCE TOKEN +---------------+
 |                              |      |                                  |

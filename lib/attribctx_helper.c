@@ -129,7 +129,7 @@ func_rc _attribctx_parser_assign_list_to_template(attribCtx *clctx, CK_ATTRIBUTE
 	    rc = rc_error_parsing;
 	    goto error;
 	}
-	clctx->wraptemplate_idx = clctx->saved_idx; /* saved_idx is set by lexer */
+//	clctx->wraptemplate_idx = clctx->saved_idx; /* saved_idx is set by lexer */
 	clctx->has_wrap_template = true;
 	break;
 
@@ -139,7 +139,7 @@ func_rc _attribctx_parser_assign_list_to_template(attribCtx *clctx, CK_ATTRIBUTE
 	    rc = rc_error_parsing;
 	    goto error;
 	}
-	clctx->unwraptemplate_idx = clctx->saved_idx; /* saved_idx is set by lexer */
+//	clctx->unwraptemplate_idx = clctx->saved_idx; /* saved_idx is set by lexer */
 	clctx->has_unwrap_template = true;
 	break;
 
@@ -149,7 +149,7 @@ func_rc _attribctx_parser_assign_list_to_template(attribCtx *clctx, CK_ATTRIBUTE
 	    rc = rc_error_parsing;
 	    goto error;
 	}
-	clctx->derivetemplate_idx = clctx->saved_idx; /* saved_idx is set by lexer */
+//	clctx->derivetemplate_idx = clctx->saved_idx; /* saved_idx is set by lexer */
 	clctx->has_derive_template = true;
 	break;
 

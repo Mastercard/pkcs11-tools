@@ -12,6 +12,7 @@
 .gdb_history
 .python_version
 *.patch
+.idea
 
 ## autotools
 /aclocal.m4

@@ -27,17 +27,16 @@
 
 /*--------*/
 
-pkcs11AttrList *pkcs11_new_attrlist(pkcs11Context *p11Context, ...)
-{
+pkcs11AttrList *pkcs11_new_attrlist(pkcs11Context *p11Context, ...) {
 
     va_list vl;
     CK_ATTRIBUTE_TYPE attrib;
-    size_t cnt=0, i;
+    size_t cnt = 0, i;
 
-    pkcs11AttrList *retval=NULL;
+    pkcs11AttrList *retval = NULL;
 
     va_start(vl, p11Context);
-    while( (attrib=va_arg(vl, CK_ATTRIBUTE_TYPE)) != _ATTR_END ) {
+    while ((attrib = va_arg(vl, CK_ATTRIBUTE_TYPE)) != _ATTR_END) {
 	++cnt;
     }
     va_end(vl);
@@ -45,17 +44,17 @@ pkcs11AttrList *pkcs11_new_attrlist(pkcs11Context *p11Context, ...)
     /* now cnt contains the size of the template array  */
 
 
-    if( (retval=calloc(1,sizeof(pkcs11AttrList))) == NULL ) {
+    if ((retval = calloc(1, sizeof(pkcs11AttrList))) == NULL) {
 	goto error;
     }
 
-    if(p11Context) {
+    if (p11Context) {
 	retval->p11Context = p11Context;
-	retval->GetAttributeValue  = p11Context->FunctionList.C_GetAttributeValue;
-	retval->SetAttributeValue  = p11Context->FunctionList.C_SetAttributeValue;
+	retval->GetAttributeValue = p11Context->FunctionList.C_GetAttributeValue;
+//        retval->SetAttributeValue = p11Context->FunctionList.C_SetAttributeValue;
     }
 
-    if( (retval->attr_array=calloc(cnt,sizeof(CK_ATTRIBUTE))) == NULL) {
+    if ((retval->attr_array = calloc(cnt, sizeof(CK_ATTRIBUTE))) == NULL) {
 	goto error;
     }
 
@@ -65,7 +64,7 @@ pkcs11AttrList *pkcs11_new_attrlist(pkcs11Context *p11Context, ...)
 
     va_start(vl, p11Context);
 
-    for(i=0; i<cnt; i++) {
+    for (i = 0; i < cnt; i++) {
 	retval->attr_array[i].type = va_arg(vl, CK_ATTRIBUTE_TYPE);
 	retval->attr_array[i].pValue = NULL_PTR;
 	retval->attr_array[i].ulValueLen = 0;
@@ -74,43 +73,44 @@ pkcs11AttrList *pkcs11_new_attrlist(pkcs11Context *p11Context, ...)
 
     return retval;
 
-error:
-    if(retval) {
-	if(retval->attr_array) {
-	    free(retval->attr_array); retval->attr_array=NULL;
+    error:
+    if (retval) {
+	if (retval->attr_array) {
+	    free(retval->attr_array);
+	    retval->attr_array = NULL;
 	}
-	free(retval); retval=NULL;
+	free(retval);
+	retval = NULL;
     }
     return retval;
 }
 
 /* create  pkcs11AttrList * from an existing CK_ATTRIBUTE[] array (copy content) */
-pkcs11AttrList *pkcs11_new_attrlist_from_array(pkcs11Context *p11Context, CK_ATTRIBUTE_PTR attrs, CK_ULONG attrlen)
-{
+pkcs11AttrList *pkcs11_new_attrlist_from_array(pkcs11Context *p11Context, CK_ATTRIBUTE_PTR attrs, CK_ULONG attrlen) {
 
-    pkcs11AttrList *retval=NULL;
+    pkcs11AttrList *retval = NULL;
 
-    if( (retval=calloc(1,sizeof(pkcs11AttrList))) == NULL ) {
+    if ((retval = calloc(1, sizeof(pkcs11AttrList))) == NULL) {
 	goto error;
     }
 
-    if(p11Context) {
+    if (p11Context) {
 	retval->p11Context = p11Context;
-	retval->GetAttributeValue  = p11Context->FunctionList.C_GetAttributeValue;
-	retval->SetAttributeValue  = p11Context->FunctionList.C_SetAttributeValue;
+	retval->GetAttributeValue = p11Context->FunctionList.C_GetAttributeValue;
+//        retval->SetAttributeValue = p11Context->FunctionList.C_SetAttributeValue;
     }
 
-    if( (retval->attr_array=calloc(attrlen,sizeof(CK_ATTRIBUTE))) == NULL) {
+    if ((retval->attr_array = calloc(attrlen, sizeof(CK_ATTRIBUTE))) == NULL) {
 	goto error;
     }
 
     retval->allocated = attrlen;
 
     int i;
-    for(i=0; i<attrlen; i++) {
+    for (i = 0; i < attrlen; i++) {
 	retval->attr_array[i].type = attrs[i].type;
-	retval->attr_array[i].pValue = malloc( attrs[i].ulValueLen);
-	if(retval->attr_array[i].pValue == NULL) {
+	retval->attr_array[i].pValue = malloc(attrs[i].ulValueLen);
+	if (retval->attr_array[i].pValue == NULL) {
 	    fprintf(stderr, "***Error : memory allocation\n");
 	    goto error;
 	}
@@ -118,18 +118,18 @@ pkcs11AttrList *pkcs11_new_attrlist_from_array(pkcs11Context *p11Context, CK_ATT
 	retval->attr_array[i].ulValueLen = attrs[i].ulValueLen;
 
 	/* in case we copy a template attribute, we need also to clone the attributes value */
-	if(pkcs11_attr_is_template(retval->attr_array[i].type)) {
+	if (pkcs11_attr_is_template(retval->attr_array[i].type)) {
 	    /* pValue contains a list of attributes, that we need to cast and walk through. */
-	    CK_ATTRIBUTE_PTR template_array = (CK_ATTRIBUTE_PTR)retval->attr_array[i].pValue;
-	    size_t template_numelem = retval->attr_array[i].ulValueLen / sizeof (CK_ATTRIBUTE);
+	    CK_ATTRIBUTE_PTR template_array = (CK_ATTRIBUTE_PTR) retval->attr_array[i].pValue;
+	    size_t template_numelem = retval->attr_array[i].ulValueLen / sizeof(CK_ATTRIBUTE);
 
 	    int j;
-	    for (j=0;j<template_numelem;j++) {
+	    for (j = 0; j < template_numelem; j++) {
 		/* we need first to allocate memory, using a temporary buffer */
 		CK_VOID_PTR attribvalueclone;
-		if( (attribvalueclone=malloc(template_array[j].ulValueLen))==NULL ) {
+		if ((attribvalueclone = malloc(template_array[j].ulValueLen)) == NULL) {
 		    fprintf(stderr, "Memory allocation error");
-		    goto error;	/* TODO better cleanup */
+		    goto error;    /* TODO better cleanup */
 		}
 
 		/* then we copy the content of the original attribute to the cloned one */
@@ -143,85 +143,87 @@ pkcs11AttrList *pkcs11_new_attrlist_from_array(pkcs11Context *p11Context, CK_ATT
 
     return retval;
 
-error:
-    if(retval) {
-	if(retval->attr_array && retval->allocated>0) {
+    error:
+    if (retval) {
+	if (retval->attr_array && retval->allocated > 0) {
 	    int i;
-	    for(i=0;i<retval->allocated;i++) {
-		if(retval->attr_array[i].pValue) { free(retval->attr_array[i].pValue); retval->attr_array[i].pValue = NULL; }
+	    for (i = 0; i < retval->allocated; i++) {
+		if (retval->attr_array[i].pValue) {
+		    free(retval->attr_array[i].pValue);
+		    retval->attr_array[i].pValue = NULL;
+		}
 	    }
-	    free(retval->attr_array); retval->attr_array=NULL;
+	    free(retval->attr_array);
+	    retval->attr_array = NULL;
 	}
-	free(retval); retval=NULL;
+	free(retval);
+	retval = NULL;
     }
     return retval;
 }
 
 /* cast an array of CK_ATTRIBUTE into a pkcs11AttrList. Caution: this does not copy the attributes!!! */
-pkcs11AttrList *pkcs11_cast_to_attrlist(pkcs11Context *p11Context, CK_ATTRIBUTE_PTR attrs, CK_ULONG numattrs)
-{
+pkcs11AttrList *pkcs11_cast_to_attrlist(pkcs11Context *p11Context, CK_ATTRIBUTE_PTR attrs, CK_ULONG numattrs) {
 
-    pkcs11AttrList *retval=NULL;
+    pkcs11AttrList *retval = NULL;
 
-    if( (retval=calloc(1,sizeof(pkcs11AttrList))) == NULL ) {
+    if ((retval = calloc(1, sizeof(pkcs11AttrList))) == NULL) {
 	fprintf(stderr, "Memory allocation error\n");
 	goto error;
     }
 
-    if(p11Context) {
+    if (p11Context) {
 	retval->p11Context = p11Context;
-	retval->GetAttributeValue  = p11Context->FunctionList.C_GetAttributeValue;
-	retval->SetAttributeValue  = p11Context->FunctionList.C_SetAttributeValue;
+	retval->GetAttributeValue = p11Context->FunctionList.C_GetAttributeValue;
+//        retval->SetAttributeValue = p11Context->FunctionList.C_SetAttributeValue;
     }
 
     /* we increment a reference to the pointers */
     /* which means we don't want to take job of deleting them once done */
     retval->attr_array = attrs;
     retval->allocated = numattrs;
-    retval->cast = true;		/* remember we "created" the object from this API */
-error:
+    retval->cast = true;        /* remember we "created" the object from this API */
+    error:
     return retval;
 }
 
-void pkcs11_attrlist_assign_context(pkcs11AttrList *attrlist, pkcs11Context *p11Context)
-{
+void pkcs11_attrlist_assign_context(pkcs11AttrList *attrlist, pkcs11Context *p11Context) {
 
-    if(attrlist && p11Context) {
+    if (attrlist && p11Context) {
 	attrlist->p11Context = p11Context;
-	attrlist->GetAttributeValue  = p11Context->FunctionList.C_GetAttributeValue;
-	attrlist->SetAttributeValue  = p11Context->FunctionList.C_SetAttributeValue;
+	attrlist->GetAttributeValue = p11Context->FunctionList.C_GetAttributeValue;
+//        attrlist->SetAttributeValue = p11Context->FunctionList.C_SetAttributeValue;
     }
 }
 
 
-bool pkcs11_set_attr_in_attrlist ( pkcs11AttrList *attrlist,
-				   CK_ATTRIBUTE_TYPE attrib,
-				   CK_VOID_PTR pvalue,
-				   CK_ULONG len )
-{
+bool pkcs11_set_attr_in_attrlist(pkcs11AttrList *attrlist,
+				 CK_ATTRIBUTE_TYPE attrib,
+				 CK_VOID_PTR pvalue,
+				 CK_ULONG len) {
     bool rc = false;
 
-    if(attrlist) {
+    if (attrlist) {
 	int i;
 
-	for(i=0; i<attrlist->allocated;i++) {
-	    if(attrib==attrlist->attr_array[i].type) {
+	for (i = 0; i < attrlist->allocated; i++) {
+	    if (attrib == attrlist->attr_array[i].type) {
 		/* if we have a match, first free previously assigned value */
-		if(attrlist->attr_array[i].pValue) {
+		if (attrlist->attr_array[i].pValue) {
 		    free(attrlist->attr_array[i].pValue);
 		}
 
 		/* allocate memory */
 		attrlist->attr_array[i].pValue = malloc(len);
 
-		if(attrlist->attr_array[i].pValue==NULL) {
+		if (attrlist->attr_array[i].pValue == NULL) {
 		    fprintf(stderr, "oops malloc error\n");
 		    break;
 		}
 
 		/* copy value into freshly allocated attrib */
 		memcpy(attrlist->attr_array[i].pValue, pvalue, len);
-		attrlist->attr_array[i].ulValueLen= len;
+		attrlist->attr_array[i].ulValueLen = len;
 		rc = true;
 		break;
 	    }
@@ -232,35 +234,33 @@ bool pkcs11_set_attr_in_attrlist ( pkcs11AttrList *attrlist,
 }
 
 
-bool pkcs11_attrlist_has_attribute(const pkcs11AttrList *attrlist, CK_ATTRIBUTE_TYPE attrib)
-{
+bool pkcs11_attrlist_has_attribute(const pkcs11AttrList *attrlist, CK_ATTRIBUTE_TYPE attrib) {
     bool rv = false;
 
-    if(attrlist) {
+    if (attrlist) {
 	int i;
 
-	for(i=0; i<attrlist->allocated;i++) {
-	    if(attrib==attrlist->attr_array[i].type) {
+	for (i = 0; i < attrlist->allocated; i++) {
+	    if (attrib == attrlist->attr_array[i].type) {
 		rv = true;
-		break;		/* exit loop */
+		break;        /* exit loop */
 	    }
 	}
     }
     return rv;
 }
 
-CK_ATTRIBUTE_PTR pkcs11_get_attr_in_attrlist ( pkcs11AttrList *attrlist,
-					       CK_ATTRIBUTE_TYPE attrib )
-{
+CK_ATTRIBUTE_PTR pkcs11_get_attr_in_attrlist(pkcs11AttrList *attrlist,
+					     CK_ATTRIBUTE_TYPE attrib) {
     CK_ATTRIBUTE_PTR rc = NULL_PTR;
 
-    if(attrlist) {
+    if (attrlist) {
 	int i;
 
-	for(i=0; i<attrlist->allocated;i++) {
-	    if(attrib==attrlist->attr_array[i].type) {
+	for (i = 0; i < attrlist->allocated; i++) {
+	    if (attrib == attrlist->attr_array[i].type) {
 		rc = &(attrlist->attr_array[i]);
-		break;		/* exit loop */
+		break;        /* exit loop */
 	    }
 	}
     }
@@ -268,19 +268,18 @@ CK_ATTRIBUTE_PTR pkcs11_get_attr_in_attrlist ( pkcs11AttrList *attrlist,
     return rc;
 }
 
-CK_ATTRIBUTE_PTR pkcs11_get_attr_in_array ( CK_ATTRIBUTE_PTR array,
-					    size_t arraysize,
-					    CK_ATTRIBUTE_TYPE attrib )
-{
+CK_ATTRIBUTE_PTR pkcs11_get_attr_in_array(CK_ATTRIBUTE_PTR array,
+					  size_t arraysize,
+					  CK_ATTRIBUTE_TYPE attrib) {
     CK_ATTRIBUTE_PTR rc = NULL_PTR;
 
-    if(array && arraysize) {
+    if (array && arraysize) {
 	int i;
 
-	for(i=0; i<arraysize/sizeof(CK_ATTRIBUTE); i++) {
-	    if(attrib==array[i].type) {
+	for (i = 0; i < arraysize / sizeof(CK_ATTRIBUTE); i++) {
+	    if (attrib == array[i].type) {
 		rc = &array[i];
-		break;		/* exit loop */
+		break;        /* exit loop */
 	    }
 	}
     }
@@ -288,103 +287,106 @@ CK_ATTRIBUTE_PTR pkcs11_get_attr_in_array ( CK_ATTRIBUTE_PTR array,
 }
 
 
-inline bool pkcs11_read_attr_from_handle( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle )
-{
-    return pkcs11_read_attr_from_handle_ext( attrlist, handle, 0L );
+inline bool pkcs11_read_attr_from_handle(pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle) {
+    return pkcs11_read_attr_from_handle_ext(attrlist, handle, 0L);
 }
 
 /* variadic arguments can specify a range of acceptable error codes from C_GetAttributeValue */
 /* last item must be 0L, which is CKR_OK, i.e. not an error code                             */
 
-bool pkcs11_read_attr_from_handle_ext( pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle, ... )
-{
-    bool rc=false;
+bool pkcs11_read_attr_from_handle_ext(pkcs11AttrList *attrlist, CK_OBJECT_HANDLE handle, ...) {
+    bool rc = false;
     va_list vl;
     CK_RV accepted_rv;
 
-    if(attrlist && attrlist->p11Context && handle) {
+    if (attrlist && attrlist->p11Context && handle) {
 	CK_RV rv;
 	int i;
 
 	/* first of all cleanup everything, and check if we have at least one template attribute */
-	for(i=0; i<attrlist->allocated;i++) {
-	    if(attrlist->attr_array[i].pValue) {
+	for (i = 0; i < attrlist->allocated; i++) {
+	    if (attrlist->attr_array[i].pValue) {
 		free(attrlist->attr_array[i].pValue);
 	    }
 	    attrlist->attr_array[i].pValue = NULL_PTR;
 	    attrlist->attr_array[i].ulValueLen = 0;
-	    if( attrlist->has_template==false && pkcs11_attr_is_template(attrlist->attr_array[i].type)==true) {
-		attrlist->has_template=true;
+	    if (attrlist->has_template == false
+		&& pkcs11_attr_is_template(attrlist->attr_array[i].type) == true) {
+		attrlist->has_template = true;
 	    }
 	}
 
 	/* obtain buffer lengths to allocate */
-	rv = attrlist->GetAttributeValue(attrlist->p11Context->Session, handle, attrlist->attr_array, attrlist->allocated);
+	rv = attrlist->GetAttributeValue(attrlist->p11Context->Session, handle, attrlist->attr_array,
+					 attrlist->allocated);
 
 	/* skip accepted return codes */
 	va_start(vl, handle);
-	while( (accepted_rv=va_arg(vl, CK_RV)) != 0L ) {
-	    if(accepted_rv==rv) {
-		rv = CKR_OK;	/* force value and exit */
+	while ((accepted_rv = va_arg(vl, CK_RV)) != 0L) {
+	    if (accepted_rv == rv) {
+		rv = CKR_OK;    /* force value and exit */
 		break;
 	    }
 	}
 	va_end(vl);
 
 	if (rv != CKR_OK && rv != CKR_ATTRIBUTE_TYPE_INVALID) {
-	    pkcs11_error( rv, "C_GetAttributeValue" );
+	    pkcs11_error(rv, "C_GetAttributeValue");
 	    goto error;
 	}
 
 	/* populate array with buffers when requested */
-	for(i=0; i<attrlist->allocated;i++) {
-	    if( (long)(attrlist->attr_array[i].ulValueLen) == -1) { /* we need to check if we have -1. If so, skip alloc. */
+	for (i = 0; i < attrlist->allocated; i++) {
+	    if ((long) (attrlist->attr_array[i].ulValueLen) ==
+		-1) { /* we need to check if we have -1. If so, skip alloc. */
 		attrlist->attr_array[i].ulValueLen = 0L; /* force again value to 0 */
 	    } else {
 		/* we use calloc() because of attributes of type "Template" require to get clean buffers */
 		/* so the content can be populated with expected lengths for buffers */
-		if( (attrlist->attr_array[i].pValue=calloc(1,attrlist->attr_array[i].ulValueLen))==NULL ) {
+		if ((attrlist->attr_array[i].pValue = calloc(1, attrlist->attr_array[i].ulValueLen)) == NULL) {
 		    fprintf(stderr, "Memory allocation error");
 		    goto error;
 		}
 	    }
 	}
 
-	rv = attrlist->GetAttributeValue(attrlist->p11Context->Session, handle, attrlist->attr_array, attrlist->allocated);
+	rv = attrlist->GetAttributeValue(attrlist->p11Context->Session, handle, attrlist->attr_array,
+					 attrlist->allocated);
 
 	/* skip accepted return codes */
 	va_start(vl, handle);
-	while( (accepted_rv=va_arg(vl, CK_RV)) != 0L ) {
-	    if(accepted_rv==rv) {
-		rv = CKR_OK;	/* force value and exit */
+	while ((accepted_rv = va_arg(vl, CK_RV)) != 0L) {
+	    if (accepted_rv == rv) {
+		rv = CKR_OK;    /* force value and exit */
 		break;
 	    }
 	}
 	va_end(vl);
 
-	if (rv != CKR_OK && rv != CKR_ATTRIBUTE_TYPE_INVALID ) {
-	    pkcs11_error( rv, "C_GetAttributeValue" );
+	if (rv != CKR_OK && rv != CKR_ATTRIBUTE_TYPE_INVALID) {
+	    pkcs11_error(rv, "C_GetAttributeValue");
 	    goto error;
 	}
 
 	/* in case we have remaining invalid ulValueLen fields, adjust them */
-	for(i=0; i<attrlist->allocated;i++) {
-	    if( (long)(attrlist->attr_array[i].ulValueLen) == -1) { /* we need to check if we have -1. If so, skip alloc. */
+	for (i = 0; i < attrlist->allocated; i++) {
+	    if ((long) (attrlist->attr_array[i].ulValueLen) ==
+		-1) { /* we need to check if we have -1. If so, skip alloc. */
 		attrlist->attr_array[i].ulValueLen = 0L; /* force again value to 0 */
 	    }
 	}
 
 	/* special case: we have at least one template attribute */
-	if(attrlist->has_template) {
-	    for(i=0; i<attrlist->allocated;i++) {
-		if( pkcs11_attr_is_template(attrlist->attr_array[i].type)) {
+	if (attrlist->has_template) {
+	    for (i = 0; i < attrlist->allocated; i++) {
+		if (pkcs11_attr_is_template(attrlist->attr_array[i].type)) {
 		    /* pValue contains a list of attributes, that we need to cast and walk through. */
-		    CK_ATTRIBUTE_PTR template_array = (CK_ATTRIBUTE_PTR)attrlist->attr_array[i].pValue;
-		    size_t template_numelem = attrlist->attr_array[i].ulValueLen / sizeof (CK_ATTRIBUTE);
+		    CK_ATTRIBUTE_PTR template_array = (CK_ATTRIBUTE_PTR) attrlist->attr_array[i].pValue;
+		    size_t template_numelem = attrlist->attr_array[i].ulValueLen / sizeof(CK_ATTRIBUTE);
 
 		    int j;
-		    for (j=0;j<template_numelem;j++) {
-			if( (template_array[j].pValue=malloc(template_array[j].ulValueLen))==NULL ) {
+		    for (j = 0; j < template_numelem; j++) {
+			if ((template_array[j].pValue = malloc(template_array[j].ulValueLen)) == NULL) {
 			    fprintf(stderr, "Memory allocation error");
 			    goto error;
 			}
@@ -393,26 +395,28 @@ bool pkcs11_read_attr_from_handle_ext( pkcs11AttrList *attrlist, CK_OBJECT_HANDL
 	    }
 
 	    /* OK, call GetAttributeValue for the third time */
-	    rv = attrlist->GetAttributeValue(attrlist->p11Context->Session, handle, attrlist->attr_array, attrlist->allocated);
+	    rv = attrlist->GetAttributeValue(attrlist->p11Context->Session, handle, attrlist->attr_array,
+					     attrlist->allocated);
 
 	    /* skip accepted return codes */
 	    va_start(vl, handle);
-	    while( (accepted_rv=va_arg(vl, CK_RV)) != 0L ) {
-		if(accepted_rv==rv) {
-		    rv = CKR_OK;	/* force value and exit */
+	    while ((accepted_rv = va_arg(vl, CK_RV)) != 0L) {
+		if (accepted_rv == rv) {
+		    rv = CKR_OK;    /* force value and exit */
 		    break;
 		}
 	    }
 	    va_end(vl);
 
-	    if (rv != CKR_OK && rv != CKR_ATTRIBUTE_TYPE_INVALID ) {
-		pkcs11_error( rv, "C_GetAttributeValue" );
+	    if (rv != CKR_OK && rv != CKR_ATTRIBUTE_TYPE_INVALID) {
+		pkcs11_error(rv, "C_GetAttributeValue");
 		goto error;
 	    }
 
 	    /* in case we have remaining invalid ulValueLen fields, adjust them */
-	    for(i=0; i<attrlist->allocated;i++) {
-		if( (long)(attrlist->attr_array[i].ulValueLen) == -1) { /* we need to check if we have -1. If so, skip alloc. */
+	    for (i = 0; i < attrlist->allocated; i++) {
+		if ((long) (attrlist->attr_array[i].ulValueLen) ==
+		    -1) { /* we need to check if we have -1. If so, skip alloc. */
 		    attrlist->attr_array[i].ulValueLen = 0L; /* force again value to 0 */
 		}
 	    }
@@ -420,38 +424,37 @@ bool pkcs11_read_attr_from_handle_ext( pkcs11AttrList *attrlist, CK_OBJECT_HANDL
 	rc = true;
     }
 
-error:				/* TODO: fix mem leaks resulting from errors in process */
+    error:                /* TODO: fix mem leaks resulting from errors in process */
     return rc;
 }
 
 
-void pkcs11_delete_attrlist(pkcs11AttrList *attrlist)
-{
-    if(attrlist) {
+void pkcs11_delete_attrlist(pkcs11AttrList *attrlist) {
+    if (attrlist) {
 	/* we only free attrlist that were not cast */
-	if(attrlist->cast==false && attrlist->attr_array) {
+	if (attrlist->cast == false && attrlist->attr_array) {
 	    int i;
-	    for(i=0;i<attrlist->allocated;i++) {
-		if(attrlist->attr_array[i].pValue) {
+	    for (i = 0; i < attrlist->allocated; i++) {
+		if (attrlist->attr_array[i].pValue) {
 
 		    /* special case: for templates, we need to free sub-buffers */
-		    if(pkcs11_attr_is_template(attrlist->attr_array[i].type)) {
+		    if (pkcs11_attr_is_template(attrlist->attr_array[i].type)) {
 			/* pValue contains a list of attributes, that we need to cast and walk through. */
-			CK_ATTRIBUTE_PTR template_array = (CK_ATTRIBUTE_PTR)attrlist->attr_array[i].pValue;
-			size_t template_numelem = attrlist->attr_array[i].ulValueLen / sizeof (CK_ATTRIBUTE);
+			CK_ATTRIBUTE_PTR template_array = (CK_ATTRIBUTE_PTR) attrlist->attr_array[i].pValue;
+			size_t template_numelem = attrlist->attr_array[i].ulValueLen / sizeof(CK_ATTRIBUTE);
 
 			int j;
-			for (j=0;j<template_numelem;j++) {
-			    if(template_array[j].pValue) {
+			for (j = 0; j < template_numelem; j++) {
+			    if (template_array[j].pValue) {
 				free(template_array[j].pValue);
-				template_array[j].pValue=NULL_PTR;
-				template_array[j].ulValueLen=0;
+				template_array[j].pValue = NULL_PTR;
+				template_array[j].ulValueLen = 0;
 			    }
 			}
 		    }
 		    free(attrlist->attr_array[i].pValue);
-		    attrlist->attr_array[i].pValue=NULL_PTR;
-		    attrlist->attr_array[i].ulValueLen=0;
+		    attrlist->attr_array[i].pValue = NULL_PTR;
+		    attrlist->attr_array[i].ulValueLen = 0;
 		}
 	    }
 	    free(attrlist->attr_array);
@@ -460,36 +463,35 @@ void pkcs11_delete_attrlist(pkcs11AttrList *attrlist)
     }
 }
 
-inline CK_ATTRIBUTE * const pkcs11_attrlist_get_attributes_array(pkcs11AttrList *attrlist)
-{
+inline CK_ATTRIBUTE *const pkcs11_attrlist_get_attributes_array(pkcs11AttrList *attrlist) {
     return attrlist->attr_array;
 }
 
-inline CK_ULONG const pkcs11_attrlist_get_attributes_len(pkcs11AttrList *attrlist)
-{
+inline CK_ULONG const pkcs11_attrlist_get_attributes_len(pkcs11AttrList *attrlist) {
     return attrlist->allocated;
 }
 
 
 /* given an existing attrlist, extend with provided arguments */
-pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PTR attrs, CK_ULONG numattrs)
-{
+pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PTR attrs, CK_ULONG numattrs) {
     pkcs11AttrList *retval = attrlist;
 
-    if(attrlist && attrlist->cast == false) { /* we don't extend cast lists */
-	if(numattrs>0) {
+    if (attrlist && attrlist->cast == false) { /* we don't extend cast lists */
+	if (numattrs > 0) {
 	    int modified_inplace = 0;
 	    int i;
 
 	    /* first walk the attributes and change what can be changed, without reallocating */
-	    for(i=0;i<numattrs;i++) {
-		if( pkcs11_set_attr_in_attrlist ( attrlist, attrs[i].type, attrs[i].pValue, attrs[i].ulValueLen ) == true ) {
+	    for (i = 0; i < numattrs; i++) {
+		if (pkcs11_set_attr_in_attrlist(attrlist, attrs[i].type, attrs[i].pValue, attrs[i].ulValueLen) == true) {
 		    ++modified_inplace;
 		}
 	    }
-	    if(modified_inplace<numattrs) { /* we have some attributes not existing in the current list */
-		CK_ATTRIBUTE_PTR newlist = realloc( attrlist->attr_array, (attrlist->allocated + numattrs - modified_inplace) * sizeof(CK_ATTRIBUTE)  );
-		if(newlist==NULL) {
+	    if (modified_inplace < numattrs) { /* we have some attributes not existing in the current list */
+		CK_ATTRIBUTE_PTR newlist = realloc(attrlist->attr_array,
+						   (attrlist->allocated + numattrs - modified_inplace) *
+						   sizeof(CK_ATTRIBUTE));
+		if (newlist == NULL) {
 		    fprintf(stderr, "***Error: memory reallocation\n");
 		    goto error;
 		}
@@ -499,30 +501,31 @@ pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PT
 
 		int extended_index;
 
-		for(i=0, extended_index=attrlist->allocated; i< numattrs; i++, extended_index++) {
+		for (i = 0, extended_index = attrlist->allocated; i < numattrs; i++, extended_index++) {
 		    /* if set_attr_in_attrlist returns CK_FALSE, it means we don't have a match ==> append it */
-		    if( pkcs11_set_attr_in_attrlist ( attrlist, attrs[i].type, attrs[i].pValue, attrs[i].ulValueLen ) == CK_FALSE ) {
+		    if (pkcs11_set_attr_in_attrlist(attrlist, attrs[i].type, attrs[i].pValue, attrs[i].ulValueLen) == CK_FALSE) {
 			newlist[extended_index].type = attrs[i].type;
-			newlist[extended_index].pValue = malloc( attrs[i].ulValueLen);
-			if(newlist[extended_index].pValue==NULL) {
+			newlist[extended_index].pValue = malloc(attrs[i].ulValueLen);
+			if (newlist[extended_index].pValue == NULL) {
 			    fprintf(stderr, "***Error: memory allocation\n");
 			    goto error;
 			}
 
-			memcpy(newlist[extended_index].pValue, attrs[i].pValue, attrs[i].ulValueLen); /* copy attribute */
+			memcpy(newlist[extended_index].pValue, attrs[i].pValue,
+			       attrs[i].ulValueLen); /* copy attribute */
 			newlist[extended_index].ulValueLen = attrs[i].ulValueLen; /* adjust length */
 
 			/* in case we extend a template attribute, we need also to clone the attributes value */
-			if(pkcs11_attr_is_template(newlist[extended_index].type)) {
+			if (pkcs11_attr_is_template(newlist[extended_index].type)) {
 			    /* pValue contains a list of attributes, that we need to cast and walk through. */
-			    CK_ATTRIBUTE_PTR template_array = (CK_ATTRIBUTE_PTR)newlist[extended_index].pValue;
-			    size_t template_numelem = newlist[extended_index].ulValueLen / sizeof (CK_ATTRIBUTE);
+			    CK_ATTRIBUTE_PTR template_array = (CK_ATTRIBUTE_PTR) newlist[extended_index].pValue;
+			    size_t template_numelem = newlist[extended_index].ulValueLen / sizeof(CK_ATTRIBUTE);
 
 			    int j;
-			    for (j=0;j<template_numelem;j++) {
+			    for (j = 0; j < template_numelem; j++) {
 				/* we need first to allocate memory, using a temporary buffer */
 				CK_VOID_PTR attribvalueclone;
-				if( (attribvalueclone=malloc(template_array[j].ulValueLen))==NULL ) {
+				if ((attribvalueclone = malloc(template_array[j].ulValueLen)) == NULL) {
 				    fprintf(stderr, "Memory allocation error");
 				    goto error;
 				}
@@ -534,7 +537,7 @@ pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PT
 				template_array[j].pValue = attribvalueclone;
 			    }
 			}
-			
+
 		    }
 		}
 
@@ -543,17 +546,15 @@ pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PT
 	}
     }
 
-error:	/* TODO: fix mem leaks resulting from Error */
+    error:    /* TODO: fix mem leaks resulting from Error */
     return retval;
 }
 
-inline bool pkcs11_attr_is_template(CK_ATTRIBUTE_TYPE attrtype)
-{
+inline bool pkcs11_attr_is_template(CK_ATTRIBUTE_TYPE attrtype) {
     return attrtype == CKA_WRAP_TEMPLATE || attrtype == CKA_UNWRAP_TEMPLATE || attrtype == CKA_DERIVE_TEMPLATE;
-}		     
+}
 
-inline bool pkcs11_attr_is_allowed_mechanisms(CK_ATTRIBUTE_TYPE attrtype)
-{
+inline bool pkcs11_attr_is_allowed_mechanisms(CK_ATTRIBUTE_TYPE attrtype) {
     return attrtype == CKA_ALLOWED_MECHANISMS;
 }
 /* EOF */

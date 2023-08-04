@@ -411,7 +411,7 @@ func_rc _wrappedkey_parser_assign_list_to_template(wrappedKeyCtx *wctx, CK_ATTRI
 	    rc = rc_error_parsing;
 	    goto error;
 	}
-	actx->wraptemplate_idx = actx->saved_idx; /* saved_idx is set by lexer */
+//	actx->wraptemplate_idx = actx->saved_idx; /* saved_idx is set by lexer */
 	actx->has_wrap_template = true;
 	break;
 
@@ -421,7 +421,7 @@ func_rc _wrappedkey_parser_assign_list_to_template(wrappedKeyCtx *wctx, CK_ATTRI
 	    rc = rc_error_parsing;
 	    goto error;
 	}
-	actx->unwraptemplate_idx = actx->saved_idx; /* saved_idx is set by lexer */
+//	actx->unwraptemplate_idx = actx->saved_idx; /* saved_idx is set by lexer */
 	actx->has_unwrap_template = true;
 	break;
 
@@ -431,7 +431,7 @@ func_rc _wrappedkey_parser_assign_list_to_template(wrappedKeyCtx *wctx, CK_ATTRI
 	    rc = rc_error_parsing;
 	    goto error;
 	}
-	actx->derivetemplate_idx = actx->saved_idx; /* saved_idx is set by lexer */
+//	actx->derivetemplate_idx = actx->saved_idx; /* saved_idx is set by lexer */
 	actx->has_derive_template = true;
 	break;
 

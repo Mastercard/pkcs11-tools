@@ -47,6 +47,8 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	wrappedkey_helper.c wrappedkey_helper.h \
 	pkcs11_attribctx.c \
 	pkcs11_wctx.c \
+	pkcs11_wrapoutput.c \
+	pkcs11_peekpoke.c \
 	pkcs11_wrap.c \
 	pkcs11_unwrap.c \
 	pkcs11_random.c \
@@ -68,7 +70,6 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_mechanism.c \
 	pkcs11_attrdesc.c \
 	pkcs11_mv.c \
-	pkcs11_peekpoke.c \
 	pkcs11_req.c \
 	pkcs11_cert.c \
 	pkcs11_cert_common.c \
