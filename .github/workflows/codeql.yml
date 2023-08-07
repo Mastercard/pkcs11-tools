@@ -76,9 +76,9 @@ jobs:
     #     ./location_of_script_within_repo/buildscript.sh
 
     - name: update system
-      run: apt-get update &&  NEEDRESTART_MODE=a apt-get dist-upgrade -y
+      run: sudo apt-get update &&  NEEDRESTART_MODE=a sudo apt-get dist-upgrade -y
     - name: install build dependencies
-      run: NEEDRESTART_MODE=a apt -y install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl automake-1.15
+      run: NEEDRESTART_MODE=a sudo apt -y install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl
 
     - name: make bootstrap.sh executable
       run: chmod +x bootstrap.sh
