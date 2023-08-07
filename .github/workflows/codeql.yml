@@ -60,11 +60,10 @@ jobs:
         # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
         # queries: security-extended,security-and-quality
 
-
     # Autobuild attempts to build any compiled languages (C/C++, C#, Go, Java, or Swift).
     # If this step fails, then you should remove it and run the build manually (see below)
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+    # - name: Autobuild
+    #   uses: github/codeql-action/autobuild@v2
 
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
@@ -75,6 +74,21 @@ jobs:
     # - run: |
     #     echo "Run, Build Application using script"
     #     ./location_of_script_within_repo/buildscript.sh
+
+    - name: update system
+      run: apt-get update &&  NEEDRESTART_MODE=a apt-get dist-upgrade -y
+    - name: install build dependencies
+      run: NEEDRESTART_MODE=a apt -y install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl automake-1.15
+
+    - name: make bootstrap.sh executable
+      run: chmod +x bootstrap.sh
+    - name: run bootstrap.sh
+      run: ./bootstrap.sh
+    - name: run configure script
+      run: ./configure
+    - name: make
+      run: make
+
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v2
