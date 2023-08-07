@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: install build dependencies
-        run: NEEDRESTART_MODE=l apt -y install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl
+        run: NEEDRESTART_MODE=l sudo apt -y install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl
 
   build-pkcs11-tools-ubuntu-latest:
 
