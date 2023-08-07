@@ -315,7 +315,7 @@ Please refer to [docs/MANUAL.md](docs/MANUAL.md) for instructions / how-to guide
 If you wish to contribute to this project, please refer to the rules in [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 Contributors:
- - Georg Lippold (Mastercard, https://www.mastercard.com) - JWK output
+ - Georg Lippold (Mastercard, https://www.mastercard.com) - JWK output, GitHub build & CodeQL integration
 
 ## Author
 
