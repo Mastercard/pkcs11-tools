@@ -14,7 +14,7 @@ jobs:
       - name: update system
         run: apt-get update &&  NEEDRESTART_MODE=a apt-get dist-upgrade -y
       - name: install build dependencies
-        run: NEEDRESTART_MODE=a apt -y install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl
+        run: NEEDRESTART_MODE=a apt -y install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl automake-1.15
 
   build-pkcs11-tools-ubuntu-latest:
 
