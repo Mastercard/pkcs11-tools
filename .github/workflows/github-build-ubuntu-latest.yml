@@ -3,7 +3,7 @@ run-name: ${{ github.actor }} build of pkcs11-tools using GitHub Actions
 on:
   push:
     branches: [ $default-branch ]
-  pull-requests:
+  pull_request:
     branches: [ $default-branch ]
 jobs:
 
