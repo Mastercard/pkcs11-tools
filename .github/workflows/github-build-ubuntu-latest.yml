@@ -3,18 +3,28 @@ run-name: ${{ github.actor }} build of pkcs11-tools using GitHub Actions
 on:
   push:
     branches: [ $default-branch ]
-  pull-requests:
+  pull_request:
     branches: [ $default-branch ]
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'warning'
+        type: choice
+        options:
+        - info
+        - warning
+        - debug
+    
 jobs:
 
   install-build-dependencies:
     runs-on: ubuntu-latest
 
     steps:
-      - name: update system
-        run: apt-get update &&  NEEDRESTART_MODE=a apt-get dist-upgrade -y
       - name: install build dependencies
-        run: NEEDRESTART_MODE=a apt -y install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl
+        run: NEEDRESTART_MODE=l sudo apt -y install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl
 
   build-pkcs11-tools-ubuntu-latest:
 
