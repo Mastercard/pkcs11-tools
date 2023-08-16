@@ -19,10 +19,39 @@ on:
     
 jobs:
 
+  build-pkcs11-tools-oel-8:
+
+    runs-on: ubuntu-latest
+    container:
+      image: oraclelinux:8
+    steps:
+      - uses: actions/checkout@v3
+      - name: install build dependencies
+        run: sudo dnf install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl
+      - name: make bootstrap.sh executable
+        run: chmod +x bootstrap.sh
+      - name: run bootstrap.sh
+        run: ./bootstrap.sh
+      - name: run configure script
+        run: ./configure --prefix=$PWD
+      - name: make
+        run: make
+      - name: make distribution tar archive
+        run: make dist
+      - name: create RPMs
+        run:  cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS
+              cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES
+              rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec
+      - name: upload pkcs11-tools.tar.gz to releases
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name: pkcs11-tools-latest-oel8-bin.rpm
+          files: pkcs11-tools-*rpm
+
   build-pkcs11-tools-ubuntu-latest:
 
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
       - name: install build dependencies
@@ -37,6 +66,8 @@ jobs:
         run: make
       - name: make distribution tar archive
         run: make dist
+      - name: list release files
+        run: ls pkcs11-tools-*tar*
       - name: upload pkcs11-tools.tar.gz to releases
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
