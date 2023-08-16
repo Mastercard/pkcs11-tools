@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: install build dependencies
-        run:  dnf install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl
+        run:  dnf install openssl-devel git clang autoconf libtool bison flex make pkg-config perl
       - name: make bootstrap.sh executable
         run:  chmod +x bootstrap.sh
       - name: run bootstrap.sh
