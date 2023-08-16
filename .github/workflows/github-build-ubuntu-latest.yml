@@ -26,7 +26,8 @@ jobs:
       image: oraclelinux:8
     steps:
       - name: install build dependencies
-        run:  dnf install openssl-devel git clang autoconf libtool bison flex make pkg-config perl
+        run:  dnf makecache --refresh
+              dnf install autoconf-archive openssl-devel git clang autoconf libtool bison flex make pkg-config perl
       - uses: actions/checkout@v3
       - name: make pkcs11-tools checkout directory acceptable for git
         run:  git config --global --add safe.directory /__w/pkcs11-tools/pkcs11-tools
