@@ -59,13 +59,15 @@ jobs:
               cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES && 
               rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec
       - name: list release files
-        run:  ls pkcs11-tools-*rpm
-      - name: upload pkcs11-tools.rpm to releases
+        run:  find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f &&
+              find /__w/pkcs11-tools/rpmbuild/RPMS/ -type f
+      - name: upload pkcs11-tools RPMs to releases
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           name:  pkcs11-tools-latest-oel8-bin.rpm
-          files: pkcs11-tools-*rpm
+          files:  /__w/pkcs11-tools/rpmbuild/SRPMS/pkcs11-tools-*.el8.src.rpm
+                  /__w/pkcs11-tools/rpmbuild/RPMS/x86_64/pkcs11-tools-*.el8.x86_64.rpm
 
   build-pkcs11-tools-ubuntu-latest:
 
