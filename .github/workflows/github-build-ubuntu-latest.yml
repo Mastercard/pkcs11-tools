@@ -28,16 +28,19 @@ jobs:
       - name: enable additional repository for autoconf-archive
         run: dnf config-manager --set-enabled ol8_codeready_builder
       - name: install build dependencies
-        run:  dnf install openssl-devel git clang autoconf libtool autoconf-archive bison flex make pkg-config perl
+        run:  dnf install openssl-devel git clang autoconf libtool autoconf-archive bison flex make pkg-config perl rpmbuild
       - uses: actions/checkout@v3
       - name: make pkcs11-tools checkout directory acceptable for git
         run:  git config --global --add safe.directory /__w/pkcs11-tools/pkcs11-tools
       - name: make bootstrap.sh executable
         run:  chmod +x bootstrap.sh
-      - name: print autoconf version
-        run:  autoconf --version && rpm -qi autoconf
-      - name: print pkg-config version
-        run:  pkg-config --version && rpm -qi pkgconf-pkg-config 
+# debugging autoconf and pkg-config due to error
+#    configure.ac "error: possibly undefined macro: AC_MSG_WARN"
+# resolution was to enable autoconf-archive repo - see above
+#      - name: print autoconf version
+#        run:  autoconf --version && rpm -qi autoconf
+#      - name: print pkg-config version
+#        run:  pkg-config --version && rpm -qi pkgconf-pkg-config 
       - name: run bootstrap.sh
         run:  ./bootstrap.sh
       - name: run configure script
@@ -47,9 +50,11 @@ jobs:
       - name: make distribution tar archive
         run:  make dist
       - name: create RPMs
-        run:  cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS && 
-              cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES && 
-              rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec
+        run:  mkdir -p ../rpmbuild/SPECS &&
+              mkdir -p ../rpmbuild/SOURCES &&
+              cp dist/redhat/pkcs11-tools.spec ../rpmbuild/SPECS && 
+              cp pkcs11-tools-*.tar.gz ../rpmbuild/SOURCES && 
+              rpmbuild -ba ../rpmbuild/SPECS/pkcs11-tools.spec
       - name: list release files
         run:  ls pkcs11-tools-*rpm
       - name: upload pkcs11-tools.rpm to releases
