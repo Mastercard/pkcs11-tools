@@ -51,12 +51,13 @@ jobs:
       - name: make distribution tar archive
         run:  make dist
       - name: create RPMs
-        run:  mkdir -p ../rpmbuild/SPECS &&
-              mkdir -p ../rpmbuild/SOURCES &&
+        run:  export HOME=/__w/pkcs11-tools/ &&
+              mkdir -p $HOME/rpmbuild/SPECS &&
+              mkdir -p $HOME/rpmbuild/SOURCES &&
               dnf builddep -y dist/redhat/pkcs11-tools.spec &&
-              cp dist/redhat/pkcs11-tools.spec ../rpmbuild/SPECS && 
-              cp pkcs11-tools-*.tar.gz ../rpmbuild/SOURCES && 
-              rpmbuild -ba ../rpmbuild/SPECS/pkcs11-tools.spec
+              cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS && 
+              cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES && 
+              rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec
       - name: list release files
         run:  ls pkcs11-tools-*rpm
       - name: upload pkcs11-tools.rpm to releases
