@@ -37,7 +37,7 @@ jobs:
       - name: print autoconf version
         run:  autoconf --version && rpm -qi autoconf
       - name: print pkg-config version
-        run:  pkg-config --version && rpm -qi pkg-config 
+        run:  pkg-config --version && rpm -qi pkgconf-pkg-config 
       - name: run bootstrap.sh
         run:  ./bootstrap.sh
       - name: run configure script
