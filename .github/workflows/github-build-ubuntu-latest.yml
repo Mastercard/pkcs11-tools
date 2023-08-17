@@ -52,8 +52,6 @@ jobs:
         run:  |
               yum remove -y git
               yum install -y git236 openssl-devel autoconf libtool autoconf-archive bison flex make perl rpm-build pkg-config
-      - name: enable rh-git29
-        run:  scl enable rh-git29 bash
       - uses: actions/checkout@v3
       - name: make pkcs11-tools checkout directory acceptable for git
         run:  git config --global --add safe.directory /__w/pkcs11-tools/pkcs11-tools
