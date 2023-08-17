@@ -19,19 +19,14 @@ on:
     
 jobs:
 
-  install-build-dependencies:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: install build dependencies
-        run: NEEDRESTART_MODE=l sudo apt -y install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl
-
   build-pkcs11-tools-ubuntu-latest:
 
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
+      - name: install build dependencies
+        run: NEEDRESTART_MODE=l sudo apt -y install libssl-dev git clang autoconf libtool autoconf-archive bison flex make pkg-config perl
       - name: make bootstrap.sh executable
         run: chmod +x bootstrap.sh
       - name: run bootstrap.sh
@@ -42,15 +37,9 @@ jobs:
         run: make
       - name: make distribution tar archive
         run: make dist
-
-  publish-linux-download:
-
-    runs-on: ubuntu-latest
-
-    steps:
       - name: upload pkcs11-tools.tar.gz to releases
         uses: softprops/action-gh-release@v1
-        if: startWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: pkcs11-tools-linux-bin.tar.gz
+          name: pkcs11-tools-ubuntu-latest-bin.tar.gz
           files: pkcs11-tools-*tar*
