@@ -29,8 +29,8 @@ jobs:
         # https://docs.oracle.com/en/operating-systems/oracle-linux/scl-user/scl-ReleaseNotes.html#ol-scl-install-swc
         run:  |
               yum install -y yum-utils
-              yum install oraclelinux-developer-release-el7
-              yum install oracle-epel-release-el7
+              yum install -y oraclelinux-developer-release-el7
+              yum install -y oracle-epel-release-el7
               echo "Enabling OEL7 Addons repo"
               yum-config-manager --enable ol7_addons
               echo "Enabling OEL7 Latest and Optional Latest repo"
