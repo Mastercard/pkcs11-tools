@@ -34,7 +34,7 @@ jobs:
               yum-config-manager --enable ol7_codeready_builder
               yum-config-manager --enable ol7_appstream
       - name: install build dependencies
-        run:  yum install openssl-devel git autoconf libtool autoconf-archive bison flex make perl rpm-build
+        run:  yum install -y openssl-devel git autoconf libtool autoconf-archive bison flex make perl rpm-build
       - uses: actions/checkout@v3
       - name: make pkcs11-tools checkout directory acceptable for git
         run:  git config --global --add safe.directory /__w/pkcs11-tools/pkcs11-tools
