@@ -27,10 +27,12 @@ jobs:
     steps:
       - name: enable additional repositories for autoconf-archive and rpmbuild
         run:  |
-              dnf config-manager --set-enabled ol7_codeready_builder
-              dnf config-manager --set-enabled ol7_appstream
+              yum install yum-utils -y
+              yum repolist
+              yum-config-manager --enable ol7_codeready_builder
+              yum-config-manager --enable ol7_appstream
       - name: install build dependencies
-        run:  dnf install openssl-devel git clang autoconf libtool autoconf-archive bison flex make pkg-config perl rpm-build
+        run:  yum install openssl-devel git clang autoconf libtool autoconf-archive bison flex make pkg-config perl rpm-build
       - uses: actions/checkout@v3
       - name: make pkcs11-tools checkout directory acceptable for git
         run:  git config --global --add safe.directory /__w/pkcs11-tools/pkcs11-tools
@@ -44,16 +46,15 @@ jobs:
         run:  make dist
       - name: create RPMs
         run:  |
-              export HOME=/__w/pkcs11-tools/ &&
-              mkdir -p $HOME/rpmbuild/SPECS &&
-              mkdir -p $HOME/rpmbuild/SOURCES &&
-              dnf builddep -y dist/redhat/pkcs11-tools.spec &&
-              cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS && 
-              cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES && 
+              export HOME=/__w/pkcs11-tools/
+              mkdir -p $HOME/rpmbuild/SPECS 
+              mkdir -p $HOME/rpmbuild/SOURCES 
+              cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS 
+              cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES 
               rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec --with awscloudhsm
       - name: list release files
         run:  |
-              find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f &&
+              find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f
               find /__w/pkcs11-tools/rpmbuild/RPMS/ -type f
       - name: upload pkcs11-tools RPMs to releases
         # see https://github.com/softprops/action-gh-release
@@ -100,16 +101,16 @@ jobs:
         run:  make dist
       - name: create RPMs
         run:  |
-              export HOME=/__w/pkcs11-tools/ &&
-              mkdir -p $HOME/rpmbuild/SPECS &&
-              mkdir -p $HOME/rpmbuild/SOURCES &&
-              dnf builddep -y dist/redhat/pkcs11-tools.spec &&
-              cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS && 
-              cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES && 
+              export HOME=/__w/pkcs11-tools/
+              mkdir -p $HOME/rpmbuild/SPECS
+              mkdir -p $HOME/rpmbuild/SOURCES
+              dnf builddep -y dist/redhat/pkcs11-tools.spec
+              cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS
+              cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES
               rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec --with awscloudhsm
 #      - name: list release files
 #        run:  |
-#              find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f &&
+#              find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f
 #              find /__w/pkcs11-tools/rpmbuild/RPMS/ -type f
       - name: upload pkcs11-tools RPMs to releases
         # see https://github.com/softprops/action-gh-release
