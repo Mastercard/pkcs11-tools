@@ -87,19 +87,11 @@ jobs:
       - name: run bootstrap.sh
         run:  ./bootstrap.sh
       - name: run configure script
-        run:  ./configure
-      - name: make
-        run:  make
+        run:  ./configure --prefix=$PWD
       - name: make source distribution tar archive
         run:  make dist
-      - name: create binary archive
-        run:  |
-              SRC_DIR="`pwd`"
-              INSTALL_DIR="${TMP}/pkcs11-tools"
-              make DESTDIR="${INSTALL_DIR}" install
-              cd "${INSTALL_DIR}"
-              tar czvf "${SRC_DIR}"/pkcs11-tools-ubuntu-latest-bin.tar.gz .
-              cd "${SRC_DIR}"
+      - name: make
+        run:  make dist-bin
       - name: list release files
         run:  ls pkcs11-tools-*tar*
       - name: upload pkcs11-tools.tar.gz to releases
