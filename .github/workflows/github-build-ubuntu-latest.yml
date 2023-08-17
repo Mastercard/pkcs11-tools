@@ -28,7 +28,7 @@ jobs:
       - name: enable additional repositories
         # https://docs.oracle.com/en/operating-systems/oracle-linux/scl-user/scl-ReleaseNotes.html#ol-scl-install-swc
         run:  |
-              yum install -y yum-utils epel-release yum-plugin-prorities
+              yum install -y yum-utils
               echo "Enabling OEL7 Addons repo"
               yum-config-manager --enable ol7_addons
               echo "Enabling OEL7 Latest and Optional Latest repo"
@@ -36,7 +36,7 @@ jobs:
               echo "Enabling OEL7 Software Collections repo"
               yum-config-manager --enable ol7_software_collections
               echo "Enabling https://www.softwarecollections.org/en/scls/rhscl/rh-git29/ repo"
-              yum install scl-utils
+              yum install -y scl-utils
               yum-config-manager --enable rhel-server-rhscl-7-rpms
               echo "REPOLIST is:"
               yum repolist
