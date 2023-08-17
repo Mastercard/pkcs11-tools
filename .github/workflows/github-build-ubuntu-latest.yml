@@ -19,6 +19,52 @@ on:
     
 jobs:
 
+  build-pkcs11-tools-oel-7:
+
+    runs-on: ubuntu-latest
+    container:
+      image: oraclelinux:7
+    steps:
+      - name: enable additional repositories for autoconf-archive and rpmbuild
+        run:  |
+              dnf config-manager --set-enabled ol7_codeready_builder
+              dnf config-manager --set-enabled ol7_appstream
+      - name: install build dependencies
+        run:  dnf install openssl-devel git clang autoconf libtool autoconf-archive bison flex make pkg-config perl rpm-build
+      - uses: actions/checkout@v3
+      - name: make pkcs11-tools checkout directory acceptable for git
+        run:  git config --global --add safe.directory /__w/pkcs11-tools/pkcs11-tools
+      - name: make bootstrap.sh executable
+        run:  chmod +x bootstrap.sh
+      - name: run bootstrap.sh
+        run:  ./bootstrap.sh
+      - name: run configure script
+        run:  ./configure --with-awscloudhsm
+      - name: make source distribution tar archive
+        run:  make dist
+      - name: create RPMs
+        run:  |
+              export HOME=/__w/pkcs11-tools/ &&
+              mkdir -p $HOME/rpmbuild/SPECS &&
+              mkdir -p $HOME/rpmbuild/SOURCES &&
+              dnf builddep -y dist/redhat/pkcs11-tools.spec &&
+              cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS && 
+              cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES && 
+              rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec --with awscloudhsm
+      - name: list release files
+        run:  |
+              find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f &&
+              find /__w/pkcs11-tools/rpmbuild/RPMS/ -type f
+      - name: upload pkcs11-tools RPMs to releases
+        # see https://github.com/softprops/action-gh-release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name:  Oracle Enterprise Linux 7
+          files:  |
+                  /__w/pkcs11-tools/rpmbuild/SRPMS/pkcs11-tools-*.src.rpm
+                  /__w/pkcs11-tools/rpmbuild/RPMS/x86_64/pkcs11-tools-*x86_64.rpm
+
   build-pkcs11-tools-oel-8:
 
     runs-on: ubuntu-latest
