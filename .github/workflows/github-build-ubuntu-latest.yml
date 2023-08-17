@@ -90,8 +90,10 @@ jobs:
         run:  ./configure --prefix=$PWD --with-awscloudhsm
       - name: make source distribution tar archive
         run:  make dist
-      - name: make
-        run:  make dist-bin
+      - name: make binary distribution tar archive
+        run:  |
+              make install
+              make dist-bin
       - name: list release files
         run:  ls pkcs11-tools-*tar*
       - name: upload pkcs11-tools.tar.gz to releases
