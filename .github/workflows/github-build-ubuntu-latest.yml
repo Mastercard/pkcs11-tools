@@ -25,10 +25,11 @@ jobs:
     container:
       image: oraclelinux:8
     steps:
-      - name: enable additional repository for autoconf-archive
-        run: dnf config-manager --set-enabled ol8_codeready_builder
+      - name: enable additional repository for autoconf-archive and rpmbuild
+        run:  dnf config-manager --set-enabled ol8_codeready_builder &&
+              dnf config-manager --set-enabled ol8_appstream
       - name: install build dependencies
-        run:  dnf install openssl-devel git clang autoconf libtool autoconf-archive bison flex make pkg-config perl rpmbuild
+        run:  dnf install openssl-devel git clang autoconf libtool autoconf-archive bison flex make pkg-config perl rpm-build
       - uses: actions/checkout@v3
       - name: make pkcs11-tools checkout directory acceptable for git
         run:  git config --global --add safe.directory /__w/pkcs11-tools/pkcs11-tools
@@ -52,6 +53,7 @@ jobs:
       - name: create RPMs
         run:  mkdir -p ../rpmbuild/SPECS &&
               mkdir -p ../rpmbuild/SOURCES &&
+              dnf builddep -y dist/redhat/pkcs11-tools.spec &&
               cp dist/redhat/pkcs11-tools.spec ../rpmbuild/SPECS && 
               cp pkcs11-tools-*.tar.gz ../rpmbuild/SOURCES && 
               rpmbuild -ba ../rpmbuild/SPECS/pkcs11-tools.spec
