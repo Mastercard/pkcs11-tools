@@ -93,8 +93,8 @@ jobs:
       - name: make binary distribution tar archive
         run:  |
               make install
-              make dist-bin
               strip bin/* || true # strip does not work on the bash scripts and returns non-zero exit code
+              make dist-bin
               gzip pkcs11-tools-bin*
       - name: list release files
         run:  ls pkcs11-tools-*tar*
