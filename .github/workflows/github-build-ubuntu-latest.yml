@@ -30,18 +30,19 @@ jobs:
               yum install yum-utils -y
               echo "REPOLIST is:"
               yum repolist
-              echo "Enabling codeready_builder and appstream repos"
-              yum-config-manager --enable ol7_codeready_builder
-              yum-config-manager --enable ol7_appstream
+              echo "Enabling https://www.softwarecollections.org/en/scls/rhscl/rh-git29/ repos"
+              yum-config-manager --enable rhel-server-rhscl-7-rpms
       - name: install build dependencies
-        run:  yum install -y openssl-devel git autoconf libtool autoconf-archive bison flex make perl rpm-build
+        run:  yum install -y rh-git29 openssl-devel autoconf libtool autoconf-archive bison flex make perl rpm-build
+      - name: enable rh-git29
+        run:  scl enable rh-git29 bash
       - uses: actions/checkout@v3
       - name: make pkcs11-tools checkout directory acceptable for git
         run:  git config --global --add safe.directory /__w/pkcs11-tools/pkcs11-tools
       - name: make bootstrap.sh executable
         run:  chmod +x bootstrap.sh
       - name: run bootstrap.sh
-        run:  BUILD_PORT=not_defined ./bootstrap.sh
+        run:  ./bootstrap.sh
       - name: run configure script
         run:  ./configure --with-awscloudhsm
       - name: make source distribution tar archive
