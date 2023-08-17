@@ -29,6 +29,8 @@ jobs:
         # https://docs.oracle.com/en/operating-systems/oracle-linux/scl-user/scl-ReleaseNotes.html#ol-scl-install-swc
         run:  |
               yum install -y yum-utils
+              yum install oraclelinux-developer-release-el7
+              yum install oracle-epel-release-el7
               echo "Enabling OEL7 Addons repo"
               yum-config-manager --enable ol7_addons
               echo "Enabling OEL7 Latest and Optional Latest repo"
@@ -39,7 +41,7 @@ jobs:
               yum install -y scl-utils
               yum-config-manager --enable rhel-server-rhscl-7-rpms
               echo "REPOLIST is:"
-              yum repolist
+              yum repolist --all
       - name: install build dependencies
         run:  yum install -y  rh-git227 devtoolset-11 openssl-devel autoconf libtool autoconf-archive bison flex make perl rpm-build pkg-config
       - name: enable rh-git29
