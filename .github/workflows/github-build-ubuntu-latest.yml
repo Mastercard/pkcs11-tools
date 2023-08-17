@@ -25,8 +25,9 @@ jobs:
     container:
       image: oraclelinux:8
     steps:
-      - name: enable additional repository for autoconf-archive and rpmbuild
-        run:  dnf config-manager --set-enabled ol8_codeready_builder &&
+      - name: enable additional repositories for autoconf-archive and rpmbuild
+        run:  |
+              dnf config-manager --set-enabled ol8_codeready_builder
               dnf config-manager --set-enabled ol8_appstream
       - name: install build dependencies
         run:  dnf install openssl-devel git clang autoconf libtool autoconf-archive bison flex make pkg-config perl rpm-build
@@ -51,22 +52,26 @@ jobs:
       - name: make distribution tar archive
         run:  make dist
       - name: create RPMs
-        run:  export HOME=/__w/pkcs11-tools/ &&
+        run:  |
+              export HOME=/__w/pkcs11-tools/ &&
               mkdir -p $HOME/rpmbuild/SPECS &&
               mkdir -p $HOME/rpmbuild/SOURCES &&
               dnf builddep -y dist/redhat/pkcs11-tools.spec &&
               cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS && 
               cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES && 
               rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec
-      - name: list release files
-        run:  find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f &&
-              find /__w/pkcs11-tools/rpmbuild/RPMS/ -type f
+#      - name: list release files
+#        run:   |
+#              find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f &&
+#              find /__w/pkcs11-tools/rpmbuild/RPMS/ -type f
       - name: upload pkcs11-tools RPMs to releases
+        # see https://github.com/softprops/action-gh-release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        # if: startsWith(github.ref, 'refs/tags/')
         with:
-          name:  pkcs11-tools-latest-oel8-bin.rpm
-          files:  /__w/pkcs11-tools/rpmbuild/SRPMS/pkcs11-tools-*.el8.src.rpm
+          name:  Oracle Enterprise Linux 8
+          files:  |
+                  /__w/pkcs11-tools/rpmbuild/SRPMS/pkcs11-tools-*.el8.src.rpm
                   /__w/pkcs11-tools/rpmbuild/RPMS/x86_64/pkcs11-tools-*.el8.x86_64.rpm
 
   build-pkcs11-tools-ubuntu-latest:
@@ -90,7 +95,6 @@ jobs:
         run:  ls pkcs11-tools-*tar*
       - name: upload pkcs11-tools.tar.gz to releases
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        # if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: pkcs11-tools-ubuntu-latest-bin.tar.gz
           files: pkcs11-tools-*tar*
