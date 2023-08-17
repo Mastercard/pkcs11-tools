@@ -25,14 +25,17 @@ jobs:
     container:
       image: oraclelinux:7
     steps:
-      - name: enable additional repositories for autoconf-archive and rpmbuild
+      - name: enable additional repositories
         run:  |
               yum install yum-utils -y
+              echo "Enabling OEL7 Addons repo"
               yum-config-manager --enable ol7_addons
+              echo "Enabling OEL7 Optional repo"
+              yum-config-manager --enable ol7_optional_latest
+              echo "Enabling https://www.softwarecollections.org/en/scls/rhscl/rh-git29/ repo"
+              yum-config-manager --enable rhel-server-rhscl-7-rpms
               echo "REPOLIST is:"
               yum repolist
-              echo "Enabling https://www.softwarecollections.org/en/scls/rhscl/rh-git29/ repos"
-              yum-config-manager --enable rhel-server-rhscl-7-rpms
       - name: install build dependencies
         run:  yum install -y rh-git29 openssl-devel autoconf libtool autoconf-archive bison flex make perl rpm-build
       - name: enable rh-git29
