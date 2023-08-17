@@ -41,7 +41,7 @@ jobs:
               echo "REPOLIST is:"
               yum repolist
       - name: install build dependencies
-        run:  yum install -y rh-git29 openssl-devel autoconf libtool autoconf-archive bison flex make perl rpm-build
+        run:  yum install -y  rh-git227 devtoolset-11 openssl-devel autoconf libtool autoconf-archive bison flex make perl rpm-build pkg-config
       - name: enable rh-git29
         run:  scl enable rh-git29 bash
       - uses: actions/checkout@v3
