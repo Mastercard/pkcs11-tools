@@ -94,7 +94,7 @@ jobs:
         run:  |
               make install
               make dist-bin
-              strip bin/
+              strip bin/* || true # strip does not work on the bash scripts and returns non-zero exit code
       - name: list release files
         run:  ls pkcs11-tools-*tar*
       - name: upload pkcs11-tools.tar.gz to releases
