@@ -47,9 +47,10 @@ jobs:
         run:  ./bootstrap.sh
       - name: run configure script
         run:  ./configure --prefix=$PWD
-      - name: make
-        run:  make
-      - name: make distribution tar archive
+# remove make from this build as we don't need the binaries, they will be compiled by rpmbuild in the "create RPMs" step below
+#      - name: make
+#        run:  make
+      - name: make source distribution tar archive
         run:  make dist
       - name: create RPMs
         run:  |
@@ -61,7 +62,7 @@ jobs:
               cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES && 
               rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec
 #      - name: list release files
-#        run:   |
+#        run:  |
 #              find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f &&
 #              find /__w/pkcs11-tools/rpmbuild/RPMS/ -type f
       - name: upload pkcs11-tools RPMs to releases
@@ -89,8 +90,16 @@ jobs:
         run:  ./configure
       - name: make
         run:  make
-      - name: make distribution tar archive
+      - name: make source distribution tar archive
         run:  make dist
+      - name: create binary archive
+        run:  |
+              SRC_DIR="`pwd`"
+              INSTALL_DIR="${TMP}/pkcs11-tools"
+              make DESTDIR="${INSTALL_DIR}" install
+              cd "${INSTALL_DIR}"
+              tar czvf "${SRC_DIR}"/pkcs11-tools-ubuntu-latest-bin.tar.gz .
+              cd "${SRC_DIR}"
       - name: list release files
         run:  ls pkcs11-tools-*tar*
       - name: upload pkcs11-tools.tar.gz to releases
