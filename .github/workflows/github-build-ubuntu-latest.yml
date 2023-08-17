@@ -27,6 +27,11 @@ jobs:
     steps:
       - name: enable additional repositories
         # https://docs.oracle.com/en/operating-systems/oracle-linux/scl-user/scl-ReleaseNotes.html#ol-scl-install-swc
+        # seems to require a OEL7 premium support subscription
+        # switch to IUS https://ius.io/setup
+        # yum install \
+        # https://repo.ius.io/ius-release-el7.rpm \
+        # https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
         run:  |
               yum install -y yum-utils
               yum install -y oraclelinux-developer-release-el7
@@ -41,9 +46,12 @@ jobs:
               yum install -y scl-utils
               yum-config-manager --enable rhel-server-rhscl-7-rpms
               echo "REPOLIST is:"
-              yum repolist --all
+              yum install -y https://repo.ius.io/ius-release-el7.rpm https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+              yum repolist
       - name: install build dependencies
-        run:  yum install -y  rh-git227 devtoolset-11 openssl-devel autoconf libtool autoconf-archive bison flex make perl rpm-build pkg-config
+        run:  |
+              yum remove -y git
+              yum install -y git236 openssl-devel autoconf libtool autoconf-archive bison flex make perl rpm-build pkg-config
       - name: enable rh-git29
         run:  scl enable rh-git29 bash
       - uses: actions/checkout@v3
