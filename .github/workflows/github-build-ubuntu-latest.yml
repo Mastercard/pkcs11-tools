@@ -19,6 +19,72 @@ on:
     
 jobs:
 
+  build-pkcs11-tools-oel-7:
+
+    runs-on: ubuntu-latest
+    container:
+      image: oraclelinux:7
+    steps:
+      - name: enable additional repositories
+        # https://docs.oracle.com/en/operating-systems/oracle-linux/scl-user/scl-ReleaseNotes.html#ol-scl-install-swc
+        # seems to require a OEL7 premium support subscription
+        # switch to IUS https://ius.io/setup
+        # yum install \
+        # https://repo.ius.io/ius-release-el7.rpm \
+        # https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+        run:  |
+              yum install -y yum-utils
+              yum install -y oraclelinux-developer-release-el7
+              yum install -y oracle-epel-release-el7
+              echo "Enabling OEL7 Addons repo"
+              yum-config-manager --enable ol7_addons
+              echo "Enabling OEL7 Latest and Optional Latest repo"
+              yum-config-manager --enable ol7_latest ol7_optional_latest
+              echo "Enabling OEL7 Software Collections repo"
+              yum-config-manager --enable ol7_software_collections
+              echo "Enabling https://www.softwarecollections.org/en/scls/rhscl/rh-git29/ repo"
+              yum install -y scl-utils
+              yum-config-manager --enable rhel-server-rhscl-7-rpms
+              echo "REPOLIST is:"
+              yum install -y https://repo.ius.io/ius-release-el7.rpm https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+              yum repolist
+      - name: install build dependencies
+        run:  |
+              yum remove -y git
+              yum install -y openssl11 openssl11-devel git236 autoconf libtool autoconf-archive bison flex make perl rpm-build pkg-config
+      - uses: actions/checkout@v3
+      - name: make pkcs11-tools checkout directory acceptable for git
+        run:  git config --global --add safe.directory /__w/pkcs11-tools/pkcs11-tools
+      - name: make bootstrap.sh executable
+        run:  chmod +x bootstrap.sh
+      - name: run bootstrap.sh
+        run:  ./bootstrap.sh
+      - name: run configure script
+        run:  ./configure --with-awscloudhsm
+      - name: make source distribution tar archive
+        run:  make dist
+      - name: create RPMs
+        run:  |
+              export HOME=/__w/pkcs11-tools/
+              mkdir -p $HOME/rpmbuild/SPECS 
+              mkdir -p $HOME/rpmbuild/SOURCES 
+              cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS 
+              cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES 
+              rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec --with awscloudhsm
+      - name: list release files
+        run:  |
+              find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f
+              find /__w/pkcs11-tools/rpmbuild/RPMS/ -type f
+      - name: upload pkcs11-tools RPMs to releases
+        # see https://github.com/softprops/action-gh-release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          name:  Oracle Enterprise Linux 7
+          files:  |
+                  /__w/pkcs11-tools/rpmbuild/SRPMS/pkcs11-tools-*.src.rpm
+                  /__w/pkcs11-tools/rpmbuild/RPMS/x86_64/pkcs11-tools-*x86_64.rpm
+
   build-pkcs11-tools-oel-8:
 
     runs-on: ubuntu-latest
@@ -54,16 +120,16 @@ jobs:
         run:  make dist
       - name: create RPMs
         run:  |
-              export HOME=/__w/pkcs11-tools/ &&
-              mkdir -p $HOME/rpmbuild/SPECS &&
-              mkdir -p $HOME/rpmbuild/SOURCES &&
-              dnf builddep -y dist/redhat/pkcs11-tools.spec &&
-              cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS && 
-              cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES && 
+              export HOME=/__w/pkcs11-tools/
+              mkdir -p $HOME/rpmbuild/SPECS
+              mkdir -p $HOME/rpmbuild/SOURCES
+              dnf builddep -y dist/redhat/pkcs11-tools.spec
+              cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS
+              cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES
               rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec --with awscloudhsm
 #      - name: list release files
 #        run:  |
-#              find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f &&
+#              find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f
 #              find /__w/pkcs11-tools/rpmbuild/RPMS/ -type f
       - name: upload pkcs11-tools RPMs to releases
         # see https://github.com/softprops/action-gh-release
