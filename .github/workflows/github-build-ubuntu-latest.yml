@@ -51,7 +51,7 @@ jobs:
       - name: install build dependencies
         run:  |
               yum remove -y git
-              yum install -y git236 openssl-devel autoconf libtool autoconf-archive bison flex make perl rpm-build pkg-config
+              yum install -y openssl11 openssl11-devel git236 autoconf libtool autoconf-archive bison flex make perl rpm-build pkg-config
       - uses: actions/checkout@v3
       - name: make pkcs11-tools checkout directory acceptable for git
         run:  git config --global --add safe.directory /__w/pkcs11-tools/pkcs11-tools
