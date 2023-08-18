@@ -60,7 +60,7 @@ jobs:
       - name: run bootstrap.sh
         run:  ./bootstrap.sh
       - name: run configure script
-        run:  ./configure --with-awscloudhsm
+        run:  ./configure
       - name: make source distribution tar archive
         run:  make dist
       - name: create RPMs
@@ -70,7 +70,7 @@ jobs:
               mkdir -p $HOME/rpmbuild/SOURCES 
               cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS 
               cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES 
-              rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec --with awscloudhsm
+              rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec
       - name: list release files
         run:  |
               find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f
@@ -112,7 +112,7 @@ jobs:
       - name: run bootstrap.sh
         run:  ./bootstrap.sh
       - name: run configure script
-        run:  ./configure --with-awscloudhsm
+        run:  ./configure
 # remove make from this build as we don't need the binaries, they will be compiled by rpmbuild in the "create RPMs" step below
 #      - name: make
 #        run:  make
@@ -126,7 +126,7 @@ jobs:
               dnf builddep -y dist/redhat/pkcs11-tools.spec
               cp dist/redhat/pkcs11-tools.spec $HOME/rpmbuild/SPECS
               cp pkcs11-tools-*.tar.gz $HOME/rpmbuild/SOURCES
-              rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec --with awscloudhsm
+              rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec
 #      - name: list release files
 #        run:  |
 #              find /__w/pkcs11-tools/rpmbuild/SRPMS/ -type f
@@ -153,7 +153,7 @@ jobs:
       - name: run bootstrap.sh
         run:  ./bootstrap.sh
       - name: run configure script
-        run:  ./configure --prefix=$PWD --with-awscloudhsm
+        run:  ./configure --prefix=$PWD
       - name: make source distribution tar archive
         run:  make dist
       - name: make binary distribution tar archive
