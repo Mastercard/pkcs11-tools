@@ -713,8 +713,10 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 					    _ATTR(CKA_KEY_GEN_MECHANISM),
 
 					    _ATTR(CKA_MODIFIABLE),
+#if !defined(HAVE_UTIMACO)	/* Utimaco cannot handle this */
 					    _ATTR(CKA_COPYABLE),
 					    _ATTR(CKA_DESTROYABLE),
+#endif
 
 					    _ATTR(CKA_EC_PARAMS),
 
@@ -722,14 +724,17 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 
 /* CKA_SECONDARY_AUTH, CKA_AUTH_PIN_FLAGS,
  * are new for v2.10. Deprecated in v2.11 and onwards. */
+#if !defined(HAVE_UTIMACO)	/* Utimaco cannot handle this */
 					    _ATTR(CKA_SECONDARY_AUTH),
 					    _ATTR(CKA_AUTH_PIN_FLAGS),
+#endif
 
 					    _ATTR(CKA_ALWAYS_AUTHENTICATE),
 
 					    _ATTR(CKA_WRAP_WITH_TRUSTED),
 					    _ATTR(CKA_WRAP_TEMPLATE),
 					    _ATTR(CKA_UNWRAP_TEMPLATE),
+#if !defined(HAVE_UTIMACO)	/* Utimaco cannot handle this */
 					    _ATTR(CKA_DERIVE_TEMPLATE),
 
 					    _ATTR(CKA_OTP_FORMAT),
@@ -750,8 +755,10 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 					    _ATTR(CKA_GOSTR3410_PARAMS),
 					    _ATTR(CKA_GOSTR3411_PARAMS),
 					    _ATTR(CKA_GOST28147_PARAMS),
+#endif
 
 					    _ATTR(CKA_HW_FEATURE_TYPE),
+#if !defined(HAVE_UTIMACO)	/* Utimaco cannot handle this */
 					    _ATTR(CKA_RESET_ON_INIT),
 					    _ATTR(CKA_HAS_RESET),
 
@@ -769,6 +776,7 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 					    _ATTR(CKA_REQUIRED_CMS_ATTRIBUTES),
 					    _ATTR(CKA_DEFAULT_CMS_ATTRIBUTES),
 					    _ATTR(CKA_SUPPORTED_CMS_ATTRIBUTES),
+#endif
 					    _ATTR(CKA_ALLOWED_MECHANISMS),
 
 #if defined(HAVE_NCIPHER)

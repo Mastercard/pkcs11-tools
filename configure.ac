@@ -178,6 +178,21 @@ AS_IF([test "x$with_awscloudhsm" != xno],
                fi
               ] )])
 
+dnl check if utimaco support can be compiled.
+dnl Note that utimaco is set to "no" instead of "check" by default, as the file is shipped with source code
+dnl and as enabling utimaco disable support for template attributes on p11ls and p11od.
+AC_ARG_WITH([utimaco],
+	[AS_HELP_STRING([--with-utimaco],
+	[enable support for the utimaco])],
+        [],
+        [with_utimaco=no])
+
+hasutimaco="no"
+AS_IF([test "x$with_utimaco" != xno],
+      [AC_DEFINE([HAVE_UTIMACO], [1], [define to compile with the utimaco support.])
+  hasutimaco="yes"
+      ])
+
 dnl check if a specific rpath is provided when linking.
 dnl this option is needed when openssl is not deployed to a system-wide location
 AC_ARG_VAR([LIBCRYPTO_RPATH], 	[provide RPATH to LIBCRYPTO, e.g. LIBCRYPTO_RPATH=/usr/local/ssl/lib (useful when openssl is not deployed to a system-wide location)])
@@ -219,6 +234,7 @@ AC_MSG_NOTICE([parser flags       : $YFLAGS])
 AC_MSG_NOTICE([with_luna          : $hasluna])
 AC_MSG_NOTICE([with_ncipher       : $hasncipher])
 AC_MSG_NOTICE([with_awscloudhsm   : $hasawscloudhsm])
+AC_MSG_NOTICE([with_utimaco       : $hasutimaco])
 AC_MSG_NOTICE([libcrypto rpath    : $LIBCRYPTO_RPATH])
 AC_MSG_NOTICE([------------------------------------------------------------------------])
 

@@ -578,7 +578,7 @@ static int ls_seck(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_START_DATE),
 				_ATTR(CKA_END_DATE),
 				_ATTR(CKA_DERIVE),
-#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */
+#if !defined(HAVE_AWSCLOUDHSM) && !defined(HAVE_UTIMACO)	/* AWS CloudHSM and Utimaco cannot handle this */
 				_ATTR(CKA_DERIVE_TEMPLATE),
 #endif
 				_ATTR(CKA_LOCAL),

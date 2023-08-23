@@ -40,5 +40,8 @@ void print_version_info(char *progname)
 #if defined(HAVE_AWSCLOUDHSM)
     fprintf( stderr, "compiled with AWS CloudHSM extensions\n");
 #endif
+#if defined(HAVE_UTIMACO)
+    fprintf( stderr, "compiled with Utimaco support\n");
+#endif
     exit( RC_ERROR_USAGE );
 }
