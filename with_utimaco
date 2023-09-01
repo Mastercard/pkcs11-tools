@@ -63,14 +63,14 @@ function find_utimaco_cfg_file()
 	done
     done
 
-    echo "NOT FOUND"
+    echo "NOT_FOUND"
     return 1
 }
 
 CS_PKCS11_R3_CFG=${CS_PKCS11_R3_CFG:-$(find_utimaco_cfg_file)}
 CS_PKCS11_R2_CFG=${CS_PKCS11_R2_CFG:-$(find_utimaco_cfg_file)}
 
-if [ "$CS_PKCS11_R2_CFG" == "NOT FOUND" -a "$CS_PKCS11_R3_CFG" == "NOT FOUND" ]; then
+if [ "$CS_PKCS11_R2_CFG" == "NOT_FOUND" -a "$CS_PKCS11_R3_CFG" == "NOT_FOUND" ]; then
     echo "***Error: Utimaco configuration file not found, please set CS_PKCS11_R3_CFG/CS_PKCS11_R2_CFG accordingly."
     exit 1
 fi
@@ -89,7 +89,7 @@ function find_p11_lib()
 	done
     done
 
-    echo "NOT FOUND"
+    echo "NOT_FOUND"
     return 1
 }
 
@@ -110,7 +110,7 @@ function find_shim_lib()
 	fi
     done
 
-    echo "NOT FOUND"
+    echo "NOT_FOUND"
     return 1
 }
 
@@ -127,7 +127,7 @@ function find_spy_lib()
 	fi
     done
 
-    echo "NOT FOUND"
+    echo "NOT_FOUND"
     return 1
 }
 
@@ -146,7 +146,7 @@ fi
 # library
 PKCS11LIB=${PKCS11LIB:-$(find_p11_lib)}
 
-if [ "$PKCS11LIB" == "NOT FOUND" ]; then
+if [ "$PKCS11LIB" == "NOT_FOUND" ]; then
     echo "***Error: PKCS#11 Library not found, please set PKCS11LIB accordingly."
     exit 1
 fi
@@ -158,7 +158,7 @@ if [ -n "$SHIM" ]; then
     PKCS11SHIM=$PKCS11LIB
     PKCS11SHIM_OUTPUT=$SHIM
     PKCS11LIB=$(find_shim_lib)
-    if [ "$PKCS11LIB" == "NOT FOUND" ]; then
+    if [ "$PKCS11LIB" == "NOT_FOUND" ]; then
 	echo "***Error: libpkcs11shim.so Library not found, can't use SHIM option"
 	exit 1
     fi
@@ -167,7 +167,7 @@ elif [ -n "$SPY" ]; then
     PKCS11SPY=$PKCS11LIB
     PKCS11SPY_OUTPUT=$SPY
     PKCS11LIB=$(find_spy_lib)
-    if [ "$PKCS11LIB" == "NOT FOUND" ]; then
+    if [ "$PKCS11LIB" == "NOT_FOUND" ]; then
 	echo "***Error: pkcs11-spy.so Library not found, can't use SPY option"
 	exit 1
     fi

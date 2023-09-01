@@ -59,7 +59,7 @@ function find_p11_lib()
 	fi
     done
 
-    echo "NOT FOUND"
+    echo "NOT_FOUND"
     return 1
 }
 
@@ -76,7 +76,7 @@ function find_cfg_file()
 	fi
     done
 
-    echo "NOT FOUND"
+    echo "NOT_FOUND"
     return 1
 }
 
@@ -97,7 +97,7 @@ function find_shim_lib()
 	fi
     done
 
-    echo "NOT FOUND"
+    echo "NOT_FOUND"
     return 1
 }
 
@@ -114,7 +114,7 @@ function find_spy_lib()
 	fi
     done
 
-    echo "NOT FOUND"
+    echo "NOT_FOUND"
     return 1
 }
 
@@ -133,7 +133,7 @@ fi
 # library
 PKCS11LIB=${PKCS11LIB:-$(find_p11_lib)}
 
-if [ "$PKCS11LIB" == "NOT FOUND" ]; then
+if [ "$PKCS11LIB" == "NOT_FOUND" ]; then
     echo "***Error: PKCS#11 Library not found, please set PKCS11LIB accordingly."
     exit 1
 fi
@@ -145,7 +145,7 @@ if [ -n "$SHIM" ]; then
     PKCS11SHIM=$PKCS11LIB
     PKCS11SHIM_OUTPUT=$SHIM
     PKCS11LIB=$(find_shim_lib)
-    if [ "$PKCS11LIB" == "NOT FOUND" ]; then
+    if [ "$PKCS11LIB" == "NOT_FOUND" ]; then
 	echo "***Error: libpkcs11shim.so Library not found, can't use SHIM option"
 	exit 1
     fi
@@ -154,7 +154,7 @@ elif [ -n "$SPY" ]; then
     PKCS11SPY=$PKCS11LIB
     PKCS11SPY_OUTPUT=$SPY
     PKCS11LIB=$(find_spy_lib)
-    if [ "$PKCS11LIB" == "NOT FOUND" ]; then
+    if [ "$PKCS11LIB" == "NOT_FOUND" ]; then
 	echo "***Error: pkcs11-spy.so Library not found, can't use SPY option"
 	exit 1
     fi
