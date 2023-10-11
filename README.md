@@ -74,6 +74,8 @@ The toolkit has reached v2.0. It features several major changes:
 
 ## Introduction
 
+Ensure the prerequisites listed in the [Install Document](https://github.com/Mastercard/pkcs11-tools/blob/master/docs/INSTALL.md) are installed before proceeding
+
 To build the source code, simply execute (with appropriate privileges)
 
 ```bash
