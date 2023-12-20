@@ -403,6 +403,7 @@ func_rc pkcs11_close_session( pkcs11Context * p11Context );
 
 /* pkcs11_idtemplate.c */
 pkcs11IdTemplate * pkcs11_make_idtemplate(char *labelorid);
+pkcs11IdTemplate * pkcs11_make_idtemplate_with_extra_attributes(char *labelorid, CK_ATTRIBUTE* additional_attributes, CK_ULONG* additional_attributes_len);
 void pkcs11_delete_idtemplate(pkcs11IdTemplate * idtmpl) ;
 int pkcs11_sizeof_idtemplate(pkcs11IdTemplate *idtmpl);
 

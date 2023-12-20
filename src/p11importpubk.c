@@ -237,9 +237,13 @@ int main( int argc, char ** argv )
 	CK_OBJECT_HANDLE imported_pubk = NULL_PTR;
 
 	if(pkcs11_publickey_exists(p11Context, label)) {
+#ifdef _ALLOW_DUPLICATES_
+	    fprintf(stderr, "a public key with this label already exists, duplicating\n");
+#else
 	    fprintf(stderr, "a public key with this label already exists, aborting\n");
 	    retcode = rc_error_object_exists;
 	    goto epilog;
+#endif   
 	}
 
 	imported_pubk = pkcs11_importpubk( p11Context,

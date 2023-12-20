@@ -18,6 +18,7 @@
 
 
 #include <config.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -108,6 +109,34 @@ static void idtemplate_setresource(pkcs11IdTemplate *idtmpl, char *id, int size,
     }
 }
 
+static bool idtemplate_addresource(CK_ATTRIBUTE* additional_attributes, CK_ULONG* additional_attributes_len, char* attr_value, int attr_value_len, CK_ATTRIBUTE_TYPE what)
+{
+    if(!additional_attributes || !attr_value || !additional_attributes_len) {
+		fprintf(stderr, "idtemplate_addresource: no template or id detected. - [%s]\n", attr_value);
+		return false;
+	}
+
+	//skip locations with values
+	int iter = 0;
+	const size_t max_extra_template_len = 8 - *additional_attributes_len;
+	while(additional_attributes[iter].pValue != NULL && iter <= max_extra_template_len){
+		iter++;
+	}
+
+	if(iter > max_extra_template_len) {
+		fprintf(stderr, "idtemplate_addresource: additional_attributes is full. - [%s]\n", attr_value); //arbitrary limit
+		return false;
+	}
+
+	/* now assign */
+	additional_attributes[iter].pValue = malloc(attr_value_len);
+	if( additional_attributes[iter].pValue ) {
+	    memcpy( additional_attributes[iter].pValue, attr_value, attr_value_len);
+	    additional_attributes[iter].ulValueLen = (CK_ULONG)attr_value_len;
+	    additional_attributes[iter].type = what;
+	}
+	return true;
+}
 
 static void idtemplate_setclass(pkcs11IdTemplate *idtmpl, CK_OBJECT_CLASS cl)
 {
@@ -122,6 +151,238 @@ static void idtemplate_setclass(pkcs11IdTemplate *idtmpl, CK_OBJECT_CLASS cl)
 
 /*------------------------------------------------------------------------*/
 
+CK_OBJECT_CLASS parse_object_class(char* object_type) {
+
+	if(!object_type) {
+		fprintf(stderr, "parse_object_class: invalid input provided.\n");
+		return 0xFFFFFFFF;
+	}
+
+	size_t object_type_len = strlen(object_type);
+	if(!object_type_len) {
+		fprintf(stderr, "parse_object_class: empty input provided.\n");
+		return 0xFFFFFFFF;
+	}
+
+	if(strncasecmp("prvk", object_type, object_type_len) ==0 ) { /* private key case */
+		return CKO_PRIVATE_KEY;
+	} 
+	else if (strncasecmp("pubk", object_type, object_type_len) ==0 ) { /* public key case */
+		return CKO_PUBLIC_KEY;
+	} 
+	else if (strncasecmp("seck", object_type, object_type_len) ==0 ) { /* secret key case */
+		return CKO_SECRET_KEY;
+	} 
+	else if (strncasecmp("cert", object_type, object_type_len) ==0 ) { /* cert case */
+		return CKO_CERTIFICATE;
+	} 
+	else if (strncasecmp("data", object_type, object_type_len) ==0 ) { /* cert case */
+		return CKO_DATA;
+	}
+
+	fprintf(stderr, "parse_object_class: invalid object type provided.\n");
+	return 0xFFFFFFFF;
+}
+
+CK_ATTRIBUTE_TYPE parse_attribute_type(char* attr_type) {
+	
+	if(!attr_type) {
+		fprintf(stderr, "parse_attribute_type: invalid input provided.\n");
+		return CKA_LABEL;
+	}
+	
+	size_t attr_type_len = strlen(attr_type);
+	if(!attr_type_len) {
+		fprintf(stderr, "parse_attribute_type: empty input provided.\n");
+		return CKA_LABEL;
+	}
+
+	if(strncasecmp("id", attr_type, attr_type_len) ==0 ) { 
+		return CKA_ID;
+	} 
+	else if(strncasecmp("sn", attr_type, attr_type_len) ==0 ) {
+		return CKA_SERIAL_NUMBER;
+	}
+	else {
+		CK_ATTRIBUTE_TYPE cka_resourceid = pkcs11_get_attribute_type_from_name(attr_type);
+			
+		if(cka_resourceid != 0xFFFFFFFF) {
+			return cka_resourceid;
+		}
+		
+		fprintf(stderr, "parse_attribute_type: cannot parse attribute in regular expression - attribute not managed or unknown. - [%s]\n", attr_type);
+	}
+
+	fprintf(stderr, "parse_attribute_type: failed to determine attribute type; defaulting to CKA_LABEL. - [%s]\n", attr_type);
+	return CKA_LABEL;
+}
+
+char* parse_attribute_value(char* attr_value, const regex_t* regx, size_t *outsize) {
+	
+	if(!attr_value) {
+		fprintf(stderr, "parse_attribute_value: invalid input provided.\n");
+		return NULL;
+	}
+
+	size_t attr_value_len = strlen(attr_value);
+	if(!attr_value_len) {
+		fprintf(stderr, "parse_attribute_value: empty input provided.\n");
+		return NULL;
+	}
+
+	if (regexec(regx, attr_value, 0, NULL, 0) != 0) {
+		fprintf(stderr, "parse_attribute_value: invalid format detected. - [%s]\n", attr_value);
+		return NULL;
+	}
+
+	if(attr_value[0] == '{') {/* we have a HEX string */
+		return hex2bin_new(attr_value, attr_value_len, outsize);
+	} 
+
+	*outsize = attr_value_len;	
+	return attr_value;
+}
+
+bool parse_attributes(char* attributes, pkcs11IdTemplate* template_buffer, CK_ATTRIBUTE* additional_attributes, CK_ULONG* additional_attributes_len) {
+
+	if(!attributes || !template_buffer || !additional_attributes || !additional_attributes_len ){
+		fprintf(stderr, "parse_attributes: invalid input detected.");
+		return false;
+	}
+
+	const char forward_slash_delim = '/';//todo static globals? Eric - thoughts?
+	const char plus_delim = '+';
+
+	char* attr_value_regex_str = "^(\\{([[:xdigit:].:[:space:]]+)\\}|([^/{}]+))$";
+	regex_t attr_value_regex;
+	
+	int error_code = regcomp(&attr_value_regex, attr_value_regex_str, REG_EXTENDED | REG_ICASE | REG_NOSUB);
+	if(error_code != 0) {
+		fprintf(stderr, "parse_attributes: failed to compile regular expression.");
+		return false;
+	}
+	
+	char* label_ptr = NULL;
+	char* attr_type, *attr_value;
+	size_t label_len = 0;
+	CK_ATTRIBUTE_TYPE cka_resourceid;
+
+	char* attr = strsep(&attributes, &plus_delim);
+	while(attr != NULL) {
+
+		attr_type = strsep(&attr, &forward_slash_delim);
+		cka_resourceid = parse_attribute_type(attr_type);
+
+		attr_value = strsep(&attr, &forward_slash_delim);
+		label_ptr = parse_attribute_value(attr_value, &attr_value_regex, &label_len);
+
+		if(attr_value != NULL && label_ptr != NULL) {
+			if(template_buffer->has_resource) {
+				idtemplate_addresource(additional_attributes, additional_attributes_len, label_ptr, label_len, cka_resourceid);
+			}
+			else {
+				idtemplate_setresource(template_buffer, label_ptr, label_len, cka_resourceid);
+				memcpy(template_buffer->template, additional_attributes, template_buffer->template_len);
+				*additional_attributes_len = template_buffer->template_len;
+			}
+
+			if(attr_value[0] == '{') { //fulfills our regex so it must be a hex value
+				hex2bin_free(label_ptr);
+				label_len = 0;
+			}
+		}
+		else {
+			fprintf(stderr, "parse_attributes: failed to parse attribute value. - [%s]\n", attr);
+		}
+		attr = strsep(&attributes, &plus_delim);
+	}
+	
+	if(error_code == 0){
+		regfree(&attr_value_regex); 
+	}
+
+	return true;
+}
+
+pkcs11IdTemplate * pkcs11_make_idtemplate_with_extra_attributes(char *resourceid, CK_ATTRIBUTE* additional_attributes, CK_ULONG* additional_attributes_len)
+{
+    /* given a label or id, fill in template for performing search */
+
+    /* 
+
+       [CLASS/][BY_LABEL_OR_ID/]WHAT
+       
+       with:
+       - CLASS (facultative) be one of pubk/, prvk/, seck/, cert/, data/. 
+         If missing, CKA_OBJECT is assumed. -> if missing there is no determination? todo confirm
+
+       - BY_LABEL_OR_ID (facultative) be one of id/, label/ or sn/.
+         if missing, CKA_LABEL is assumed. -> all attr types supported
+
+       - WHAT (mandatory) be either an hexadecimal string between brackets,
+         eventually with decoration characters that can be whitespace, ':' or '.',
+         or a label ( with no bracket character or '/' allowed ).
+	   - Ex: cert/sn/12335344+CKA_ENCRYPT/{01}
+     */
+
+	char *error_msg = NULL;
+
+	pkcs11IdTemplate * template_buffer = new_idtemplate();
+    pkcs11IdTemplate * return_value = NULL;
+
+    if(template_buffer == NULL) {
+		error_msg = "failed to create new idtemplate.";
+		goto err;
+    }
+
+	const char forward_slash_delim = '/';
+	char* temp_resource_id = strdup(resourceid);
+
+	CK_OBJECT_CLASS objectclass;
+	char* object_type = strsep(&temp_resource_id, &forward_slash_delim);//todo confirm Solaris10 support for strsep
+	if(object_type == NULL){
+		error_msg = "no class found.";
+	    goto err;
+	}
+
+	objectclass = parse_object_class(object_type);
+	if(objectclass != 0xFFFFFFFF) {
+		idtemplate_setclass(template_buffer, objectclass);
+	}
+
+	if(temp_resource_id == NULL) {
+		if(!template_buffer->has_class) {
+			error_msg = "no class or attribute found.";
+			goto err;
+		}
+		//todo consider scenario when there is a class but no type/value; should we set a default i.e. type = CK_LABEL, value = ""?
+		// else {
+		// 	char dummy = '';
+		// 	idtemplate_setresource(template_buffer, &dummy, 0, CKA_LABEL);
+		// }
+	}
+	else {
+		if(!parse_attributes(temp_resource_id, template_buffer, additional_attributes, additional_attributes_len)) {
+			error_msg = "failed to parse attributes.";
+			goto err;
+		}
+	}
+	/* housekeeping */
+    return_value = template_buffer;		/* transfer idtmpl to rv */
+    template_buffer = NULL;
+err:
+    if (template_buffer) {
+		delete_idtemplate(template_buffer);
+		template_buffer=NULL; 
+	}
+	
+	if(error_msg) {
+		fprintf(stderr, "pkcs11_make_idtemplate: failed to parse message:[%s].\n *Error* [%s]\n", resourceid, error_msg);
+		free(temp_resource_id);
+		free(error_msg);
+	}
+    return return_value;
+}
 
 
 pkcs11IdTemplate * pkcs11_make_idtemplate(char *resourceid)

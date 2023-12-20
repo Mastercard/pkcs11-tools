@@ -192,9 +192,13 @@ int main( int argc, char ** argv )
 	CK_OBJECT_HANDLE imported_data = NULL_PTR;
 
 	if(pkcs11_data_exists(p11Context, label)) {
+#ifdef _ALLOW_DUPLICATES_
+	    fprintf(stderr, "data object with this label already exists, duplicating\n");
+#else
 	    fprintf(stderr, "data object with this label already exists, aborting\n");
 	    retcode = rc_error_object_exists;
 	    goto err;
+#endif
 	}
 
 	imported_data = pkcs11_importdata( p11Context, filename, label);

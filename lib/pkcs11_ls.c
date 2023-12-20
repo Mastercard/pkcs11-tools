@@ -707,6 +707,8 @@ func_rc pkcs11_ls( pkcs11Context *p11Context, char *label)
     pkcs11IdTemplate * idtmpl=NULL;
     pkcs11Search *search=NULL;
 
+	CK_ATTRIBUTE* additional_attributes = NULL;
+	CK_ULONG additional_attributes_len = 0;
     /* trick: we treat "cert", "pubk", "prvk", "seck" and "data" in front of the templating system */
     /* so these specific labels can be used as shortcut for the corresponding object classes       */
 
@@ -722,13 +724,27 @@ func_rc pkcs11_ls( pkcs11Context *p11Context, char *label)
 	} else if (strcasecmp("data",label)==0) {
 	    idtmpl = pkcs11_make_idtemplate(CLASS_DATA);
 	} else {
-	    idtmpl = pkcs11_make_idtemplate(label);
-	}
+			char* temp_label = strdup(label);
+			const char delim = '+';
+			if(!strsep(&temp_label, &delim)) {
+				idtmpl = pkcs11_make_idtemplate(label);
+			}
+			else {
+				additional_attributes = (CK_ATTRIBUTE*)malloc(10 * sizeof(CK_ATTRIBUTE));
+				idtmpl = pkcs11_make_idtemplate_with_extra_attributes(label, additional_attributes, &additional_attributes_len);
+			}
+			
+		}
     }
 
     if(idtmpl) {
-	search = pkcs11_new_search_from_idtemplate( p11Context, idtmpl );
 
+	if(additional_attributes){
+		search = pkcs11_new_search(p11Context, additional_attributes, additional_attributes_len);
+	}
+	else {
+		search = pkcs11_new_search_from_idtemplate( p11Context, idtmpl );
+	}
 	if(search) {		/* we just need one hit */
 
 	    CK_OBJECT_HANDLE hndl=0;
@@ -781,8 +797,16 @@ func_rc pkcs11_ls( pkcs11Context *p11Context, char *label)
 	    }
 	    pkcs11_delete_search(search);
 	}
+	else {
+		fprintf(stderr, "Error: unable to create a search. - ['%s'].\n", label);
+	}
+
 	pkcs11_delete_idtemplate(idtmpl);
-    }
+	}
+
+	if(additional_attributes) {
+		free(additional_attributes);
+	}
 
     return frc;
 }

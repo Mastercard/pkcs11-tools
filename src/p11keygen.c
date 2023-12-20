@@ -403,9 +403,13 @@ int main(int argc, char **argv) {
 	    key_generation_t keygentype;
 
 	    if (pkcs11_label_exists(p11Context, label)) {
-		fprintf(stderr, "an object with this label already exists, aborting\n");
-		retcode = rc_error_object_exists;
-		goto err_object_exists;
+#ifdef _ALLOW_DUPLICATES_
+			fprintf(stderr, "an object with this label already exists, duplicating\n");
+#else
+			fprintf(stderr, "an object with this label already exists, aborting\n");
+			retcode = rc_error_object_exists;
+			goto err_object_exists;
+#endif
 	    }
 
 	    keygentype = numjobs > 0 ? removetokencopy ? kg_session_for_wrapping : kg_token_for_wrapping : kg_token;

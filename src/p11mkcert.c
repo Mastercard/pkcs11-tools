@@ -296,9 +296,13 @@ int main( int argc, char ** argv )
 	}
 
 	if(import && pkcs11_certificate_exists(p11Context, label)) {
+#ifdef _ALLOW_DUPLICATES_
+	    fprintf(stderr, "Warning:there is already a certificate with the label '%s' on the token, duplicating.\n", label);
+#else
 	    fprintf(stderr, "Error: cannot import, there is already a certificate with the label '%s' on the token.\n", label);
 	    retcode = rc_error_object_exists;
 	    goto err;
+#endif
 	}
 
 	key_type_t detected_key_type = pkcs11_get_key_type(p11Context, hPrivateKey);

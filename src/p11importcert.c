@@ -203,9 +203,13 @@ int main( int argc, char ** argv )
 	CK_OBJECT_HANDLE imported_cert = NULL_PTR;
 
 	if(pkcs11_certificate_exists(p11Context, label)) {
-	    fprintf(stderr, "there is already a certificate with the same label, aborting\n");
+#ifdef _ALLOW_DUPLICATES_
+	    fprintf(stderr, "there is already a certificate with the same label, duplicating\n");
+#else
+		fprintf(stderr, "there is already a certificate with the same label, aborting\n");
 	    retcode = rc_error_object_exists;
 	    goto err;
+#endif
 	}
 
 	imported_cert = pkcs11_importcert( p11Context, filename, NULL, label, trusted);

@@ -138,6 +138,15 @@ AS_IF([test "x$with_ncipher" != xno],
                fi
               ] )])
 
+hasduplicate="no"
+AC_ARG_ENABLE([duplicate],
+			[AS_HELP_STRING([--enable-duplicate],
+			 	[allows the creation of duplicate objects])],
+			[AC_DEFINE([_ALLOW_DUPLICATES_],
+				[1],
+				[Flag used to enable duplicates])hasduplicate="yes"],
+			[])
+
 dnl check if Gemalto Luna extensions can be compiled. If requested, specific file must exist in include/cryptoki
 AC_ARG_WITH([luna],
 	[AS_HELP_STRING([--with-luna],
@@ -220,5 +229,6 @@ AC_MSG_NOTICE([with_luna          : $hasluna])
 AC_MSG_NOTICE([with_ncipher       : $hasncipher])
 AC_MSG_NOTICE([with_awscloudhsm   : $hasawscloudhsm])
 AC_MSG_NOTICE([libcrypto rpath    : $LIBCRYPTO_RPATH])
+AC_MSG_NOTICE([enable_duplicate   : $hasduplicate])
 AC_MSG_NOTICE([------------------------------------------------------------------------])
 

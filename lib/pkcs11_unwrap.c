@@ -416,9 +416,13 @@ static func_rc _unwrap_rsa(pkcs11Context *p11Context, wrappedKeyCtx *wctx, char 
 		    }
 
 		    if(pkcs11_secretkey_exists(p11Context, label)) {
+#ifdef _ALLOW_DUPLICATES_
+			fprintf(stderr,"***Warning: secret key with label '%s' already exists, duplicating\n", label);
+#else
 			fprintf(stderr,"***Error: secret key with label '%s' already exists\n", label);
 			rc = rc_error_object_exists;
 			goto error;
+#endif
 		    }
 		}
 		pkcs11_delete_attrlist(alist);
@@ -634,9 +638,13 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 		case CKK_SHA384_HMAC:
 		case CKK_SHA512_HMAC:
 		    if(pkcs11_secretkey_exists(p11Context, label)) {
+#ifdef _ALLOW_DUPLICATES_
+			fprintf(stderr,"***Warning: secret key with label '%s' already exists\n", label);
+#else
 			fprintf(stderr,"***Error: secret key with label '%s' already exists\n", label);
 			rc = rc_error_object_exists;
 			goto error;
+#endif
 		    }
 		    break;
 
@@ -645,9 +653,13 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 		case CKK_EC:
 		case CKK_EC_EDWARDS:
 		    if(pkcs11_privatekey_exists(p11Context, label)) {
+#ifdef _ALLOW_DUPLICATES_
+			fprintf(stderr,"***Warning: private key with label '%s' already exists, duplicating\n", label);
+#else
 			fprintf(stderr,"***Error: private key with label '%s' already exists\n", label);
 			rc = rc_error_object_exists;
 			goto error;
+#endif
 		    }
 		    break;
 
@@ -935,9 +947,15 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 		case CKK_SHA384_HMAC:
 		case CKK_SHA512_HMAC:
 		    if(pkcs11_secretkey_exists(p11Context, label)) {
+#ifdef _ALLOW_DUPLICATES_
+			fprintf(stderr,"***Warning: secret key with label '%s' already exists, duplicating\n", label);
+			// rc = rc_error_object_exists;
+			// goto error;
+#else
 			fprintf(stderr,"***Error: secret key with label '%s' already exists\n", label);
 			rc = rc_error_object_exists;
 			goto error;
+#endif
 		    }
 		    break;
 
@@ -946,9 +964,13 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 		case CKK_EC:
 		case CKK_EC_EDWARDS:
 		    if(pkcs11_privatekey_exists(p11Context, label)) {
+#ifdef _ALLOW_DUPLICATES_
+			fprintf(stderr,"***Warning: private key with label '%s' already exists, duplicating\n", label);
+#else
 			fprintf(stderr,"***Error: private key with label '%s' already exists\n", label);
 			rc = rc_error_object_exists;
 			goto error;
+#endif
 		    }
 		    break;
 
