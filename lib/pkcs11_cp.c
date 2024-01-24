@@ -88,48 +88,93 @@ int pkcs11_cp_objects(pkcs11Context *p11Context, char *src, char *dest, int inte
 
     case all:
 	if(pkcs11_label_exists( p11Context, dest)) {
+#ifdef HAVE_DUPLICATES_ENABLED
+		if(p11Context->can_duplicate) {
+			fprintf(stdout, "Warning: at least one object already exists for destination label '%s', duplicating.\n", dest);
+		}
+		else {
+#endif
 	    fprintf(stderr, "Error: at least one object already exists for destination label '%s'.\n", dest);
 	    rv = RC_ERROR_OBJECT_EXISTS;
 	    goto error;
+#ifdef HAVE_DUPLICATES_ENABLED
+		}
+#endif
 	}
 	break;
 
     case prvk:
 	if(pkcs11_privatekey_exists( p11Context, dest)) {
+#ifdef HAVE_DUPLICATES_ENABLED
+		if(p11Context->can_duplicate) {
+			fprintf(stdout,"Warning: a private key already exists for destination label '%s', duplicating.\n", dest);
+		}
+		else {
+#endif
 	    fprintf(stderr,"Error: a private key already exists for destination label '%s'.\n", dest);
 	    rv = RC_ERROR_OBJECT_EXISTS;
 	    goto error;
+#ifdef HAVE_DUPLICATES_ENABLED
+		}
+#endif
 	}
 	break;
 
     case pubk:
 	if(pkcs11_publickey_exists( p11Context, dest)) {
+#ifdef HAVE_DUPLICATES_ENABLED
+		if(p11Context->can_duplicate) {
+			fprintf(stdout,"Warning: a public key already exists for destination label '%s', duplicating.\n", dest);
+		}
+		else {
+#endif
 	    fprintf(stderr,"Error: a public key already exists for destination label '%s'.\n", dest);
 	    rv = RC_ERROR_OBJECT_EXISTS;
 	    goto error;
+#ifdef HAVE_DUPLICATES_ENABLED
+		}
+#endif
 	}
 	break;
 
     case seck:
 	if(pkcs11_secretkey_exists( p11Context, dest)) {
+#ifdef HAVE_DUPLICATES_ENABLED
+		if(p11Context->can_duplicate) {
+			fprintf(stdout,"Warning: a secret key already exists for destination label '%s', duplicating.\n", dest);
+		}
+		else {
+#endif
 	    fprintf(stderr,"Error: a secret key already exists for destination label '%s'.\n", dest);
 	    rv = RC_ERROR_OBJECT_EXISTS;
 	    goto error;
+#ifdef HAVE_DUPLICATES_ENABLED
+		}
+#endif
 	}
 	break;
 
     case cert:
 	if(pkcs11_certificate_exists( p11Context, dest)) {
+#ifdef HAVE_DUPLICATES_ENABLED
+		if(p11Context->can_duplicate) {
+			fprintf(stdout,"Warning: a certificate already exists for destination label '%s', duplicating.\n", dest);
+		}
+		else {
+#endif
 	    fprintf(stderr,"Error: a certificate already exists for destination label '%s'.\n", dest);
 	    rv = RC_ERROR_OBJECT_EXISTS;
 	    goto error;
+#ifdef HAVE_DUPLICATES_ENABLED
+		}
+#endif
 	}
 	break;
 
     }    
 
 
-    idtmpl = pkcs11_make_idtemplate(src);
+    idtmpl = pkcs11_create_id(src);
     
     if(idtmpl && pkcs11_sizeof_idtemplate(idtmpl)>0) {
     

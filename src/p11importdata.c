@@ -53,6 +53,9 @@ void print_usage(char *progname)
 	     "* -i <alias>: label/alias to give to data object\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
+#ifdef HAVE_DUPLICATES_ENABLED
+		 "  -n : allow duplicate objects\n"
+#endif
 	     "|\n"
 	     "+-> arguments marked with an asterix(*) are mandatory\n"
              "|   (except if environment variable sets the value)\n"
@@ -91,6 +94,9 @@ int main( int argc, char ** argv )
     int interactive = 1;
     char * tokenlabel = NULL;
     char * label = NULL;
+#ifdef HAVE_DUPLICATES_ENABLED
+	bool can_duplicate = false;
+#endif
 
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_error_other_error;
@@ -112,7 +118,7 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:f:i:s:t:phV" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:f:i:s:t:phVn" ) ) != -1 )
     {
 	switch ( argnum )
 	{
@@ -156,6 +162,12 @@ int main( int argc, char ** argv )
 	    print_version_info(argv[0]);
 	    break;
 
+#ifdef HAVE_DUPLICATES_ENABLED
+	case 'n': {
+		can_duplicate = true;
+	}
+		break;
+#endif
 	default:
 	    errflag++;
 	    break;
@@ -190,11 +202,23 @@ int main( int argc, char ** argv )
 
     if ( retcode == rc_ok ) {
 	CK_OBJECT_HANDLE imported_data = NULL_PTR;
+#ifdef HAVE_DUPLICATES_ENABLED
+	p11Context->can_duplicate = can_duplicate;
+#endif
 
 	if(pkcs11_data_exists(p11Context, label)) {
+#ifdef HAVE_DUPLICATES_ENABLED
+	if(p11Context->can_duplicate) {
+	    fprintf(stdout, "data object with this label already exists, duplicating\n");
+	}
+	else {
+#endif
 	    fprintf(stderr, "data object with this label already exists, aborting\n");
 	    retcode = rc_error_object_exists;
 	    goto err;
+#ifdef HAVE_DUPLICATES_ENABLED
+	}
+#endif
 	}
 
 	imported_data = pkcs11_importdata( p11Context, filename, label);

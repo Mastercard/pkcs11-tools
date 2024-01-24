@@ -263,3 +263,9 @@ To build the RPM package with AWS CloudHSM support, use the following command wh
 ```bash
 $ rpmbuild -ba $HOME/rpmbuild/SPECS/pkcs11-tools.spec --with awscloudhsm
 ```
+
+## Additional configuration options
+The default installation of `pkcs11-tools` does not support the creation of objects with the same labels, but this feature can be activated when configuring with the `--enable-duplicate` argument.
+```bash
+$ ./configure [...] --enable-duplicate
+```

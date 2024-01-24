@@ -53,6 +53,9 @@ void print_usage(char *progname)
 	     "  -v : verbose\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
+#ifdef HAVE_DUPLICATES_ENABLED
+		 "  -n: allow duplicate objects\n"
+#endif
 	     "|\n"
 	     "+-> arguments marked with an asterix(*) are mandatory\n"
              "|   (except if environment variable sets the value)\n"
@@ -99,6 +102,9 @@ int main( int argc, char ** argv )
     char * tokenlabel = NULL;
     int so=0;
     int verbose=0;
+#ifdef HAVE_DUPLICATES_ENABLED
+	bool can_duplicate = false;
+#endif
 
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_error_usage;
@@ -120,7 +126,7 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:p:s:t:yvShV)" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:p:s:t:yvShVn)" ) ) != -1 )
     {
 	switch ( argnum )
 	{
@@ -167,6 +173,12 @@ int main( int argc, char ** argv )
 	case 'V':
 	    print_version_info(argv[0]);
 	    break;
+#ifdef HAVE_DUPLICATES_ENABLED
+	case 'n': {
+		can_duplicate = true;
+	}
+	    break;
+#endif
 
 	default:
 	    errflag++;
@@ -199,6 +211,9 @@ int main( int argc, char ** argv )
 
     if ( retcode == rc_ok )
     {
+#ifdef HAVE_DUPLICATES_ENABLED
+	p11Context->can_duplicate = can_duplicate;
+#endif
 	pkcs11_cp_objects(p11Context, argv[optind], argv[optind+1], ask_confirm, verbose);
 	
 	pkcs11_close_session( p11Context );

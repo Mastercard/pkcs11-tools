@@ -107,6 +107,9 @@ typedef struct s_p11_ctx {
     CK_SESSION_HANDLE Session;
     CK_BBOOL initialized;
     CK_BBOOL logged_in;
+#ifdef HAVE_DUPLICATES_ENABLED
+    CK_BBOOL can_duplicate;
+#endif
 
     /* in support to rfc3394: */
     /* the following table will contain a list of AES wrapping mechanisms */
@@ -137,10 +140,11 @@ typedef struct CK_NSS_C_INITIALIZE_ARGS {
 /* pkcs11_idtemplate */
 #define IDTMPL_RESOURCE_POS  0
 #define IDTMPL_OBJECT_CLASS_POS 1
+#define IDTMPL_TEMPLATE_SIZE 10
 
 
 typedef struct s_p11_idtmpl {
-    CK_ATTRIBUTE     template[2];
+    CK_ATTRIBUTE*    template;
     CK_ULONG         template_len;
     CK_OBJECT_CLASS  oclass;
     CK_BBOOL         has_resource; /* resource is one of CKA_ID, CKA_LABEL, CKA_SERIAL_NUMBER */
@@ -402,7 +406,9 @@ func_rc pkcs11_close_session( pkcs11Context * p11Context );
 // int showKey( pkcs11Context *, CK_OBJECT_HANDLE );
 
 /* pkcs11_idtemplate.c */
+pkcs11IdTemplate* pkcs11_create_id(char* url);
 pkcs11IdTemplate * pkcs11_make_idtemplate(char *labelorid);
+pkcs11IdTemplate * pkcs11_make_idtemplate_with_extra_attributes(char *labelorid);
 void pkcs11_delete_idtemplate(pkcs11IdTemplate * idtmpl) ;
 int pkcs11_sizeof_idtemplate(pkcs11IdTemplate *idtmpl);
 

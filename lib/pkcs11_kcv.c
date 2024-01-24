@@ -50,7 +50,7 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacda
     if(label!=NULL && strcasecmp("seck",label)==0) {
 	idtmpl = pkcs11_make_idtemplate(CLASS_SECK);
     } else {
-	idtmpl = pkcs11_make_idtemplate(label);
+	idtmpl = pkcs11_create_id(label);
     }
 
     if(idtmpl && pkcs11_sizeof_idtemplate(idtmpl)>0) {

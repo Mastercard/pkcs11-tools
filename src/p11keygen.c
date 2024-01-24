@@ -133,6 +133,9 @@ void print_usage(char *progname) {
 	    "  -r : when wrapping a key, remove token copy (default is to leave a local copy on the token)\n"
 	    "  -h : print usage information\n"
 	    "  -V : print version information\n"
+#ifdef HAVE_DUPLICATES_ENABLED
+ 		"  -n : allow duplicate objects\n"
+#endif
 	    "|\n"
 	    "+-> parameters marked with an asterix(*) are mandatory\n"
 	    "|   (except if environment variable sets the value)\n"
@@ -187,6 +190,9 @@ int main(int argc, char **argv) {
     int so = 0;
     bool jwkoutput = false;
     char *wrapping_key_id = NULL;
+#ifdef HAVE_DUPLICATES_ENABLED
+	bool can_duplicate = false;
+#endif
 
     pkcs11Context *p11Context = NULL;
     func_rc retcode;
@@ -235,7 +241,7 @@ int main(int argc, char **argv) {
     }
 
     /* get the command-line arguments */
-    while ((argnum = getopt(argc, argv, "l:m:i:s:t:p:k:b:q:d:rhVW:SJ:")) != -1) {
+    while ((argnum = getopt(argc, argv, "l:m:i:s:t:p:k:b:q:d:rhVW:SJ:n")) != -1) {
 	switch (argnum) {
 	    case 'l' :
 		library = optarg;
@@ -352,6 +358,12 @@ int main(int argc, char **argv) {
 		    wrapping_key_id = optarg;
 		}
 		break;
+#ifdef HAVE_DUPLICATES_ENABLED
+		case 'n': {
+ 			can_duplicate = true;
+		}
+		break;
+#endif
 
 	    default:
 		errflag++;
@@ -402,10 +414,22 @@ int main(int argc, char **argv) {
 	    CK_OBJECT_HANDLE keyhandle = 0, pubkhandle = 0; /* keyhandle will receive either private or secret key handle */
 	    key_generation_t keygentype;
 
+#ifdef HAVE_DUPLICATES_ENABLED
+		p11Context->can_duplicate = can_duplicate;
+#endif
 	    if (pkcs11_label_exists(p11Context, label)) {
+#ifdef HAVE_DUPLICATES_ENABLED
+			if(p11Context->can_duplicate) {
+				fprintf(stdout, "an object with this label already exists, duplicating\n");
+			}
+			else {
+#endif
 		fprintf(stderr, "an object with this label already exists, aborting\n");
 		retcode = rc_error_object_exists;
 		goto err_object_exists;
+#ifdef HAVE_DUPLICATES_ENABLED
+			}
+#endif
 	    }
 
 	    keygentype = numjobs > 0 ? removetokencopy ? kg_session_for_wrapping : kg_token_for_wrapping : kg_token;

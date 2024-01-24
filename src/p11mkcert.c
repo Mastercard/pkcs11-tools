@@ -69,6 +69,9 @@ void print_usage(char *progname)
              "  -v : be verbose, output content of generated certificate to standard output\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
+#ifdef HAVE_DUPLICATES_ENABLED
+	     "  -n: allow duplicate objects\n"
+#endif
 	     "|\n"
 	     "+-> options marked with an asterix(*) are mandatory\n"
              "|   (except if environment variable sets the value)\n"
@@ -115,6 +118,9 @@ int main( int argc, char ** argv )
     int days = 365;		/* default is one year */
     bool reverse = false;
     bool import = false;		/* by default, no import to token */
+#ifdef HAVE_DUPLICATES_ENABLED
+	bool can_duplicate = false;
+#endif
 
     hash_alg_t hash_alg = sha256; 	/* as of release 0.25.3, sha256 is the default */
 
@@ -141,7 +147,7 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:o:i:s:t:d:rje:p:u:XH:vhV" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:o:i:s:t:d:rje:p:u:XH:vhVn" ) ) != -1 )
     {
 	switch ( argnum )
 	{
@@ -245,6 +251,12 @@ int main( int argc, char ** argv )
 	    print_version_info(argv[0]);
 	    break;
 
+#ifdef HAVE_DUPLICATES_ENABLED
+	case 'n': {
+			can_duplicate = true;
+		}
+		break;
+#endif
 	default:
 	    errflag++;
 	    break;
@@ -284,6 +296,9 @@ int main( int argc, char ** argv )
 
     if ( retcode == rc_ok )
     {
+#ifdef HAVE_DUPLICATES_ENABLED
+	p11Context->can_duplicate = can_duplicate;
+#endif
 	CK_OBJECT_HANDLE hPublicKey=NULL_PTR;
 	CK_OBJECT_HANDLE hPrivateKey=NULL_PTR;
 	CK_OBJECT_HANDLE handle_for_attributes=NULL_PTR;
@@ -296,9 +311,18 @@ int main( int argc, char ** argv )
 	}
 
 	if(import && pkcs11_certificate_exists(p11Context, label)) {
+#ifdef HAVE_DUPLICATES_ENABLED
+		if(p11Context->can_duplicate) {
+	    fprintf(stdout, "Warning: there is already a certificate with the label '%s' on the token, duplicating.\n", label);
+		}
+		else {
+#endif
 	    fprintf(stderr, "Error: cannot import, there is already a certificate with the label '%s' on the token.\n", label);
 	    retcode = rc_error_object_exists;
 	    goto err;
+#ifdef HAVE_DUPLICATES_ENABLED
+		}
+#endif
 	}
 
 	key_type_t detected_key_type = pkcs11_get_key_type(p11Context, hPrivateKey);

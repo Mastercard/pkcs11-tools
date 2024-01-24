@@ -59,8 +59,17 @@ KeyImportCtx *pkcs11_import_component_init(pkcs11Context *p11Context, char *unwr
     /* make openssl public key from PKCS#11 private or public key label */
 
     if(pkcs11_secretkey_exists(p11Context, targetlabel)) {
+#ifdef HAVE_DUPLICATES_ENABLED
+		if(p11Context->can_duplicate) {
+			fprintf(stdout,"Error: secret key with label '%s' already exists, duplicating.\n", targetlabel);
+		}
+		else {
+#endif
 	fprintf(stderr,"Error: secret key with label '%s' already exists\n", targetlabel);
 	goto error;
+#ifdef HAVE_DUPLICATES_ENABLED
+		}
+#endif
     }
 
     fkp_rc = pkcs11_findkeypair(p11Context, unwrappinglabel, &hPublicKey, &hPrivateKey);

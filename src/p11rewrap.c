@@ -112,6 +112,9 @@ void print_usage(char *progname) {
 	    "  -S : login with SO privilege\n"
 	    "  -h : print usage information\n"
 	    "  -V : print version information\n"
+#ifdef HAVE_DUPLICATES_ENABLED
+		"  -n : allow duplicate objects\n"
+#endif
 	    "|\n"
 	    "+-> arguments marked with an asterix(*) are mandatory\n"
 	    "|   (except if environment variable sets the value)\n"
@@ -178,6 +181,9 @@ int main(int argc, char **argv) {
     size_t attrs_cnt = 0;
     bool jwkoutput = false;
     char *wrapping_key_id = NULL;
+#ifdef HAVE_DUPLICATES_ENABLED
+	bool can_duplicate = false;
+#endif
 
 
     int i;
@@ -205,7 +211,7 @@ int main(int argc, char **argv) {
     }
 
     /* get the command-line arguments */
-    while ((argnum = getopt(argc, argv, "l:m:i:s:t:p:f:ShVW:w:J:")) != -1) {
+    while ((argnum = getopt(argc, argv, "l:m:i:s:t:p:f:ShVW:w:J:n")) != -1) {
 	switch (argnum) {
 	    case 'l' :
 		library = optarg;
@@ -276,6 +282,12 @@ int main(int argc, char **argv) {
 		}
 		break;
 
+#ifdef HAVE_DUPLICATES_ENABLED
+		case 'n': {
+			can_duplicate = true;
+		}
+		break;
+#endif
 	    default:
 		errflag++;
 		break;
@@ -319,6 +331,9 @@ int main(int argc, char **argv) {
 
     if (retcode == rc_ok) {
 
+#ifdef HAVE_DUPLICATES_ENABLED
+	p11Context->can_duplicate = can_duplicate;
+#endif
 	/* first step is to recover the key */
 	wrappedKeyCtx *wctx = pkcs11_new_wrapped_key_from_file(p11Context, filename);
 

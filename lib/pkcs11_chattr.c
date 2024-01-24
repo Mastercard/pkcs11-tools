@@ -32,7 +32,7 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
     pkcs11Search *search=NULL;
     pkcs11IdTemplate *idtmpl=NULL;
     
-    idtmpl = pkcs11_make_idtemplate(label);
+    idtmpl = pkcs11_create_id(label);
     
     if(idtmpl && pkcs11_sizeof_idtemplate(idtmpl)>0) {
     

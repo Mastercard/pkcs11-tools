@@ -55,6 +55,9 @@ void print_usage(char *progname)
 	     "  -S : login with SO privilege\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
+#ifdef HAVE_DUPLICATES_ENABLED
+		 "  -n : allow duplicate objects\n"
+#endif
 	     "|\n"
 	     "+-> arguments marked with an asterix(*) are mandatory\n"
              "|   (except if environment variable sets the value)\n"
@@ -97,6 +100,9 @@ int main( int argc, char ** argv )
     char * wrappingkeylabel = NULL;
     pkcs11Context * p11Context = NULL;
     CK_RV retcode = EXIT_FAILURE;
+#ifdef HAVE_DUPLICATES_ENABLED
+	bool can_duplicate = false;
+#endif
 
     library = getenv("PKCS11LIB");
     nsscfgdir = getenv("PKCS11NSSDIR");
@@ -115,7 +121,7 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:i:s:c:t:p:w:ShV" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:i:s:c:t:p:w:ShVn" ) ) != -1 )
     {
 	switch ( argnum )
 	{
@@ -167,6 +173,12 @@ int main( int argc, char ** argv )
 	    print_version_info(argv[0]);
 	    break;
 
+#ifdef HAVE_DUPLICATES_ENABLED
+	case 'n': {
+	    can_duplicate = true;
+	}
+	    break;
+#endif
 	default:
 	    errflag++;
 	    break;
@@ -198,6 +210,9 @@ int main( int argc, char ** argv )
     if ( retcode == rc_ok ) {
 	KeyImportCtx *kctx;
 
+#ifdef HAVE_DUPLICATES_ENABLED
+	p11Context->can_duplicate = can_duplicate;
+#endif
 	kctx = pkcs11_import_component_init( p11Context, wrappingkeylabel, targetlabel);
 
 	if(kctx) {

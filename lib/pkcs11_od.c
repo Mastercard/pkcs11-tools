@@ -634,7 +634,7 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 	} else if (strcasecmp("data",label)==0) {
 	    idtmpl = pkcs11_make_idtemplate(CLASS_DATA);
 	} else {
-	    idtmpl = pkcs11_make_idtemplate(label);
+	    idtmpl = pkcs11_create_id(label);
 	}
     }
 

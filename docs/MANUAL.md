@@ -99,6 +99,7 @@ The following arguments are common to almost every command:
 * `-S` will login to the token with Security Officer privilege
 * `-h` will print usage information
 * `-V` will print version information
+* `-n` when configured with the `--enable-duplicate` feature, this option allows the user to generate objects with the same label.
 
 ## Interfacing with NSS tokens
 
@@ -440,6 +441,9 @@ In the example above, three objects are found on the token:
 - an RSA 4096 bits public key called `rsa-overarching-wrapping-key`, which is a public object, i.e. no login is required
   accessing it (`pub`). It is also imported (`imp`) and has the capability to wrap other keys (`wra`), that conform with the
   key wrap template (`wrt`).
+### Additional attributes
+An additional attribute name and value pair can be concatenated onto a filter by using the `+` symbol. Refer to the [Addressing objects](#addressing-objects) sections for a detailed explanation on formatting the main portion of your query.
+- example: `p11ls cert/sn/12335344+CKA_ENCRYPT/{01}`
 
 ## p11cat
 

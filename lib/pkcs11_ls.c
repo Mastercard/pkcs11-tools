@@ -707,6 +707,8 @@ func_rc pkcs11_ls( pkcs11Context *p11Context, char *label)
     pkcs11IdTemplate * idtmpl=NULL;
     pkcs11Search *search=NULL;
 
+	CK_ATTRIBUTE* additional_attributes = NULL;
+	CK_ULONG additional_attributes_len = 0;
     /* trick: we treat "cert", "pubk", "prvk", "seck" and "data" in front of the templating system */
     /* so these specific labels can be used as shortcut for the corresponding object classes       */
 
@@ -722,7 +724,7 @@ func_rc pkcs11_ls( pkcs11Context *p11Context, char *label)
 	} else if (strcasecmp("data",label)==0) {
 	    idtmpl = pkcs11_make_idtemplate(CLASS_DATA);
 	} else {
-	    idtmpl = pkcs11_make_idtemplate(label);
+	    idtmpl = pkcs11_create_id(label);
 	}
     }
 
@@ -780,6 +782,9 @@ func_rc pkcs11_ls( pkcs11Context *p11Context, char *label)
 		}
 	    }
 	    pkcs11_delete_search(search);
+	}
+	else {
+		fprintf(stderr, "Error: unable to create a search. - ['%s'].\n", label);
 	}
 	pkcs11_delete_idtemplate(idtmpl);
     }

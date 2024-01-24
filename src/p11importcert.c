@@ -54,6 +54,9 @@ void print_usage(char *progname)
 	     "  -S : login with SO privilege\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
+#ifdef HAVE_DUPLICATES_ENABLED
+		 "  -n : allow duplicate objects\n"
+#endif
 	     "|\n"
 	     "+-> arguments marked with an asterix(*) are mandatory\n"
              "|   (except if environment variable sets the value)\n"
@@ -94,6 +97,9 @@ int main( int argc, char ** argv )
     int interactive = 1;
     char * tokenlabel = NULL;
     char * label = NULL;
+#ifdef HAVE_DUPLICATES_ENABLED
+	bool can_duplicate = false;
+#endif
 
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_error_other_error;
@@ -115,7 +121,7 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:f:Ti:s:t:p:ShV" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:f:Ti:s:t:p:ShVn" ) ) != -1 )
     {
 	switch ( argnum )
 	{
@@ -166,6 +172,12 @@ int main( int argc, char ** argv )
 	case 'V':
 	    print_version_info(argv[0]);
 	    break;
+#ifdef HAVE_DUPLICATES_ENABLED
+	case 'n': {
+		can_duplicate = true;
+	}
+	    break;
+#endif
 
 	default:
 	    errflag++;
@@ -200,12 +212,24 @@ int main( int argc, char ** argv )
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
 
     if ( retcode == rc_ok ) {
+#ifdef HAVE_DUPLICATES_ENABLED
+	p11Context->can_duplicate = can_duplicate;
+#endif
 	CK_OBJECT_HANDLE imported_cert = NULL_PTR;
 
 	if(pkcs11_certificate_exists(p11Context, label)) {
+#ifdef HAVE_DUPLICATES_ENABLED
+	if(p11Context->can_duplicate) {
+	    fprintf(stdout, "there is already a certificate with the same label, duplicating\n");
+	}
+	else {
+#endif
 	    fprintf(stderr, "there is already a certificate with the same label, aborting\n");
 	    retcode = rc_error_object_exists;
 	    goto err;
+#ifdef HAVE_DUPLICATES_ENABLED
+	}
+#endif
 	}
 
 	imported_cert = pkcs11_importcert( p11Context, filename, NULL, label, trusted);

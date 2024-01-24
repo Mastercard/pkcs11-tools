@@ -38,7 +38,7 @@ int pkcs11_rm_objects_with_label(pkcs11Context *p11Context, char *label, int int
 
     pkcs11IdTemplate *idtmpl=NULL;
 
-    idtmpl = pkcs11_make_idtemplate(label);
+    idtmpl = pkcs11_create_id(label);
 
     if(idtmpl && pkcs11_sizeof_idtemplate(idtmpl)>0) {
 

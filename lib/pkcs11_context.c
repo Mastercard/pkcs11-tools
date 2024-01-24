@@ -61,6 +61,9 @@ pkcs11Context * pkcs11_newContext( char *libraryname, char *nssconfigdir )
 
     p11Context->nssinitparams = nssinitparams;
     nssinitparams = NULL; 	/* transfer ownership */
+#ifdef HAVE_DUPLICATES_ENABLED
+	p11Context->can_duplicate = false;
+#endif
 
 
 err:

@@ -57,6 +57,9 @@ void print_usage(char *progname)
 	     "  -S : login with SO privilege\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
+#ifdef HAVE_DUPLICATES_ENABLED
+		 "  -n: allow duplicate object\n"
+#endif
 	     "|\n"
 	     "+-> arguments marked with an asterix(*) are mandatory\n"
              "|   (except if environment variable sets the value)\n"
@@ -115,6 +118,9 @@ int main( int argc, char ** argv )
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_ok;
     int p11unwraprc = EX_OK;
+#ifdef HAVE_DUPLICATES_ENABLED
+	bool can_duplicate = false;
+#endif
 
     attribCtx *actx = NULL;
 
@@ -141,7 +147,7 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:w:f:ShV" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:i:s:t:p:w:f:ShVn" ) ) != -1 )
     {
 	switch ( argnum )
 	{
@@ -197,6 +203,12 @@ int main( int argc, char ** argv )
 	    print_version_info(argv[0]);
 	    break;
 
+#ifdef HAVE_DUPLICATES_ENABLED
+	case 'n': {
+		can_duplicate = true;
+	}
+		break;	
+#endif
 	default:
 	    errflag++;
 	    break;
@@ -236,6 +248,9 @@ int main( int argc, char ** argv )
 
     if ( retcode == rc_ok ) {
 
+#ifdef HAVE_DUPLICATES_ENABLED
+	p11Context->can_duplicate = can_duplicate;
+#endif
 	wrappedKeyCtx *wctx = pkcs11_new_wrapped_key_from_file(p11Context, filename);
 
 	if(wctx) {
