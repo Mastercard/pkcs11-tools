@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [UNPUBLISHED]
 ### Added
 - support for wrapping keys in JOSE Web Key format (JWK, RFC 7178)
+- new option `--enable-duplicate`, to override duplicate label protection when creating or importing a key (must be enabled at compile time)
+- search templates: it is now possible to add other attributes in a search, to filter out on more than one attribute
+
+### Fixed
+- small fix on with_xxx wrappers, replacing space with underscore in reply code
 
 # [2.6.0]
 ### Added
