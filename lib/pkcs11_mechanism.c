@@ -56,9 +56,9 @@ static int compare_CKM_type( const void *a, const void *b)
 {
     /* because we are making a comparison between unsigned long, int might not reflect well */
     /* we need to use an intermediary value and divide it by itself (as absolute value)     */
-    
-    long long item = ((MechanismDesc *)a)->type - ((MechanismDesc *)b)->type;
 
+    /* we explicitely use "signed" as some platform (MIPS) seem to work with unsigned by default */
+    signed long long item = (signed long long)(((MechanismDesc *)a)->type) - (signed long long)(((MechanismDesc *)b)->type);
     return item ? item/llabs(item) : 0;
 }
 
