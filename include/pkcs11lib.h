@@ -223,7 +223,6 @@ typedef enum {
     sha512
 } hash_alg_t ;
 
-
 /* attribCtx contains a context that can hold parameters parsed from command line
    that contains attributes.
    It currently supports these grammars:
@@ -518,6 +517,7 @@ func_rc pkcs11_genGeneric( pkcs11Context * p11Context,
 func_rc pkcs11_genRSA( pkcs11Context * p11Context,
 		       char *label,
 		       CK_ULONG bits,
+		       uint32_t pubexp,
 		       CK_ATTRIBUTE attrs[],
 		       CK_ULONG numattrs,
 		       CK_OBJECT_HANDLE_PTR hPublicKey,

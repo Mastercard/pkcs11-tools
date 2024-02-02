@@ -462,6 +462,7 @@ error:
 func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
 		       char *label,
 		       CK_ULONG bits,
+		       uint32_t public_exponent,
 		       CK_ATTRIBUTE attrs[],
 		       CK_ULONG numattrs,
 		       CK_OBJECT_HANDLE_PTR pubkhandleptr,
@@ -474,7 +475,31 @@ func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
     CK_ULONG modulusBits = bits;
-    CK_BYTE publicExponent[] = { 0x01, 0x00, 0x01  };
+    CK_BYTE publicExponent[3];
+	size_t publicExponentLen = 0;
+
+	/* first, find what is the most significant bit of public_exponent */
+	/* we need to know how many bytes we need to encode it */
+
+	unsigned long pe = public_exponent;
+	int n=0;
+	while(pe) {
+		pe >>= 8;
+		n++;
+	}
+	if(n>3) {
+		fprintf(stderr,"***Error: public exponent too large\n");
+		rc = rc_error_invalid_parameter_for_method;
+		goto error;
+	}
+
+	/* then, encode it, as big-endian */
+	for(i=0; i<n; i++) {
+		publicExponent[i] = (public_exponent >> (8*(n-i-1))) & 0xff;
+	}
+	publicExponentLen = n;
+
+	/* now fill pu*/
 
     CK_MECHANISM mechanism = {
 	CKM_RSA_PKCS_KEY_PAIR_GEN, NULL_PTR, 0
@@ -487,7 +512,7 @@ func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
 	CK_ATTRIBUTE pubktemplate[] = {
 	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof(CK_BBOOL)},
 	    {CKA_MODULUS_BITS, &modulusBits, sizeof(modulusBits)},
-	    {CKA_PUBLIC_EXPONENT, publicExponent, sizeof (publicExponent)},
+	    {CKA_PUBLIC_EXPONENT, publicExponent, publicExponentLen},
 
 	    {CKA_LABEL, label, strlen(label) },
 	    {CKA_ID, id, strlen((const char *)id) },
@@ -524,7 +549,7 @@ func_rc pkcs11_genRSA( pkcs11Context * p11ctx,
 	    {CKA_DECRYPT, &ck_false, sizeof ck_false},
 	    {CKA_UNWRAP, &ck_false, sizeof ck_false},
 	    {CKA_SIGN, &ck_false, sizeof ck_false},
-#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */	    
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */
 	    {CKA_SIGN_RECOVER, &ck_false, sizeof ck_false},
 #endif
 	    {CKA_DERIVE, &ck_false, sizeof ck_false},
@@ -739,14 +764,14 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
 	    {0L, NULL, 0L},
 	    {0L, NULL, 0L},
 	    {0L, NULL, 0L},
-	    {0L, NULL, 0L},	    
+	    {0L, NULL, 0L},
 	};
 
 	size_t pubk_template_len_max = (sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE));
 	size_t pubk_template_len_min = pubk_template_len_max - 5;
 	size_t pubk_num_elems = pubk_template_len_min;
 
-	
+
 	CK_ATTRIBUTE prvktemplate[] = {
 	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof ck_true},
 	    {CKA_PRIVATE, &ck_true, sizeof ck_true},
@@ -768,7 +793,7 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
 	    {0L, NULL, 0L},
 	    {0L, NULL, 0L},
 	    {0L, NULL, 0L},
-	    {0L, NULL, 0L},	    
+	    {0L, NULL, 0L},
 	};
 
 	size_t prvk_template_len_max = (sizeof(prvktemplate)/sizeof(CK_ATTRIBUTE));
@@ -973,7 +998,7 @@ int pkcs11_testgenEC_support( pkcs11Context * p11ctx, const char *param)
 	    {CKA_ENCRYPT, &ck_false, sizeof ck_false},
 	    {CKA_WRAP, &ck_false, sizeof ck_false},
 	    {CKA_VERIFY, &ck_true, sizeof ck_false},
-#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */	    
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */
 	    {CKA_VERIFY_RECOVER, &ck_false, sizeof ck_false},
 #endif
 	    {CKA_DERIVE, &ck_false, sizeof ck_false},

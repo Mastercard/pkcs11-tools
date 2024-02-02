@@ -82,6 +82,7 @@ void print_usage(char *progname) {
 	    "                   - 2048 for RSA\n"
 	    "                   - 160 for Generic/HMAC\n"
 	    "                   - ignored for DH/DSA (taken out from parameter file)\n"
+	    "  -e <exponent>   : RSA public key exponent (default: 65537)\n"
 	    "  -q <curve param>: EC curve parameter or ED kind\n"
 	    "                    for EC: prime256v1, secp384r1 and secp521r1\n"
 	    "                            (default: prime256v1)\n"
@@ -134,7 +135,7 @@ void print_usage(char *progname) {
 	    "  -h : print usage information\n"
 	    "  -V : print version information\n"
 #ifdef HAVE_DUPLICATES_ENABLED
- 		"  -n : allow duplicate objects\n"
+		"  -n : allow duplicate objects\n"
 #endif
 	    "|\n"
 	    "+-> parameters marked with an asterix(*) are mandatory\n"
@@ -201,6 +202,7 @@ int main(int argc, char **argv) {
     key_type_t keytype = unknown;
     CK_ULONG kb = 0;
     char *param = NULL;
+    uint32_t pubexp = 0;
 
     attribCtx *actx = NULL;
 
@@ -241,7 +243,7 @@ int main(int argc, char **argv) {
     }
 
     /* get the command-line arguments */
-    while ((argnum = getopt(argc, argv, "l:m:i:s:t:p:k:b:q:d:rhVW:SJ:n")) != -1) {
+    while ((argnum = getopt(argc, argv, "l:m:i:s:t:p:k:b:e:q:d:rhVW:SJ:n")) != -1) {
 	switch (argnum) {
 	    case 'l' :
 		library = optarg;
@@ -277,49 +279,54 @@ int main(int argc, char **argv) {
 
 	    case 'k':
 		if (strcasecmp(optarg, "aes") == 0) {
-		    keytype = aes;
-		    kb = 256;
+			if (keytype == unknown) { keytype = aes;}
+		    if (kb == 0) { kb = 256;}
 		} else if (strcasecmp(optarg, "des") == 0) {
-		    keytype = des;
-		    kb = 192;
+			if (keytype == unknown) { keytype = des;}
+			if (kb == 0) { kb = 192;}
 		} else if (strcasecmp(optarg, "rsa") == 0) {
-		    keytype = rsa;
-		    kb = 2048;
+			if (keytype == unknown) { keytype = rsa;}
+			if (kb == 0) { kb = 2048;}
+			if (pubexp == 0) { pubexp = 0x10001;}
 		} else if (strcasecmp(optarg, "ec") == 0) {
-		    keytype = ec;
+			if (keytype == unknown) { keytype = ec;}
 		} else if (strcasecmp(optarg, "ed") == 0) {
-		    keytype = ed;
+			if (keytype == unknown) { keytype = ed;}
 		} else if (strcasecmp(optarg, "dsa") == 0) {
-		    keytype = dsa;
+			if (keytype == unknown) { keytype = dsa;}
 		} else if (strcasecmp(optarg, "dh") == 0) {
-		    keytype = dh;
+			if (keytype == unknown) { keytype = dh;}
 		}
 #if defined(HAVE_NCIPHER)
 		    else if(strcasecmp(optarg,"hmacsha1")==0) {
-		  keytype = hmacsha1;
-		  kb = 160;
+			if (keytype == unknown) { keytype = hmacsha1;}
+			if(kb == 0) { kb = 160;}
 		  } else if(strcasecmp(optarg,"hmacsha224")==0) {
-		  keytype = hmacsha224;
-		  kb = 224;
+			if(keytype == unknown) { keytype = hmacsha224;}
+			if(kb == 0) { kb = 224;}
 		  } else if(strcasecmp(optarg,"hmacsha256")==0) {
-		  keytype = hmacsha256;
-		  kb = 256;
+			if(keytype == unknown) { keytype = hmacsha256;}
+			if(kb == 0) { kb = 256;}
 		  } else if(strcasecmp(optarg,"hmacsha384")==0) {
-		  keytype = hmacsha384;
-		  kb = 384;
+			if(keytype == unknown) { keytype = hmacsha384;}
+			if(kb == 0) { kb = 384;}
 		  } else if(strcasecmp(optarg,"hmacsha512")==0) {
-		  keytype = hmacsha512;
-		  kb = 512;
+			if(keytype == unknown) { keytype = hmacsha512;}
+			if(kb == 0) { kb = 512;}
 		  }
 #endif
 		else if (strcasecmp(optarg, "generic") == 0 || strcasecmp(optarg, "hmac") == 0) {
-		    keytype = generic;
-		    kb = 160;
+		    if(keytype == unknown) { keytype = generic;}
+		    if(kb == 0) { kb = 160;}
 		}
 		break;
 
-	    case 'b':
+	    case 'b':		/* key length */
 		kb = strtoul(optarg, NULL, 10);
+		break;
+
+	    case 'e':		/* public exponent for RSA key generation */
+		pubexp = strtoul(optarg, NULL, 10);
 		break;
 
 	    case 'q':        /* elliptic curve parameter */
@@ -348,7 +355,7 @@ int main(int argc, char **argv) {
 		removetokencopy = 1;
 		break;
 
-	    case 'S':
+	    case 'S':	/* Security Officer */
 		so = 1;
 		break;
 
@@ -360,7 +367,7 @@ int main(int argc, char **argv) {
 		break;
 #ifdef HAVE_DUPLICATES_ENABLED
 		case 'n': {
- 			can_duplicate = true;
+			can_duplicate = true;
 		}
 		break;
 #endif
@@ -470,7 +477,7 @@ int main(int argc, char **argv) {
 		    break;
 
 		case rsa:
-		    retcode = pkcs11_genRSA(p11Context, label, kb,
+		    retcode = pkcs11_genRSA(p11Context, label, kb, pubexp,
 					    pkcs11_get_attrlist_from_attribctx(actx),
 					    pkcs11_get_attrnum_from_attribctx(actx),
 					    &pubkhandle,
