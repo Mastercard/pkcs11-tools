@@ -586,6 +586,7 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 				   pkcs11AttrList *attrlist) ;
 
 void write_X509_REQ(CK_VOID_PTR req, char *filename, bool verbose);
+void pkcs11_free_X509_REQ(CK_VOID_PTR req);
 
 /* pkcs11_cert.c */
 CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
@@ -600,7 +601,8 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 				    CK_OBJECT_HANDLE hprivkey,
 				    pkcs11AttrList *attrlist);
 
-void write_X509_CERT(CK_VOID_PTR req, char *filename, bool verbose);
+void write_X509_CERT(CK_VOID_PTR crt, char *filename, bool verbose);
+void pkcs11_free_X509_CERT(CK_VOID_PTR crt);
 
 
 // CK_ULONG pkcs11_allocate_and_hash_sha1(CK_BYTE_PTR data, CK_ULONG datalen, CK_VOID_PTR_PTR buf);

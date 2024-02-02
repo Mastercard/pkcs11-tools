@@ -282,6 +282,15 @@ err:
 }
 
 
+void pkcs11_free_X509_CERT(CK_VOID_PTR crt) {
+    X509 *xcrt = (X509 *)crt;
+
+    if(xcrt) {
+	X509_free(xcrt);
+    }	
+}
+
+
 void write_X509_CERT(CK_VOID_PTR crt, char *filename, bool verbose)
 {
 

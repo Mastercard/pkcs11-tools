@@ -249,6 +249,16 @@ err:
     return retval;
 }
 
+
+void pkcs11_free_X509_REQ(CK_VOID_PTR req) {
+    X509_REQ *xreq = (X509_REQ *)req;
+
+    if(xreq) {
+	X509_REQ_free(xreq);
+    }	
+}
+
+
 void write_X509_REQ(CK_VOID_PTR req, char *filename, bool verbose)
 {
 

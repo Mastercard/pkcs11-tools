@@ -368,6 +368,7 @@ int main( int argc, char ** argv )
 
 	    if(req) {
 		write_X509_REQ(req, filename, verbose);
+		pkcs11_free_X509_REQ(req);
 	    } else {
 		fprintf(stderr, "Error: Unable to generate certificate request\n");
 	    }

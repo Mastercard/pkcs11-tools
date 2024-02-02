@@ -409,6 +409,7 @@ int main( int argc, char ** argv )
 			fprintf(stderr, "importing certificate succeeded.\n");
 		    }
 		}
+		pkcs11_free_X509_CERT(x509); /* free cert structure */
 	    } else {
 		fprintf(stderr, "Error: Unable to generate certificate\n");
 	    }
