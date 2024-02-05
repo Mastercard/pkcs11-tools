@@ -28,7 +28,7 @@
 #include <openssl/applink.c>
 #endif
 
-#define COMMAND_SUMMARY \
+#define COMMAND_SUMMARY				\
     "Generate key on a PKCS#11 token.\n\n"
 
 typedef struct {
@@ -65,12 +65,12 @@ void print_usage(char *progname) {
 	    "  -S : login with SO privilege\n"
 	    "* -i <key_alias>: label/alias of the key\n"
 	    "* -k <key type> : aes, des, rsa, dsa, dh, ec, ed, generic / hmac"
-	    #if defined(HAVE_NCIPHER)
+#if defined(HAVE_NCIPHER)
 	    ",\n"
-	     "                  hmacsha1, hmacsha224, hmacsha256, hmacsha384, hmacsha512\n"
-	    #else
+	    "                  hmacsha1, hmacsha224, hmacsha256, hmacsha384, hmacsha512\n"
+#else
 	    "\n"
-	    #endif
+#endif
 	    "  -b <key length>: key length in bits. supported values:\n"
 	    "                   - 128, 192, 256 for AES\n"
 	    "                   - 128(=DES2), 192=(DES3) for DES\n"
@@ -135,7 +135,7 @@ void print_usage(char *progname) {
 	    "  -h : print usage information\n"
 	    "  -V : print version information\n"
 #ifdef HAVE_DUPLICATES_ENABLED
-		"  -n : allow duplicate objects\n"
+	    "  -n : allow duplicate objects\n"
 #endif
 	    "|\n"
 	    "+-> parameters marked with an asterix(*) are mandatory\n"
@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
     bool jwkoutput = false;
     char *wrapping_key_id = NULL;
 #ifdef HAVE_DUPLICATES_ENABLED
-	bool can_duplicate = false;
+    bool can_duplicate = false;
 #endif
 
     pkcs11Context *p11Context = NULL;
@@ -245,136 +245,136 @@ int main(int argc, char **argv) {
     /* get the command-line arguments */
     while ((argnum = getopt(argc, argv, "l:m:i:s:t:p:k:b:e:q:d:rhVW:SJ:n")) != -1) {
 	switch (argnum) {
-	    case 'l' :
-		library = optarg;
-		break;
+	case 'l' :
+	    library = optarg;
+	    break;
 
-	    case 'm':
-		nsscfgdir = optarg;
-		break;
+	case 'm':
+	    nsscfgdir = optarg;
+	    break;
 
-	    case 'p' :
-		password = optarg;
-		break;
+	case 'p' :
+	    password = optarg;
+	    break;
 
-	    case 's':
-		slot = atoi(optarg);
-		interactive = 0;
-		tokenlabel = NULL;
-		break;
+	case 's':
+	    slot = atoi(optarg);
+	    interactive = 0;
+	    tokenlabel = NULL;
+	    break;
 
-	    case 't':
-		tokenlabel = optarg;
-		interactive = 0;
-		slot = -1;
-		break;
+	case 't':
+	    tokenlabel = optarg;
+	    interactive = 0;
+	    slot = -1;
+	    break;
 
-	    case 'i':
-		label = optarg;
-		break;
+	case 'i':
+	    label = optarg;
+	    break;
 
-	    case 'd':
-		param = optarg;
-		break;
+	case 'd':
+	    param = optarg;
+	    break;
 
-	    case 'k':
-		if (strcasecmp(optarg, "aes") == 0) {
-			if (keytype == unknown) { keytype = aes;}
-		    if (kb == 0) { kb = 256;}
-		} else if (strcasecmp(optarg, "des") == 0) {
-			if (keytype == unknown) { keytype = des;}
-			if (kb == 0) { kb = 192;}
-		} else if (strcasecmp(optarg, "rsa") == 0) {
-			if (keytype == unknown) { keytype = rsa;}
-			if (kb == 0) { kb = 2048;}
-			if (pubexp == 0) { pubexp = 0x10001;}
-		} else if (strcasecmp(optarg, "ec") == 0) {
-			if (keytype == unknown) { keytype = ec;}
-		} else if (strcasecmp(optarg, "ed") == 0) {
-			if (keytype == unknown) { keytype = ed;}
-		} else if (strcasecmp(optarg, "dsa") == 0) {
-			if (keytype == unknown) { keytype = dsa;}
-		} else if (strcasecmp(optarg, "dh") == 0) {
-			if (keytype == unknown) { keytype = dh;}
-		}
+	case 'k':
+	    if (strcasecmp(optarg, "aes") == 0) {
+		keytype = aes;
+		if (kb == 0) { kb = 256;}
+	    } else if (strcasecmp(optarg, "des") == 0) {
+		keytype = des;
+		if (kb == 0) { kb = 192;}
+	    } else if (strcasecmp(optarg, "rsa") == 0) {
+		keytype = rsa;
+		if (kb == 0) { kb = 2048;}
+		if (pubexp == 0) { pubexp = 0x10001;}
+	    } else if (strcasecmp(optarg, "ec") == 0) {
+		keytype = ec;
+	    } else if (strcasecmp(optarg, "ed") == 0) {
+		keytype = ed;
+	    } else if (strcasecmp(optarg, "dsa") == 0) {
+		keytype = dsa;
+	    } else if (strcasecmp(optarg, "dh") == 0) {
+		keytype = dh;
+	    }
 #if defined(HAVE_NCIPHER)
-		    else if(strcasecmp(optarg,"hmacsha1")==0) {
-			if (keytype == unknown) { keytype = hmacsha1;}
-			if(kb == 0) { kb = 160;}
-		  } else if(strcasecmp(optarg,"hmacsha224")==0) {
-			if(keytype == unknown) { keytype = hmacsha224;}
-			if(kb == 0) { kb = 224;}
-		  } else if(strcasecmp(optarg,"hmacsha256")==0) {
-			if(keytype == unknown) { keytype = hmacsha256;}
-			if(kb == 0) { kb = 256;}
-		  } else if(strcasecmp(optarg,"hmacsha384")==0) {
-			if(keytype == unknown) { keytype = hmacsha384;}
-			if(kb == 0) { kb = 384;}
-		  } else if(strcasecmp(optarg,"hmacsha512")==0) {
-			if(keytype == unknown) { keytype = hmacsha512;}
-			if(kb == 0) { kb = 512;}
-		  }
+	    else if(strcasecmp(optarg,"hmacsha1")==0) {
+		keytype = hmacsha1;
+		if(kb == 0) { kb = 160;}
+	    } else if(strcasecmp(optarg,"hmacsha224")==0) {
+		keytype = hmacsha224;
+		if(kb == 0) { kb = 224;}
+	    } else if(strcasecmp(optarg,"hmacsha256")==0) {
+		keytype = hmacsha256;
+		if(kb == 0) { kb = 256;}
+	    } else if(strcasecmp(optarg,"hmacsha384")==0) {
+		keytype = hmacsha384;
+		if(kb == 0) { kb = 384;}
+	    } else if(strcasecmp(optarg,"hmacsha512")==0) {
+		keytype = hmacsha512;
+		if(kb == 0) { kb = 512;}
+	    }
 #endif
-		else if (strcasecmp(optarg, "generic") == 0 || strcasecmp(optarg, "hmac") == 0) {
-		    if(keytype == unknown) { keytype = generic;}
-		    if(kb == 0) { kb = 160;}
-		}
-		break;
+	    else if (strcasecmp(optarg, "generic") == 0 || strcasecmp(optarg, "hmac") == 0) {
+		keytype = generic;
+		if(kb == 0) { kb = 160;}
+	    }
+	    break;
 
-	    case 'b':		/* key length */
-		kb = strtoul(optarg, NULL, 10);
-		break;
+	case 'b':		/* key length */
+	    kb = strtoul(optarg, NULL, 10);
+	    break;
 
-	    case 'e':		/* public exponent for RSA key generation */
-		pubexp = strtoul(optarg, NULL, 10);
-		break;
+	case 'e':		/* public exponent for RSA key generation */
+	    pubexp = strtoul(optarg, NULL, 10);
+	    break;
 
-	    case 'q':        /* elliptic curve parameter */
-		param = optarg;
-		break;
+	case 'q':        /* elliptic curve parameter */
+	    param = optarg;
+	    break;
 
-	    case 'h':
-		print_usage(argv[0]);
-		break;
+	case 'h':
+	    print_usage(argv[0]);
+	    break;
 
-	    case 'V':
-		print_version_info(argv[0]);
-		break;
+	case 'V':
+	    print_version_info(argv[0]);
+	    break;
 
-	    case 'W':
-		if (numjobs == MAX_WRAPPINGJOB) {
-		    fprintf(stderr, "***Error: too many wrapping jobs requested\n");
-		    errflag++;
-		} else {
-		    wrappingjob[numjobs].fullstring = optarg;
-		    numjobs++;
-		}
-		break;
-
-	    case 'r':
-		removetokencopy = 1;
-		break;
-
-	    case 'S':	/* Security Officer */
-		so = 1;
-		break;
-
-	    case 'J':
-		jwkoutput = true;
-		if(strlen(optarg) > 0) {
-		    wrapping_key_id = optarg;
-		}
-		break;
-#ifdef HAVE_DUPLICATES_ENABLED
-		case 'n': {
-			can_duplicate = true;
-		}
-		break;
-#endif
-
-	    default:
+	case 'W':
+	    if (numjobs == MAX_WRAPPINGJOB) {
+		fprintf(stderr, "***Error: too many wrapping jobs requested\n");
 		errflag++;
-		break;
+	    } else {
+		wrappingjob[numjobs].fullstring = optarg;
+		numjobs++;
+	    }
+	    break;
+
+	case 'r':
+	    removetokencopy = 1;
+	    break;
+
+	case 'S':	/* Security Officer */
+	    so = 1;
+	    break;
+
+	case 'J':
+	    jwkoutput = true;
+	    if(strlen(optarg) > 0) {
+		wrapping_key_id = optarg;
+	    }
+	    break;
+#ifdef HAVE_DUPLICATES_ENABLED
+	case 'n': {
+	    can_duplicate = true;
+	}
+	    break;
+#endif
+
+	default:
+	    errflag++;
+	    break;
 	}
     }
 
@@ -393,14 +393,14 @@ int main(int argc, char **argv) {
 
     if (library == NULL || label == NULL || keytype == unknown) {
 	fprintf(stderr, "At least one required option or argument is wrong or missing.\n"
-			"Try `%s -h' for more information.\n", argv[0]);
+		"Try `%s -h' for more information.\n", argv[0]);
 	retcode = rc_error_usage;
 	goto epilog;
     }
 
     if (numjobs == 0 && removetokencopy == 1) {
 	fprintf(stderr, "-r optional argument is valid only when wrapping keys.\n"
-			"Try `%s -h' for more information.\n", argv[0]);
+		"Try `%s -h' for more information.\n", argv[0]);
 	retcode = rc_error_usage;
 	goto epilog;
     }
@@ -422,20 +422,20 @@ int main(int argc, char **argv) {
 	    key_generation_t keygentype;
 
 #ifdef HAVE_DUPLICATES_ENABLED
-		p11Context->can_duplicate = can_duplicate;
+	    p11Context->can_duplicate = can_duplicate;
 #endif
 	    if (pkcs11_label_exists(p11Context, label)) {
 #ifdef HAVE_DUPLICATES_ENABLED
-			if(p11Context->can_duplicate) {
-				fprintf(stdout, "an object with this label already exists, duplicating\n");
-			}
-			else {
+		if(p11Context->can_duplicate) {
+		    fprintf(stdout, "an object with this label already exists, duplicating\n");
+		}
+		else {
 #endif
-		fprintf(stderr, "an object with this label already exists, aborting\n");
-		retcode = rc_error_object_exists;
-		goto err_object_exists;
+		    fprintf(stderr, "an object with this label already exists, aborting\n");
+		    retcode = rc_error_object_exists;
+		    goto err_object_exists;
 #ifdef HAVE_DUPLICATES_ENABLED
-			}
+		}
 #endif
 	    }
 
@@ -444,107 +444,107 @@ int main(int argc, char **argv) {
 	    printf("Generating, please wait...\n");
 
 	    switch (keytype) {
-		case aes:
-		    retcode = pkcs11_genAES(p11Context, label, kb,
-					    pkcs11_get_attrlist_from_attribctx(actx),
-					    pkcs11_get_attrnum_from_attribctx(actx),
-					    &keyhandle,
-					    keygentype
+	    case aes:
+		retcode = pkcs11_genAES(p11Context, label, kb,
+					pkcs11_get_attrlist_from_attribctx(actx),
+					pkcs11_get_attrnum_from_attribctx(actx),
+					&keyhandle,
+					keygentype
 		    );
-		    break;
+		break;
 
-		case des:
-		    retcode = pkcs11_genDESX(p11Context, label, kb,
-					     pkcs11_get_attrlist_from_attribctx(actx),
-					     pkcs11_get_attrnum_from_attribctx(actx),
-					     &keyhandle,
-					     keygentype);
-		    break;
+	    case des:
+		retcode = pkcs11_genDESX(p11Context, label, kb,
+					 pkcs11_get_attrlist_from_attribctx(actx),
+					 pkcs11_get_attrnum_from_attribctx(actx),
+					 &keyhandle,
+					 keygentype);
+		break;
 
-		case generic:    /* HMAC */
+	    case generic:    /* HMAC */
 #if defined(HAVE_NCIPHER)
-		    case hmacsha1:
-		    case hmacsha224:
-		    case hmacsha256:
-		    case hmacsha384:
-		    case hmacsha512:
+	    case hmacsha1:
+	    case hmacsha224:
+	    case hmacsha256:
+	    case hmacsha384:
+	    case hmacsha512:
 #endif
-		    retcode = pkcs11_genGeneric(p11Context, label, keytype, kb,
-						pkcs11_get_attrlist_from_attribctx(actx),
-						pkcs11_get_attrnum_from_attribctx(actx),
-						&keyhandle,
-						keygentype);
-		    break;
-
-		case rsa:
-		    retcode = pkcs11_genRSA(p11Context, label, kb, pubexp,
+		retcode = pkcs11_genGeneric(p11Context, label, keytype, kb,
 					    pkcs11_get_attrlist_from_attribctx(actx),
 					    pkcs11_get_attrnum_from_attribctx(actx),
-					    &pubkhandle,
 					    &keyhandle,
 					    keygentype);
+		break;
 
-		    if (retcode == rc_ok) {
-			retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
-		    }
+	    case rsa:
+		retcode = pkcs11_genRSA(p11Context, label, kb, pubexp,
+					pkcs11_get_attrlist_from_attribctx(actx),
+					pkcs11_get_attrnum_from_attribctx(actx),
+					&pubkhandle,
+					&keyhandle,
+					keygentype);
 
-		    break;
+		if (retcode == rc_ok) {
+		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
+		}
 
-		case ec:
-		    retcode = pkcs11_genEC(p11Context, label, param ? param : "prime256v1",
-					   pkcs11_get_attrlist_from_attribctx(actx),
-					   pkcs11_get_attrnum_from_attribctx(actx),
-					   &pubkhandle,
-					   &keyhandle,
-					   keygentype);
+		break;
 
-		    if (retcode == rc_ok) {
-			retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
-		    }
-		    break;
+	    case ec:
+		retcode = pkcs11_genEC(p11Context, label, param ? param : "prime256v1",
+				       pkcs11_get_attrlist_from_attribctx(actx),
+				       pkcs11_get_attrnum_from_attribctx(actx),
+				       &pubkhandle,
+				       &keyhandle,
+				       keygentype);
 
-		case ed:
-		    retcode = pkcs11_genED(p11Context, label, param ? param : "ED25519",
-					   pkcs11_get_attrlist_from_attribctx(actx),
-					   pkcs11_get_attrnum_from_attribctx(actx),
-					   &pubkhandle,
-					   &keyhandle,
-					   keygentype);
+		if (retcode == rc_ok) {
+		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
+		}
+		break;
 
-		    if (retcode == rc_ok) {
-			retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
-		    }
-		    break;
+	    case ed:
+		retcode = pkcs11_genED(p11Context, label, param ? param : "ED25519",
+				       pkcs11_get_attrlist_from_attribctx(actx),
+				       pkcs11_get_attrnum_from_attribctx(actx),
+				       &pubkhandle,
+				       &keyhandle,
+				       keygentype);
 
-		case dsa:
-		    retcode = pkcs11_genDSA(p11Context, label, param,
-					    pkcs11_get_attrlist_from_attribctx(actx),
-					    pkcs11_get_attrnum_from_attribctx(actx),
-					    &pubkhandle,
-					    &keyhandle,
-					    keygentype);
+		if (retcode == rc_ok) {
+		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
+		}
+		break;
 
-		    if (retcode == rc_ok) {
-			retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
-		    }
-		    break;
+	    case dsa:
+		retcode = pkcs11_genDSA(p11Context, label, param,
+					pkcs11_get_attrlist_from_attribctx(actx),
+					pkcs11_get_attrnum_from_attribctx(actx),
+					&pubkhandle,
+					&keyhandle,
+					keygentype);
 
-		case dh:
-		    retcode = pkcs11_genDH(p11Context, label, param,
-					   pkcs11_get_attrlist_from_attribctx(actx),
-					   pkcs11_get_attrnum_from_attribctx(actx),
-					   &pubkhandle,
-					   &keyhandle,
-					   keygentype);
+		if (retcode == rc_ok) {
+		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
+		}
+		break;
 
-		    if (retcode == rc_ok) {
-			retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
-		    }
-		    break;
+	    case dh:
+		retcode = pkcs11_genDH(p11Context, label, param,
+				       pkcs11_get_attrlist_from_attribctx(actx),
+				       pkcs11_get_attrnum_from_attribctx(actx),
+				       &pubkhandle,
+				       &keyhandle,
+				       keygentype);
+
+		if (retcode == rc_ok) {
+		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
+		}
+		break;
 
 
-		default:
-		    break;
+	    default:
+		break;
 	    }
 
 	    fprintf(stderr, ">>> key %sgenerated\n", retcode == rc_ok ? "" : "not ");
@@ -608,14 +608,14 @@ int main(int argc, char **argv) {
 		}
 	    }
 
-	    err_object_exists:
+	err_object_exists:
 	    pkcs11_close_session(p11Context);
 	}
     }
     pkcs11_finalize(p11Context);
 
     /* free allocated memory */
-    epilog:
+epilog:
     /* free wrappingjob built strings */
     for (i = 0; i < numjobs; i++) {
 	if (wrappingjob[i].fullstring_allocated == 1) { free(wrappingjob[i].fullstring); }
@@ -631,25 +631,25 @@ int main(int argc, char **argv) {
     }
 
     switch (retcode) {
-	case rc_ok:
-	    if (numfailed > 0) {
-		p11keygenrc = numfailed;
-		fprintf(stderr, "some (%d) wrapping jobs failed - returning code %d (0x%4.4x) to calling process\n",
-			numfailed, p11keygenrc, p11keygenrc);
-	    } else {
-		fprintf(stderr, "key generation succeeded\n");
-	    }
-	    break;
+    case rc_ok:
+	if (numfailed > 0) {
+	    p11keygenrc = numfailed;
+	    fprintf(stderr, "some (%d) wrapping jobs failed - returning code %d (0x%4.4x) to calling process\n",
+		    numfailed, p11keygenrc, p11keygenrc);
+	} else {
+	    fprintf(stderr, "key generation succeeded\n");
+	}
+	break;
 
-	case rc_error_usage:
-	case rc_error_invalid_argument:
-	    p11keygenrc = EX_USAGE;
-	    break;
+    case rc_error_usage:
+    case rc_error_invalid_argument:
+	p11keygenrc = EX_USAGE;
+	break;
 
-	default:
-	    p11keygenrc = retcode;
-	    fprintf(stderr, "key generation failed - returning code %d (0x%4.4x) to calling process\n", p11keygenrc,
-		    p11keygenrc);
+    default:
+	p11keygenrc = retcode;
+	fprintf(stderr, "key generation failed - returning code %d (0x%4.4x) to calling process\n", p11keygenrc,
+		p11keygenrc);
     }
     return p11keygenrc;
 }
