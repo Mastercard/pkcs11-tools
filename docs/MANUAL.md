@@ -836,17 +836,32 @@ To prevent this (some PKCS\#11 library do not support this), add the `-r` option
 ## p11kcv
 
 Computes the key check value of a symmetric key and prints it. This will work only on secret keys, i.e. DES, AES and
-HMAC keys.
+HMAC keys. Keys must have `CKA_SIGN` enabled, except for the 'ecb' method, where `CKA_ENCRYPT` must be enabled.
 
 The key check value is computed as follows:
 
-- For DES keys, it performs a signature (MACing) or an encryption on a block of 8 zeroised bytes, and outputs the
-  first 3 bytes.
-- For AES keys, it performs a signature (MACing) or an encryption on a block of 16 zeroised bytes, and outputs the
-  first 3 bytes.
+- For all keys:
+  - kcv: if `CKA_CHECK_VALUE` attribute is present on the key, and `kcv` is specified as the algorithm, the key check value is retrieved from the attribute value.
+  
+- For DES keys:
+  - legacy: signature or encryption on a block of 8 zeroized bytes, using ECB mode
+  - mac: FIPS PUB 113 MAC computation on a block of 8 zeroized bytes
+  
+- In addition, for 3DES keys:
+  - cmac: RFC4493 CMAC computation on a block of 16 zeroized bytes
+   
+- For AES keys:
+  - legacy: signature or encryption on a block of 16 zeroized bytes, using ECB mode
+  - cmac: RFC4493 CMAC computation on a block of 16 zeroized bytes
+  - aes-xcbc-mac: RFC3566 XCBC-MAC computation on a block of 16 zeroized bytes
+  - aes-xcbc-mac-16: RFC3566 XCBC-MAC-16 computation on a block of 16 zeroized bytes
+
 - For HMAC keys, the key check value is computed by HMACing a null-length buffer. Alternatively, it is possible to
   specify a length, using the `-b` optional argument, in which case a zeroised buffer of the specified length is used as
   input to the HMAC.
+
+The KCV algorithm can be set using the `-f` optional argument.
+By default, 3 bytes are printed, but this value can be adjusted using the `-n` optional argument.
 
 ## p11req
 

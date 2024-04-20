@@ -223,6 +223,7 @@ typedef enum {
     sha512
 } hash_alg_t ;
 
+    
 /* attribCtx contains a context that can hold parameters parsed from command line
    that contains attributes.
    It currently supports these grammars:
@@ -749,8 +750,24 @@ func_rc pkcs11_info_ecsupport(pkcs11Context *p11Context);
 func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, CK_ATTRIBUTE *attr, size_t cnt, int interactive );
 
 /* kcv functions */
+
+/* supported MAC algorithms, for p11kcv */
+typedef enum {
+    legacy,			/* legacy is used to behave like before: it picks the old algorithm, based upon the key type */
+    kcv,            /* tries to use CKA_CHECK_VALUE attribute if found */
+    hash_sha1,
+    hash_sha256,
+    hash_sha384,
+    hash_sha512,
+    ecb,			/* CKM_XXX_ECB method - can be used with an encryption key instead */
+    mac,			/* CKM_XXX_MAC */
+    cmac,			/* CKM_XXX_CMAC */
+    aes_xcbc_mac,		/* CKM_AES_XCBC_MAC */
+    aes_xcbc_mac_96,		/* CKM_AES_XCBC_MAC_96 */
+} mac_alg_t;
+
 #define MAX_KCV_CLEARTEXT_SIZE 256
-void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacdatasize );
+void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacdatasize, mac_alg_t algo, size_t kcvsize);
 
 /* wrap/unwrap functions */
 func_rc pkcs11_prepare_wrappingctx(wrappedKeyCtx *wctx, char *wrappingjob);
