@@ -28,7 +28,16 @@
 #endif
 
 #define COMMAND_SUMMARY \
-    "Computes key check value for a symmetric key on PKCS#11 token.\n\n"
+    "Computes key check value for a symmetric key on PKCS#11 token.\n"			\
+	"\n"										\
+	"Supported algorithms:\n"							\
+	"  - Key check value as found in CKA_CHECK_VALUE attribute\n"			\
+	"  - ECB encryption of a blocksize buffer of 0x00 (requires CKA_ENCRYPT)\n"     \
+	"  - MACing of a blocksize buffer of 0x00 (FIPS PUB 113)\n"			\
+	"  - CMAC (RFC4493)\n"								\
+	"  - AES-XCBC-MAC (RFC3566)\n"							\
+	"  - AES-XCBC-MAC-96 (RFC3566)\n"						\
+	"  - HMAC of a variable length buffer of 0x00\n\n"
 
 
 /* prototypes */
@@ -37,11 +46,44 @@ void print_usage(char *);
 int main( int argc, char **argv);
 
 
+mac_alg_t pick_algo(char *name, int *errflag) {
+
+	if(strcasecmp(name,"kcv")==0) {
+		return kcv;
+	}
+
+    if(strcasecmp(name,"cmac")==0) {
+		return cmac;
+    }
+
+    if(strcasecmp(name,"aes-xcbc-mac96")==0 || strcasecmp(name,"aes-xcbc-mac-96")==0) {
+		return aes_xcbc_mac_96;
+    }
+
+    if(strcasecmp(name,"aes-xcbc-mac")==0) {
+		return aes_xcbc_mac;
+    }
+
+    if(strcasecmp(name,"mac")==0) {
+		return mac;
+    }
+
+    if(strcasecmp(name,"legacy")==0 || strcasecmp(name,"ecb")==0) {
+		return legacy;
+    }
+
+    fprintf(stderr,"***Invalid KCV algorithm specified\n");
+    *errflag++;
+
+    return legacy;
+}
+
+
 
 
 void print_usage(char *progname)
 {
-    fprintf( stderr, 
+    fprintf( stderr,
 	     "USAGE: %s OPTIONS FILTERS\n"
 	     "\n"
 	     COMMAND_SUMMARY
@@ -53,22 +95,29 @@ void print_usage(char *progname)
 	     "  -p <token PIN> | :::exec:<command> | :::nologin\n"
 	     "  -S : login with SO privilege\n"
 	     "  -b <len>: size of buffer to HMAC, for HMAC keys (max: %d, default: 0)\n"
+	     "  -n <len>: size of produced KCV in bytes (default: 3)\n"
+	     "  -f flavour: KCV algorithm flavour (default: legacy)\n"
+	     "              - for all keys: kcv, returns the CKA_CHECK_VALUE attribute value if present\n"
+	     "              - for DES keys: ecb, legacy(=ecb) or mac\n"
+	     "              - for 2DES and 3DES keys: ecb, legacy(=ecb), mac or cmac\n"
+	     "              - for AES keys: ecb, legacy(=ecb), mac, cmac, aes-xcbc-mac or aes-xcbc-mac-96\n"
+	     "              - for HMAC keys: ignored\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
 	     "|\n"
 	     "+-> arguments marked with an asterix(*) are mandatory\n"
-             "|   (except if environment variable sets the value)\n"
+	     "|   (except if environment variable sets the value)\n"
 	     "+-> arguments marked with a plus sign(+) can be repeated\n"
 	     "\n"
 	     "FILTERS:\n"
 	     " FILTER [FILTER ...]: object filter to match, of the form:\n"
 	     "                      - TYPE\n"
-             "                      - [TYPE/[ATTRIBUTE/]]VALUE\n"
+	     "                      - [TYPE/[ATTRIBUTE/]]VALUE\n"
 	     "\n"
 	     "                      TYPE must be be 'seck'\n"
 	     "\n"
 	     "                      ATTRIBUTE is either:\n"
-             "                      - 'id', 'label' or 'sn'\n"
+	     "                      - 'id', 'label' or 'sn'\n"
 	     "                      - an actual PKCS#11 attribute name (e.g. CKA_ENCRYPT)\n"
 	     "                      when omitted, default is 'label'\n"
 	     "\n"
@@ -76,18 +125,18 @@ void print_usage(char *progname)
 	     "                      - ASCII string\n"
 	     "                      - {hexadecimal values} between curly braces\n"
 	     "\n"
-             " ENVIRONMENT VARIABLES:\n"
+	     " ENVIRONMENT VARIABLES:\n"
 	     "    PKCS11LIB         : path to PKCS#11 library,\n"
-             "                        overriden by option -l\n"
-	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n" 
-             "                        overriden by option -m\n"
+	     "                        overriden by option -l\n"
+	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n"
+	     "                        overriden by option -m\n"
 	     "    PKCS11SLOT        : token slot (integer)\n"
 	     "                        overriden by PKCS11TOKENLABEL,\n"
 	     "                        options -t or -s\n"
 	     "    PKCS11TOKENLABEL  : token label\n"
 	     "                        overriden by options -t or -s\n"
 	     "    PKCS11PASSWORD    : password\n"
-             "                        overriden by option -p\n"
+	     "                        overriden by option -p\n"
 	     "\n"
 	     , pkcs11_ll_basename(progname),
 	     MAX_KCV_CLEARTEXT_SIZE);
@@ -110,6 +159,8 @@ int main( int argc, char ** argv )
     char * tokenlabel = NULL;
     int so=0;
     unsigned hmacdatasize = 0;
+    mac_alg_t algo = legacy;
+    size_t kcvlen = 3;
 
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_error_usage;
@@ -126,7 +177,7 @@ int main( int argc, char ** argv )
     password = getenv("PKCS11PASSWORD");
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:p:s:t:Sb:hV" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:p:s:t:Sb:hf:n:V" ) ) != -1  && errflag == 0 )
     {
 	switch ( argnum )
 	{
@@ -166,6 +217,15 @@ int main( int argc, char ** argv )
 	    print_usage(argv[0]);
 	    break;
 
+	case 'f':
+	    algo = pick_algo(optarg, &errflag);
+	    break;
+
+	case 'n':
+	    kcvlen=atoi(optarg);
+		if(kcvlen<3) kcvlen=3;
+	    break;
+
 	case 'V':
 	    print_version_info(argv[0]);
 	    break;
@@ -203,7 +263,7 @@ int main( int argc, char ** argv )
     if ( retcode == rc_ok )
     {
 	while(optind<argc) {
-	    pkcs11_display_kcv(p11Context, argv[optind++], hmacdatasize);
+	    pkcs11_display_kcv(p11Context, argv[optind++], hmacdatasize, algo, kcvlen);
 	}
 
 	pkcs11_close_session( p11Context );
