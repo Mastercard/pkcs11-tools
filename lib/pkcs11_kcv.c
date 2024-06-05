@@ -32,7 +32,6 @@
 #define LABEL_WIDTH 32
 #endif
 
-
 /* target must point to a location with at least 3 bytes left */
 
 void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacdatasize, mac_alg_t algo, size_t num_bytes)
