@@ -223,7 +223,6 @@ typedef enum {
     sha512
 } hash_alg_t ;
 
-    
 /* attribCtx contains a context that can hold parameters parsed from command line
    that contains attributes.
    It currently supports these grammars:
