@@ -46,13 +46,13 @@ static bool req_add_ext(STACK_OF(X509_EXTENSION) *sk, int nid, char *value)
     X509_EXTENSION *ex;
     ex = X509V3_EXT_conf_nid(NULL, NULL, nid, value);
     if (!ex) {
-	P_ERR();
-	return false;
+        P_ERR();
+        return false;
     }
 
     if(!sk_X509_EXTENSION_push(sk, ex)) {
-	P_ERR();
-	return false;
+        P_ERR();
+        return false;
     }
 
     return true;
@@ -60,29 +60,32 @@ static bool req_add_ext(STACK_OF(X509_EXTENSION) *sk, int nid, char *value)
 
 
 CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
-				   char *dn,
-				   bool reverse,
-				   bool fake,
-				   char *san[],
-				   int sancnt,
-				   bool ext_ski,
-				   key_type_t key_type,
-				   hash_alg_t hash_alg,
-				   CK_OBJECT_HANDLE hprivkey,
-				   pkcs11AttrList *attrlist) 
+                                   char *dn,
+                                   bool reverse,
+                                   bool fake,
+                                   char *san[],
+                                   int sancnt,
+                                   bool ext_ski,
+                                   key_type_t key_type,
+                                   sig_alg_t sig_alg,
+                                   hash_alg_t hash_alg,
+                                   CK_OBJECT_HANDLE hprivkey,
+                                   pkcs11AttrList *attrlist) 
 {
     X509_REQ *req = NULL, *retval = NULL;
     EVP_PKEY *pk = NULL;
     X509_NAME *name=NULL;
     STACK_OF(X509_EXTENSION) *exts = NULL;
     CK_ATTRIBUTE_PTR attr;
+    EVP_MD_CTX *mdctx = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
 
     /* step 1: do some verifications on input data */
     if( ext_ski && !pkcs11_attrlist_has_attribute(attrlist, CKA_ID)) {
 	fprintf(stderr, "Error: SKI/AKI extension requested, but CKA_ID not provided");
 	goto err;
     }
-    
+	
     /* step 2: do key-type specific business*/
     switch(key_type) {
     case rsa:
@@ -91,12 +94,17 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 	    fprintf(stderr, "Error: unable to build SPKI structure\n");
 	    goto err;
 	}
-	/* hook our crypto to OpenSSL methods */
+
+	/* determination between pkcs1 or pss is made later */
 	pkcs11_rsa_method_setup();
 	pkcs11_rsa_method_pkcs11_context(p11Context, hprivkey, fake);
+
+	/* default for RSA signature: set to pkcs1 for now*/
+	if(sig_alg==s_default) {
+	    sig_alg = s_rsa_pkcs1;
+	}
 	break;
-	
-	
+
     case dsa:
 	/* get SPKI */
 	if((pk = pkcs11_SPKI_from_DSA( attrlist )) == NULL ) {
@@ -107,7 +115,7 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 	pkcs11_dsa_method_setup();
 	pkcs11_dsa_method_pkcs11_context(p11Context, hprivkey, fake);
 	break;
-	
+		
     case ec:
 	/* get SPKI */
 	if((pk = pkcs11_SPKI_from_EC( attrlist )) == NULL ) {
@@ -172,7 +180,7 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 	    P_ERR();
 	    goto err;
 	}
-        
+		
 	/* step 7: add SAN if specified */
 	/* TODO extract and error checking */
 	if(sancnt>0)
@@ -182,12 +190,12 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 	    char *sanfield=NULL;
 
 	    for(i=0; i<sancnt; i++) {
-		size += strlen(san[i]) + 1;	/* we add one for the ',' */
+		size += strlen(san[i]) + 1;     /* we add one for the ',' */
 	    }
-	    size++;		/* add a supplementary byte for allowing extra last ',' with strcat() */
+	    size++;             /* add a supplementary byte for allowing extra last ',' with strcat() */
 
 	    if((sanfield=OPENSSL_malloc(size))!=NULL) {
-		sanfield[0]=0;	/* clear first byte */
+		sanfield[0]=0;  /* clear first byte */
 		for(i=0;i<sancnt;i++) {
 		    strcat(sanfield,san[i]);
 		    strcat(sanfield,",");
@@ -200,7 +208,7 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 	}
 
 	/* step 8: add SKI if specified */
-	if(ext_ski) {		/* TODO fix error checking and extract */
+	if(ext_ski) {           /* TODO fix error checking and extract */
 	    char *value=NULL;
 
 	    attr = pkcs11_get_attr_in_attrlist(attrlist, CKA_ID);
@@ -225,21 +233,46 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 	    goto err;
 	}
     }
-    
+	
     /* step 10: sign PKCS#10 */
-
-    /* TODO incorporate EVP_md_null() into pkcs11_get_EVP_MD() */
-    if(!X509_REQ_sign(req, pk, pkcs11_get_EVP_MD(key_type, hash_alg))) {
+    if ((mdctx = EVP_MD_CTX_new()) == NULL) {
 	P_ERR();
 	goto err;
     }
-    
+
+    if (!EVP_DigestSignInit(mdctx, &pctx, pkcs11_get_EVP_MD(key_type, hash_alg), NULL, pk)) {
+	P_ERR();
+	goto err;
+    }
+
+    /* if signature is RSA pss, we need to set up the context */
+    if (key_type==rsa && sig_alg==s_rsa_pss) {
+	/* set the PSS parameters */
+	if (EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING) <= 0) {
+	    P_ERR();
+	    goto err;
+	}
+	if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, RSA_PSS_SALTLEN_MAX) <= 0) {
+	    P_ERR();
+	    goto err;
+	}
+	if (EVP_PKEY_CTX_set_rsa_mgf1_md(pctx, pkcs11_get_EVP_MD(key_type, hash_alg)) <= 0) {
+	    P_ERR();
+	    goto err;
+	}
+    }
+
+    if (!X509_REQ_sign_ctx(req, mdctx)) {
+	P_ERR();
+	goto err;
+    }
 
     retval = (CK_VOID_PTR)req;
-    req = NULL;	       	/* transfer to retval and avoid freeing structure */
+    req = NULL;                         /* transfer to retval and avoid freeing structure */
 
 err:
     /* cleanup */
+    if(mdctx) { EVP_MD_CTX_free(mdctx); mdctx=NULL; }
     if(exts != NULL) { sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free); exts=NULL; }
     if(name != NULL) { X509_NAME_free(name); name=NULL; }
     if(req!=NULL) { X509_REQ_free(req); req=NULL; }
@@ -254,8 +287,8 @@ void pkcs11_free_X509_REQ(CK_VOID_PTR req) {
     X509_REQ *xreq = (X509_REQ *)req;
 
     if(xreq) {
-	X509_REQ_free(xreq);
-    }	
+        X509_REQ_free(xreq);
+    }   
 }
 
 
@@ -270,21 +303,21 @@ void write_X509_REQ(CK_VOID_PTR req, char *filename, bool verbose)
     bio_stdout = BIO_new( BIO_s_file() );
 
     if( bio_file==NULL || bio_stdout==NULL) {
-	fprintf(stderr, "Error: Can't create BIO objects.\n");
-	goto err;
+        fprintf(stderr, "Error: Can't create BIO objects.\n");
+        goto err;
     }
 
     BIO_set_fp(bio_stdout, stdout, BIO_NOCLOSE);
 
-    if(filename==NULL) {	/* no file: we write to stdout */
-	BIO_set_fp(bio_file, stdout, BIO_NOCLOSE);
+    if(filename==NULL) {        /* no file: we write to stdout */
+        BIO_set_fp(bio_file, stdout, BIO_NOCLOSE);
     }
-    else {			/* write to filename */
-	BIO_write_filename(bio_file, filename);
+    else {                      /* write to filename */
+        BIO_write_filename(bio_file, filename);
     }
 
     if(verbose) {
-	X509_REQ_print(bio_stdout,xreq); /* human-readable print */
+        X509_REQ_print(bio_stdout,xreq); /* human-readable print */
     }
 
     PEM_write_bio_X509_REQ(bio_file,xreq); /* PEM */

@@ -59,6 +59,9 @@ void print_usage(char *progname)
 	     "  -u <days> : validity (in days, default is 365)\n"
 	     "  -j : import certificate to PKCS#11 token\n"
 	     "  -o <file> : output file for PKCS#10 request (stdout if not specified)\n"
+	     "  -a <algo> : signature algorithm for RSA (default is RSA PKCS#1 v1.5)\n"
+	     "              - pkcs|pkcs1 : RSA PKCS#1 v1.5 signature (insecure and deprecated)\n"
+	     "              - pss        : RSA PSS signature\n"
 	     "  -H sha1|sha224|sha2 or sha256|sha384|sha512: hash algorithm (default is sha256)\n"
 	     "+ -e <SANField> : Subject Alternative Name field, OpenSSL formatted.\n"
 	     "                  possible values are: \n"
@@ -119,10 +122,11 @@ int main( int argc, char ** argv )
     bool reverse = false;
     bool import = false;		/* by default, no import to token */
 #ifdef HAVE_DUPLICATES_ENABLED
-	bool can_duplicate = false;
+    bool can_duplicate = false;
 #endif
 
     hash_alg_t hash_alg = sha256; 	/* as of release 0.25.3, sha256 is the default */
+    sig_alg_t sig_alg = s_default;	/* signature algorithm set to default (handled inside pkcs11_req) */
 
     pkcs11Context * p11Context = NULL;
     CK_RV retcode = EXIT_FAILURE;
@@ -147,12 +151,21 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:o:i:s:t:d:rje:p:u:XH:vhVn" ) ) != -1 )
-    {
-	switch ( argnum )
-	{
+    while ( ( argnum = getopt( argc, argv, "l:m:o:a:i:s:t:d:rje:p:u:XH:vhVn" ) ) != -1 ) {
+	switch ( argnum ) {
 	case 'o':
 	    filename = optarg;
+	    break;
+
+	case 'a':
+	    if(strcasecmp(optarg, "pkcs")==0 || strcasecmp(optarg, "pkcs1")==0) {
+		sig_alg = s_rsa_pkcs1;
+	    } else if(strcasecmp(optarg, "pss")==0) {
+		sig_alg = s_rsa_pss;
+	    } else {
+		fprintf(stderr, "Error: unknown signature algorithm (%s)\n", optarg);
+		++errflag;
+	    }
 	    break;
 
 	case 'l' :
@@ -253,9 +266,9 @@ int main( int argc, char ** argv )
 
 #ifdef HAVE_DUPLICATES_ENABLED
 	case 'n': {
-			can_duplicate = true;
-		}
-		break;
+	    can_duplicate = true;
+	}
+	    break;
 #endif
 	default:
 	    errflag++;
@@ -312,16 +325,16 @@ int main( int argc, char ** argv )
 
 	if(import && pkcs11_certificate_exists(p11Context, label)) {
 #ifdef HAVE_DUPLICATES_ENABLED
-		if(p11Context->can_duplicate) {
-	    fprintf(stdout, "Warning: there is already a certificate with the label '%s' on the token, duplicating.\n", label);
-		}
-		else {
+	    if(p11Context->can_duplicate) {
+		fprintf(stdout, "Warning: there is already a certificate with the label '%s' on the token, duplicating.\n", label);
+	    }
+	    else {
 #endif
-	    fprintf(stderr, "Error: cannot import, there is already a certificate with the label '%s' on the token.\n", label);
-	    retcode = rc_error_object_exists;
-	    goto err;
+		fprintf(stderr, "Error: cannot import, there is already a certificate with the label '%s' on the token.\n", label);
+		retcode = rc_error_object_exists;
+		goto err;
 #ifdef HAVE_DUPLICATES_ENABLED
-		}
+	    }
 #endif
 	}
 
@@ -395,6 +408,7 @@ int main( int argc, char ** argv )
 						       san_cnt,
 						       ski,
 						       detected_key_type,
+						       sig_alg,
 						       hash_alg,
 						       hPrivateKey,
 						       attrlist);

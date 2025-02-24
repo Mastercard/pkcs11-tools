@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [UNPUBLISHED]
 ### Added
+- `p11req` and `p11mkcert` now support RSA-PSS signature (add `-a pss` arguments to select it)
 - `p11kcv` beefed up, to support multiple MACing algorithms, as well as displaying the value of `CKA_CHECK_VALUE`
 - support for wrapping keys in JOSE Web Key format (JWK, RFC 7178)
 - new option `--enable-duplicate`, to override duplicate label protection when creating or importing a key (must be enabled at compile time)
