@@ -37,16 +37,21 @@ rev_arch_map["aarch64"]="arm64"
 # Usage information
 #
 function usage() {
-    echo "Usage: $0 [-r URL] [-v] [-j N] [-c COMMIT] [-p FILE] [distro[/arch]|all[/all]] [...]"
+    echo "Build package(s) for multiple distros and architectures using Docker buildx."
+    echo ""
+    echo "Usage: $0 [-r URL] [-v] [-j N] [-c COMMIT] [-p FILE] (distro[/arch]|all[/all]) [...]"
     echo "Supported distros: $SUPPORTED_DISTROS"
     echo "Supported archs: $SUPPORTED_ARCHS"
     echo ""
     echo "Options:"
-    echo "  --repo URL, -r URL          Specify the repository URL (default: $GITHUB_REPO)"
-    echo "  --commit COMMIT, -c COMMIT  Specify the commit hash, tag or branch to build (default: $GITHUB_REPO_COMMIT)"
-    echo "  --verbose, -v               Increase verbosity (can be specified multiple times)"
-    echo "  --max-procs N, -j N         Specify the maximum number of processes"
-    echo "  --proxyrootca FILE, -x FILE Specify a root CA file to use for the build"
+    echo "  --repo URL, -r URL           Repository URL (default: $GITHUB_REPO)"
+    echo "  --commit COMMIT, -c COMMIT   Commit hash, tag or branch to build (default: $GITHUB_REPO_COMMIT)"
+    echo "  --verbose, -v                Increase verbosity (can be specified multiple times)"
+    echo "  --no-cache, -n               Do not use docker build cache"
+    echo "  --max-procs N, -j N          Maximum number of concurrent build processes (default: all available CPUs)"
+    echo "  --proxyrootca FILE, -x FILE  Root CA file to use for the build"
+    echo "  --help, -h                   Show this help message"
+    echo ""
     exit 1
 }
 
@@ -106,9 +111,10 @@ function copy_root_ca() {
 # $2 - distro
 # $3 - arch
 # $4 - verbose: 0 or 1
-# $5 - repo_url (default: $GITHUB_REPO)
-# $6 - repo_branch (default: "main")
-# $7 - repo_commit (default: "HEAD")
+# $5 - no cache: 0 or 1
+# $6 - repo_url (default: $GITHUB_REPO)
+# $7 - repo_branch (default: "main")
+# $8 - repo_commit (default: "HEAD")
 
 function create_build() {
     set -e                      # Exit on error, repeated here to ensure it's set in the subshell
@@ -117,9 +123,10 @@ function create_build() {
     local distro="$2"
     local arch="$3"
     local verbose="$4"
-    local repo_url="$5"
-    local repo_commit="$6"
-    local proxyrootca="$7"
+    local no_cache="$5"
+    local repo_url="$6"
+    local repo_commit="$7"
+    local proxyrootca="$8"
 
     local verbosearg="--quiet"
 
@@ -127,6 +134,11 @@ function create_build() {
         verbosearg="--progress=auto"
     elif [ "$verbose" -eq 2 ]; then
         verbosearg="--progress=plain"
+    fi
+
+    local no_cachearg=""
+    if [ "$no_cache" -eq 1 ]; then
+        no_cachearg="--no-cache"
     fi
 
     # TODO: keep this outside of this function, should be a global variable
@@ -139,7 +151,7 @@ function create_build() {
     echo "Building artifacts for $distro on arch $arch (platform: $platformarch)..."
     
     local containername=$(gen_random_container_name)
-    docker buildx build $verbosearg \
+    docker buildx build $verbosearg $no_cachearg \
         --platform linux/$platformarch \
         --build-arg REPO_URL=$repo_url \
         --build-arg REPO_COMMIT_OR_TAG=$repo_commit \
@@ -169,6 +181,7 @@ function parse_and_build() {
     local repo_url="$GITHUB_REPO"
     local repo_commit="HEAD"
     local verbose=0
+    local no_cache=0
     local args=()
     local numprocs=$(nproc)
     local proxyrootca=""
@@ -196,6 +209,9 @@ function parse_and_build() {
             -vv)
                 verbose=2
                 ;;
+            --no-cache|-n)
+                no_cache=1
+                ;;
             --max-procs|-j)
                 shift
                 numprocs="$1"
@@ -210,6 +226,9 @@ function parse_and_build() {
             --proxyrootca|-x)
                 shift
                 proxyrootca="$1"
+                ;;
+            --help|-h)
+                usage
                 ;;
             *)
                 echo "Unknown option: $1"
@@ -238,31 +257,31 @@ function parse_and_build() {
         if [[ "$arg" == "all/all" ]]; then
             for distro in $SUPPORTED_DISTROS; do
                 for arch in $SUPPORTED_ARCHS; do
-                    build_args+=("$package $distro $arch $verbose $repo_url $repo_commit $proxyrootca")
+                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca")
                 done
             done
         elif [[ "$arg" == "all" ]]; then
             local host_arch=$(uname -m)
             for distro in $SUPPORTED_DISTROS; do
-                build_args+=("$package $distro $host_arch $verbose $repo_url $repo_commit $proxyrootca")
+                build_args+=("$package $distro $host_arch $verbose $no_cache $repo_url $repo_commit $proxyrootca")
             done
         elif [[ "$arg" == */* ]]; then
             IFS='/' read -r distro arch_list <<< "$arg"
             if [[ "$arch_list" == "all" ]]; then
                 for arch in $SUPPORTED_ARCHS; do
-                    build_args+=("$package $distro $arch $verbose $repo_url $repo_commit $proxyrootca")
+                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca")
                 done
             else
                 IFS=',' read -ra archs <<< "$arch_list"
                 for arch in "${archs[@]}"; do
-                    build_args+=("$package $distro $arch $verbose $repo_url $repo_commit $proxyrootca")
+                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca")
                 done
             fi
         else
             IFS=',' read -ra distros <<< "$arg"
             local host_arch=${rev_arch_map[$(uname -m)]:-$(uname -m)}
             for distro in "${distros[@]}"; do
-                build_args+=("$package $distro $host_arch $verbose $repo_url $repo_commit $proxyrootca")
+                build_args+=("$package $distro $host_arch $verbose $no_cache $repo_url $repo_commit $proxyrootca")
             done
         fi
     done
