@@ -1,4 +1,4 @@
-# Dockerfile for building pkcs11-tools for Oracle Linux 9
+# Dockerfile for building pkcs11-tools for Oracle Linux 8
 #
 # Copyright (c) 2025 Mastercard
 
@@ -17,8 +17,8 @@
 ARG REPO_URL="https://github.com/Mastercard/pkcs11-tools"
 ARG REPO_COMMIT_OR_TAG="HEAD"
 ARG DISTRO_NAME="oraclelinux"
-ARG DISTRO_VERSION="9"
-ARG DISTRO_SHORT_NAME="ol9"
+ARG DISTRO_VERSION="8"
+ARG DISTRO_SHORT_NAME="ol8"
 ARG PROXY_ROOT_CA="DUMMY.pem"
 
 # base0 is just the base image with the proxy root CA installed
@@ -31,24 +31,24 @@ RUN dnf update -y && dnf install -y ca-certificates
 FROM base0 AS base
 ARG DISTRO_SHORT_NAME
 
-# ol9_codeready_builder is required to install autoconf-archive
+# ol8_codeready_builder is required to install autoconf-archive
 
 RUN OL=$(rpm --eval "%{dist}" | sed s/.e/o/) EL=$(rpm --eval "%{dist}" | sed s/.//) \
     && dnf --enablerepo=${OL}_codeready_builder install -y \
-    oraclelinux-developer-release-${EL} \
-    epel-release \
-    gcc \
-    make \
+    oraclelinux-developer-release-${EL}\
+    epel-release\
+    gcc\
+    make\
     flex \
-    automake \
-    autoconf \
-    autoconf-archive \
-    libtool \
-    git \
-    tar \
-    gzip \
-    rpm-build \
-    wget \ 
+    automake\
+    autoconf\
+    autoconf-archive\
+    libtool\
+    git\
+    tar\
+    gzip\
+    rpm-build\
+    wget \
     openssl-devel \
     && dnf clean all
 
@@ -59,7 +59,7 @@ RUN DISTROARCH=$(arch | sed 's/aarch64/arm64/;s/x86_64/amd64/') \
     && tar -xf pandoc-3.6-linux-$DISTROARCH.tar.gz -C /usr/local --strip-components 1 \
     && rm pandoc-3.6-linux-$DISTROARCH.tar.gz
 
-    
+
 FROM base AS gitcloned
 ARG REPO_URL
 ARG REPO_COMMIT_OR_TAG
@@ -76,7 +76,6 @@ RUN git checkout $REPO_COMMIT_OR_TAG
 # Copy the include files for the nCipher and Luna HSMs if they are present
 RUN mkdir -p include/cryptoki
 COPY ./include/cryptoki/ncipher.* ./include/cryptoki/luna.* include/cryptoki/
-
 # Retrieve information for building RPM package later
 
 # Retrieve the architecture
@@ -117,11 +116,11 @@ FROM gitcloned AS builder
 
 # build the project for tar package (/usr/local)
 RUN ./bootstrap.sh \
-    && ./configure \
+    && ./configure CFLAGS=-Wno-error=unused-label \
     && make -j $(nproc) \
     && make install DESTDIR=/tar_build
 
-# Install documentation
+# install documentation
 RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
     && install -m 644 -t /tar_build/usr/local/share/doc/pkcs11-tools \
     README.md CHANGELOG.md COPYING \
@@ -130,9 +129,9 @@ RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
     docs/TPLICENSES.md \
     docs/CONTRIBUTING.md
 
-# Build again the project for rpm package (/usr)
+# Build again the project for deb package (/usr)
 RUN make distclean \
-    && ./configure --prefix=/usr \
+    && ./configure --prefix=/usr CFLAGS=-Wno-error=unused-label \
     && make -j $(nproc) \
     && make install DESTDIR=/rpm_build
 
@@ -162,6 +161,7 @@ WORKDIR /root
 # Create the RPM spec file
 RUN mkdir -p /root/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
+
 # Copy the build artifacts to the SOURCES directory
 COPY --from=builder /rpm_build /root/rpmbuild/SOURCES/prebuilt
 
@@ -173,8 +173,7 @@ Release:        1$PKG_GITSUFFIX%{?dist}
 Summary:        a set of tools for manipulation of PKCS#11 objects
 License:        Apache-2.0
 URL:            $REPO_URL
-BuildRequires:  gcc, make, automake, autoconf, libtool, autoconf-archive
-
+BuildRequires:  gcc, make, automake, autoconf, libtool, git, tar, gzip, rpm-build, autoconf-archive
 %description
 $PKG_DESCRIPTION
 
@@ -190,6 +189,8 @@ cp -r %{_sourcedir}/prebuilt/usr %{buildroot}
 
 %changelog
 EOF
+
+RUN cat  /root/rpmbuild/SPECS/pkcs11-tools.spec
 
 # Build the RPM package
 RUN . /meta/env \
