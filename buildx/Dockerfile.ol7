@@ -1,4 +1,4 @@
-# Dockerfile for building pkcs11-tools for Oracle Linux 8
+# Dockerfile for building pkcs11-tools for Oracle Linux 7
 #
 # Copyright (c) 2025 Mastercard
 
@@ -14,11 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG REPO_URL="https://github.com/Mastercard/pkcs11-tools"
+ARG REPO_URL="https://github.com/Mastercard/libpkcs11shim"
 ARG REPO_COMMIT_OR_TAG="HEAD"
 ARG DISTRO_NAME="oraclelinux"
-ARG DISTRO_VERSION="8"
-ARG DISTRO_SHORT_NAME="ol8"
+ARG DISTRO_VERSION="7"
+ARG DISTRO_SHORT_NAME="ol7"
 ARG PROXY_ROOT_CA="DUMMY.pem"
 
 # base0 is just the base image with the proxy root CA installed
@@ -32,28 +32,25 @@ RUN update-ca-trust extract
 FROM base0 AS base
 ARG DISTRO_SHORT_NAME
 
-# ol8_codeready_builder is required to install autoconf-archive
-
+# Enable software collection for OL7 and deploy GCC 10 and other packages
 RUN OL=ol$(rpm --eval "%{rhel}") EL=el$(rpm --eval "%{rhel}") \
-    && dnf update -y \
-    && dnf --enablerepo=${OL}_codeready_builder install -y \
-    oraclelinux-developer-release-${EL}\
-    epel-release\
-    gcc\
-    make\
+    && yum update -y \
+    && yum install -y oracle-softwarecollection-release-${EL} oracle-epel-release-${EL} \
+    && yum install -y \
+    autoconf \
+    autoconf-archive \
     flex \
     bison \
     automake \
-    autoconf \
-    autoconf-archive \
     libtool \
     git \
     tar \
     gzip \
+    devtoolset-10-gcc \
     rpm-build \
     wget \
-    openssl-devel \
-    && dnf clean all
+    openssl11-devel \
+    && yum clean all
 
 # Deploy pandoc from github
 WORKDIR /tmp
@@ -79,6 +76,7 @@ RUN git checkout $REPO_COMMIT_OR_TAG
 # Copy the include files for the nCipher and Luna HSMs if they are present
 RUN mkdir -p include/cryptoki
 COPY ./include/cryptoki/ncipher.* ./include/cryptoki/luna.* include/cryptoki/
+
 # Retrieve information for building RPM package later
 
 # Retrieve the architecture
@@ -112,16 +110,17 @@ RUN PKG_DESCRIPTION=$(cat README.md \
     | sed '/^[[:space:]]*$/d') \
     && echo "PKG_DESCRIPTION=\"$PKG_DESCRIPTION\"" >> /meta/env
 
-RUN echo "export PKG_GITSUFFIX PKG_VERSION PKG_RELEASE PKG_GITCOMMIT PKG_MAINTAINER PKG_ARCH" >> /meta/env
+    RUN echo "export PKG_GITSUFFIX PKG_VERSION PKG_RELEASE PKG_GITCOMMIT PKG_MAINTAINER PKG_ARCH" >> /meta/env
 
 
 FROM gitcloned AS builder
 
 # build the project for tar package (/usr/local)
-RUN ./bootstrap.sh \
+RUN scl enable devtoolset-10 \
+    "./bootstrap.sh \
     && ./configure \
     && make -j $(nproc) \
-    && make install DESTDIR=/tar_build
+    && make install DESTDIR=/tar_build"
 
 # install documentation
 RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
@@ -133,10 +132,11 @@ RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
     docs/CONTRIBUTING.md
 
 # Build again the project for deb package (/usr)
-RUN make distclean \
+RUN scl enable devtoolset-10 \
+    "make distclean \
     && ./configure --prefix=/usr \
     && make -j $(nproc) \
-    && make install DESTDIR=/rpm_build
+    && make install DESTDIR=/rpm_build"
 
 # Install documentation
 RUN mkdir -p /rpm_build/usr/share/doc/pkcs11-tools \
@@ -156,7 +156,7 @@ RUN mkdir -p /artifacts
 
 # build the .tar.gz file
 WORKDIR /tar_build
-RUN . /meta/env && tar -czf /artifacts/pkcs11-tools-${DISTRO_SHORT_NAME}-${PKG_ARCH}-${PKG_VERSION}${PKG_GITSUFFIX}.tar.gz usr
+RUN . /meta/env && tar -czf /artifacts/pkcs-tools-${DISTRO_SHORT_NAME}-${PKG_ARCH}-${PKG_VERSION}${PKG_GITSUFFIX}.tar.gz usr
 
 # build the RPM package
 WORKDIR /root
@@ -164,19 +164,19 @@ WORKDIR /root
 # Create the RPM spec file
 RUN mkdir -p /root/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
-
 # Copy the build artifacts to the SOURCES directory
 COPY --from=builder /rpm_build /root/rpmbuild/SOURCES/prebuilt
 
 # Create the RPM spec file
-RUN . /meta/env && cat <<EOF > /root/rpmbuild/SPECS/pkcs11-tools.spec
-Name:           pkcs11-tools
+RUN . /meta/env && cat <<EOF > /root/rpmbuild/SPECS/pkcs-tools.spec
+Name:           pkcs-tools
 Version:        $PKG_VERSION
 Release:        1$PKG_GITSUFFIX%{?dist}
 Summary:        a set of tools for manipulation of PKCS#11 objects
 License:        Apache-2.0
 URL:            $REPO_URL
-BuildRequires:  gcc, make, automake, autoconf, libtool, git, tar, gzip, rpm-build, autoconf-archive
+BuildRequires:  gcc, make, automake, autoconf, libtool, autoconf-archive
+
 %description
 $PKG_DESCRIPTION
 
@@ -193,15 +193,13 @@ cp -r %{_sourcedir}/prebuilt/usr %{buildroot}
 %changelog
 EOF
 
-RUN cat  /root/rpmbuild/SPECS/pkcs11-tools.spec
-
 # Build the RPM package
 RUN . /meta/env \
-    && rpmbuild -ba /root/rpmbuild/SPECS/pkcs11-tools.spec
+    && rpmbuild -ba /root/rpmbuild/SPECS/pkcs-tools.spec
 
 # Copy the RPM package to the artifacts directory
 RUN . /meta/env \
-    && cp /root/rpmbuild/RPMS/$PKG_ARCH/pkcs11-tools-${PKG_VERSION}-1${PKG_GITSUFFIX}$(rpm --eval "%{dist}").${PKG_ARCH}.rpm /artifacts
+    && cp /root/rpmbuild/RPMS/$PKG_ARCH/pkcs-tools-${PKG_VERSION}-1${PKG_GITSUFFIX}$(rpm --eval "%{dist}").${PKG_ARCH}.rpm /artifacts
 
 # Final command to list the artifacts
 CMD [ "find", "/artifacts", "-type", "f" ]

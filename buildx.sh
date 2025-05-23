@@ -242,7 +242,7 @@ function parse_and_build() {
     # if proxyrootca is unset, create a dummy file
     # if proxyrootca is set, copy the root CA file to the script directory
     if [ -z "$proxyrootca" ]; then
-        touch $(get_script_dir)/$proxyrootca
+        echo -n >$(get_script_dir)/proxyrootca.crt
     else
         copy_root_ca "$proxyrootca"
     fi

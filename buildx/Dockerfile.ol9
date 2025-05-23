@@ -25,21 +25,24 @@ ARG PROXY_ROOT_CA="DUMMY.pem"
 # note that if there is no proxy cert, a dummy value is used
 FROM ${DISTRO_NAME}:${DISTRO_VERSION} AS base0
 ARG PROXY_ROOT_CA
-COPY ${PROXY_ROOT_CA} /usr/local/share/ca-certificates/${PROXY_ROOT_CA}
-RUN dnf update -y && dnf install -y ca-certificates
+
+COPY ${PROXY_ROOT_CA} /etc/pki/ca-trust/source/anchors/
+RUN update-ca-trust extract
 
 FROM base0 AS base
 ARG DISTRO_SHORT_NAME
 
 # ol9_codeready_builder is required to install autoconf-archive
 
-RUN OL=$(rpm --eval "%{dist}" | sed s/.e/o/) EL=$(rpm --eval "%{dist}" | sed s/.//) \
+RUN OL=ol$(rpm --eval "%{rhel}") EL=el$(rpm --eval "%{rhel}") \
+    && dnf update -y \
     && dnf --enablerepo=${OL}_codeready_builder install -y \
     oraclelinux-developer-release-${EL} \
     epel-release \
     gcc \
     make \
     flex \
+    bison \
     automake \
     autoconf \
     autoconf-archive \
