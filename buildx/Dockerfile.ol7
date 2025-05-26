@@ -131,7 +131,7 @@ RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
     docs/TPLICENSES.md \
     docs/CONTRIBUTING.md
 
-# Build again the project for deb package (/usr)
+# Build again the project for RPM package (/usr)
 RUN scl enable devtoolset-10 \
     "make distclean \
     && ./configure --prefix=/usr \

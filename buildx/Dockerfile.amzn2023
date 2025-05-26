@@ -1,4 +1,4 @@
-# Dockerfile for building pkcs11-tools for Oracle Linux 8
+# Dockerfile for building pkcs11-tools for Oracle Linux 9
 #
 # Copyright (c) 2025 Mastercard
 
@@ -13,12 +13,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 ARG REPO_URL="https://github.com/Mastercard/pkcs11-tools"
 ARG REPO_COMMIT_OR_TAG="HEAD"
-ARG DISTRO_NAME="oraclelinux"
-ARG DISTRO_VERSION="8"
-ARG DISTRO_SHORT_NAME="ol8"
+ARG DISTRO_NAME="amazonlinux"
+ARG DISTRO_VERSION="2023"
+ARG DISTRO_SHORT_NAME="amzn2023"
 ARG PROXY_ROOT_CA="DUMMY.pem"
 
 # base0 is just the base image with the proxy root CA installed
@@ -32,15 +33,11 @@ RUN update-ca-trust extract
 FROM base0 AS base
 ARG DISTRO_SHORT_NAME
 
-# ol8_codeready_builder is required to install autoconf-archive
-
-RUN OL=ol$(rpm --eval "%{rhel}") EL=el$(rpm --eval "%{rhel}") \
-    && dnf update -y \
-    && dnf --enablerepo=${OL}_codeready_builder install -y \
-    oraclelinux-developer-release-${EL}\
-    epel-release\
-    gcc\
-    make\
+# Update package repositories and install required build tools
+RUN dnf update -y && \
+    dnf install -y \
+    gcc \
+    make \
     flex \
     bison \
     automake \
@@ -56,6 +53,7 @@ RUN OL=ol$(rpm --eval "%{rhel}") EL=el$(rpm --eval "%{rhel}") \
     && dnf clean all
 
 # Deploy pandoc from github
+# aws linux 2023 does not have pandoc in the repositories
 WORKDIR /tmp
 RUN DISTROARCH=$(arch | sed 's/aarch64/arm64/;s/x86_64/amd64/') \
     && wget -q https://github.com/jgm/pandoc/releases/download/3.6/pandoc-3.6-linux-$DISTROARCH.tar.gz \
@@ -117,9 +115,9 @@ RUN echo "export PKG_GITSUFFIX PKG_VERSION PKG_RELEASE PKG_GITCOMMIT PKG_MAINTAI
 
 FROM gitcloned AS builder
 
-# build the project for tar package (/usr/local)
+# Build the project for tar package (/usr/local)
 RUN ./bootstrap.sh \
-    && ./configure \
+    && ./configure --with-awscloudhsm \
     && make -j $(nproc) \
     && make install DESTDIR=/tar_build
 
@@ -134,7 +132,7 @@ RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
 
 # Build again the project for RPM package (/usr)
 RUN make distclean \
-    && ./configure --prefix=/usr \
+    && ./configure --prefix=/usr --with-awscloudhsm \
     && make -j $(nproc) \
     && make install DESTDIR=/rpm_build
 
@@ -146,7 +144,6 @@ RUN mkdir -p /rpm_build/usr/share/doc/pkcs11-tools \
     docs/MANUAL.md \
     docs/TPLICENSES.md \
     docs/CONTRIBUTING.md
-
 
 # Final stage
 FROM builder AS final
@@ -176,7 +173,7 @@ Release:        1$PKG_GITSUFFIX%{?dist}
 Summary:        a set of tools for manipulation of PKCS#11 objects
 License:        Apache-2.0
 URL:            $REPO_URL
-BuildRequires:  gcc, make, automake, autoconf, libtool, git, tar, gzip, rpm-build, autoconf-archive
+BuildRequires:  gcc, make, automake, autoconf, libtool, autoconf-archive
 %description
 $PKG_DESCRIPTION
 
@@ -192,8 +189,6 @@ cp -r %{_sourcedir}/prebuilt/usr %{buildroot}
 
 %changelog
 EOF
-
-RUN cat  /root/rpmbuild/SPECS/pkcs11-tools.spec
 
 # Build the RPM package
 RUN . /meta/env \
