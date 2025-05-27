@@ -172,7 +172,7 @@ COPY --from=builder /rpm_build /root/rpmbuild/SOURCES/prebuilt
 
 # Create the RPM spec file
 RUN . /meta/env && cat <<EOF > /root/rpmbuild/SPECS/pkcs-tools.spec
-Name:           pkcs-tools
+Name:           pkcs11-tools
 Version:        $PKG_VERSION
 Release:        1$PKG_GITSUFFIX%{?dist}
 Summary:        a set of tools for manipulation of PKCS#11 objects
