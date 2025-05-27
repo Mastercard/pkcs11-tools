@@ -39,7 +39,7 @@ rev_arch_map["aarch64"]="arm64"
 function usage() {
     echo "Build package(s) for multiple distros and architectures using Docker buildx."
     echo ""
-    echo "Usage: $0 [-r URL] [-v] [-j N] [-c COMMIT] [-p FILE] (distro[/arch]|all[/all]) [...]"
+    echo "Usage: $0 [-r URL] [-v] [-j N] [-c COMMIT] [-p FILE] [--config-args ARGS] (distro[/arch]|all[/all]) [...]"
     echo "Supported distros: $SUPPORTED_DISTROS"
     echo "Supported archs: $SUPPORTED_ARCHS"
     echo ""
@@ -50,6 +50,7 @@ function usage() {
     echo "  --no-cache, -n               Do not use docker build cache"
     echo "  --max-procs N, -j N          Maximum number of concurrent build processes (default: all available CPUs)"
     echo "  --proxyrootca FILE, -x FILE  Root CA file to use for the build"
+    echo "  --config-args ARGS           Additional arguments to pass to the configure script"
     echo "  --help, -h                   Show this help message"
     echo ""
     exit 1
@@ -127,6 +128,7 @@ function create_build() {
     local repo_url="$6"
     local repo_commit="$7"
     local proxyrootca="$8"
+    local config_args="$9"
 
     local verbosearg="--quiet"
 
@@ -156,6 +158,7 @@ function create_build() {
         --build-arg REPO_URL=$repo_url \
         --build-arg REPO_COMMIT_OR_TAG=$repo_commit \
         --build-arg PROXY_ROOT_CA=$proxyrootca \
+        --build-arg CONFIG_ARGS="$config_args" \
         -t $package-build-$distro-$arch \
         -f $(get_script_dir)/buildx/Dockerfile.$distro \
         $(get_script_dir)
@@ -185,6 +188,7 @@ function parse_and_build() {
     local args=()
     local numprocs=$(nproc)
     local proxyrootca=""
+    local config_args=""
 
     # Parse optional arguments
     while [[ "$1" == --* || "$1" == -* ]]; do
@@ -227,6 +231,10 @@ function parse_and_build() {
                 shift
                 proxyrootca="$1"
                 ;;
+            --config-args)
+                shift
+                config_args="$1"
+                ;;
             --help|-h)
                 usage
                 ;;
@@ -248,6 +256,11 @@ function parse_and_build() {
     fi
     proxyrootca="proxyrootca.crt"
 
+    # If config_args is unset, set it to a dummy value
+    if [ -z "$config_args" ]; then
+        config_args="DUMMY=dummy"
+    fi
+
     # Collect remaining arguments
     local args=("$@")
 
@@ -257,31 +270,31 @@ function parse_and_build() {
         if [[ "$arg" == "all/all" ]]; then
             for distro in $SUPPORTED_DISTROS; do
                 for arch in $SUPPORTED_ARCHS; do
-                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca")
+                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args")
                 done
             done
         elif [[ "$arg" == "all" ]]; then
             local host_arch=$(uname -m)
             for distro in $SUPPORTED_DISTROS; do
-                build_args+=("$package $distro $host_arch $verbose $no_cache $repo_url $repo_commit $proxyrootca")
+                build_args+=("$package $distro $host_arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args")
             done
         elif [[ "$arg" == */* ]]; then
             IFS='/' read -r distro arch_list <<< "$arg"
             if [[ "$arch_list" == "all" ]]; then
                 for arch in $SUPPORTED_ARCHS; do
-                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca")
+                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args")
                 done
             else
                 IFS=',' read -ra archs <<< "$arch_list"
                 for arch in "${archs[@]}"; do
-                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca")
+                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args")
                 done
             fi
         else
             IFS=',' read -ra distros <<< "$arg"
             local host_arch=${rev_arch_map[$(uname -m)]:-$(uname -m)}
             for distro in "${distros[@]}"; do
-                build_args+=("$package $distro $host_arch $verbose $no_cache $repo_url $repo_commit $proxyrootca")
+                build_args+=("$package $distro $host_arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args")
             done
         fi
     done

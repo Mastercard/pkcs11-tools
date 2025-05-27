@@ -20,6 +20,7 @@ ARG DISTRO_NAME="oraclelinux"
 ARG DISTRO_VERSION="7"
 ARG DISTRO_SHORT_NAME="ol7"
 ARG PROXY_ROOT_CA="DUMMY.pem"
+ARG CONFIG_ARGS=""
 
 # base0 is just the base image with the proxy root CA installed
 # note that if there is no proxy cert, a dummy value is used
@@ -43,7 +44,7 @@ RUN OL=ol$(rpm --eval "%{rhel}") EL=el$(rpm --eval "%{rhel}") \
     bison \
     automake \
     libtool \
-    git \
+    rh-git218-git-core \
     tar \
     gzip \
     devtoolset-10-gcc \
@@ -70,8 +71,9 @@ RUN mkdir -p /meta
 
 # Clone the repository
 WORKDIR /src
-RUN git clone $REPO_URL .
-RUN git checkout $REPO_COMMIT_OR_TAG
+RUN scl enable rh-git218 \
+    "git clone $REPO_URL . \
+    && git checkout $REPO_COMMIT_OR_TAG"
 
 # Copy the include files for the nCipher and Luna HSMs if they are present
 RUN mkdir -p include/cryptoki
@@ -85,17 +87,17 @@ RUN PKG_ARCH=$(rpm --eval '%{_arch}') \
 
 # Retrieve version information from git
 # If the version is a tag, set PKG_GITSUFFIX to the tag, or to '~<commit>' if the tag is not the last commit
-RUN PKG_VERSION=$(git describe --tags | sed -E 's/^v?([^\-]+)(-.*)?$/\1/' ) \
-    PKG_RELEASE=$(git describe --tags | sed -E 's/^v?([^\-]+)(-.*)?$/\2/; s/^-//; s/^$/0/; s/-(.*)//' ) \
-    PKG_GITCOMMIT=$(git rev-parse --short HEAD) \
-    PKG_GITSUFFIX=$(git describe --tags | sed -E 's/^v?([^\-]+)(-.*)?$/\2/;s/-([0-9]*)-g(.*)/.\2/') \
+RUN PKG_VERSION=$(scl enable rh-git218 "git describe --tags" | sed -E 's/^v?([^\-]+)(-.*)?$/\1/' ) \
+    PKG_RELEASE=$(scl enable rh-git218 "git describe --tags" | sed -E 's/^v?([^\-]+)(-.*)?$/\2/; s/^-//; s/^$/0/; s/-(.*)//' ) \
+    PKG_GITCOMMIT=$(scl enable rh-git218 "git rev-parse --short HEAD") \
+    PKG_GITSUFFIX=$(scl enable rh-git218 "git describe --tags" | sed -E 's/^v?([^\-]+)(-.*)?$/\2/;s/-([0-9]*)-g(.*)/.\2/') \
     && echo "PKG_GITSUFFIX=\"$PKG_GITSUFFIX\"" >> /meta/env \
     && echo "PKG_VERSION=\"$PKG_VERSION\"" >> /meta/env \
     && echo "PKG_RELEASE=\"$PKG_RELEASE\"" >> /meta/env \
     && echo "PKG_GITCOMMIT=\"$PKG_GITCOMMIT\"" >> /meta/env
 
 # Retrieve the maintainer from git
-RUN PKG_MAINTAINER=$(git log -1 --pretty=format:'%an <%ae>') \
+RUN PKG_MAINTAINER=$(scl enable rh-git218 "git log -1 --pretty=format:'%an <%ae>'") \
     && echo "PKG_MAINTAINER=\"$PKG_MAINTAINER\"" >> /meta/env
 
 # Retrieve description from README.md
@@ -114,11 +116,12 @@ RUN PKG_DESCRIPTION=$(cat README.md \
 
 
 FROM gitcloned AS builder
+ARG CONFIG_ARGS
 
 # build the project for tar package (/usr/local)
-RUN scl enable devtoolset-10 \
-    "./bootstrap.sh \
-    && ./configure \
+RUN scl enable devtoolset-10 rh-git218 \
+    "./bootstrap.sh --shallow-clone\
+    && ./configure $CONFIG_ARGS \
     && make -j $(nproc) \
     && make install DESTDIR=/tar_build"
 
@@ -132,9 +135,9 @@ RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
     docs/CONTRIBUTING.md
 
 # Build again the project for RPM package (/usr)
-RUN scl enable devtoolset-10 \
+RUN scl enable devtoolset-10 rh-git218 \
     "make distclean \
-    && ./configure --prefix=/usr \
+    && ./configure --prefix=/usr $CONFIG_ARGS \
     && make -j $(nproc) \
     && make install DESTDIR=/rpm_build"
 

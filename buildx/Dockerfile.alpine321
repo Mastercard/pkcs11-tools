@@ -21,6 +21,7 @@ ARG DISTRO_NAME="alpine"
 ARG DISTRO_VERSION="3.21"
 ARG DISTRO_SHORT_NAME="alpine321"
 ARG PROXY_ROOT_CA="DUMMY.pem"
+ARG CONFIG_ARGS=""
 
 # base0 is just the base image with the proxy root CA installed
 # note that if there is no proxy cert, a dummy value is used
@@ -115,10 +116,11 @@ RUN echo "export PKG_GITSUFFIX PKG_VERSION PKG_RELEASE PKG_GITCOMMIT PKG_MAINTAI
 
 
 FROM gitcloned AS builder
+ARG CONFIG_ARGS
 
 # Build the project
-RUN ./bootstrap.sh \
-    && ./configure --prefix=/usr \
+RUN ./bootstrap.sh --shallow-clone \
+    && ./configure --prefix=/usr $CONFIG_ARGS \
     && make -j $(nproc) \
     && make install DESTDIR=/build
 

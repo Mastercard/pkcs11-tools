@@ -20,6 +20,7 @@ ARG DISTRO_NAME="ubuntu"
 ARG DISTRO_VERSION="22.04"
 ARG DISTRO_SHORT_NAME="ubuntu2204"
 ARG PROXY_ROOT_CA="DUMMY.pem"
+ARG CONFIG_ARGS=""
 
 # base0 is just the base image with the proxy root CA installed
 # note that if there is no proxy cert, a dummy value is used
@@ -93,7 +94,7 @@ RUN PKG_MAINTAINER=$(git log -1 --pretty=format:'%an <%ae>') \
 # moreover, any occurrence of '`' should be removed to avoid issues with
 # the shell
 RUN PKG_DESCRIPTION=$(cat README.md \
-    | awk '/## Introduction/{flag=1} /## Download/{flag=0} flag' \
+    | awk '/# PKCS\\#11 tools/{flag=1} /Some features:/{flag=0} flag' \
     | sed '/^##.*/d' \
     | pandoc -f markdown -t plain \
     | sed '/^[[:space:]]*$/d' \
@@ -105,10 +106,11 @@ RUN echo "export PKG_GITSUFFIX PKG_VERSION PKG_RELEASE PKG_GITCOMMIT PKG_MAINTAI
 
 
 FROM gitcloned AS builder
+ARG CONFIG_ARGS
 
 # Build the project for tar package (/usr/local)
-RUN ./bootstrap.sh \
-    && ./configure \
+RUN ./bootstrap.sh --shallow-clone \
+    && ./configure $CONFIG_ARGS \
     && make -j $(nproc)\
     && make install-strip DESTDIR=/tar_build
 
@@ -123,7 +125,7 @@ RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
 
 # Build again the project for deb package (/usr)
 RUN make distclean \
-    && ./configure --prefix=/usr --libdir=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) \
+    && ./configure --prefix=/usr --libdir=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) $CONFIG_ARGS \
     && make -j $(nproc) \
     && make install-strip DESTDIR=/deb_build
 
