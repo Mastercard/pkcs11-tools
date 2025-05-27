@@ -81,7 +81,7 @@ jobs:
     - name: make bootstrap.sh executable
       run: chmod +x bootstrap.sh
     - name: run bootstrap.sh
-      run: ./bootstrap.sh
+      run: ./bootstrap.sh --shallow-clone
     - name: run configure script
       run: ./configure
     - name: make
