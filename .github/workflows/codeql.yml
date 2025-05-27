@@ -81,7 +81,7 @@ jobs:
     - name: make bootstrap.sh executable
       run: chmod +x bootstrap.sh
     - name: run bootstrap.sh
-      run: ./bootstrap.sh --shallow-clone
+      run: ./bootstrap.sh --shallow-clone # shallow-clone is used to speed up submodule cloning
     - name: run configure script
       run: ./configure
     - name: make
