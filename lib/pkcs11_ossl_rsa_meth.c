@@ -275,6 +275,10 @@ static int custom_rsa_sign_pss( EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *s
 			goto err;
 		}
 
+	    if (modulus_len <= hash_len + 2) {
+	        fprintf(stderr, "Error: RSA modulus length is too small for the specified hash algorithm\n");
+	        goto err;
+	    }
 	    pss_params.sLen = modulus_len - hash_len - 2;
 
 	} else {
