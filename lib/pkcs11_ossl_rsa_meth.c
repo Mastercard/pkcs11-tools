@@ -36,19 +36,55 @@ typedef struct {
 
 static local_rsa_method_st static_st; /* TODO use CTRL API to make reentrant */
 
+static int (*orig_rsa_sign) (EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *siglen, const unsigned char *tbs, size_t tbslen) = NULL;
 
-static int (*orig_rsa_sign) (EVP_PKEY_CTX *ctx,
-			     unsigned char *sig, size_t *siglen,
-			     const unsigned char *tbs, size_t tbslen) = NULL;
+/* local objects and methods*/
+static int custom_rsa_sign_pkcs1( EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *siglen, const unsigned char *tbs, size_t tbslen);
+static int custom_rsa_sign_pss( EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *siglen, const unsigned char *tbs, size_t tbslen);
+
+typedef struct {
+    int nid;
+    CK_RSA_PKCS_PSS_PARAMS pss_params;
+} hash_alg_to_pss_params_st;
+
+static const hash_alg_to_pss_params_st hash_alg_to_pss_params[] = {
+    { NID_sha1, { CKM_SHA_1, CKG_MGF1_SHA1, -1 } },
+    { NID_sha224, { CKM_SHA224, CKG_MGF1_SHA224, -1 } },
+    { NID_sha256, { CKM_SHA256, CKG_MGF1_SHA256, -1 } },
+    { NID_sha384, { CKM_SHA384, CKG_MGF1_SHA384, -1 } },
+    { NID_sha512, { CKM_SHA512, CKG_MGF1_SHA512, -1 } }
+};
+
+static const CK_RSA_PKCS_PSS_PARAMS *get_pss_params(int nid)
+{
+    int i;
+    for(i=0; i<sizeof hash_alg_to_pss_params / sizeof(hash_alg_to_pss_params_st); i++) {
+	if(nid == hash_alg_to_pss_params[i].nid) {
+	    return &hash_alg_to_pss_params[i].pss_params;
+	}
+    }
+    return NULL;
+}
+
+static size_t get_modulus_bytes( EVP_PKEY_CTX *ctx) {
+	/* use OpenSSL primitives to retrieve the RSA public key modulus length */
+	const RSA *rsa = EVP_PKEY_get0_RSA(EVP_PKEY_CTX_get0_pkey(ctx)); 
+	if (rsa == NULL) {
+		fprintf(stderr, "Error: Unable to retrieve RSA structure\n");
+		return 0;
+	}
+	const BIGNUM *rsa_n = RSA_get0_n(rsa);
+	if (rsa_n == NULL) {
+		fprintf(stderr, "Error: Unable to retrieve RSA modulus\n");
+		return 0;
+	}
+	size_t attr_modulus_len = BN_num_bytes(rsa_n);
+
+	return attr_modulus_len;
+}
 
 
-
-static int custom_rsa_sign( EVP_PKEY_CTX *ctx,
-			    unsigned char *sig,
-			    size_t *siglen,
-			    const unsigned char *tbs,
-			    size_t tbslen) {
-
+static int custom_rsa_sign( EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *siglen, const unsigned char *tbs, size_t tbslen) {
     static bool entered = false;
     /* if entered is true, this means we are calling a PKCS#11 implementation */
     /* that uses also OpenSSL, which is also using the same EVP methods as us */
@@ -57,11 +93,31 @@ static int custom_rsa_sign( EVP_PKEY_CTX *ctx,
     /* NOTE: this mechanism is NOT thread-safe                                */
 
     if( entered==true ) {
-	return orig_rsa_sign(ctx, sig, siglen, tbs, tbslen);
+		return orig_rsa_sign(ctx, sig, siglen, tbs, tbslen);
     } else {
-	entered = true;		/* set entered state */
-	/* TODO: check if static_st is populated */
+		entered = true;		/* set entered state */
+		/* TODO: check if static_st is populated */
+		int rc = 0;
+		int paddingmode;
 
+		EVP_PKEY_CTX_get_rsa_padding(ctx, &paddingmode);
+		switch(paddingmode)	{
+			case RSA_PKCS1_PADDING:
+				rc = custom_rsa_sign_pkcs1(ctx, sig, siglen, tbs, tbslen);
+				break;
+			case RSA_PKCS1_PSS_PADDING:
+				rc = custom_rsa_sign_pss(ctx, sig, siglen, tbs, tbslen);
+				break;
+			default:
+				fprintf(stderr, "unexpected padding requested\n");
+		}
+		entered = false;
+		return rc;
+	}
+}
+	
+
+static int custom_rsa_sign_pkcs1( EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *siglen, const unsigned char *tbs, size_t tbslen) {
 	int rc = 0;
 	CK_RV rv;
 	const EVP_MD *md;
@@ -178,10 +234,100 @@ static int custom_rsa_sign( EVP_PKEY_CTX *ctx,
 	rc = 1;
 
     err:
-	entered = false;
 	return rc;
-    }
 }
+
+
+static int custom_rsa_sign_pss( EVP_PKEY_CTX *ctx, unsigned char *sig, size_t *siglen, const unsigned char *tbs, size_t tbslen) {
+    int rc = 0;
+	CK_RV rv;
+	const EVP_MD *md;
+	
+	/* retrieve the hashing algorithm from the context */
+	if(EVP_PKEY_CTX_get_signature_md(ctx, &md)<=0) {
+	    P_ERR();
+	    goto err;
+	}
+
+	/* retrieve the appropriate PSS parameters */
+	/* on this implementation, the hashing algorithm equals the mgf1 algorithm */
+	/* also, the length is set to -1 */
+	CK_RSA_PKCS_PSS_PARAMS const * const_pss_params = get_pss_params(EVP_MD_type(md));
+
+	if(const_pss_params==NULL) {
+	    fprintf(stderr, "***Error, unsupported hashing algorithm\n");
+	    goto err;
+	}
+
+	CK_RSA_PKCS_PSS_PARAMS pss_params = *const_pss_params;		// make a copy of it on the stack
+
+	/* set the length of the salt length to the lenght of the modulus minus length of the hash minus 2 */
+	/* this is the recommended value for the salt length */
+	/* we are using the modulus of the private key */
+	int hash_len = EVP_MD_size(md);
+	int modulus_len;
+
+	if(!static_st.fake) {
+	    modulus_len = get_modulus_bytes(ctx);
+
+		if(modulus_len == 0) {
+			fprintf(stderr, "Error: Unable to retrieve RSA modulus length\n");
+			goto err;
+		}
+
+	    if (modulus_len <= hash_len + 2) {
+	        fprintf(stderr, "Error: RSA modulus length is too small for the specified hash algorithm\n");
+	        goto err;
+	    }
+	    pss_params.sLen = modulus_len - hash_len - 2;
+
+	} else {
+		// TODO: check what this yields in the fake case
+	    modulus_len = EVP_PKEY_size(EVP_PKEY_CTX_get0_pkey(ctx));
+	}
+
+	/* now modulus_len is set, let's adjust the values for OpenSSL */
+		
+
+	CK_MECHANISM mechanism = { CKM_RSA_PKCS_PSS, &pss_params, sizeof(pss_params) };
+
+	if(!static_st.fake) {
+	    rv = static_st.p11Context->FunctionList.C_SignInit(static_st.p11Context->Session,
+							       &mechanism,
+							       static_st.hPrivateKey);
+	    if(rv!= CKR_OK) {
+		pkcs11_error(rv,"C_SignInit");
+		goto err;
+	    }
+	}
+
+	/* perform signature */
+	if(static_st.fake) {
+	    /* the buffer that offered to us is in fact oversized, to support DER encoding supplement bytes */
+	    /* when invoking C_Sign(), p11siglen gets adjusted to the real value                            */
+	    /* we have to do the same for fake_sign: we must also adjust p11siglen,                         */
+	    /* so we can encapsulate the fake signature accordingly                                         */
+	    const RSA *rsa = EVP_PKEY_get0_RSA(EVP_PKEY_CTX_get0_pkey(ctx)); /* TODO error checking */
+	    const BIGNUM *rsa_n = RSA_get0_n(rsa);
+	    *siglen = BN_num_bytes(rsa_n); /* the signature size is the size of the modulus */
+	    fake_sign(sig,*siglen);
+	} else {
+	    rv = static_st.p11Context->FunctionList.C_Sign(static_st.p11Context->Session,
+							   (CK_BYTE_PTR)tbs,
+							   tbslen,
+							   sig,
+							   (CK_ULONG_PTR)siglen);
+
+	    if(rv != CKR_OK) {
+		pkcs11_error(rv, "C_Sign");
+		goto err;
+	    }
+	}
+	rc = 1;
+err:
+    return rc;
+}
+
 
 
 void pkcs11_rsa_method_setup()

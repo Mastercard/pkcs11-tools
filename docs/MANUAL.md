@@ -881,6 +881,7 @@ Generate a PKCS\#10 CSR. Important options are:
   property asserted, but where a CSR is yet required. The resulting signature is always invalid.
 - `-v`: be verbose.
 - `-o [filename]`: output to file
+- `-a [pkcs1 | pss]`: choose digital signature algorithm. The current default is `pkcs1` (PKCS\#1 v1.5); choose RSA-PSS with `pss`
 
 ```
 $ p11req -i test-rsa-2048 -d \'/CN=test/OU=my dept/C=BE\' -H sha256 -e DNS:anotherhost.int -e email:writeme\@mastercard.com
@@ -924,6 +925,7 @@ Options are:
   property asserted, but where a CSR is yet required. The resulting signature is always invalid.
 - `-v`: be verbose.
 - `-o [filename]`: output to file
+- `-a [pkcs1 | pss]`: choose digital signature algorithm. The current default is `pkcs1` (PKCS\#1 v1.5); choose RSA-PSS with `pss`
 
 ```
 $ p11mkcert -i test-rsa-2048 -d \'/CN=test/OU=my dept/C=BE\' -H sha256 -e DNS:anotherhost.int -e email:writeme\@mastercard.com

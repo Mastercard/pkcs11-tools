@@ -223,6 +223,14 @@ typedef enum {
     sha512
 } hash_alg_t ;
 
+/* supported signature algorithms for generating CSRs and certificates */
+/* needed to allow RSA PKCS and RSA PSS as RSA signature algorithms    */
+typedef enum {
+    s_default,          /* default for the selected algorithm*/
+    s_rsa_pkcs1,		/* PKCS#1  (CKM_RSA_PKCS) */
+    s_rsa_pss,			/* RSA PSS (CKM_RSA_PKCS_PSS) */
+} sig_alg_t ;
+
 /* attribCtx contains a context that can hold parameters parsed from command line
    that contains attributes.
    It currently supports these grammars:
@@ -581,6 +589,7 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 				   int sancnt,
 				   bool ext_ski,
 				   key_type_t key_type,
+                   sig_alg_t sig_alg,
 				   hash_alg_t hash_alg,
 				   CK_OBJECT_HANDLE hprivkey,
 				   pkcs11AttrList *attrlist) ;
@@ -597,6 +606,7 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 				    int sancnt,
 				    bool ext_ski,
 				    key_type_t key_type,
+                    sig_alg_t sig_alg,
 				    hash_alg_t hash_alg,
 				    CK_OBJECT_HANDLE hprivkey,
 				    pkcs11AttrList *attrlist);

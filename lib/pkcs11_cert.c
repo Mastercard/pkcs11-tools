@@ -81,6 +81,7 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 				    int sancnt,
 				    bool ext_ski,
 				    key_type_t key_type,
+				    sig_alg_t sig_alg,
 				    hash_alg_t hash_alg,
 				    CK_OBJECT_HANDLE hprivkey,
 				    pkcs11AttrList *attrlist) 
@@ -91,6 +92,8 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
     BIGNUM *bn_sn = NULL;
     CK_BYTE sn[20];
     CK_ATTRIBUTE_PTR attr;
+    EVP_MD_CTX *mdctx = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
 
     /* step 1: do some verifications on input data */
     if( ext_ski && !pkcs11_attrlist_has_attribute(attrlist, CKA_ID)) {
@@ -109,8 +112,12 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 	/* hook our crypto to OpenSSL methods */
 	pkcs11_rsa_method_setup();
 	pkcs11_rsa_method_pkcs11_context(p11Context, hprivkey, false);
+
+	/* default for RSA signature: set to pkcs1 for now*/
+	if(sig_alg==s_default) {
+	    sig_alg = s_rsa_pkcs1;
+	}    
 	break;
-	
 	
     case dsa:
 	/* get SPKI */
@@ -260,8 +267,34 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
     }
 
     /* step 12: sign certificate */
+    if ((mdctx = EVP_MD_CTX_new()) == NULL) {
+	P_ERR();
+	goto err;
+    }
 
-    if(!X509_sign(crt, pk, pkcs11_get_EVP_MD(key_type, hash_alg))) {
+    if (!EVP_DigestSignInit(mdctx, &pctx, pkcs11_get_EVP_MD(key_type, hash_alg), NULL, pk)) {
+	P_ERR();
+	goto err;
+    }
+
+    /* if signature is RSA pss, we need to set up the context */
+    if (key_type==rsa && sig_alg==s_rsa_pss) {
+	/* set the PSS parameters */
+	if (EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING) <= 0) {
+	    P_ERR();
+	    goto err;
+	}
+	if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, RSA_PSS_SALTLEN_MAX) <= 0) {
+	    P_ERR();
+	    goto err;
+	}
+	if (EVP_PKEY_CTX_set_rsa_mgf1_md(pctx, pkcs11_get_EVP_MD(key_type, hash_alg)) <= 0) {
+	    P_ERR();
+	    goto err;
+	}
+    }
+
+    if(!X509_sign_ctx(crt, mdctx)) {
 	P_ERR();
 	goto err;
     }
@@ -272,6 +305,7 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 
 err:
     /* cleanup */
+    if(mdctx) { EVP_MD_CTX_free(mdctx); mdctx=NULL; }
     if(name != NULL) { X509_NAME_free(name); name=NULL; }
     if(bn_sn != NULL) { BN_free(bn_sn); bn_sn=NULL; }
     if(crt!=NULL) { X509_free(crt); crt=NULL; }
