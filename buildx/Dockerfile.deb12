@@ -30,6 +30,9 @@ COPY ${PROXY_ROOT_CA} /usr/local/share/ca-certificates/${PROXY_ROOT_CA}
 RUN apt-get update && apt-get install -y ca-certificates
 
 FROM base0 AS base
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=UTC
+
 # Install required packages for building the project
 RUN apt-get update && apt-get install -y \
     build-essential \

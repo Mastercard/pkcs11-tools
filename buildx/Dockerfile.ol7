@@ -32,6 +32,7 @@ RUN update-ca-trust extract
 
 FROM base0 AS base
 ARG DISTRO_SHORT_NAME
+ENV TZ=UTC
 
 # Enable software collection for OL7 and deploy GCC 10 and other packages
 RUN OL=ol$(rpm --eval "%{rhel}") EL=el$(rpm --eval "%{rhel}") \

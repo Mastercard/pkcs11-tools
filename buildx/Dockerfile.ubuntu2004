@@ -1,4 +1,4 @@
-# Dockerfile for building pkcs11-tools for Ubuntu 24.04
+# Dockerfile for building pkcs11-tools for Ubuntu 22.04
 #
 # Copyright (c) 2025 Mastercard
 
@@ -17,8 +17,8 @@
 ARG REPO_URL="https://github.com/Mastercard/pkcs11-tools"
 ARG REPO_COMMIT_OR_TAG="HEAD"
 ARG DISTRO_NAME="ubuntu"
-ARG DISTRO_VERSION="24.04"
-ARG DISTRO_SHORT_NAME="ubuntu2404"
+ARG DISTRO_VERSION="20.04"
+ARG DISTRO_SHORT_NAME="ubuntu2004"
 ARG PROXY_ROOT_CA="DUMMY.pem"
 ARG CONFIG_ARGS=""
 
@@ -54,7 +54,7 @@ RUN apt-get update && apt-get install -y \
 
 FROM base AS gitcloned
 ARG REPO_URL
-ARG REPO_COMMIT_OR_TAG
+ARG REPO_COMMIT_OR_TAG="HEAD"
 
 # The meta directory is used to store the version and maintainer information
 # for the DEB package
@@ -86,7 +86,6 @@ RUN PKG_VERSION=$(git describe --tags | sed -E 's/^v([^\-]+)(-.*)?$/\1/' ) \
     && echo "PKG_RELEASE=\"$PKG_RELEASE\"" >> /meta/env \
     && echo "PKG_GITCOMMIT=\"$PKG_GITCOMMIT\"" >> /meta/env
 
-
 # Retrieve the maintainer from git
 RUN PKG_MAINTAINER=$(git log -1 --pretty=format:'%an <%ae>') \
     && echo "PKG_MAINTAINER=\"$PKG_MAINTAINER\"" >> /meta/env
@@ -109,12 +108,13 @@ RUN echo "export PKG_GITSUFFIX PKG_VERSION PKG_RELEASE PKG_GITCOMMIT PKG_MAINTAI
 
 
 FROM gitcloned AS builder
+ARG CONFIG_ARGS
 
 # Build the project for tar package (/usr/local)
 RUN ./bootstrap.sh --shallow-clone \
     && ./configure $CONFIG_ARGS \
     && make -j $(nproc)\
-    && make install DESTDIR=/tar_build
+    && make install-strip DESTDIR=/tar_build
 
 # Install documentation
 RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
@@ -129,7 +129,7 @@ RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
 RUN make distclean \
     && ./configure --prefix=/usr --libdir=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) $CONFIG_ARGS \
     && make -j $(nproc) \
-    && make install DESTDIR=/deb_build
+    && make install-strip DESTDIR=/deb_build
 
 # Install documentation
 RUN mkdir -p /deb_build/usr/share/doc/pkcs11-tools \
@@ -166,14 +166,13 @@ RUN . /meta/env \
     && echo "Section: utils" >> DEBIAN/control \
     && echo "Priority: optional" >> DEBIAN/control \
     && echo "Architecture: $PKG_ARCH" >> DEBIAN/control \
-    && echo "Depends: libc6, libssl3" >> DEBIAN/control \
+    && echo "Depends: libc6, libssl1.1" >> DEBIAN/control \
     && echo "Maintainer: $PKG_MAINTAINER" >> DEBIAN/control \
     && echo "Description: a set of tools for manipulation of PKCS#11 objects" >> DEBIAN/control
 
-
 # Build the .deb package
 RUN . /meta/env \
-    && dpkg-deb --build /deb_build /artifacts/libpkcs11shim-${DISTRO_SHORT_NAME}-${PKG_ARCH}-${PKG_VERSION}${PKG_GITSUFFIX}.deb
+    && dpkg-deb --build /deb_build /artifacts/pkcs11-tools-${DISTRO_SHORT_NAME}-${PKG_ARCH}-${PKG_VERSION}${PKG_GITSUFFIX}.deb
 
 # Final command to list the artifacts
 CMD [ "find", "/artifacts", "-type", "f" ]

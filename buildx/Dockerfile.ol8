@@ -32,6 +32,7 @@ RUN update-ca-trust extract
 
 FROM base0 AS base
 ARG DISTRO_SHORT_NAME
+ENV TZ=UTC
 
 # ol8_codeready_builder is required to install autoconf-archive
 

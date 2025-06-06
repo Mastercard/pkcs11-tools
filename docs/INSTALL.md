@@ -35,8 +35,9 @@ The following distributions are supported by the `buildx.sh` script:
 | Oracle Linux 8 | `ol8` |
 | Oracle Linux 7 | `ol7` |
 | Debian 12 (Bookworm) | `deb12` |
-| Ubuntu 24.04 (Lunar Lobster) | `ubuntu2404` |
-| Ubuntu 22.04 (Jammy) | `ubuntu2204` |
+| Ubuntu 24.04 (Noble Numbat) | `ubuntu2404` |
+| Ubuntu 22.04 (Jammy Jellyfish) | `ubuntu2204` |
+| Ubuntu 20.04 (Focal Fossa) | `ubuntu2004` |
 | Alpine Linux 3.21 | `alpine321` |
 | Amazon Linux 2023 | `amzn2023` |
 

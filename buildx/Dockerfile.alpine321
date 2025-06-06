@@ -41,6 +41,7 @@ RUN sed -i 's|https://|http://|' /etc/apk/repositories \
 
 FROM base0 AS base
 ARG DISTRO_SHORT_NAME
+ENV TZ=UTC
 
 # Enable the community and testing repositories for Alpine
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
