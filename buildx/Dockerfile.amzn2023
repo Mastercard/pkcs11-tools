@@ -1,0 +1,205 @@
+# Dockerfile for building pkcs11-tools for Oracle Linux 9
+#
+# Copyright (c) 2025 Mastercard
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#   http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+ARG REPO_URL="https://github.com/Mastercard/pkcs11-tools"
+ARG REPO_COMMIT_OR_TAG="HEAD"
+ARG DISTRO_NAME="amazonlinux"
+ARG DISTRO_VERSION="2023"
+ARG DISTRO_SHORT_NAME="amzn2023"
+ARG PROXY_ROOT_CA="DUMMY.pem"
+ARG CONFIG_ARGS=""
+
+# base0 is just the base image with the proxy root CA installed
+# note that if there is no proxy cert, a dummy value is used
+FROM ${DISTRO_NAME}:${DISTRO_VERSION} AS base0
+ARG PROXY_ROOT_CA
+
+COPY ${PROXY_ROOT_CA} /etc/pki/ca-trust/source/anchors/
+RUN update-ca-trust extract
+
+FROM base0 AS base
+ARG DISTRO_SHORT_NAME
+ENV TZ=UTC
+
+# Update package repositories and install required build tools
+RUN dnf update -y && \
+    dnf install -y \
+    gcc \
+    make \
+    flex \
+    bison \
+    automake \
+    autoconf \
+    autoconf-archive \
+    libtool \
+    git \
+    tar \
+    gzip \
+    rpm-build \
+    wget \
+    openssl-devel \
+    && dnf clean all
+
+# Deploy pandoc from github
+# aws linux 2023 does not have pandoc in the repositories
+WORKDIR /tmp
+RUN DISTROARCH=$(arch | sed 's/aarch64/arm64/;s/x86_64/amd64/') \
+    && wget -q https://github.com/jgm/pandoc/releases/download/3.6/pandoc-3.6-linux-$DISTROARCH.tar.gz \
+    && tar -xf pandoc-3.6-linux-$DISTROARCH.tar.gz -C /usr/local --strip-components 1 \
+    && rm pandoc-3.6-linux-$DISTROARCH.tar.gz
+
+
+FROM base AS gitcloned
+ARG REPO_URL
+ARG REPO_COMMIT_OR_TAG
+
+# The meta directory is used to store the version and maintainer information
+# for the RPM package
+RUN mkdir -p /meta
+
+# Clone the repository
+WORKDIR /src
+RUN git clone $REPO_URL .
+RUN git checkout $REPO_COMMIT_OR_TAG
+
+# Copy the include files for the nCipher and Luna HSMs if they are present
+RUN mkdir -p include/cryptoki
+COPY ./include/cryptoki/ncipher.* ./include/cryptoki/luna.* include/cryptoki/
+# Retrieve information for building RPM package later
+
+# Retrieve the architecture
+RUN PKG_ARCH=$(rpm --eval '%{_arch}') \
+    && echo "PKG_ARCH=\"$PKG_ARCH\"" >> /meta/env
+
+# Retrieve version information from git
+# If the version is a tag, set PKG_GITSUFFIX to the tag, or to '~<commit>' if the tag is not the last commit
+RUN PKG_VERSION=$(git describe --tags | sed -E 's/^v?([^\-]+)(-.*)?$/\1/' ) \
+    PKG_RELEASE=$(git describe --tags | sed -E 's/^v?([^\-]+)(-.*)?$/\2/; s/^-//; s/^$/0/; s/-(.*)//' ) \
+    PKG_GITCOMMIT=$(git rev-parse --short HEAD) \
+    PKG_GITSUFFIX=$(git describe --tags | sed -E 's/^v?([^\-]+)(-.*)?$/\2/;s/-([0-9]*)-g(.*)/.\2/') \
+    && echo "PKG_GITSUFFIX=\"$PKG_GITSUFFIX\"" >> /meta/env \
+    && echo "PKG_VERSION=\"$PKG_VERSION\"" >> /meta/env \
+    && echo "PKG_RELEASE=\"$PKG_RELEASE\"" >> /meta/env \
+    && echo "PKG_GITCOMMIT=\"$PKG_GITCOMMIT\"" >> /meta/env
+
+# Retrieve the maintainer from git
+RUN PKG_MAINTAINER=$(git log -1 --pretty=format:'%an <%ae>') \
+    && echo "PKG_MAINTAINER=\"$PKG_MAINTAINER\"" >> /meta/env
+
+# Retrieve description from README.md
+# This is a bit more complex as we need to strip out the first heading
+# and the first line of the second heading
+# moreover, any occurrence of '`' should be removed to avoid issues with
+# the shell
+RUN PKG_DESCRIPTION=$(cat README.md \
+    | awk '/# PKCS\\#11 tools/{flag=1} /Some features:/{flag=0} flag' \
+    | sed '/^##.*/d' \
+    | pandoc -f markdown -t plain \
+    | sed '/^[[:space:]]*$/d') \
+    && echo "PKG_DESCRIPTION=\"$PKG_DESCRIPTION\"" >> /meta/env
+
+RUN echo "export PKG_GITSUFFIX PKG_VERSION PKG_RELEASE PKG_GITCOMMIT PKG_MAINTAINER PKG_ARCH" >> /meta/env
+
+
+FROM gitcloned AS builder
+ARG CONFIG_ARGS
+
+# Build the project for tar package (/usr/local)
+RUN ./bootstrap.sh --shallow-clone \
+    && ./configure $CONFIG_ARGS \
+    && make -j $(nproc) \
+    && make install DESTDIR=/tar_build
+
+# install documentation
+RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
+    && install -m 644 -t /tar_build/usr/local/share/doc/pkcs11-tools \
+    README.md CHANGELOG.md COPYING \
+    docs/INSTALL.md \
+    docs/MANUAL.md \
+    docs/TPLICENSES.md \
+    docs/CONTRIBUTING.md
+
+# Build again the project for RPM package (/usr)
+RUN make distclean \
+    && ./configure --prefix=/usr $CONFIG_ARGS \
+    && make -j $(nproc) \
+    && make install DESTDIR=/rpm_build
+
+# Install documentation
+RUN mkdir -p /rpm_build/usr/share/doc/pkcs11-tools \
+    && install -m 644 -t /rpm_build/usr/share/doc/pkcs11-tools \
+    README.md CHANGELOG.md COPYING \
+    docs/INSTALL.md \
+    docs/MANUAL.md \
+    docs/TPLICENSES.md \
+    docs/CONTRIBUTING.md
+
+# Final stage
+FROM builder AS final
+ARG DISTRO_SHORT_NAME
+
+RUN mkdir -p /artifacts
+
+# build the .tar.gz file
+WORKDIR /tar_build
+RUN . /meta/env && tar -czf /artifacts/pkcs11-tools-${DISTRO_SHORT_NAME}-${PKG_ARCH}-${PKG_VERSION}${PKG_GITSUFFIX}.tar.gz usr
+
+# build the RPM package
+WORKDIR /root
+
+# Create the RPM spec file
+RUN mkdir -p /root/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+
+
+# Copy the build artifacts to the SOURCES directory
+COPY --from=builder /rpm_build /root/rpmbuild/SOURCES/prebuilt
+
+# Create the RPM spec file
+RUN . /meta/env && cat <<EOF > /root/rpmbuild/SPECS/pkcs11-tools.spec
+Name:           pkcs11-tools
+Version:        $PKG_VERSION
+Release:        1$PKG_GITSUFFIX%{?dist}
+Summary:        a set of tools for manipulation of PKCS#11 objects
+License:        Apache-2.0
+URL:            $REPO_URL
+BuildRequires:  gcc, make, automake, autoconf, libtool, autoconf-archive
+%description
+$PKG_DESCRIPTION
+
+%install
+mkdir -p %{buildroot}
+cp -r %{_sourcedir}/prebuilt/usr %{buildroot}
+
+%files
+%{_bindir}/*
+
+%doc
+%{_docdir}/pkcs11-tools
+
+%changelog
+EOF
+
+# Build the RPM package
+RUN . /meta/env \
+    && rpmbuild -ba /root/rpmbuild/SPECS/pkcs11-tools.spec
+
+# Copy the RPM package to the artifacts directory
+RUN . /meta/env \
+    && cp /root/rpmbuild/RPMS/$PKG_ARCH/pkcs11-tools-${PKG_VERSION}-1${PKG_GITSUFFIX}$(rpm --eval "%{dist}").${PKG_ARCH}.rpm /artifacts
+
+# Final command to list the artifacts
+CMD [ "find", "/artifacts", "-type", "f" ]

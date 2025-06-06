@@ -1,11 +1,63 @@
-# Installation instructions
-## Important Notes
+# Installation
+
+## Using pre-built binaries
+Pre-built binaries are available for download from the release page. This is the simplest option, but you may be lacking the latest features.
+
+## Using Docker on Linux
+Provided that Docker is deployed on your system, you can build the toolkit using the `buildx.sh` script, which is located in the root directory of the project. This script automates the process of building the toolkit for various distributions and architectures. For each target platform, both a tarball and a distribution-specific package (`.deb`, `.rpm`, `.apk`) are built.
+
+To build the toolkit using Docker for your architecture, you can use the following command (in this example, we are building for Ubuntu 24.04):
+```bash
+$ ./buildx.sh ubuntu2404
+```
+
+You can specify more than one target distribution at once, for example:
+```bash
+$ ./buildx.sh ol9 ubuntu2404 deb12
+```
+
+Provided that your environment supports multiple architectures (using `qemu`), you can cross-compile the toolkit. For each target platform, you can specify the architecture. Note that `all` means to build for all available architectures, i.e. `x86_64` and `aarch64` in this occurence. For example:
+```bash
+$ ./buildx.sh ol9/amd64 ubuntu2404/arm64 deb12/all
+```
+
+`buildx.sh` supports parallel building, and comes with a number of options to specify the target distribution, the target architecture, additional `configure` options, additional root CA in case of corporate proxy, and so on. You can see the help message by running:
+```bash
+$ ./buildx.sh --help
+```
+
+### supported distributions
+The following distributions are supported by the `buildx.sh` script:
+
+| Distribution | Distribution short name (to use with `buildx.sh`) |
+|--------------|---------------------------------------------------|
+| Oracle Linux 9 | `ol9` |
+| Oracle Linux 8 | `ol8` |
+| Oracle Linux 7 | `ol7` |
+| Debian 12 (Bookworm) | `deb12` |
+| Ubuntu 24.04 (Noble Numbat) | `ubuntu2404` |
+| Ubuntu 22.04 (Jammy Jellyfish) | `ubuntu2204` |
+| Ubuntu 20.04 (Focal Fossa) | `ubuntu2004` |
+| Alpine Linux 3.21 | `alpine321` |
+| Amazon Linux 2023 | `amzn2023` |
+
+### Docker buildx for AWS CloudHSM support
+To build the toolkit with AWS CloudHSM support using Docker buildx, you can use the following command:
+```bash
+$ ./buildx.sh --config-args="--with-awscloudhsm"  amzn2023 
+```
+
+__Note that support for AWS CloudHSM is disabling a few features in the toolkit, and should be used only if you plan to use the toolkit with AWS CloudHSM. The toolkit can be built without AWS CloudHSM support, which will enable all features of the toolkit, but will not work well with AWS CloudHSM.__
+
+
+## Building from source
+### Important Notes
  * While a prefix can be specified at configuration time, the toolkit utility make no use of any hardcoded path.  Using `--prefix=$PWD`will deploy the binaries into a `bin` subdir, relative to the current directory.
  if that option is omitted, the default is to deploy in `/usr/local`, when invoking `make install`. In which case, you will need to be a `root` user when `make install` (or to use `su` or `sudo`) .
  * OpenSSL v1.1.1e or above is required to compile the toolkit. Please refer to [OpenSSL 1.1.1](#openssl-111) for details how to deploy it on your system.
  * Windows 64 bits is currently not supported. See [Note on 64 bits executables](#note-on-64-bits-executables) for more information.
 
-## Pre-requisites
+### Pre-requisites
 In order to build the project from scratch, you will need
  - a C compiler (tested with `gcc`, `clang`, `xlc` on `AIX`), and make utility (tested with GNU and BSD `make`)
    If your host is Debian-based (e.g. Ubuntu), you can execute the following command:
@@ -31,7 +83,7 @@ In order to build the project from scratch, you will need
  - a connection to Internet (to fetch `gnulib` and the pkcs11 headers)
 
 
-### OpenSSL 1.1.1
+#### OpenSSL 1.1.1
 The vast majority of recent distros (FreeBSD and Linux) have OpenSSL 1.1.1e+ by default.
 
 If your platform does not have it, proceed as follows:
@@ -70,8 +122,8 @@ If your platform does not have it, proceed as follows:
     
 Note: Usually, building OpenSSL requires `zlib` development package to be present on your system. This option is not useful to `pkcs11-tools`. However, if you wish to have it (in case you also want to use that version of OpenSSL for other purposes), change the `no-zlib` option by `zlib`.
 
-## Installation
-### Bootstrapping the environment from GitHub
+### Installation
+#### Bootstrapping the environment from GitHub
 In order to create the autotools and libtool environment, and before being able to execute the `configure`script, you must execute these steps:
 ```bash
 $ git clone https://github.com/Mastercard/pkcs11-tools.git
@@ -230,22 +282,22 @@ By default, AWS CloudHSM support is disabled, as it removes some functionality f
 $ ./configure --with-awscloudhsm
 ```
 
-## Packaging
-### all platforms
+### Packaging
+#### all platforms
 To build a generic binary distribution tarball (all platforms):
 ```bash
 $ ./configure [...] --prefix=$PWD
 $ make dist-bin
 ```
 
-### Solaris pkg
+#### Solaris pkg
 To build solaris package:
 ```bash
 $ ./configure [...] --prefix=$PWD
 $ make dist-solaris
 ```
 
-### RPM
+#### RPM
 To build an RPM package:
 (this assumes that `rpmbuild` is installed and properly configured for the user; it also assumes that OpenSSL 1.1.1 is the default on your platform)
 ```bash

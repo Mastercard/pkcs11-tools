@@ -91,9 +91,9 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacda
 					    _ATTR(CKA_KEY_TYPE),
 					    _ATTR(CKA_ID),
 					    _ATTR(CKA_LABEL),
-						_ATTR(CKA_CHECK_VALUE),
-						_ATTR(CKA_SIGN),
-						_ATTR(CKA_ENCRYPT),
+					    _ATTR(CKA_CHECK_VALUE),
+					    _ATTR(CKA_SIGN),
+					    _ATTR(CKA_ENCRYPT),
 					    _ATTR_END);
 
 		if( attrs!=NULL) {
@@ -157,214 +157,217 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacda
 			
 			/* if we ask for KCV  explicitely */
 			if(has_check_value && algo == kcv) {
-				// if we have a check value, we just display it
-				max_num_bytes = num_bytes = processed_len = MIN(a_check_value->ulValueLen, sizeof(processed));
-				keytypestr = "CKA_CHECK_VALUE";
-				memcpy(processed, a_check_value->pValue, processed_len);
+			    // if we have a check value, we just display it
+			    max_num_bytes = num_bytes = processed_len = MIN(a_check_value->ulValueLen, sizeof(processed));
+			    keytypestr = "CKA_CHECK_VALUE";
+			    memcpy(processed, a_check_value->pValue, processed_len);
 			} else {
-				switch( *((CK_KEY_TYPE *)a_keytype->pValue)) {
-				case CKK_DES:
-					cleartext_len = 8L;
-					processed_len = 8L;
-					max_num_bytes = 8;
+			    switch( *((CK_KEY_TYPE *)a_keytype->pValue)) {
+			    case CKK_DES:
+				cleartext_len = 8L;
+				processed_len = 8L;
+				max_num_bytes = 8;
 					
-					switch(algo) {
-					case legacy:
-					mechanism = &des_ecb;
-					whattodo=encrypt;
-					keytypestr = "DES, single length, ECB";
-					break;
+				switch(algo) {
+				case legacy:
+				    mechanism = &des_ecb;
+				    whattodo=encrypt;
+				    keytypestr = "DES, single length, ECB";
+				    break;
 
-					case mac:
-					mechanism = &des_mac;
-					whattodo=sign;
-					keytypestr = "DES, single length, MAC/FIPS PUB 113";
-					break;
-
-					default:
-					/* unsupported, we just break, no mechanism defined */
-					}
-					break;
-
-				case CKK_DES2:
-					is_des2 = true;
-					/* no break here */
-					
-				case CKK_DES3:
-					cleartext_len = 8L;
-					processed_len = 8L;
-
-					switch(algo) {
-					case legacy:
-					mechanism = &des3_ecb;
-					whattodo=encrypt;
-					max_num_bytes = 8;
-					keytypestr = is_des2 ? "3DES, double length, ECB" : "3DES, triple length, ECB";
-					break;
-
-					case mac:
-					mechanism = &des3_mac;
-					whattodo=sign;
-					max_num_bytes = 8;
-					keytypestr = is_des2 ? "3DES, double length, MAC/FIPS PUB 113" : "3DES, triple length, MAC/FIPS PUB 113";
-					break;
-
-					case cmac:
-					mechanism = &des3_cmac;
-					whattodo=sign;
-					max_num_bytes = 4;
-					keytypestr = is_des2 ? "3DES, double length, CMAC/RFC4493" : "3DES, triple length, CMAC/RFC4493";
-					break;
-
-					default:
-					/* unsupported, we just break, no mechanism defined */
-					}			    
-					break;
-
-
-				case CKK_AES:
-					cleartext_len = 16L;
-					processed_len = 16L;
-
-					switch(algo) {
-					case legacy:
-					mechanism = &aes_ecb;
-					whattodo=encrypt;
-					max_num_bytes = 16;
-					keytypestr = "AES, ECB";
-					break;
-
-					case mac:
-					mechanism = &aes_mac;
-					whattodo=sign;
-					max_num_bytes = 16;
-					keytypestr = "AES, MAC/FIPS PUB 113";
-					break;
-
-					case cmac:
-					mechanism = &aes_cmac;
-					whattodo=sign;
-					max_num_bytes = 8;
-					keytypestr = "AES, CMAC/RFC4493";
-					break;
-
-					case aes_xcbc_mac:
-					mechanism = &m_aes_xcbc_mac;
-					whattodo=sign;
-					max_num_bytes = 16;
-					keytypestr = "AES, XCBC-MAC/RFC3566";
-					break;
-
-					case aes_xcbc_mac_96:
-					mechanism = &m_aes_xcbc_mac_96;
-					whattodo=sign;
-					max_num_bytes = 12;
-					keytypestr = "AES, XCBC-MAC-96/RFC3566";
-					break;
-
-					default:
-					/* unsupported, we just break, no mechanism defined */
-					}			    
-					break;
-
-				case CKK_SHA_1_HMAC:
-					mechanism = &sha1_hmac;
-					cleartext_len = hmacdatasize;
-					processed_len = 20L;
-					keytypestr = "HMAC/SHA1";
-					whattodo=sign;
-					max_num_bytes = 20;
-					break;
-
-				case CKK_SHA224_HMAC:
-					mechanism = &sha224_hmac;
-					cleartext_len = hmacdatasize;
-					processed_len = 28L;
-					keytypestr = "HMAC/SHA244";
-					whattodo=sign;
-					max_num_bytes = 28;
-					break;
-
-				case CKK_SHA256_HMAC:
-				case CKK_GENERIC_SECRET:
-					mechanism = &sha256_hmac;
-					cleartext_len = hmacdatasize;
-					processed_len = 32L;
-					keytypestr = "HMAC/SHA256";
-					whattodo=sign;
-					max_num_bytes = 32;
-					break;
-
-				case CKK_SHA384_HMAC:
-					mechanism = &sha384_hmac;
-					cleartext_len = hmacdatasize;
-					processed_len = 48L;
-					keytypestr = "HMAC/SHA384";
-					whattodo=sign;
-					max_num_bytes = 48;
-					break;
-
-				case CKK_SHA512_HMAC:
-					mechanism = &sha512_hmac;
-					cleartext_len = hmacdatasize;
-					processed_len = 64L;
-					keytypestr = "HMAC/SHA512";
-					whattodo=sign;
-					max_num_bytes = 64;
-					break;
+				case mac:
+				    mechanism = &des_mac;
+				    whattodo=sign;
+				    keytypestr = "DES, single length, MAC/FIPS PUB 113";
+				    break;
 
 				default:
-					break;
+				    /* unsupported, we just break, no mechanism defined */
+				    break; /* break needed by some versions of GCC... */
 				}
+				break;
 
-				if(mechanism==NULL) {
-					fprintf(stderr, "Unsupported mechanism for key %s, skipping\n", buffer);
-					pkcs11_delete_attrlist(attrs);
-					continue;
-				}
+			    case CKK_DES2:
+				is_des2 = true;
+				/* no break here */
+					
+			    case CKK_DES3:
+				cleartext_len = 8L;
+				processed_len = 8L;
 
-				if(!can_sign && whattodo==sign) {
-					fprintf(stderr, "Key %s cannot sign, skipping\n", buffer);
-					pkcs11_delete_attrlist(attrs);
-					continue;
-				}
+				switch(algo) {
+				case legacy:
+				    mechanism = &des3_ecb;
+				    whattodo=encrypt;
+				    max_num_bytes = 8;
+				    keytypestr = is_des2 ? "3DES, double length, ECB" : "3DES, triple length, ECB";
+				    break;
 
-				if(!can_encrypt && whattodo==encrypt) {
-					fprintf(stderr, "Key %s cannot encrypt, skipping\n", buffer);
-					pkcs11_delete_attrlist(attrs);
-					continue;
-				}
+				case mac:
+				    mechanism = &des3_mac;
+				    whattodo=sign;
+				    max_num_bytes = 8;
+				    keytypestr = is_des2 ? "3DES, double length, MAC/FIPS PUB 113" : "3DES, triple length, MAC/FIPS PUB 113";
+				    break;
 
-				rv = whattodo == encrypt ?
-					p11Context->FunctionList.C_EncryptInit( p11Context->Session,
-										mechanism,
-										hndl_array[j]) :
-					p11Context->FunctionList.C_SignInit( p11Context->Session,
+				case cmac:
+				    mechanism = &des3_cmac;
+				    whattodo=sign;
+				    max_num_bytes = 4;
+				    keytypestr = is_des2 ? "3DES, double length, CMAC/RFC4493" : "3DES, triple length, CMAC/RFC4493";
+				    break;
+
+				default:
+				    /* unsupported, we just break, no mechanism defined */
+				    break; /* break needed by some versions of GCC... */
+				}			    
+				break;
+
+
+			    case CKK_AES:
+				cleartext_len = 16L;
+				processed_len = 16L;
+
+				switch(algo) {
+				case legacy:
+				    mechanism = &aes_ecb;
+				    whattodo=encrypt;
+				    max_num_bytes = 16;
+				    keytypestr = "AES, ECB";
+				    break;
+
+				case mac:
+				    mechanism = &aes_mac;
+				    whattodo=sign;
+				    max_num_bytes = 16;
+				    keytypestr = "AES, MAC/FIPS PUB 113";
+				    break;
+
+				case cmac:
+				    mechanism = &aes_cmac;
+				    whattodo=sign;
+				    max_num_bytes = 8;
+				    keytypestr = "AES, CMAC/RFC4493";
+				    break;
+
+				case aes_xcbc_mac:
+				    mechanism = &m_aes_xcbc_mac;
+				    whattodo=sign;
+				    max_num_bytes = 16;
+				    keytypestr = "AES, XCBC-MAC/RFC3566";
+				    break;
+
+				case aes_xcbc_mac_96:
+				    mechanism = &m_aes_xcbc_mac_96;
+				    whattodo=sign;
+				    max_num_bytes = 12;
+				    keytypestr = "AES, XCBC-MAC-96/RFC3566";
+				    break;
+
+				default:
+				    /* unsupported, we just break, no mechanism defined */
+				    break; 
+				}			    
+				break;
+
+			    case CKK_SHA_1_HMAC:
+				mechanism = &sha1_hmac;
+				cleartext_len = hmacdatasize;
+				processed_len = 20L;
+				keytypestr = "HMAC/SHA1";
+				whattodo=sign;
+				max_num_bytes = 20;
+				break;
+
+			    case CKK_SHA224_HMAC:
+				mechanism = &sha224_hmac;
+				cleartext_len = hmacdatasize;
+				processed_len = 28L;
+				keytypestr = "HMAC/SHA244";
+				whattodo=sign;
+				max_num_bytes = 28;
+				break;
+
+			    case CKK_SHA256_HMAC:
+			    case CKK_GENERIC_SECRET:
+				mechanism = &sha256_hmac;
+				cleartext_len = hmacdatasize;
+				processed_len = 32L;
+				keytypestr = "HMAC/SHA256";
+				whattodo=sign;
+				max_num_bytes = 32;
+				break;
+
+			    case CKK_SHA384_HMAC:
+				mechanism = &sha384_hmac;
+				cleartext_len = hmacdatasize;
+				processed_len = 48L;
+				keytypestr = "HMAC/SHA384";
+				whattodo=sign;
+				max_num_bytes = 48;
+				break;
+
+			    case CKK_SHA512_HMAC:
+				mechanism = &sha512_hmac;
+				cleartext_len = hmacdatasize;
+				processed_len = 64L;
+				keytypestr = "HMAC/SHA512";
+				whattodo=sign;
+				max_num_bytes = 64;
+				break;
+
+			    default:
+				break; /* break needed by some versions of GCC... */
+			    }
+
+			    if(mechanism==NULL) {
+				fprintf(stderr, "Unsupported mechanism for key %s, skipping\n", buffer);
+				pkcs11_delete_attrlist(attrs);
+				continue;
+			    }
+
+			    if(!can_sign && whattodo==sign) {
+				fprintf(stderr, "Key %s cannot sign, skipping\n", buffer);
+				pkcs11_delete_attrlist(attrs);
+				continue;
+			    }
+
+			    if(!can_encrypt && whattodo==encrypt) {
+				fprintf(stderr, "Key %s cannot encrypt, skipping\n", buffer);
+				pkcs11_delete_attrlist(attrs);
+				continue;
+			    }
+
+			    rv = whattodo == encrypt ?
+				p11Context->FunctionList.C_EncryptInit( p11Context->Session,
 									mechanism,
-									hndl_array[j]);
+									hndl_array[j]) :
+				p11Context->FunctionList.C_SignInit( p11Context->Session,
+								     mechanism,
+								     hndl_array[j]);
 
-				if(rv!=CKR_OK) {
-					pkcs11_error(rv, whattodo == encrypt ? "C_EncryptInit" : "C_SignInit");
-					pkcs11_delete_attrlist(attrs);
-					continue;
-				}
+			    if(rv!=CKR_OK) {
+				pkcs11_error(rv, whattodo == encrypt ? "C_EncryptInit" : "C_SignInit");
+				pkcs11_delete_attrlist(attrs);
+				continue;
+			    }
 
-				rv = whattodo == encrypt ?
-					p11Context->FunctionList.C_Encrypt ( p11Context->Session,
-									cleartext,
-									cleartext_len,
-									processed,
-									&processed_len	) :
-					p11Context->FunctionList.C_Sign ( p11Context->Session,
-									cleartext,
-									cleartext_len,
-									processed,
-									&processed_len );
-				if(rv!=CKR_OK) {
-					pkcs11_error(rv, whattodo == encrypt ? "C_Encrypt" : "C_Sign");
-					pkcs11_delete_attrlist(attrs);
-					continue;
-				}
+			    rv = whattodo == encrypt ?
+				p11Context->FunctionList.C_Encrypt ( p11Context->Session,
+								     cleartext,
+								     cleartext_len,
+								     processed,
+								     &processed_len	) :
+				p11Context->FunctionList.C_Sign ( p11Context->Session,
+								  cleartext,
+								  cleartext_len,
+								  processed,
+								  &processed_len );
+			    if(rv!=CKR_OK) {
+				pkcs11_error(rv, whattodo == encrypt ? "C_Encrypt" : "C_Sign");
+				pkcs11_delete_attrlist(attrs);
+				continue;
+			    }
 			}
 			
 			/* now, the display job */

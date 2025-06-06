@@ -33,10 +33,19 @@ trap cleanup EXIT
 oldpath=$PWD
 cd ${oldpath}
 
+# we allow one optional argument to this script,
+# which is --shallow-clone to indicate that we want to
+# perform a shallow clone of the gnulib submodule (limit depth to 1)
+SHALLOW_CLONE=""
+if [ "$1" = "--shallow-clone" ]; then
+    echo "Performing a shallow clone of submodules"
+    SHALLOW_CLONE="--depth 1"
+fi
+
 # detect if we are in a git repo
 if [ -d .git ]; then
     # pull submodule stuff
-    git submodule update --init
+    git submodule update --init ${SHALLOW_CLONE}
     #    git submodule update --init .gnulib
     #    git submodule update --init include/oasis-pkcs11
 
