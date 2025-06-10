@@ -1,0 +1,195 @@
+# Dockerfile for building pkcs11-tools for Alpine 3.21
+#
+# Copyright (c) 2025 Mastercard
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#   http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+ARG REPO_URL="https://github.com/Mastercard/pkcs11-tools"
+ARG REPO_COMMIT_OR_TAG="HEAD"
+ARG DISTRO_NAME="alpine"
+ARG DISTRO_VERSION="3.21"
+ARG DISTRO_SHORT_NAME="alpine321"
+ARG PROXY_ROOT_CA="DUMMY.pem"
+ARG CONFIG_ARGS=""
+
+# base0 is just the base image with the proxy root CA installed
+# note that if there is no proxy cert, a dummy value is used
+FROM ${DISTRO_NAME}:${DISTRO_VERSION} AS base0
+ARG PROXY_ROOT_CA
+
+# with Alpine, we need to cheat a bit and circumvent the chicken-and-egg problem
+# of installing the proxy certs, since we need to install the ca-certificates package
+# and APK is relying upon HTTPS repositories by default
+COPY ${PROXY_ROOT_CA} /usr/local/share/ca-certificates/
+RUN sed -i 's|https://|http://|' /etc/apk/repositories \
+    && apk update \
+    && apk add --no-cache ca-certificates \
+    && update-ca-certificates \
+    && sed -i 's|http://|https://|' /etc/apk/repositories
+
+
+FROM base0 AS base
+ARG DISTRO_SHORT_NAME
+ENV TZ=UTC
+
+# Enable the community and testing repositories for Alpine
+RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+
+# Install required packages for building the project
+# coreutils is needed for 'fmt' command
+# sed is needed for string manipulation, busybox sed does not support all features
+RUN apk add --no-cache \
+    coreutils \
+    sed \
+    gawk \
+    build-base \
+    flex \
+    bison \
+    autoconf \
+    automake \
+    autoconf-archive@testing \
+    libtool \
+    pkgconf \
+    git \
+    tar \
+    bash \
+    gzip \
+    alpine-sdk \
+    sudo \
+    fakeroot \
+    openssl-dev \
+    pandoc
+
+FROM base AS gitcloned
+ARG REPO_URL
+ARG REPO_COMMIT_OR_TAG
+
+# The meta directory is used to store the version and maintainer information
+# for the RPM package
+RUN mkdir -p /meta
+
+# Clone the repository
+WORKDIR /src
+RUN git clone $REPO_URL .
+RUN git checkout $REPO_COMMIT_OR_TAG
+
+# Copy the include files for the nCipher and Luna HSMs if they are present
+RUN mkdir -p include/cryptoki
+COPY ./include/cryptoki/ncipher.* ./include/cryptoki/luna.* include/cryptoki/
+
+# Retrieve information for building APK package later
+
+# PGK_DESCRIPTION is omitted as it is not used in the APKBUILD
+# TODO: use PKG_DESCRIPTION as description in the APKBUILD
+
+# Retrieve the architecture
+RUN PKG_ARCH=$(apk --print-arch) \
+    && echo "PKG_ARCH=\"$PKG_ARCH\"" >> /meta/env
+
+# Retrieve version information from git
+# If the version is a tag, set PKG_TARVERSION to the tag, else set it to $PGK_VERSION-$PKG_RELEASE-$PKG_GITCOMMIT
+RUN PKG_VERSION=$(git describe --tags | sed -E 's/^v?([^\-]+)(-.*)?$/\1/' ) \
+    PKG_RELEASE=$(git describe --tags | sed -E 's/^v?([^\-]+)(-.*)?$/\2/; s/^-//; s/^$/0/; s/-(.*)//' ) \
+    PKG_GITCOMMIT=$(git rev-parse --short HEAD) \
+    PKG_GITSUFFIX=$(git describe --tags | sed -E 's/^v?([^\-]+)(-.*)?$/\2/;s/-([0-9]*)-g(.*)/.\2/') \
+    && echo "PKG_GITSUFFIX=\"$PKG_GITSUFFIX\"" >> /meta/env \
+    && echo "PKG_VERSION=\"$PKG_VERSION\"" >> /meta/env \
+    && echo "PKG_RELEASE=\"$PKG_RELEASE\"" >> /meta/env \
+    && echo "PKG_GITCOMMIT=\"$PKG_GITCOMMIT\"" >> /meta/env
+
+
+# Retrieve the maintainer from git
+RUN PKG_MAINTAINER=$(git log -1 --pretty=format:'%an <%ae>') \
+    && echo "PKG_MAINTAINER=\"$PKG_MAINTAINER\"" >> /meta/env
+
+RUN echo "export PKG_GITSUFFIX PKG_VERSION PKG_RELEASE PKG_GITCOMMIT PKG_MAINTAINER PKG_ARCH" >> /meta/env
+
+
+FROM gitcloned AS builder
+ARG CONFIG_ARGS
+
+# Build the project
+RUN ./bootstrap.sh --shallow-clone \
+    && ./configure --prefix=/usr $CONFIG_ARGS \
+    && make -j $(nproc) \
+    && make install DESTDIR=/build
+
+# Install documentation
+RUN mkdir -p /build/usr/share/doc/pkcs11-tools \
+    && install -m 644 -t /build/usr/share/doc/pkcs11-tools \
+    README.md CHANGELOG.md COPYING \
+    docs/INSTALL.md \
+    docs/MANUAL.md \
+    docs/TPLICENSES.md \
+    docs/CONTRIBUTING.md
+
+
+# Final stage
+FROM builder AS final
+ARG DISTRO_SHORT_NAME
+
+RUN mkdir -p /artifacts
+
+# build the .tar.gz file
+COPY --from=builder /build /tar_build
+WORKDIR /tar_build
+RUN . /meta/env && tar -czf /artifacts/pkcs11-tools-${DISTRO_SHORT_NAME}-${PKG_ARCH}-${PKG_VERSION}${PKG_GITSUFFIX}.tar.gz usr
+
+# build the APK package
+# Add a non-root user for building the package
+RUN adduser -D -G abuild builduser \
+    && echo "builduser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+USER builduser
+WORKDIR /home/builduser
+
+# Copy pre-built files from the builder stage
+COPY --from=builder --chown=builduser:abuild /build /home/builduser/pkgroot
+
+# Create the APKBUILD file
+RUN mkdir -p /home/builduser/apkbuild
+WORKDIR /home/builduser/apkbuild
+
+# Create the APK signing key (TODO: this should be mounted as a volume instead)
+RUN mkdir -p .abuild
+RUN abuild-keygen -a -n && echo "builduser@$(hostname)" > .abuild/identity
+RUN sudo cp ~/.abuild/*.rsa.pub /etc/apk/keys/
+
+RUN . /meta/env && cat <<EOF >APKBUILD
+# Maintainer: $PKG_MAINTAINER
+pkgname="pkcs11-tools-$DISTRO_SHORT_NAME-$PKG_ARCH"
+pkgver=$PKG_VERSION
+pkgrel=$PKG_RELEASE
+_gitcommit=$PKG_GITCOMMIT
+pkgdesc="a set of tools for manipulation of PKCS#11 objects"
+url="$REPO_URL"
+arch="$PKG_ARCH"
+license="Apache-2.0"
+makedepends="autoconf automake libtool pkgconf"
+options="!check"
+
+package() {
+    mkdir -p "\$pkgdir"
+    cp -r /home/builduser/pkgroot/* "\$pkgdir/"
+}
+
+EOF
+
+RUN mkdir -p /home/builduser/packages \
+    && echo "repository=/home/builduser/packages" >> ~/.abuild/abuild.conf
+
+RUN sudo apk update && abuild -r && sudo cp /home/builduser/packages/builduser/$(arch)/*.apk /artifacts
+
+# Final command to list the artifacts
+CMD [ "find", "/artifacts", "-type", "f" ]
