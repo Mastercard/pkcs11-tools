@@ -1,6 +1,6 @@
 # p11mv(1) completion                                      -*- shell-script -*-
 #
-# Bash autocompletion for `p11cp`.
+# Bash autocompletion for `p11mv`.
 # Provides dynamic suggestions for the SOURCE argument
 # based on current lib, slot, and pin arguments. 
 #
