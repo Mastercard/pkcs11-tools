@@ -1,4 +1,4 @@
-# Common functuins for p11* completion scripts             -*- shell-script -*-
+# Common functions for p11* completion scripts             -*- shell-script -*-
 #
 # Description:
 #   This file provides reusable Bash functions to support autocompletion
