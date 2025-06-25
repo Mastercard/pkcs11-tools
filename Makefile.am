@@ -41,6 +41,20 @@ SUBDIRS = gl lib src
 ACLOCAL_AMFLAGS = -I m4
 
 
+completionsdir = $(datadir)/bash-completion/completions
+completions_DATA = \
+	completion/p11-common \
+	completion/p11cat \
+	completion/p11cp\
+	completion/p11kcv \
+	completion/p11ls \
+	completion/p11more \
+	completion/p11mv \
+	completion/p11od \
+	completion/p11setattr
+
+EXTRA_DIST += $(completions_DATA)
+
 install-exec-hook:
 	$(INSTALL) 	               \
 		$(srcdir)/with_beid    \

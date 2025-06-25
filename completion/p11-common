@@ -1,0 +1,69 @@
+# Common functuins for p11* completion scripts             -*- shell-script -*-
+#
+# Description:
+#   This file provides reusable Bash functions to support autocompletion
+#   for various `p11*` CLI tools (p11cat, p11cp, p11mv, etc.).
+#
+#   Functions parse the command-line arguments dynamically and provide
+#   object filtering and completion based on loaded tokens via `p11ls`.
+#
+# Functions:
+#   - __p11_parse_args(slot_ref, pin_ref, lib_ref)
+#       Parses -l (lib), -s (slot), -p (pin) from COMP_WORDS into referenced variables
+#
+#   - __p11_complete_filters(cur)
+#       Uses parsed lib/slot/pin to call p11ls and generate autocompletion candidates
+#       with existing filters.
+#
+# Environment:
+#   These variables are used as fallback if -l, -s or -p are not given:
+#     PKCS11LIB, PKCS11SLOT, PKCS11PASSWORD
+#
+# Limitations:
+#
+#   Inline environment variable assignments like the following:
+#     PKCS11LIB=/usr/lib/softhsm/libsofthsm2.so p11ls -s 0 -p 1234
+#
+#   will NOT be detected by Bash completion logic, because these assignments
+#   are not part of the shell's environment when autocompletion is triggered.
+#
+#   Instead, define them in the environment using `export`:
+#     export PKCS11LIB=/usr/lib/softhsm/libsofthsm2.so
+#     export PKCS11SLOT=0
+#     export PKCS11PASSWORD=1234
+#     p11ls <TAB>
+#
+#   This ensures that completion functions can access the variables reliably.
+#
+# Usage:
+#   Must be sourced by specific completion scripts, e.g.:
+#     source /usr/share/bash-completion/completions/p11-common
+
+__p11_parse_args() {
+  local -n _slot=$1 _pin=$2 _lib=$3
+  _slot=""; _pin=""; _lib=""
+
+  for ((i=0; i < ${#COMP_WORDS[@]}; i++)); do
+    case "${COMP_WORDS[i]}" in
+      -s) _slot="${COMP_WORDS[i+1]}" ;;
+      -p) _pin="${COMP_WORDS[i+1]}" ;;
+      -l) _lib="${COMP_WORDS[i+1]}" ;;
+    esac
+  done
+
+  # Fallback to env vars if CLI args not provided
+  [[ -z "$_lib"  && -n "$PKCS11LIB"      ]] && _lib="$PKCS11LIB"
+  [[ -z "$_slot" && -n "$PKCS11SLOT"     ]] && _slot="$PKCS11SLOT"
+  [[ -z "$_pin"  && -n "$PKCS11PASSWORD" ]] && _pin="$PKCS11PASSWORD"
+}
+
+__p11_complete_filters() {
+  local slot pin lib cur="$1"
+  __p11_parse_args slot pin lib
+
+  if [[ -n "$lib" && -n "$slot" && -n "$pin" ]]; then
+    local objects
+    objects=$(p11ls -l "$lib" -s "$slot" -p "$pin" 2>/dev/null | awk '{print $1}')
+    COMPREPLY=( $(compgen -W "${objects}" -- "${cur}") )
+  fi
+}
