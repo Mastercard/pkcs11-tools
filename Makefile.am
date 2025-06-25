@@ -45,7 +45,7 @@ completionsdir = $(datadir)/bash-completion/completions
 completions_DATA = \
 	completion/p11-common \
 	completion/p11cat \
-	completion/p11cp\
+	completion/p11cp \
 	completion/p11kcv \
 	completion/p11ls \
 	completion/p11more \
