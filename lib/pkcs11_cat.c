@@ -421,8 +421,18 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
 		    /* openssl pattern: &pp will be incremented beyond size of DER struct */
 		    pp = oecpoint->pValue; /* copy the pointer */
 		    if(d2i_ASN1_OCTET_STRING(&ec_point_container, &pp, oecpoint->ulValueLen) == NULL ) {
-			P_ERR();
-			goto key_ec_error;
+			fprintf(stderr, "Warning: CKA_EC_POINT format likely not compliant, trying alternate way to decode public key\n");
+			/* d2i_TYPE() will NULLify the destination pointer in case of error (??!) */
+			/* we need to reset the value */
+			if( (ec_point_container=ASN1_OCTET_STRING_new()) == NULL ) {
+			    P_ERR();
+			    goto key_ec_error;
+			}
+
+			if(ASN1_OCTET_STRING_set(ec_point_container, oecpoint->pValue, oecpoint->ulValueLen) == 0) {
+			    P_ERR();
+			    goto key_ec_error;
+			}
 		    }
 
 		    /* extract point from PKCS#11 attribute */
