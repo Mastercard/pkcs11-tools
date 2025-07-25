@@ -262,11 +262,17 @@ The following table lists the meaning of abbreviations:
 The last column tells whether the operation takes place inside the boundaries of the cryptographic module (`HW`) or at the
 library level (`SW`).
 
-Finally, for mechanisms supporting elliptic curve cryptography, there are additional capabilities printed:
-|abbreviation|capability meaning | |------------|------------------------------------------------| |`F^p`
-|Supports curves defined over prime-based fields | |`F^2m`      |Supports curves defined over power of 2 fields | |`par`
-|Supports custom parameters curves | |`nam`       |Supports well-known named curves | |`unc`       |Supports compressed
-points representation | |`cmp`       |Supports compressed points representation |
+Finally, for mechanisms supporting elliptic curve cryptography, there are
+additional capabilities printed:
+
+| abbreviation | capability meaning                              |
+| ------------ | ----------------------------------------------- |
+| `F^p`        | Supports curves defined over prime-based fields |
+| `F^2m`       | Supports curves defined over power of 2 fields  |
+| `par`        | Supports custom parameters curves               |
+| `nam`        | Supports well-known named curves                |
+| `unc`        | Supports compressed points representation       |
+| `cmp`        | Supports compressed points representation       |
 
 Here is an example of `p11slotinfo` executed with SoftHSMv2:
 
