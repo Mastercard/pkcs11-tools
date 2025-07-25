@@ -48,37 +48,37 @@ the rules below:
 - if the key is of type EC/ECDSA, `CKA_ID` is the SHA-1 of the curve point, uncompressed, in its octet-string
   representation (stored in `CKA_EC_POINT` attribute)
 
-|Key type   |`CKA_ID` is the SHA1 of                                                        |
- |-----------|-------------------------------------------------------------------------------|
-|RSA        |The public key modulus stored in `CKA_MODULUS`                                 |
-|DSA or DH  |The public key stored in `CKA_VALUE`                                           |
-|EC/ECDSA   |The curve point in its `OCTET-STRING` representation stored in `CKA_EC_POINT`  |
+| Key type  | `CKA_ID` is the SHA1 of                                                       |
+| --------- | ----------------------------------------------------------------------------- |
+| RSA       | The public key modulus stored in `CKA_MODULUS`                                |
+| DSA or DH | The public key stored in `CKA_VALUE`                                          |
+| EC/ECDSA  | The curve point in its `OCTET-STRING` representation stored in `CKA_EC_POINT` |
 
 ## List of commands
 
 The following commands are supported:
 
-|command name    |description                                                                       |
-|----------------|----------------------------------------------------------------------------------|
-|`p11cat`        |prints out in PEM format the content of a certificate or public key               |
-|`p11more`       |prints out, in human-readable format, the content of a certificate or public key  |
-|`p11keygen`     |generates a key, and optionally wrap it under one or several wrapping key(s)      |
-|`p11kcv`        |computes a key check value                                                        |
-|`p11od`         |object dumper, dumps all attributes of an object                                  |
-|`p11setattr`    |sets attribute of an object                                                       |
-|`p11importcert` |imports a certificate and binds it to a corresponding private key, if found       |
-|`p11importpubk` |imports a public key                                                              |
-|`p11importdata` |imports a data file                                                               |
-|`p11ls`         |lists token contents                                                              |
-|`p11req`        |generates PKCS#10 CSR                                                             |
-|`p11slotinfo`   |prints slot information, including mechanisms                                     |
-|`p11mv`         |"moves" (i.e. renames) object                                                     |
-|`p11rm`         |deletes  an object                                                                |
-|`p11wrap`       |wraps a key using one or several wrapping key(s)                                  |
-|`p11unwrap`     |unwraps a key                                                                     |
-|`p11rewrap`     |unwraps a key, and wrap it again under one or several wrapping key(s)             |
-|`masqreq`       |tunes a CSR to adjust DN and other fields (without re-signing)                    |
-|`p11mkcert`     |generates a self-signed certificate, suitable for Java JCA                        |
+| command name    | description                                                                      |
+| --------------- | -------------------------------------------------------------------------------- |
+| `p11cat`        | prints out in PEM format the content of a certificate or public key              |
+| `p11more`       | prints out, in human-readable format, the content of a certificate or public key |
+| `p11keygen`     | generates a key, and optionally wrap it under one or several wrapping key(s)     |
+| `p11kcv`        | computes a key check value                                                       |
+| `p11od`         | object dumper, dumps all attributes of an object                                 |
+| `p11setattr`    | sets attribute of an object                                                      |
+| `p11importcert` | imports a certificate and binds it to a corresponding private key, if found      |
+| `p11importpubk` | imports a public key                                                             |
+| `p11importdata` | imports a data file                                                              |
+| `p11ls`         | lists token contents                                                             |
+| `p11req`        | generates PKCS#10 CSR                                                            |
+| `p11slotinfo`   | prints slot information, including mechanisms                                    |
+| `p11mv`         | "moves" (i.e. renames) object                                                    |
+| `p11rm`         | deletes  an object                                                               |
+| `p11wrap`       | wraps a key using one or several wrapping key(s)                                 |
+| `p11unwrap`     | unwraps a key                                                                    |
+| `p11rewrap`     | unwraps a key, and wrap it again under one or several wrapping key(s)            |
+| `masqreq`       | tunes a CSR to adjust DN and other fields (without re-signing)                   |
+| `p11mkcert`     | generates a self-signed certificate, suitable for Java JCA                       |
 
 ## common arguments
 
@@ -143,12 +143,12 @@ Each command can be invoked without the need of any environment variable. Howeve
 information must be passed as arguments. To ease the pain, a few environment variables can be specified:
 
 | environment variable | argument equivalent | usage                      |
-|---------------------|---------------------|----------------------------|
-| `PKCS11LIB`         | `-l`                | path to PKCS\#11 library   |
-| `PKCS11NSSDIR`      | `-m`                | NSS configuration location |
-| `PKCS11SLOT`        | `-s`                | slot index                 |
-| `PKCS11TOKENLABEL`  | `-t`                | token label                |
-| `PKCS11PASSWORD`    | `-p`                | password                   |
+| -------------------- | ------------------- | -------------------------- |
+| `PKCS11LIB`          | `-l`                | path to PKCS\#11 library   |
+| `PKCS11NSSDIR`       | `-m`                | NSS configuration location |
+| `PKCS11SLOT`         | `-s`                | slot index                 |
+| `PKCS11TOKENLABEL`   | `-t`                | token label                |
+| `PKCS11PASSWORD`     | `-p`                | password                   |
 
 Environment variables obey to the same syntax as the corresponding arguments. Note that any argument present in the
 command line will override the corresponding environment variable.
@@ -159,14 +159,14 @@ To facilitate setting environment variables and/or arguments, there are wrapper 
 with the cryptographic tokens. All wrapper scripts begin with `with_` and are followed by the name of the platform. The
 following table lists existing scripts:
 
-| script name    | library              | equipment                                            |
-|----------------|----------------------|------------------------------------------------------|
+| script name    | library              | equipment                                             |
+| -------------- | -------------------- | ----------------------------------------------------- |
 | `with_beid`    | `libbeidpkcs11.so`   | Belgian national electronic ID card PKCS#11 interface |
-| `with_luna`    | `libCryptoki2_64.so` | Thales (Gemalto) Safenet Luna HSM                    |
-| `with_nfast`   | `libcknfast.so`      | Entrust (nCipher) nShield HSM                        |
-| `with_nss`     | `libsoftokn3.so`     | Mozilla.org NSS soft token                           |
-| `with_softhsm` | `libsofthsm2.so`     | OpenDNSSSEC SoftHSM v2                               |
-| `with_utimaco` | `libcs_pkcs11_R2.so` | Utimaco Security Server HSM                          |
+| `with_luna`    | `libCryptoki2_64.so` | Thales (Gemalto) Safenet Luna HSM                     |
+| `with_nfast`   | `libcknfast.so`      | Entrust (nCipher) nShield HSM                         |
+| `with_nss`     | `libsoftokn3.so`     | Mozilla.org NSS soft token                            |
+| `with_softhsm` | `libsofthsm2.so`     | OpenDNSSSEC SoftHSM v2                                |
+| `with_utimaco` | `libcs_pkcs11_R2.so` | Utimaco Security Server HSM                           |
 
 Each wrapper script is looking for a file `.pkcs11rc` within the current directory, or within any parent directory up to
 the root. This file is sourced as a shell script; default variables defined here will override defaults from the wrapper
@@ -244,20 +244,20 @@ flags are described, and all mechanisms are listed, along with their enabled fun
 
 The following table lists the meaning of abbreviations:
 
-|abbreviation|corresponding function      |
- |------------|----------------------------|
-|`enc`       |Encryption                  |
-|`dec`       |Decryption                  |
-|`hsh`       |Hashing                     |
-|`sig`       |Signature                   |
-|`sir`       |Signature with recovery     |
-|`vfy`       |Verification                |
-|`vre`       |Verification with recovery  |
-|`gen`       |Key generation              |
-|`gkp`       |Key pair generation         |
-|`wra`       |Wrapping                    |
-|`unw`       |Unwrapping                  |
-|`der`       |Derivation                  |
+| abbreviation | corresponding function     |
+| ------------ | -------------------------- |
+| `enc`        | Encryption                 |
+| `dec`        | Decryption                 |
+| `hsh`        | Hashing                    |
+| `sig`        | Signature                  |
+| `sir`        | Signature with recovery    |
+| `vfy`        | Verification               |
+| `vre`        | Verification with recovery |
+| `gen`        | Key generation             |
+| `gkp`        | Key pair generation        |
+| `wra`        | Wrapping                   |
+| `unw`        | Unwrapping                 |
+| `der`        | Derivation                 |
 
 The last column tells whether the operation takes place inside the boundaries of the cryptographic module (`HW`) or at the
 library level (`SW`).
@@ -381,38 +381,38 @@ $ p11ls seck/
 
 For each object, a quick list of attributes is displayed. The following table lists the meaning of these abbreviations:
 
-| abbreviation | meaning                                                               |
- |--------------|-----------------------------------------------------------------------|
-|    `AAU`     |the key requires authentication each time it is used                   |
-|    `ase`     |the key has always been sensitive                                      |
-|    `alm`     |the key has associated allowed mechanisms (use `p11od` to reveal)      |
-|    `dec`     |the key can be used for decryption                                     |
-|    `der`     |the key can be used for key derivation                                 |
-|    `drt`     |the key has a derive template (use `p11od` to reveal)                  |
-|    `enc`     |the key can be used for encryption                                     |
-|    `imp`     |the key has been imported (e.g. unwrapped)                             |
-|    `loc`     |the key has been generated locally                                     |
-|    `NAS`     |the key has not always been sensitive                                  |
-|    `NSE`     |the key is not sensitive (clear text value could leave token boundary) |
-|    `nxt`     |the key has never been extractable                                     |
-|    `prv`     |the object is private, i.e. requires login to access                   |
-|    `pub`     |the object is public, i.e. can be accessed without login               |
-|    `r/o`     |the object attributes are unmodifiable                                 |
-|    `r/w`     |the object attributes are modifiable                                  |
-|    `sen`     |the key is sensitive                                                   |
-|    `sig`     |the key can be used for signature                                      |
-|    `sir`     |the key can be used for signature with recovery                        |
-|    `tok`     |the object is on token (always true)                                   |
-|    `tru`     |the object is trusted (`CKA_TRUST` attribute is set to `true`)         |
-|    `unw`     |the key can be used for key unwrapping                                 |
-|    `uwt`     |the key has an unwrap template (use `p11od` to reveal)                 |
-|    `vfy`     |the key can be used for signature verification                         |
-|    `vre`     |the key can be used for signature verification with recovery           |
-|    `wra`     |the key can be used for key wrapping                                   |
-|    `wrt`     |the key has a wrap template (use `p11od` to reveal)                    |
-|    `wtt`     |the key may be wrapped only with a trusted key                         |
-|    `WXT`     |the key has been at least once extractable                             |
-|    `XTR`     |the key is extractable                                                 |
+| abbreviation | meaning                                                                |
+| ------------ | ---------------------------------------------------------------------- |
+| `AAU`        | the key requires authentication each time it is used                   |
+| `ase`        | the key has always been sensitive                                      |
+| `alm`        | the key has associated allowed mechanisms (use `p11od` to reveal)      |
+| `dec`        | the key can be used for decryption                                     |
+| `der`        | the key can be used for key derivation                                 |
+| `drt`        | the key has a derive template (use `p11od` to reveal)                  |
+| `enc`        | the key can be used for encryption                                     |
+| `imp`        | the key has been imported (e.g. unwrapped)                             |
+| `loc`        | the key has been generated locally                                     |
+| `NAS`        | the key has not always been sensitive                                  |
+| `NSE`        | the key is not sensitive (clear text value could leave token boundary) |
+| `nxt`        | the key has never been extractable                                     |
+| `prv`        | the object is private, i.e. requires login to access                   |
+| `pub`        | the object is public, i.e. can be accessed without login               |
+| `r/o`        | the object attributes are unmodifiable                                 |
+| `r/w`        | the object attributes are modifiable                                   |
+| `sen`        | the key is sensitive                                                   |
+| `sig`        | the key can be used for signature                                      |
+| `sir`        | the key can be used for signature with recovery                        |
+| `tok`        | the object is on token (always true)                                   |
+| `tru`        | the object is trusted (`CKA_TRUST` attribute is set to `true`)         |
+| `unw`        | the key can be used for key unwrapping                                 |
+| `uwt`        | the key has an unwrap template (use `p11od` to reveal)                 |
+| `vfy`        | the key can be used for signature verification                         |
+| `vre`        | the key can be used for signature verification with recovery           |
+| `wra`        | the key can be used for key wrapping                                   |
+| `wrt`        | the key has a wrap template (use `p11od` to reveal)                    |
+| `wtt`        | the key may be wrapped only with a trusted key                         |
+| `WXT`        | the key has been at least once extractable                             |
+| `XTR`        | the key is extractable                                                 |
 
 For keys, the last attribute is always `KEY(PARAM)`, with `KEY` representing the key algorithm, and `PARAM` the key
 parameter(s).
@@ -756,31 +756,31 @@ without `CKK_`) can be used. Note that all key types are not supported. Valid ex
 
 The following table provides a list of currently supported key types:
 
-| key type           | alias                         |
-|--------------------|-------------------------------|
-|`CKK_AES`           |`aes`                          |
-|`CKK_DES2`          |`des2`                         |
-|`CKK_DES3`          |`des3`                         |
-|`CKK_DES`           |`des`                          |
-|`CKK_DH`            |`dh`                           |
-|`CKK_DSA`           |`dsa`                          |
-|`CKK_EC_EDWARDS`    |`ec_edwards`, `edwards`, `ed`  |
-|`CKK_EC`            |`ec`                           |
-|`CKK_GENERIC_SECRET`|`generic_secret`, `generic`    |
-|`CKK_MD5_HMAC`      |`md5_hmac`                     |
-|`CKK_RSA`           |`rsa`                          |
-|`CKK_SHA224_HMAC`   |`sha224_hmac`                  |
-|`CKK_SHA256_HMAC`   |`sha256_hmac`                  |
-|`CKK_SHA384_HMAC`   |`sha384_hmac`                  |
-|`CKK_SHA512_HMAC`   |`sha512_hmac`                  |
-|`CKK_SHA_1_HMAC`    |`sha_1_hmac`, `sha1_hmac`      |
+| key type             | alias                         |
+| -------------------- | ----------------------------- |
+| `CKK_AES`            | `aes`                         |
+| `CKK_DES2`           | `des2`                        |
+| `CKK_DES3`           | `des3`                        |
+| `CKK_DES`            | `des`                         |
+| `CKK_DH`             | `dh`                          |
+| `CKK_DSA`            | `dsa`                         |
+| `CKK_EC_EDWARDS`     | `ec_edwards`, `edwards`, `ed` |
+| `CKK_EC`             | `ec`                          |
+| `CKK_GENERIC_SECRET` | `generic_secret`, `generic`   |
+| `CKK_MD5_HMAC`       | `md5_hmac`                    |
+| `CKK_RSA`            | `rsa`                         |
+| `CKK_SHA224_HMAC`    | `sha224_hmac`                 |
+| `CKK_SHA256_HMAC`    | `sha256_hmac`                 |
+| `CKK_SHA384_HMAC`    | `sha384_hmac`                 |
+| `CKK_SHA512_HMAC`    | `sha512_hmac`                 |
+| `CKK_SHA_1_HMAC`     | `sha_1_hmac`, `sha1_hmac`     |
 
 ### supported attributes
 
 The following table describes a list of all supported attributes.
 
 | attribute                | alternate name       | type             | default (when available)                    |
-|--------------------------|----------------------|------------------|---------------------------------------------|
+| ------------------------ | -------------------- | ---------------- | ------------------------------------------- |
 | `CKA_ALLOWED_MECHANISMS` | `allowed_mechanisms` | mechanisms array |                                             |
 | `CKA_CLASS`              | `class`              | class            |                                             |
 | `CKA_COPYABLE`           | `copyable`           | boolean          |                                             |
@@ -842,14 +842,14 @@ The key check value is computed as follows:
 
 - For all keys:
   - kcv: if `CKA_CHECK_VALUE` attribute is present on the key, and `kcv` is specified as the algorithm, the key check value is retrieved from the attribute value.
-  
+
 - For DES keys:
   - legacy: signature or encryption on a block of 8 zeroized bytes, using ECB mode
   - mac: FIPS PUB 113 MAC computation on a block of 8 zeroized bytes
-  
+
 - In addition, for 3DES keys:
   - cmac: RFC4493 CMAC computation on a block of 16 zeroized bytes
-   
+
 - For AES keys:
   - legacy: signature or encryption on a block of 16 zeroized bytes, using ECB mode
   - cmac: RFC4493 CMAC computation on a block of 16 zeroized bytes
@@ -1021,17 +1021,17 @@ xL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4o
 the commands `p11wrap` and `p11unwrap` can be used to respectively wrap and unwrap keys. Several algorithms are
 available, as described in the table below.
 
-| `-a` argument | wrapping algorithm            | PKCS\#11 mechanism    | wrapping key | wrapped key                      | remark                        |
-|---------------|-------------------------------|-----------------------|--------------|----------------------------------|-------------------------------|
-| `pkcs1`       | PKCS#1 v1.5, RFC8017         | `CKM_RSA_PKCS`        | RSA          | symmetric, secret(HMAC)          | considered insecure Today     |
-| `oaep`        | OAEP, RFC8017                 | `CKM_RSA_PKCS_OAEP`   | RSA          | symmetric, secret(HMAC)          | default                       |
-| `cbcpad`      | CBC mode, with PKCS#7 padding | `CKM_AES_CBC_PAD`     | AES          | any key type                     | widely supported              |
-|               |                               | `CKM_DES_CBC_PAD`     | DES          | any key type                     |                               |
-| `rfc3394`     | RFC3394, NIST SP.800.38F      | `CKM_AES_KEY_WRAP`    | AES          | any key type, aligned on 8 bytes | useful for symmetric keys     |
-| `rfc5649`     | RFC5649, NIST SP.800.38F      | `CKM_AES_KEY_WRAP_PAD`| AES          | any key type                     |                               |
-| `envelope`    | combines `pkcs1` or `oaep`    |                       | RSA/AES      | any key type                     | allows to wrap any key using  |
-|               | with `cbcpad`, `rfc3394` or   |                       |              |                                  | a top level RSA key           |
-|               | `rfc5649`                     |                       |              |                                  |                               |
+| `-a` argument | wrapping algorithm            | PKCS\#11 mechanism     | wrapping key | wrapped key                      | remark                       |
+| ------------- | ----------------------------- | ---------------------- | ------------ | -------------------------------- | ---------------------------- |
+| `pkcs1`       | PKCS#1 v1.5, RFC8017          | `CKM_RSA_PKCS`         | RSA          | symmetric, secret(HMAC)          | considered insecure Today    |
+| `oaep`        | OAEP, RFC8017                 | `CKM_RSA_PKCS_OAEP`    | RSA          | symmetric, secret(HMAC)          | default                      |
+| `cbcpad`      | CBC mode, with PKCS#7 padding | `CKM_AES_CBC_PAD`      | AES          | any key type                     | widely supported             |
+|               |                               | `CKM_DES_CBC_PAD`      | DES          | any key type                     |                              |
+| `rfc3394`     | RFC3394, NIST SP.800.38F      | `CKM_AES_KEY_WRAP`     | AES          | any key type, aligned on 8 bytes | useful for symmetric keys    |
+| `rfc5649`     | RFC5649, NIST SP.800.38F      | `CKM_AES_KEY_WRAP_PAD` | AES          | any key type                     |                              |
+| `envelope`    | combines `pkcs1` or `oaep`    |                        | RSA/AES      | any key type                     | allows to wrap any key using |
+|               | with `cbcpad`, `rfc3394` or   |                        |              |                                  | a top level RSA key          |
+|               | `rfc5649`                     |                        |              |                                  |                              |
 
 To wrap a key, you will need:
 
