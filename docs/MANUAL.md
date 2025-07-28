@@ -271,7 +271,7 @@ additional capabilities printed:
 | `F^2m`       | Supports curves defined over power of 2 fields  |
 | `par`        | Supports custom parameters curves               |
 | `nam`        | Supports well-known named curves                |
-| `unc`        | Supports compressed points representation       |
+| `unc`        | Supports uncompressed points representation     |
 | `cmp`        | Supports compressed points representation       |
 
 Here is an example of `p11slotinfo` executed with SoftHSMv2:
