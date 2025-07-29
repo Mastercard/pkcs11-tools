@@ -1,0 +1,21 @@
+# p11od(1) completion                                      -*- shell-script -*-
+#
+# Bash autocompletion for `p11od`.
+# Provides dynamic suggestions for PKCS#11 object filters
+# based on current lib, slot, and pin arguments.
+#
+# Depends on:
+#   - ./p11-common
+#
+# Usage:
+#   Autocompletes when user types:
+#     p11od -l <lib> -s <slot> -p <pin> <TAB>
+
+source "$(dirname "${BASH_SOURCE[0]}")/p11-common"
+
+_p11od() {
+  local cur="${COMP_WORDS[COMP_CWORD]}"
+  __p11_complete_filters "$cur"
+}
+
+complete -F _p11od p11od
