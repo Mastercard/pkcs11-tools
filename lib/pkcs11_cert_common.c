@@ -533,12 +533,6 @@ EVP_PKEY *pkcs11_SPKI_from_EC(pkcs11AttrList *attrlist )
       goto err;
     }
 
-    /* create point container (OCTET STRING) */
-    if( (ec_point_container=ASN1_OCTET_STRING_new()) == NULL ) {
-	P_ERR();
-	goto err;
-    }
-
     /* extract point value into ASN1_OCTET_STRING structure */
     attr = pkcs11_get_attr_in_attrlist(attrlist, CKA_EC_POINT);
     if(attr == NULL) {

@@ -369,11 +369,6 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 				    goto key_ec_error;
 				}
 
-				/* create point container (OCTET STRING) */
-				if( (ec_point_container=ASN1_OCTET_STRING_new()) == NULL ) {
-				    P_ERR();
-				    goto key_ec_error;
-				}
 				/* extract point value into ASN1_OCTET_STRING structure */
 				/* openssl pattern: &pp will be incremented beyond size of DER struct */
 				pp = oecpoint->pValue; /* copy the pointer */
