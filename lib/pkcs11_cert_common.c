@@ -533,12 +533,6 @@ EVP_PKEY *pkcs11_SPKI_from_EC(pkcs11AttrList *attrlist )
       goto err;
     }
 
-    /* create point container (OCTET STRING) */
-    if( (ec_point_container=ASN1_OCTET_STRING_new()) == NULL ) {
-	P_ERR();
-	goto err;
-    }
-
     /* extract point value into ASN1_OCTET_STRING structure */
     attr = pkcs11_get_attr_in_attrlist(attrlist, CKA_EC_POINT);
     if(attr == NULL) {
@@ -548,8 +542,19 @@ EVP_PKEY *pkcs11_SPKI_from_EC(pkcs11AttrList *attrlist )
     ptr = attr->pValue; /* copy the pointer, check OpenSSL d2i & i2d API doc for details */
     
     if(d2i_ASN1_OCTET_STRING(&ec_point_container, &ptr, attr->ulValueLen) == NULL ) {
-	P_ERR();
-	goto err;
+	/* P_ERR(); */
+	fprintf(stderr, "Warning: CKA_EC_POINT format likely not compliant, trying alternate way to decode public key\n");
+	/* d2i_TYPE() will NULLify the destination pointer in case of error (??!) */
+	/* we need to reset the value */
+	if( (ec_point_container=ASN1_OCTET_STRING_new()) == NULL ) {
+	    P_ERR();
+	    goto err;
+	}
+
+	if(ASN1_OCTET_STRING_set(ec_point_container, attr->pValue, attr->ulValueLen) == 0) {
+	    P_ERR();
+	    goto err;
+	}
     }
 
     /* extract point from PKCS#11 attribute */

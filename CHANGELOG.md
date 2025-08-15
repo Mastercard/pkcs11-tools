@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [UNPUBLISHED]
 ### Added
+- support public key extraction for libraries with non-compliant `CKA_EC_POINT` implementations (with no OCTET STRING encapsulation)
 - support for Docker builds
 - `p11req` and `p11mkcert` now support RSA-PSS signature (add `-a pss` arguments to select it)
 - `p11kcv` beefed up, to support multiple MACing algorithms, as well as displaying the value of `CKA_CHECK_VALUE`
