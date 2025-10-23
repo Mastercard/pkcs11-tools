@@ -173,7 +173,7 @@ RUN . /meta/env \
 
 # Build the .deb package
 RUN . /meta/env \
-    && dpkg-deb --build /deb_build /artifacts/libpkcs11shim-${DISTRO_SHORT_NAME}-${PKG_ARCH}-${PKG_VERSION}${PKG_GITSUFFIX}.deb
+    && dpkg-deb --build /deb_build /artifacts/pkcs11-tools-${DISTRO_SHORT_NAME}-${PKG_ARCH}-${PKG_VERSION}${PKG_GITSUFFIX}.deb
 
 # Final command to list the artifacts
 CMD [ "find", "/artifacts", "-type", "f" ]
