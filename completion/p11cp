@@ -1,0 +1,21 @@
+# p11cp(1) completion                                      -*- shell-script -*-
+#
+# Bash autocompletion for `p11cp`.
+# Provides dynamic suggestions for the SOURCE argument
+# based on current lib, slot, and pin arguments. 
+#
+# Depends on:
+#   - ./p11-common
+#
+# Usage:
+#   Autocompletes when user types:
+#     p11cp -l <lib> -s <slot> -p <pin> <TAB>
+
+source "$(dirname "${BASH_SOURCE[0]}")/p11-common"
+
+_p11cp() {
+  local cur="${COMP_WORDS[COMP_CWORD]}"
+  __p11_complete_filters "$cur"
+}
+
+complete -F _p11cp p11cp
