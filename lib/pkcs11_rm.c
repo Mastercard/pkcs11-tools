@@ -34,11 +34,26 @@ int pkcs11_rm_objects_with_label(pkcs11Context *p11Context, char *label, int int
 
     int rv=0;
     pkcs11Search *search=NULL;
-
-
     pkcs11IdTemplate *idtmpl=NULL;
 
-    idtmpl = pkcs11_create_id(label);
+    /* trick: we treat "cert", "pubk", "prvk", "seck" and "data" in front of the templating system */
+    /* so these specific labels can be used as shortcut for the corresponding object classes       */
+
+    if(label!=NULL) {
+	if(strcasecmp("cert",label)==0) {
+	    idtmpl = pkcs11_make_idtemplate(CLASS_CERT);
+	} else if (strcasecmp("pubk",label)==0) {
+	    idtmpl = pkcs11_make_idtemplate(CLASS_PUBK);
+	} else if (strcasecmp("prvk",label)==0) {
+	    idtmpl = pkcs11_make_idtemplate(CLASS_PRVK);
+	} else if (strcasecmp("seck",label)==0) {
+	    idtmpl = pkcs11_make_idtemplate(CLASS_SECK);
+	} else if (strcasecmp("data",label)==0) {
+	    idtmpl = pkcs11_make_idtemplate(CLASS_DATA);
+	} else {
+	    idtmpl = pkcs11_create_id(label);
+	}
+    }
 
     if(idtmpl && pkcs11_sizeof_idtemplate(idtmpl)>0) {
 
