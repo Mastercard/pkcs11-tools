@@ -763,9 +763,11 @@ const char *pkcs11_get_mechanism_name_from_type(CK_MECHANISM_TYPE mech); /* pkcs
 CK_ATTRIBUTE_TYPE pkcs11_get_attribute_type_from_name(char *name); /* pkcs11_attrdesc.c */
 // const char *pkcs11_get_attribute_name_from_type(CK_ATTRIBUTE_TYPE attrtyp); /* pkcs11_attrdesc.c */
 
+/* library, slot and token info */
 func_rc pkcs11_info_library(pkcs11Context *p11Context);
 func_rc pkcs11_info_slot(pkcs11Context *p11Context);
 func_rc pkcs11_info_ecsupport(pkcs11Context *p11Context);
+func_rc pkcs11_enumerate_slots_with_token(pkcs11Context *p11Context);
 
 /* chattr function */
 func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, CK_ATTRIBUTE *attr, size_t cnt, int interactive );

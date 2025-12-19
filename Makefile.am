@@ -41,6 +41,42 @@ SUBDIRS = gl lib src
 ACLOCAL_AMFLAGS = -I m4
 
 
+completionsdir = $(datadir)/bash-completion/completions
+completions_DATA = \
+	completion/bash/p11-common \
+	completion/bash/p11cat \
+	completion/bash/p11cp \
+	completion/bash/p11importcert \
+	completion/bash/p11importdata \
+	completion/bash/p11importpubk \
+	completion/bash/p11kcv \
+	completion/bash/p11keycomp \
+	completion/bash/p11keygen \
+	completion/bash/p11ls \
+	completion/bash/p11mkcert \
+	completion/bash/p11more \
+	completion/bash/p11mv \
+	completion/bash/p11od \
+	completion/bash/p11req \
+	completion/bash/p11rewrap \
+	completion/bash/p11rm \
+	completion/bash/p11setattr \
+	completion/bash/p11slotinfo \
+	completion/bash/p11unwrap \
+	completion/bash/p11wrap
+EXTRA_DIST += $(completions_DATA)
+
+
+zshcompletionsdir = $(datadir)/zsh/site-functions
+zshcompletions_DATA = _p11tools
+EXTRA_DIST += completion/zsh/_p11tools.in
+CLEANFILES = $(zshcompletions_DATA)
+
+_p11tools: $(srcdir)/completion/zsh/_p11tools.in Makefile
+	@# Replace @COMPLETIONSDIR@ with the actual completionsdir path
+	sed "s|@COMPLETIONSDIR@|$(completionsdir)|g" $(srcdir)/completion/zsh/_p11tools.in > $@
+
+
 install-exec-hook:
 	$(INSTALL) 	               \
 		$(srcdir)/with_beid    \

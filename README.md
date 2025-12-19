@@ -176,7 +176,7 @@ To avoid specifying command line arguments, environment variables can be specifi
 | `-l`       |path to library                    |`PKCS11LIB`         |
 | `-m`       |path to NSS keystore (for NSS only)|`PKCS11NSSDIR`      |
 | `-s`       |slot index number                  |`PKCS11SLOT`        |
-| `-t`       |token name                         |`PKCS11TOKEN`       |
+| `-t`       |token name                         |`PKCS11TOKENLABEL`  |
 | `-p`       |token password                     |`PKCS11PASSWORD`    |
 
 To extract the value of a non-sensitive object, use `p11cat`:
@@ -307,6 +307,41 @@ key unwrapping succeeded
 The project can compile on many platforms, including Linux, AIX, Solaris. Using cross-compilers, it is also possible to
 compile for the Windows platform. Compilation under macOS requires [brew](https://brew.sh/). Please refer
 to [docs/INSTALL.md](docs/INSTALL.md) for installation instructions.
+
+### Shell completion
+
+After `make install`, `bash` and `zsh` completion is installed for all `p11*` tools and is loaded automatically by the completion framework - simply press `<TAB>`, there is nothing to source.
+
+Completion has three levels, depending on the information available on the command line:
+
+- **Static** completions (command options, key types, curves, wrapping algorithms, SAN prefixes, file paths) require no token access.
+- **Slot / token** completion activates once a library is known, either via `-l <lib>` or by exporting `PKCS11LIB`.
+- **Object name** completion additionally requires a PIN, via `-p <pin>` or by exporting `PKCS11PASSWORD`.
+
+A few notes:
+
+- Variables must be **exported** to be visible to completion. Inline assignments such as `PKCS11LIB=... p11ls <TAB>` are *not* seen by the completion logic; use `export PKCS11LIB=...` instead.
+- Each slot, token or object `<TAB>` performs a live query against the token (it invokes `p11slotinfo -L` or `p11ls`), so there may be a short delay on slow or remote tokens. Static completions never contact the token.
+- Some vendor libraries require additional environment to expose all slots (for example, Entrust nShield needs `export CKNFAST_LOADSHARING=1` for softcards/OCS to appear).
+
+To register the completions manually without installing (e.g. when running from the build tree):
+
+```bash
+# load a single tool (it pulls in p11-common automatically)
+source completion/bash/p11ls
+# or load all tools at once
+for f in completion/bash/p11*; do source "$f"; done
+```
+
+To deregister the completions for the current shell:
+
+```bash
+complete -r p11cat p11cp p11importcert p11importdata p11importpubk p11kcv \
+            p11keycomp p11keygen p11ls p11mkcert p11more p11mv p11od p11req \
+            p11rewrap p11rm p11setattr p11slotinfo p11unwrap p11wrap
+```
+
+To disable all programmable completion for the shell, use `shopt -u progcomp` (re-enable with `shopt -s progcomp`). To prevent completion from being installed at all, remove the files under `$(datadir)/bash-completion/completions/p11*` and `$(datadir)/zsh/site-functions/_p11tools`; the binaries are unaffected.
 
 ## Manual
 
