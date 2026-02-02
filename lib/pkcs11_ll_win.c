@@ -98,7 +98,7 @@ void pkcs11_ll_echo_on(void)
 
 void pkcs11_ll_clear_screen(void)
 {
-    /* the code below has been taken from http://support.microsoft.com/kb/99261 */
+    /* the code below has been taken from https://learn.microsoft.com/en-us/windows/console/clearing-the-screen */
 
     /* Standard error macro for reporting API errors */ 
 #define PERR(bSuccess, api){if(!(bSuccess)) printf("%s:Error %d from %s on line %d\n", __FILE__, GetLastError(), api, __LINE__);}

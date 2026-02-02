@@ -9,7 +9,7 @@
 # DESCRIPTION
 #
 #   Let the user enable/disable support for the dmalloc library available
-#   from <http://www.dmalloc.org/>.
+#   from <http://www.dmalloc.com/>.
 #
 #   The macro adds the command-line flag "--with-dmalloc". Furthermore,
 #   "-IPREFIX/include" will be added to "$CPPFLAGS", "-LPREFIX/lib" to

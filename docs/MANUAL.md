@@ -7,12 +7,12 @@ the [PKCS\#11 standard](https://www.oasis-open.org/committees/tc_home.php?wg_abb
 important place in key management and operation, for various reasons:
 
 - Virtually all HSM and smart card vendors support this interface
-- Software libraries, such a [SoftHSM](https://www.opendnssec.org/softhsm/) supports
+- Software libraries, such a [SoftHSM](https://www.opendnssec.org/en/latest/softhsm/) supports
   it; [NSS](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS) also exposes a PKCS\#11 interface, although
   it requires specific API calls to initialize
 - Java
   platforms ([IBM](https://www.ibm.com/support/knowledgecenter/SSYKE2_8.0.0/com.ibm.java.security.component.80.doc/security-component/pkcs11implDocs/ibmpkcs11.html)
-  and [Oracle](https://docs.oracle.com/en/java/javase/11/security/pkcs11-reference-guide1.html)) both support, through
+  and [Oracle](https://docs.oracle.com/en/java/javase/11/security/pkcs11-reference-guide.html)) both support, through
   JCE providers, access to PKCS\#11-protected keys and certificates
 - It is also widely supported in many other languages and platforms (C++, Python, Rust, Ruby, ...)
 
