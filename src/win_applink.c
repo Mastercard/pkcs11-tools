@@ -17,7 +17,7 @@
  */
 
 /* This glue code is needed under Windows,  */
-/* please refer to https://www.openssl.org/support/faq.html#PROG2  */
+/* please refer to https://docs.openssl.org/1.1.1/man3/OPENSSL_Applink/  */
 /* for more information */
 
 
