@@ -55,7 +55,7 @@ __Note that support for AWS CloudHSM is disabling a few features in the toolkit,
  * While a prefix can be specified at configuration time, the toolkit utility make no use of any hardcoded path.  Using `--prefix=$PWD`will deploy the binaries into a `bin` subdir, relative to the current directory.
  if that option is omitted, the default is to deploy in `/usr/local`, when invoking `make install`. In which case, you will need to be a `root` user when `make install` (or to use `su` or `sudo`) .
  * OpenSSL v1.1.1e or above is required to compile the toolkit. Please refer to [OpenSSL 1.1.1](#openssl-111) for details how to deploy it on your system.
- * Windows 64 bits is currently not supported. See [Note on 64 bits executables](#note-on-64-bits-executables) for more information.
+ * Windows 64 bits is supported through cross-compilation with MinGW-w64. See [Windows 64-bit (cross-compiling with Docker)](#windows-64-bit-cross-compiling-with-docker) for more information.
 
 ### Pre-requisites
 In order to build the project from scratch, you will need
@@ -238,14 +238,26 @@ Then proceed as documented for [FreeBSD](#freebsd).
 #### Notes
 Building OpenSSL 1.1.1 on Solaris 10 may prove to be challenging. Please refer to [https://github.com/openssl/openssl/issues/6333](https://github.com/openssl/openssl/issues/6333) for additional information.
 
-### Windows (cross-compiling)
+### Windows 64-bit (cross-compiling with Docker)
+The recommended way to build Windows 64-bit executables is using the provided Dockerfile with Docker or Podman:
+
+```bash
+$ podman build -f buildx/Dockerfile.mingw64 -t pkcs11-tools-win64 .
+```
+
+To extract the binaries:
+```bash
+$ podman create --name win64-extract --entrypoint /bin/true localhost/pkcs11-tools-win64
+$ podman cp win64-extract:/ ./output-win64/
+$ podman rm win64-extract
+```
+
+The `output-win64/` directory will contain all `.exe` files and their required DLLs (`libcrypto`, `libssl`, `libwinpthread`, `libgcc_s_seh`). Copy the entire contents to your Windows machine to run.
+
+### Windows 32-bit (cross-compiling)
 Cross-compilation works with mingw32-gcc under linux. [Debian](https://www.debian.org/) distros are offering off-the-shelf cross-compilers, so the examples below are assuming [Debian](https://www.debian.org/) as the build platform.
 
 #### To create 32 bits executables:
-##### Note on 64 bits executables
-The creation of Windows-compatible 64 bits executable is not supported through GCC, as objects are not binary-compatible with those created with Visual Studio, see [this page](https://software.intel.com/en-us/articles/size-of-long-integer-type-on-different-architecture-and-os) for more information. Until the toolkit can be compiled under Visual Studio, no 64 bits executable for Windows can be created.
-
-In theory, producing Win64 executable can be achieved through compiling with Visual C++ platform. Any volunteering welcome :-)
 
 
 ##### Prerequisites

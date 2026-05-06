@@ -1,0 +1,93 @@
+# Dockerfile for cross-compiling pkcs11-tools for Windows 64-bit (MinGW)
+FROM fedora:41 AS base
+ENV TZ=UTC
+
+RUN dnf update -y \
+    && dnf install -y \
+    mingw64-gcc \
+    mingw64-openssl \
+    mingw64-pkg-config \
+    mingw64-winpthreads-static \
+    make \
+    flex \
+    bison \
+    automake \
+    autoconf \
+    autoconf-archive \
+    libtool \
+    git \
+    tar \
+    gzip \
+    perl \
+    && dnf clean all
+
+FROM base AS build
+WORKDIR /src
+COPY . .
+
+# Create a compatibility wrapper for lsearch/lfind on MinGW
+# MinGW's lsearch/lfind expect 'unsigned int *' for nelp, POSIX uses 'size_t *'
+RUN printf '%s\n' \
+    '#ifndef MINGW_COMPAT_H' \
+    '#define MINGW_COMPAT_H' \
+    '#ifdef __MINGW32__' \
+    '#undef lsearch' \
+    '#undef lfind' \
+    'static inline void *mingw_lsearch(const void *key, void *base,' \
+    '                                   size_t *nelp, size_t width,' \
+    '                                   int (*compar)(const void *, const void *))' \
+    '{' \
+    '    unsigned int n = (unsigned int)*nelp;' \
+    '    void *result = lsearch(key, base, &n, (unsigned int)width, compar);' \
+    '    *nelp = (size_t)n;' \
+    '    return result;' \
+    '}' \
+    'static inline void *mingw_lfind(const void *key, const void *base,' \
+    '                                 size_t *nelp, size_t width,' \
+    '                                 int (*compar)(const void *, const void *))' \
+    '{' \
+    '    unsigned int n = (unsigned int)*nelp;' \
+    '    void *result = lfind(key, base, &n, (unsigned int)width, compar);' \
+    '    return result;' \
+    '}' \
+    '#define lsearch mingw_lsearch' \
+    '#define lfind mingw_lfind' \
+    '#endif' \
+    '#endif' \
+    > /src/lib/mingw_compat.h
+
+# Patch ALL source files that include search.h to also include our compat header
+RUN for f in lib/attribctx_helper.c lib/wrappedkey_helper.c lib/pkcs11_keygen.c \
+             lib/pkcs11_pubk.c lib/pkcs11_unwrap.c lib/pkcs11_wrapoutput.c \
+             lib/pkcs11_dh.c lib/pkcs11_dsa.c lib/pkcs11_attrdesc.c \
+             lib/pkcs11_attribctx.c lib/pkcs11_mechanism.c lib/pkcs11_wctx.c \
+             lib/pkcs11_wrap.c; do \
+      sed -i 's|#include <search.h>|#include <search.h>\n#include "mingw_compat.h"|' "$f" 2>/dev/null; \
+    done
+
+# Bootstrap and configure for Windows 64-bit cross-compilation
+RUN if [ ! -f configure ] || [ configure.ac -nt configure ]; then \
+        ./bootstrap.sh --shallow-clone; \
+    fi
+
+RUN mingw64-configure || \
+    ./configure --host=x86_64-w64-mingw32 \
+        PKG_CONFIG=x86_64-w64-mingw32-pkg-config \
+        CFLAGS="-I/usr/x86_64-w64-mingw32/sys-root/mingw/include" \
+        LDFLAGS="-L/usr/x86_64-w64-mingw32/sys-root/mingw/lib"
+
+RUN make -j$(nproc)
+
+# Collect output binaries and required DLLs
+RUN mkdir -p /dist \
+    && find src -name '*.exe' | xargs -I{} cp {} /dist/ 2>/dev/null || true \
+    && find src/.libs -name '*.exe' | xargs -I{} cp {} /dist/ 2>/dev/null || true \
+    && find lib/.libs -name '*.dll' | xargs -I{} cp {} /dist/ 2>/dev/null || true \
+    && cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libcrypto-*.dll /dist/ 2>/dev/null || true \
+    && cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libssl-*.dll /dist/ 2>/dev/null || true \
+    && cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libwinpthread-*.dll /dist/ 2>/dev/null || true \
+    && cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libgcc_s_seh-*.dll /dist/ 2>/dev/null || true \
+    && ls -la /dist/
+
+FROM scratch AS output
+COPY --from=build /dist/ /
