@@ -1,7 +1,38 @@
-# Dockerfile for cross-compiling pkcs11-tools for Windows 64-bit (MinGW)
-FROM fedora:41 AS base
+# Dockerfile for cross-compiling pkcs11-tools for Windows 64-bit (MinGW-w64)
+#
+# Copyright (c) 2025 Mastercard
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#   http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+ARG REPO_URL="https://github.com/Mastercard/pkcs11-tools"
+ARG REPO_COMMIT_OR_TAG="HEAD"
+ARG DISTRO_NAME="fedora"
+ARG DISTRO_VERSION="41"
+ARG DISTRO_SHORT_NAME="mingw64"
+ARG PROXY_ROOT_CA="DUMMY.pem"
+ARG CONFIG_ARGS=""
+
+# base0 is just the base image with the proxy root CA installed
+# note that if there is no proxy cert, a dummy value is used
+FROM ${DISTRO_NAME}:${DISTRO_VERSION} AS base0
+ARG PROXY_ROOT_CA
+COPY ${PROXY_ROOT_CA} /etc/pki/ca-trust/source/anchors/${PROXY_ROOT_CA}
+RUN dnf install -y ca-certificates && update-ca-trust
+
+FROM base0 AS base
 ENV TZ=UTC
 
+# Install MinGW-w64 cross-compilation toolchain and build tools
 RUN dnf update -y \
     && dnf install -y \
     mingw64-gcc \
@@ -18,12 +49,40 @@ RUN dnf update -y \
     git \
     tar \
     gzip \
+    zip \
     perl \
     && dnf clean all
 
-FROM base AS build
+FROM base AS gitcloned
+ARG REPO_URL
+ARG REPO_COMMIT_OR_TAG
+
+# The meta directory is used to store the version information
+RUN mkdir -p /meta
+
+# Clone the repository
 WORKDIR /src
-COPY . .
+RUN git clone $REPO_URL .
+RUN git checkout $REPO_COMMIT_OR_TAG
+
+# Windows 64-bit cross-compilation always produces x86_64 binaries
+RUN echo "PKG_ARCH=\"x86_64\"" >> /meta/env
+
+# Retrieve version information from git
+RUN PKG_VERSION=$(git describe --tags | sed -E 's/^v([^\-]+)(-.*)?$/\1/' ) \
+    PKG_RELEASE=$(git describe --tags | sed -E 's/^v([^\-]+)(-.*)?$/\2/; s/^-//; s/^$/0/; s/-(.*)//' ) \
+    PKG_GITCOMMIT=$(git rev-parse --short HEAD) \
+    PKG_GITSUFFIX=$(git describe --tags | sed -E 's/^v([^\-]+)(-.*)?$/\2/;s/-([0-9]*)-g(.*)/~\2/') \
+    && echo "PKG_GITSUFFIX=\"$PKG_GITSUFFIX\"" >> /meta/env \
+    && echo "PKG_VERSION=\"$PKG_VERSION\"" >> /meta/env \
+    && echo "PKG_RELEASE=\"$PKG_RELEASE\"" >> /meta/env \
+    && echo "PKG_GITCOMMIT=\"$PKG_GITCOMMIT\"" >> /meta/env
+
+RUN echo "export PKG_GITSUFFIX PKG_VERSION PKG_RELEASE PKG_GITCOMMIT PKG_ARCH" >> /meta/env
+
+
+FROM gitcloned AS builder
+ARG CONFIG_ARGS
 
 # Create a compatibility wrapper for lsearch/lfind on MinGW
 # MinGW's lsearch/lfind expect 'unsigned int *' for nelp, POSIX uses 'size_t *'
@@ -70,24 +129,48 @@ RUN if [ ! -f configure ] || [ configure.ac -nt configure ]; then \
         ./bootstrap.sh --shallow-clone; \
     fi
 
-RUN mingw64-configure || \
+RUN mingw64-configure $CONFIG_ARGS || \
     ./configure --host=x86_64-w64-mingw32 \
         PKG_CONFIG=x86_64-w64-mingw32-pkg-config \
         CFLAGS="-I/usr/x86_64-w64-mingw32/sys-root/mingw/include" \
-        LDFLAGS="-L/usr/x86_64-w64-mingw32/sys-root/mingw/lib"
+        LDFLAGS="-L/usr/x86_64-w64-mingw32/sys-root/mingw/lib" \
+        $CONFIG_ARGS
 
 RUN make -j$(nproc)
 
-# Collect output binaries and required DLLs
+# Collect output binaries and required DLLs into a staging directory
 RUN mkdir -p /dist \
-    && find src -name '*.exe' | xargs -I{} cp {} /dist/ 2>/dev/null || true \
-    && find src/.libs -name '*.exe' | xargs -I{} cp {} /dist/ 2>/dev/null || true \
-    && find lib/.libs -name '*.dll' | xargs -I{} cp {} /dist/ 2>/dev/null || true \
-    && cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libcrypto-*.dll /dist/ 2>/dev/null || true \
-    && cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libssl-*.dll /dist/ 2>/dev/null || true \
-    && cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libwinpthread-*.dll /dist/ 2>/dev/null || true \
-    && cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libgcc_s_seh-*.dll /dist/ 2>/dev/null || true \
+    && find src -name '*.exe' -exec cp {} /dist/ \; \
+    && (find src/.libs -name '*.exe' -exec cp {} /dist/ \; 2>/dev/null || true) \
+    && (find lib/.libs -name '*.dll' -exec cp {} /dist/ \; 2>/dev/null || true) \
+    && cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libcrypto-*.dll /dist/ \
+    && cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libssl-*.dll /dist/ \
+    && cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libwinpthread-*.dll /dist/ \
+    && cp /usr/x86_64-w64-mingw32/sys-root/mingw/bin/libgcc_s_seh-*.dll /dist/ \
     && ls -la /dist/
 
-FROM scratch AS output
-COPY --from=build /dist/ /
+# Strip binaries to reduce size
+RUN x86_64-w64-mingw32-strip /dist/*.exe /dist/*.dll 2>/dev/null || true
+
+# Install documentation alongside the binaries
+RUN cp README.md CHANGELOG.md COPYING /dist/ \
+    && cp docs/INSTALL.md docs/MANUAL.md docs/TPLICENSES.md /dist/
+
+# Final stage: package the binaries into both .zip (Windows-friendly) and .tar.gz
+FROM builder AS final
+ARG DISTRO_SHORT_NAME
+
+RUN mkdir -p /artifacts
+
+# Build the .zip archive (Windows-friendly format)
+RUN . /meta/env \
+    && cd /dist \
+    && zip -r /artifacts/pkcs11-tools-${DISTRO_SHORT_NAME}-${PKG_ARCH}-${PKG_VERSION}${PKG_GITSUFFIX}.zip .
+
+# Also build a .tar.gz for parity with the other distro builds
+RUN . /meta/env \
+    && cd /dist \
+    && tar -czf /artifacts/pkcs11-tools-${DISTRO_SHORT_NAME}-${PKG_ARCH}-${PKG_VERSION}${PKG_GITSUFFIX}.tar.gz .
+
+# Final command to list the artifacts (consumed by buildx.sh)
+CMD [ "find", "/artifacts", "-type", "f" ]

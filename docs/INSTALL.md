@@ -40,6 +40,7 @@ The following distributions are supported by the `buildx.sh` script:
 | Ubuntu 20.04 (Focal Fossa) | `ubuntu2004` |
 | Alpine Linux 3.21 | `alpine321` |
 | Amazon Linux 2023 | `amzn2023` |
+| Windows 64-bit (MinGW-w64 cross-compile) | `mingw64` |
 
 ### Docker buildx for AWS CloudHSM support
 To build the toolkit with AWS CloudHSM support using Docker buildx, you can use the following command:
@@ -239,20 +240,21 @@ Then proceed as documented for [FreeBSD](#freebsd).
 Building OpenSSL 1.1.1 on Solaris 10 may prove to be challenging. Please refer to [https://github.com/openssl/openssl/issues/6333](https://github.com/openssl/openssl/issues/6333) for additional information.
 
 ### Windows 64-bit (cross-compiling with Docker)
-The recommended way to build Windows 64-bit executables is using the provided Dockerfile with Docker or Podman:
+Windows 64-bit binaries are produced via MinGW-w64 cross-compilation, using the same `buildx.sh` workflow as the other supported distros. This requires Docker or Podman:
 
 ```bash
-$ podman build -f buildx/Dockerfile.mingw64 -t pkcs11-tools-win64 .
+$ ./buildx.sh mingw64
 ```
 
-To extract the binaries:
-```bash
-$ podman create --name win64-extract --entrypoint /bin/true localhost/pkcs11-tools-win64
-$ podman cp win64-extract:/ ./output-win64/
-$ podman rm win64-extract
-```
+The build produces two archives in the current directory:
+- `pkcs11-tools-mingw64-x86_64-<version>.zip` (Windows-friendly format)
+- `pkcs11-tools-mingw64-x86_64-<version>.tar.gz`
 
-The `output-win64/` directory will contain all `.exe` files and their required DLLs (`libcrypto`, `libssl`, `libwinpthread`, `libgcc_s_seh`). Copy the entire contents to your Windows machine to run.
+Each archive contains all `.exe` files and their required DLLs (`libcrypto`, `libssl`, `libwinpthread`, `libgcc_s_seh`), along with the documentation. Extract the archive on your Windows machine to run the tools.
+
+Notes:
+- Unlike the other distros, the `mingw64` target always produces Windows `x86_64` binaries regardless of the host architecture (it uses the MinGW-w64 cross-compiler inside a Fedora container).
+- All standard `buildx.sh` options (`--config-args`, `--proxyrootca`, `--commit`, etc.) apply.
 
 ### Windows 32-bit (cross-compiling)
 Cross-compilation works with mingw32-gcc under linux. [Debian](https://www.debian.org/) distros are offering off-the-shelf cross-compilers, so the examples below are assuming [Debian](https://www.debian.org/) as the build platform.
