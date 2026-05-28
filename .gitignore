@@ -53,6 +53,9 @@ Makefile.in
 *.tar
 *.tgz
 
+# buildx.sh artifacts
+pkcs11-tools-*.zip
+
 # Solaris distribution files
 *.pkg
 /pkg/

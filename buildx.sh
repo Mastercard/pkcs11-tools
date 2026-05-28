@@ -26,7 +26,7 @@ PACKAGE="pkcs11-tools"
 GITHUB_REPO="https://github.com/Mastercard/pkcs11-tools"
 GITHUB_REPO_COMMIT="HEAD"
 SUPPORTED_ARCHS="amd64 arm64"
-SUPPORTED_DISTROS="ol7 ol8 ol9 deb12 ubuntu2004 ubuntu2204 ubuntu2404 amzn2023 alpine321"
+SUPPORTED_DISTROS="ol7 ol8 ol9 deb12 ubuntu2004 ubuntu2204 ubuntu2404 amzn2023 alpine321 mingw64"
 
 # Declare an associative array, needed by docker buildx --platform option
 declare -A rev_arch_map
@@ -165,7 +165,7 @@ function create_build() {
     
     local artifacts=$(docker run --platform linux/$platformarch --name $containername $package-build-$distro-$arch)
     for artifact in $artifacts; do
-        docker cp --quiet $containername:$artifact $(get_current_dir)/
+        docker cp $containername:$artifact $(get_current_dir)/
     done
     docker rm -f $containername > /dev/null 2>&1
     echo "Done with for $distro on $arch, produced artifacts:"

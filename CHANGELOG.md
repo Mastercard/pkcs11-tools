@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - support public key extraction for libraries with non-compliant `CKA_EC_POINT` implementations (with no OCTET STRING encapsulation)
 - support for Docker builds
+- support for Windows 64-bit cross-compilation via MinGW-w64 (`buildx/Dockerfile.mingw64`)
 - `p11req` and `p11mkcert` now support RSA-PSS signature (add `-a pss` arguments to select it)
 - `p11kcv` beefed up, to support multiple MACing algorithms, as well as displaying the value of `CKA_CHECK_VALUE`
 - support for wrapping keys in JOSE Web Key format (JWK, RFC 7178)

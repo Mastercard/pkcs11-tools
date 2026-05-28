@@ -40,6 +40,7 @@ The following distributions are supported by the `buildx.sh` script:
 | Ubuntu 20.04 (Focal Fossa) | `ubuntu2004` |
 | Alpine Linux 3.21 | `alpine321` |
 | Amazon Linux 2023 | `amzn2023` |
+| Windows 64-bit (MinGW-w64 cross-compile) | `mingw64` |
 
 ### Docker buildx for AWS CloudHSM support
 To build the toolkit with AWS CloudHSM support using Docker buildx, you can use the following command:
@@ -55,7 +56,7 @@ __Note that support for AWS CloudHSM is disabling a few features in the toolkit,
  * While a prefix can be specified at configuration time, the toolkit utility make no use of any hardcoded path.  Using `--prefix=$PWD`will deploy the binaries into a `bin` subdir, relative to the current directory.
  if that option is omitted, the default is to deploy in `/usr/local`, when invoking `make install`. In which case, you will need to be a `root` user when `make install` (or to use `su` or `sudo`) .
  * OpenSSL v1.1.1e or above is required to compile the toolkit. Please refer to [OpenSSL 1.1.1](#openssl-111) for details how to deploy it on your system.
- * Windows 64 bits is currently not supported. See [Note on 64 bits executables](#note-on-64-bits-executables) for more information.
+ * Windows 64 bits is supported through cross-compilation with MinGW-w64. See [Windows 64-bit (cross-compiling with Docker)](#windows-64-bit-cross-compiling-with-docker) for more information.
 
 ### Pre-requisites
 In order to build the project from scratch, you will need
@@ -238,14 +239,27 @@ Then proceed as documented for [FreeBSD](#freebsd).
 #### Notes
 Building OpenSSL 1.1.1 on Solaris 10 may prove to be challenging. Please refer to [https://github.com/openssl/openssl/issues/6333](https://github.com/openssl/openssl/issues/6333) for additional information.
 
-### Windows (cross-compiling)
+### Windows 64-bit (cross-compiling with Docker)
+Windows 64-bit binaries are produced via MinGW-w64 cross-compilation, using the same `buildx.sh` workflow as the other supported distros. This requires Docker or Podman:
+
+```bash
+$ ./buildx.sh mingw64
+```
+
+The build produces two archives in the current directory:
+- `pkcs11-tools-mingw64-x86_64-<version>.zip` (Windows-friendly format)
+- `pkcs11-tools-mingw64-x86_64-<version>.tar.gz`
+
+Each archive contains all `.exe` files and their required DLLs (`libcrypto`, `libssl`, `libwinpthread`, `libgcc_s_seh`), along with the documentation. Extract the archive on your Windows machine to run the tools.
+
+Notes:
+- Unlike the other distros, the `mingw64` target always produces Windows `x86_64` binaries regardless of the host architecture (it uses the MinGW-w64 cross-compiler inside a Fedora container).
+- All standard `buildx.sh` options (`--config-args`, `--proxyrootca`, `--commit`, etc.) apply.
+
+### Windows 32-bit (cross-compiling)
 Cross-compilation works with mingw32-gcc under linux. [Debian](https://www.debian.org/) distros are offering off-the-shelf cross-compilers, so the examples below are assuming [Debian](https://www.debian.org/) as the build platform.
 
 #### To create 32 bits executables:
-##### Note on 64 bits executables
-The creation of Windows-compatible 64 bits executable is not supported through GCC, as objects are not binary-compatible with those created with Visual Studio, see [this page](https://software.intel.com/en-us/articles/size-of-long-integer-type-on-different-architecture-and-os) for more information. Until the toolkit can be compiled under Visual Studio, no 64 bits executable for Windows can be created.
-
-In theory, producing Win64 executable can be achieved through compiling with Visual C++ platform. Any volunteering welcome :-)
 
 
 ##### Prerequisites
