@@ -32,7 +32,17 @@ static int _max(const int a, const int b);
 
 static int compare_mech_type(const void *a, const void *b)
 {
-    return *(const CK_MECHANISM_TYPE *)b- *(const CK_MECHANISM_TYPE *)a;
+    /* ascending order, well-defined for the full CK_MECHANISM_TYPE range. */
+    /* A plain (b - a) subtraction of unsigned long values truncated to int  */
+    /* overflows for vendor-defined mechanisms (e.g. CKM_NSS_AES_KEY_WRAP_PAD */
+    /* = 0xCE534352, or CKM_VENDOR_DEFINED-based values >= 0x80000000) and is */
+    /* undefined behaviour; this comparison avoids that. Sorting ascending    */
+    /* keeps standard mechanisms (low values) before vendor-specific ones     */
+    /* (high values, thanks to CKM_VENDOR_DEFINED), so the standard mechanism */
+    /* is attempted first. */
+    const CK_MECHANISM_TYPE ma = *(const CK_MECHANISM_TYPE *)a;
+    const CK_MECHANISM_TYPE mb = *(const CK_MECHANISM_TYPE *)b;
+    return (ma > mb) - (ma < mb);
 }
 
 
@@ -279,6 +289,7 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
 	for(CK_ULONG i=0; i<mechlist_len && p11Context->rfc5649_mech_size<AES_WRAP_MECH_SIZE_MAX; i++) {
 	    switch(mechlist[i]) {
 	    case CKM_AES_KEY_WRAP_PAD:     /* nCipher v12.50+, SoftHSM v2 */
+	    case CKM_AES_KEY_WRAP_KWP:     /* PKCS#11 v3.0 standard RFC5649 mechanism */
 	    case CKM_NSS_AES_KEY_WRAP_PAD: /* specific to NSS */
 #if defined(HAVE_LUNA)
 	    case CKM_LUNA_AES_KWP:	/* on Safenet Gemalto Luna V7 */
