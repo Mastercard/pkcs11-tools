@@ -1027,17 +1027,18 @@ xL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4o
 the commands `p11wrap` and `p11unwrap` can be used to respectively wrap and unwrap keys. Several algorithms are
 available, as described in the table below.
 
-| `-a` argument | wrapping algorithm            | PKCS\#11 mechanism     | wrapping key | wrapped key                      | remark                       |
-| ------------- | ----------------------------- | ---------------------- | ------------ | -------------------------------- | ---------------------------- |
-| `pkcs1`       | PKCS#1 v1.5, RFC8017          | `CKM_RSA_PKCS`         | RSA          | symmetric, secret(HMAC)          | considered insecure Today    |
-| `oaep`        | OAEP, RFC8017                 | `CKM_RSA_PKCS_OAEP`    | RSA          | symmetric, secret(HMAC)          | default                      |
-| `cbcpad`      | CBC mode, with PKCS#7 padding | `CKM_AES_CBC_PAD`      | AES          | any key type                     | widely supported             |
-|               |                               | `CKM_DES_CBC_PAD`      | DES          | any key type                     |                              |
-| `rfc3394`     | RFC3394, NIST SP.800.38F      | `CKM_AES_KEY_WRAP`     | AES          | any key type, aligned on 8 bytes | useful for symmetric keys    |
-| `rfc5649`     | RFC5649, NIST SP.800.38F      | `CKM_AES_KEY_WRAP_PAD` | AES          | any key type                     |                              |
-| `envelope`    | combines `pkcs1` or `oaep`    |                        | RSA/AES      | any key type                     | allows to wrap any key using |
-|               | with `cbcpad`, `rfc3394` or   |                        |              |                                  | a top level RSA key          |
-|               | `rfc5649`                     |                        |              |                                  |                              |
+| `-a` argument | wrapping algorithm            | PKCS\#11 mechanism     | wrapping key | wrapped key                      | remark                                               |
+| ------------- | ----------------------------- | ---------------------- | ------------ | -------------------------------- | ---------------------------------------------------- |
+| `pkcs1`       | PKCS#1 v1.5, RFC8017          | `CKM_RSA_PKCS`         | RSA          | symmetric, secret(HMAC)          | considered insecure Today                            |
+| `oaep`        | OAEP, RFC8017                 | `CKM_RSA_PKCS_OAEP`    | RSA          | symmetric, secret(HMAC)          | default                                              |
+| `cbcpad`      | CBC mode, with PKCS#7 padding | `CKM_AES_CBC_PAD`      | AES          | any key type                     | widely supported                                     |
+|               |                               | `CKM_DES_CBC_PAD`      | DES          | any key type                     |                                                      |
+| `rfc3394`     | RFC3394, NIST SP.800.38F      | `CKM_AES_KEY_WRAP`     | AES          | any key type, aligned on 8 bytes | useful for symmetric keys; vendor variants supported |
+| `rfc5649`     | RFC5649, NIST SP.800.38F      | `CKM_AES_KEY_WRAP_PAD` | AES          | any key type                     | vendor variants supported                            |
+|               |                               | `CKM_AES_KEY_WRAP_KWP` |              |                                  | (PKCS#11 v3.0)                                       |
+| `envelope`    | combines `pkcs1` or `oaep`    |                        | RSA/AES      | any key type                     | allows to wrap any key using                         |
+|               | with `cbcpad`, `rfc3394` or   |                        |              |                                  | a top level RSA key                                  |
+|               | `rfc5649`                     |                        |              |                                  |                                                      |
 
 To wrap a key, you will need:
 
@@ -1070,9 +1071,11 @@ By default, the wrapping algorithm is set to `oaep`. You can change this with th
     * `iv=[HEX STRING prefixed with 0x]` - Initialisation vector, please refer to PKCS#11 `CKM_AES_CBC_PAD` description
       for more details.
 - `-a rfc3394`: private and secret key wrapping, as documented in RFC3394 and NIST.SP.800-38F, using `CKM_AES_KEY_WRAP`
-  mechanism or equivalent vendor-specific
-- `-a rfc5649`: private and secret key wrapping, as documented in RFC5649 and NIST.SP.800-38F,
-  using `CKM_AES_KEY_WRAP_PAD` mechanism or equivalent vendor-specific
+  mechanism, or an equivalent vendor-specific mechanism. The standard mechanism is preferred automatically when several are advertised by the token.
+- `-a rfc5649` or `-a rfc5649(flavour=<mech>)`: private and secret key wrapping, as documented in RFC5649 and NIST.SP.800-38F,
+  using `CKM_AES_KEY_WRAP_PAD` mechanism, or an equivalent vendor-specific mechanism. When several RFC5649-compatible mechanisms are advertised by the token, `CKM_AES_KEY_WRAP_PAD` (PKCS#11 v2.40) is preferred by default; otherwise the only mechanism available is used.
+  Use `flavour=` to force a specific mechanism on wrap (and to record it in the wrapped-key file so the receiver picks the same one on unwrap):
+    * `flavour=CKM_AES_KEY_WRAP_KWP` selects the PKCS#11 v3.0 standard mechanism
 - `-a envelope`: private and secret key wrapping, using the envelope wrapping technique (see envelope wrapping below)
 
 Alternatively, it is possible to specify one or more key/wrapping algorithm/output filename using `-W` optional and

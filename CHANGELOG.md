@@ -14,9 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - support for wrapping keys in JOSE Web Key format (JWK, RFC 7178)
 - new option `--enable-duplicate`, to override duplicate label protection when creating or importing a key (must be enabled at compile time)
 - search templates: it is now possible to add other attributes in a search, to filter out on more than one attribute
+- support for PKCS#11 v3.0 `CKM_AES_KEY_WRAP_KWP` mechanism as an RFC5649 implementation; selectable via `rfc5649(flavour=CKM_AES_KEY_WRAP_KWP)` in wrapping algorithm strings
+- the `# wrapping algorithm:` informational header of a wrapped-key file now reports the concrete inner and outer mechanisms for envelope wraps (e.g. `Envelope (inner=PKCS#11 v3.0 CKM_AES_KEY_WRAP_KWP (RFC5649), outer=PKCS#1 OAEP)`) instead of a bare `Envelope` label, making it possible to see which RFC5649 mechanism was actually used when a token advertises several. This is a comment-only change; it does not alter the machine-readable `Wrapping-Algorithm:` line and is fully backwards-compatible with `p11unwrap`.
 
 ### Fixed
 - small fix on with_xxx wrappers, replacing space with underscore in reply code
+- AES key wrap mechanism auto-selection: the `compare_mech_type()` qsort comparator computed `*(b) - *(a)` on `CK_MECHANISM_TYPE` (`unsigned long`) values and truncated the result to `int`. For vendor-defined mechanisms (e.g. `CKM_VENDOR_DEFINED`-based value `>= 0x80000000`) this overflowed, which is undefined behaviour and produced an incorrect, non-total ordering. On the affected platforms it sorted standard mechanisms *after* vendor-specific ones, contrary to the documented "standard mechanism preferred" behaviour (impacting both the `rfc3394` and `rfc5649` auto-pick lists). Replaced with a well-defined ascending comparison `(a>b)-(a<b)`, so standard mechanisms (`CKM_AES_KEY_WRAP`, `CKM_AES_KEY_WRAP_PAD`, `CKM_AES_KEY_WRAP_KWP`) are now reliably attempted before vendor-specific variants on all platforms. Output is unchanged for the common single-mechanism case; the byte-compatible RFC3394/RFC5649 result is also unchanged when multiple mechanisms are advertised.
 
 # [2.6.0]
 ### Added

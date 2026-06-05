@@ -157,6 +157,10 @@ static char const *_get_str_for_wrapping_algorithm(enum wrappingmethod w, CK_MEC
 			break;
 #endif
 
+		case CKM_AES_KEY_WRAP_KWP:
+		    rc = "PKCS#11 v3.0 CKM_AES_KEY_WRAP_KWP (RFC5649)";
+		    break;
+
 		default:
 		    rc = "Unknown???";
 	    }
@@ -171,7 +175,21 @@ static char const *_get_str_for_wrapping_algorithm(enum wrappingmethod w, CK_MEC
 
 static char const *get_wrapping_algorithm_short(wrappedKeyCtx *wctx) {
     if (wctx->is_envelope) {
-	return "Envelope";    /* TODO: recursive content */
+        /* Report the concrete inner/outer mechanisms instead of a bare
+        ** "Envelope" label. This is purely informational: it feeds the
+        ** human-readable "# wrapping algorithm:" comment line only, never the
+        ** machine-readable "Wrapping-Algorithm:" line, so it has no effect on
+        ** unwrap and is backwards-compatible. The static buffer is consumed
+        ** immediately by the caller (single-threaded CLI). The inner key uses
+        ** the AES wrapping mechanism; the outer key (w_pkcs1_*) ignores it. */
+        static char envelope_desc[256];
+        snprintf(envelope_desc, sizeof envelope_desc,
+                 "Envelope (inner=%s, outer=%s)",
+                 _get_str_for_wrapping_algorithm(wctx->key[WRAPPEDKEYCTX_INNER_KEY_INDEX].wrapping_meth,
+                                                 wctx->aes_params.aes_wrapping_mech),
+                 _get_str_for_wrapping_algorithm(wctx->key[WRAPPEDKEYCTX_OUTER_KEY_INDEX].wrapping_meth,
+                                                 0));
+        return envelope_desc;
     } else {
 	return _get_str_for_wrapping_algorithm(wctx->key[WRAPPEDKEYCTX_LONE_KEY_INDEX].wrapping_meth,
 					       wctx->aes_params.aes_wrapping_mech);
