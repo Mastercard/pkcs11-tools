@@ -25,8 +25,9 @@
 #include "pkcs11lib.h"
 
 #include <openssl/bio.h>
-#include <openssl/pem.h>
-#include <openssl/dh.h>
+#include <openssl/bn.h>
+#include <openssl/core_names.h>
+#include <openssl/evp.h>
 
 
 static int compare_CKA( const void *a, const void *b)
@@ -51,87 +52,27 @@ static CK_BBOOL has_extractable(CK_ATTRIBUTE_PTR template, CK_ULONG template_len
 }
 
 
-/* A few words about these pragmas:
-   Openssl macro system seems flawed when it comes to use d2i_xxxx_fp function. And GCC/CLANG are reporting
-   warning about incompatible pointer types.
-   As a last resort, a pragma sent to GCC disables the warning from showing up.
-   Ugly but works :-(
-*/
-
-#if defined(__GNUC__) || defined(__MINGW32__)
-/* Show no warning in case incompatible pointer types are used. */
-#define GCC_VERSION							\
-    (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
-#if GCC_VERSION >= 40500
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
-#endif /* GCC_VERSION >= 40500 */
-#endif /* defined(__GNUC__) || defined(__MINGW32__) */
-#if defined(__clang__)
-/* Show no warning in case incompatible pointer types are used. */
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wincompatible-pointer-types"
-#endif
-
-static inline DH * new_dhparam_from_file(char *filename)
+/* Load DH parameters from a file (auto-detects DER or PEM via OSSL_DECODER). */
+static inline EVP_PKEY * new_dhparam_from_file(char *filename)
 {
-
-    DH * rv = NULL;
-
+    EVP_PKEY *rv = NULL;
     FILE *fp = NULL;
 
-    fp = fopen(filename,"rb"); /* open in binary mode */
-
-    if(fp) {
-	DH *dhparam;
-
-	/* try DER first */
-
-	dhparam = d2i_DHparams_fp(fp, NULL);
-
-	fclose(fp);
-
-	if(dhparam) {
-	    puts("DER format detected");
-	    rv = dhparam;
-	} else {
-	    fp = fopen(filename,"r"); /* reopen in text mode */
-
-	    if(fp) {
-		dhparam = PEM_read_DHparams(fp, NULL, NULL, NULL);
-		fclose(fp);
-
-		if(dhparam) {
-		    puts("PEM format detected");
-		    rv = dhparam;
-		}
-	    } else {
-		perror("Error opening file");
-	    }
-	}
-    } else {
+    fp = fopen(filename,"rb"); /* binary; OSSL_DECODER copes with both DER and PEM */
+    if(fp == NULL) {
 	perror("Error opening file");
+	return NULL;
     }
-
+    rv = pkcs11_pkey_read_params_fp(fp, "DH");
+    fclose(fp);
     return rv;
 }
 
-#if defined(__GNUC__) || defined(__MINGW32__)
-/* Show no warning in case incompatible pointer types are used. */
-#if GCC_VERSION >= 40500
-#pragma GCC diagnostic pop
-#endif /* GCC_VERSION >= 40500 */
-#endif /* defined(__GNUC__) || defined(__MINGW32__) */
-#if defined(__clang__)
-/* Show no warning in case system functions are not used. */
-#pragma clang diagnostic pop
-#endif
 
-
-static inline void free_DHparam_handle(DH * hndl)
+static inline void free_DHparam_handle(EVP_PKEY * hndl)
 {
     if(hndl) {
-	OPENSSL_free( hndl );
+	EVP_PKEY_free(hndl);
     }
 }
 
@@ -169,16 +110,26 @@ static CK_ULONG get_OPENSSL_bytes_for_BIGNUM(const BIGNUM *b, CK_BYTE_PTR *buf)
 }
 
 
-static inline CK_ULONG get_DHparam_p(DH *hndl, CK_BYTE_PTR *buf) {
-  const BIGNUM *dh_p;
-  DH_get0_pqg(hndl, &dh_p, NULL, NULL);
-  return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(dh_p, buf) : 0L;
+static inline CK_ULONG get_DHparam_p(EVP_PKEY *hndl, CK_BYTE_PTR *buf) {
+    BIGNUM *dh_p = NULL;
+    CK_ULONG rv = 0;
+    if (hndl != NULL &&
+	pkcs11_pkey_get_bn(hndl, OSSL_PKEY_PARAM_FFC_P, &dh_p) == 1) {
+	rv = get_OPENSSL_bytes_for_BIGNUM(dh_p, buf);
+    }
+    if (dh_p) BN_free(dh_p);
+    return rv;
 }
 
-static inline CK_ULONG get_DHparam_g(DH *hndl, CK_BYTE_PTR *buf) {
-  const BIGNUM *dh_g;
-  DH_get0_pqg(hndl, NULL, NULL, &dh_g);
-  return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(dh_g, buf) : 0L;
+static inline CK_ULONG get_DHparam_g(EVP_PKEY *hndl, CK_BYTE_PTR *buf) {
+    BIGNUM *dh_g = NULL;
+    CK_ULONG rv = 0;
+    if (hndl != NULL &&
+	pkcs11_pkey_get_bn(hndl, OSSL_PKEY_PARAM_FFC_G, &dh_g) == 1) {
+	rv = get_OPENSSL_bytes_for_BIGNUM(dh_g, buf);
+    }
+    if (dh_g) BN_free(dh_g);
+    return rv;
 }
 
 func_rc pkcs11_genDH (pkcs11Context * p11ctx,
@@ -198,7 +149,7 @@ func_rc pkcs11_genDH (pkcs11Context * p11ctx,
 
     CK_BYTE id[32];
 
-    DH *dh = NULL;
+    EVP_PKEY *dh = NULL;
     CK_BYTE_PTR dh_p = NULL;
     CK_BYTE_PTR dh_g = NULL;
     CK_ULONG dh_p_len = 0L;

@@ -25,8 +25,9 @@
 #include "pkcs11lib.h"
 
 #include <openssl/bio.h>
-#include <openssl/pem.h>
-#include <openssl/dsa.h>
+#include <openssl/bn.h>
+#include <openssl/core_names.h>
+#include <openssl/evp.h>
 
 
 static int compare_CKA( const void *a, const void *b)
@@ -51,89 +52,30 @@ static CK_BBOOL has_extractable(CK_ATTRIBUTE_PTR template, CK_ULONG template_len
 }
 
 
-/* A few words about these pragmas:
-   Openssl macro system seems flawed when it comes to use d2i_xxxx_fp function. And GCC/CLANG are reporting
-   warning about incompatible pointer types.
-   As a last resort, a pragma sent to GCC disables the warning from showing up.
-   Ugly but works :-(
-*/
-
-#if defined(__GNUC__) || defined(__MINGW32__)
-/* Show no warning in case incompatible pointer types are used. */
-#define GCC_VERSION                                                            \
-	(__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
-#if GCC_VERSION >= 40500
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"
-#endif /* GCC_VERSION >= 40500 */
-#endif /* defined(__GNUC__) || defined(__MINGW32__) */
-#if defined(__clang__)
-/* Show no warning in case incompatible pointer types are used. */
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wincompatible-pointer-types"
-#endif
-
-static inline DSA * new_dsaparam_from_file(char *filename)
+/* Load DSA parameters from a file (auto-detects DER or PEM via OSSL_DECODER). */
+static inline EVP_PKEY * new_dsaparam_from_file(char *filename)
 {
-
-    DSA * rv = NULL;
-
+    EVP_PKEY *rv = NULL;
     FILE *fp = NULL;
 
-    fp = fopen(filename,"rb"); /* open in binary mode */
-
-    if(fp) {
-	DSA *dsaparam;
-
-	/* try DER first */
-
-	dsaparam = d2i_DSAparams_fp(fp, NULL);
-
-	fclose(fp);
-
-	if(dsaparam) {
-	    puts("DER format detected");
-	    rv = dsaparam;
-	} else {
-	    fp = fopen(filename,"r"); /* reopen in text mode */
-
-	    if(fp) {
-		dsaparam = PEM_read_DSAparams(fp, NULL, NULL, NULL);
-		fclose(fp);
-
-		if(dsaparam) {
-		    puts("PEM format detected");
-		    rv = dsaparam;
-		} else {
-		    P_ERR();
-		}
-	    } else {
-		perror("Error opening file");
-	    }
-	}
-    } else {
+    fp = fopen(filename,"rb"); /* binary; OSSL_DECODER copes with both DER and PEM */
+    if(fp == NULL) {
 	perror("Error opening file");
+	return NULL;
     }
-
+    rv = pkcs11_pkey_read_params_fp(fp, "DSA");
+    fclose(fp);
+    if(rv == NULL) {
+	P_ERR();
+    }
     return rv;
 }
 
-#if defined(__GNUC__) || defined(__MINGW32__)
-/* Show no warning in case incompatible pointer types are used. */
-#if GCC_VERSION >= 40500
-#pragma GCC diagnostic pop
-#endif /* GCC_VERSION >= 40500 */
-#endif /* defined(__GNUC__) || defined(__MINGW32__) */
-#if defined(__clang__)
-/* Show no warning in case system functions are not used. */
-#pragma clang diagnostic pop
-#endif
 
-
-static inline void free_DSAparam_handle(DSA * hndl)
+static inline void free_DSAparam_handle(EVP_PKEY * hndl)
 {
     if(hndl) {
-	OPENSSL_free( hndl );
+	EVP_PKEY_free(hndl);
     }
 }
 
@@ -171,22 +113,37 @@ static CK_ULONG get_OPENSSL_bytes_for_BIGNUM(const BIGNUM *b, CK_BYTE_PTR *buf)
 }
 
 
-static inline CK_ULONG get_DSAparam_p(DSA *hndl, CK_BYTE_PTR *buf) {
-  const BIGNUM *dsa_p;
-  DSA_get0_pqg(hndl, &dsa_p, NULL, NULL);
-  return hndl != NULL ? get_OPENSSL_bytes_for_BIGNUM(dsa_p, buf) : 0L;
+static inline CK_ULONG get_DSAparam_p(EVP_PKEY *hndl, CK_BYTE_PTR *buf) {
+    BIGNUM *dsa_p = NULL;
+    CK_ULONG rv = 0;
+    if (hndl != NULL &&
+	pkcs11_pkey_get_bn(hndl, OSSL_PKEY_PARAM_FFC_P, &dsa_p) == 1) {
+	rv = get_OPENSSL_bytes_for_BIGNUM(dsa_p, buf);
+    }
+    if (dsa_p) BN_free(dsa_p);
+    return rv;
 }
 
-static inline CK_ULONG get_DSAparam_q(DSA *hndl, CK_BYTE_PTR *buf) {
-  const BIGNUM *dsa_q;
-  DSA_get0_pqg(hndl, NULL, &dsa_q, NULL);
-  return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(dsa_q, buf) : 0L;
+static inline CK_ULONG get_DSAparam_q(EVP_PKEY *hndl, CK_BYTE_PTR *buf) {
+    BIGNUM *dsa_q = NULL;
+    CK_ULONG rv = 0;
+    if (hndl != NULL &&
+	pkcs11_pkey_get_bn(hndl, OSSL_PKEY_PARAM_FFC_Q, &dsa_q) == 1) {
+	rv = get_OPENSSL_bytes_for_BIGNUM(dsa_q, buf);
+    }
+    if (dsa_q) BN_free(dsa_q);
+    return rv;
 }
 
-static inline CK_ULONG get_DSAparam_g(DSA *hndl, CK_BYTE_PTR *buf) {
-  const BIGNUM *dsa_g;
-  DSA_get0_pqg(hndl, NULL, NULL, &dsa_g);
-  return hndl!=NULL ? get_OPENSSL_bytes_for_BIGNUM(dsa_g, buf) : 0L;
+static inline CK_ULONG get_DSAparam_g(EVP_PKEY *hndl, CK_BYTE_PTR *buf) {
+    BIGNUM *dsa_g = NULL;
+    CK_ULONG rv = 0;
+    if (hndl != NULL &&
+	pkcs11_pkey_get_bn(hndl, OSSL_PKEY_PARAM_FFC_G, &dsa_g) == 1) {
+	rv = get_OPENSSL_bytes_for_BIGNUM(dsa_g, buf);
+    }
+    if (dsa_g) BN_free(dsa_g);
+    return rv;
 }
 
 func_rc pkcs11_genDSA (pkcs11Context * p11ctx,
@@ -207,7 +164,7 @@ func_rc pkcs11_genDSA (pkcs11Context * p11ctx,
 
     CK_BYTE id[32];
 
-    DSA *dsa = NULL;
+    EVP_PKEY *dsa = NULL;
     CK_BYTE_PTR dsa_p = NULL;
     CK_BYTE_PTR dsa_q = NULL;
     CK_BYTE_PTR dsa_g = NULL;

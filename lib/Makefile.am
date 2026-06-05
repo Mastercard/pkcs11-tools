@@ -82,17 +82,20 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_data.c \
 	pkcs11_ec.c \
 	pkcs11_openssl.c \
+	pkcs11_pkey.c \
 	pkcs11_dsa.c \
 	pkcs11_dh.c \
-	pkcs11_ossl_rsa_meth.c \
-	pkcs11_ossl_dsa_meth.c \
-	pkcs11_ossl_ecdsa_meth.c \
-	pkcs11_ossl_eddsa_meth.c \
-	pkcs11_ossl_fake_sign.c
+	pkcs11_ossl_fake_sign.c \
+	pkcs11_provider_core.c \
+	pkcs11_provider_eddsa.c \
+	pkcs11_provider_rsa.c \
+	pkcs11_provider_ecdsa.c \
+	pkcs11_provider_dsa.c
 
 
 dist_libp11_la_SOURCES = \
 	gen_attrinfo_h.pl gen_mechinfo_h.pl pkcs11_ossl.h \
+	pkcs11_provider.h pkcs11_provider_internal.h \
 	wrappedkey_parser.h wrappedkey_parser.c \
 	wrappedkey_lexer.h wrappedkey_lexer.c \
 	attribctx_parser.h attribctx_parser.c \
