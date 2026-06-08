@@ -1,3 +1,4 @@
+# check=skip=SecretsUsedInArgOrEnv
 # Dockerfile for building pkcs11-tools for Oracle Linux 7
 #
 # Copyright (c) 2025 Mastercard
@@ -19,19 +20,32 @@ ARG REPO_COMMIT_OR_TAG="HEAD"
 ARG DISTRO_NAME="oraclelinux"
 ARG DISTRO_VERSION="7"
 ARG DISTRO_SHORT_NAME="ol7"
+ARG REPO_SSLVERIFY="true"
+ARG IGNORE_PROXY="false"
+ARG SOURCE_MODE="git"
 ARG PROXY_ROOT_CA="DUMMY.pem"
 ARG CONFIG_ARGS=""
+
+FROM pandoc/minimal:3-static AS pandocbin
+
+# Default fallback for the "extra-headers" build context: an empty filesystem.
+# Overridden when buildx.sh is invoked with --extra-header to bind-mount
+# additional cryptoki headers (e.g. real ncipher.h / luna.h) without polluting
+# the workspace.
+FROM scratch AS extra-headers
 
 # base0 is just the base image with the proxy root CA installed
 # note that if there is no proxy cert, a dummy value is used
 FROM ${DISTRO_NAME}:${DISTRO_VERSION} AS base0
 ARG PROXY_ROOT_CA
+USER root
 
 COPY ${PROXY_ROOT_CA} /etc/pki/ca-trust/source/anchors/
 RUN update-ca-trust extract
 
 FROM base0 AS base
 ARG DISTRO_SHORT_NAME
+USER root
 ENV TZ=UTC
 
 # Enable software collection for OL7 and deploy GCC 10 and other packages
@@ -51,83 +65,166 @@ RUN OL=ol$(rpm --eval "%{rhel}") EL=el$(rpm --eval "%{rhel}") \
     devtoolset-10-gcc \
     rpm-build \
     wget \
-    openssl11-devel \
+    perl \
+    perl-IPC-Cmd \
+    perl-Pod-Html \
     && yum clean all
 
-# Deploy pandoc from github
-WORKDIR /tmp
-RUN DISTROARCH=$(arch | sed 's/aarch64/arm64/;s/x86_64/amd64/') \
-    && wget -q https://github.com/jgm/pandoc/releases/download/3.6/pandoc-3.6-linux-$DISTROARCH.tar.gz \
-    && tar -xf pandoc-3.6-linux-$DISTROARCH.tar.gz -C /usr/local --strip-components 1 \
-    && rm pandoc-3.6-linux-$DISTROARCH.tar.gz
+# Reuse pandoc static binary from official image to avoid flaky GitHub release download.
+COPY --from=pandocbin /usr/local/bin/pandoc /usr/local/bin/pandoc
 
 
-FROM base AS gitcloned
+# Build OpenSSL 3 from source as a static library, because OL7 ships libcrypto 1.0.x
+# (and openssl11-devel only provides 1.1.x). pkcs11-tools requires libcrypto >= 3.0.0
+# and we want a self-contained binary.
+FROM base AS opensslbuilder
+USER root
+ARG REPO_SSLVERIFY
+ARG IGNORE_PROXY
+ARG OPENSSL_VERSION="openssl-3.5.0"
+
+WORKDIR /opt/openssl-src
+RUN if [ "$IGNORE_PROXY" = "true" ]; then \
+            if [ "$REPO_SSLVERIFY" != "true" ]; then \
+                env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u no_proxy -u NO_PROXY scl enable rh-git218 "git -c http.sslVerify=false clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git ."; \
+            else \
+                env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u no_proxy -u NO_PROXY scl enable rh-git218 "git clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git ."; \
+            fi; \
+        elif [ "$REPO_SSLVERIFY" != "true" ]; then \
+            scl enable rh-git218 "git -c http.sslVerify=false clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git ."; \
+        else \
+            scl enable rh-git218 "git clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git ."; \
+        fi
+RUN scl enable devtoolset-10 "./Configure no-shared no-tests no-docs no-apps --prefix=/opt/openssl3 --openssldir=/opt/openssl3/ssl \
+    && make -j $(nproc) \
+    && make install_sw" \
+    && rm -rf /opt/openssl-src
+
+
+# Source stage: --local-source mode.
+# The build context is the local workspace (a git checkout with submodules
+# already populated). We bind-mount it read-only into the build and clone
+# from it via local git protocol. No network, no copy of dirty files: only
+# the committed history is taken. Submodule URLs are rewritten to point at
+# the bind-mounted paths so submodule update works offline too.
+# On OL7 the system git is too old for protocol.file.allow, so use the SCL
+# rh-git218 toolchain throughout.
+FROM base AS source-local
+USER root
+WORKDIR /src
+ARG REPO_COMMIT_OR_TAG
+RUN --mount=type=bind,target=/host-repo,ro \
+    scl enable rh-git218 "git -c protocol.file.allow=always clone /host-repo /src" \
+ && cd /src \
+ && if [ "$REPO_COMMIT_OR_TAG" != "HEAD" ]; then scl enable rh-git218 "git checkout $REPO_COMMIT_OR_TAG"; fi \
+ && if [ -f .gitmodules ]; then \
+        scl enable rh-git218 "git config -f .gitmodules --get-regexp '^submodule\\..*\\.path\$'" | while read -r key path; do \
+            sm=${key#submodule.}; sm=${sm%.path}; \
+            scl enable rh-git218 "git config submodule.${sm}.url /host-repo/${path}"; \
+        done; \
+        scl enable rh-git218 "git -c protocol.file.allow=always submodule update --init"; \
+    fi
+
+# Source stage: default git-clone mode.
+# REPO_URL is cloned fresh inside the container from a remote.
+FROM base AS source-git
+USER root
 ARG REPO_URL
 ARG REPO_COMMIT_OR_TAG
-
-# The meta directory is used to store the version and maintainer information
-# for the RPM package
-RUN mkdir -p /meta
-
-# Clone the repository
+ARG REPO_SSLVERIFY
+ARG IGNORE_PROXY
 WORKDIR /src
-RUN scl enable rh-git218 \
-    "git clone $REPO_URL . \
-    && git checkout $REPO_COMMIT_OR_TAG"
+RUN if [ "$IGNORE_PROXY" = "true" ]; then \
+            if [ "$REPO_SSLVERIFY" != "true" ]; then \
+                env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u no_proxy -u NO_PROXY scl enable rh-git218 "git -c http.sslVerify=false clone $REPO_URL ."; \
+            else \
+                env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u no_proxy -u NO_PROXY scl enable rh-git218 "git clone $REPO_URL ."; \
+            fi; \
+        elif [ "$REPO_SSLVERIFY" != "true" ]; then \
+            scl enable rh-git218 "git -c http.sslVerify=false clone $REPO_URL ."; \
+        else \
+            scl enable rh-git218 "git clone $REPO_URL ."; \
+        fi
+RUN if [ -d .git ] && [ "$REPO_COMMIT_OR_TAG" != "HEAD" ]; then scl enable rh-git218 "git checkout $REPO_COMMIT_OR_TAG"; fi
+
+# Pick the source variant based on SOURCE_MODE (local|git).
+ARG SOURCE_MODE
+FROM source-${SOURCE_MODE} AS gitcloned
+USER root
+ARG REPO_COMMIT_OR_TAG
+WORKDIR /src
+ENV GIT_CONFIG_COUNT=1
+ENV GIT_CONFIG_KEY_0=safe.directory
+ENV GIT_CONFIG_VALUE_0=/src
 
 # Copy the include files for the nCipher and Luna HSMs if they are present
 RUN mkdir -p include/cryptoki
 COPY ./include/cryptoki/ncipher.* ./include/cryptoki/luna.* include/cryptoki/
 
-# Retrieve information for building RPM package later
+# Inject any extra cryptoki headers (.h) supplied via `--extra-header FILE`
+# on the buildx.sh command line. The `extra-headers` build context is
+# bind-mounted read-only; if no extra headers were passed, it falls back
+# to the empty `FROM scratch AS extra-headers` stage and this RUN is a
+# no-op. Headers with the same name as the workspace stubs override them.
+RUN --mount=type=bind,from=extra-headers,target=/extra-headers,ro \
+    find /extra-headers -maxdepth 1 -name '*.h' -exec cp {} include/cryptoki/ \;
 
-# Retrieve the architecture
-RUN PKG_ARCH=$(rpm --eval '%{_arch}') \
-    && echo "PKG_ARCH=\"$PKG_ARCH\"" >> /meta/env
-
-# Retrieve version information from git
-# If the version is a tag, set PKG_GITSUFFIX to the tag, or to '~<commit>' if the tag is not the last commit
-RUN PKG_VERSION=$(scl enable rh-git218 "git describe --tags" | sed -E 's/^v?([^\-]+)(-.*)?$/\1/' ) \
-    PKG_RELEASE=$(scl enable rh-git218 "git describe --tags" | sed -E 's/^v?([^\-]+)(-.*)?$/\2/; s/^-//; s/^$/0/; s/-(.*)//' ) \
-    PKG_GITCOMMIT=$(scl enable rh-git218 "git rev-parse --short HEAD") \
-    PKG_GITSUFFIX=$(scl enable rh-git218 "git describe --tags" | sed -E 's/^v?([^\-]+)(-.*)?$/\2/;s/-([0-9]*)-g(.*)/.\2/') \
-    && echo "PKG_GITSUFFIX=\"$PKG_GITSUFFIX\"" >> /meta/env \
-    && echo "PKG_VERSION=\"$PKG_VERSION\"" >> /meta/env \
-    && echo "PKG_RELEASE=\"$PKG_RELEASE\"" >> /meta/env \
-    && echo "PKG_GITCOMMIT=\"$PKG_GITCOMMIT\"" >> /meta/env
-
-# Retrieve the maintainer from git
-RUN PKG_MAINTAINER=$(scl enable rh-git218 "git log -1 --pretty=format:'%an <%ae>'") \
-    && echo "PKG_MAINTAINER=\"$PKG_MAINTAINER\"" >> /meta/env
-
-# Retrieve description from README.md
-# This is a bit more complex as we need to strip out the first heading
-# and the first line of the second heading
-# moreover, any occurrence of '`' should be removed to avoid issues with
-# the shell
-RUN PKG_DESCRIPTION=$(cat README.md \
-    | awk '/# PKCS\\#11 tools/{flag=1} /Some features:/{flag=0} flag' \
-    | sed '/^##.*/d' \
-    | pandoc -f markdown -t plain \
-    | sed '/^[[:space:]]*$/d') \
-    && echo "PKG_DESCRIPTION=\"$PKG_DESCRIPTION\"" >> /meta/env
-
-    RUN echo "export PKG_GITSUFFIX PKG_VERSION PKG_RELEASE PKG_GITCOMMIT PKG_MAINTAINER PKG_ARCH" >> /meta/env
+# Retrieve metadata for RPM packaging
+RUN mkdir -p /src/.meta \
+    && PKG_ARCH=$(rpm --eval '%{_arch}') \
+    && if [ -d .git ]; then \
+            PKG_VERSION=$(scl enable rh-git218 "git describe --tags" | sed -E 's/^v?([^\-]+)(-.*)?$/\1/' ); \
+            PKG_RELEASE=$(scl enable rh-git218 "git describe --tags" | sed -E 's/^v?([^\-]+)(-.*)?$/\2/; s/^-//; s/^$/0/; s/-(.*)//' ); \
+            PKG_GITCOMMIT=$(scl enable rh-git218 "git rev-parse --short HEAD"); \
+            PKG_GITSUFFIX=$(scl enable rh-git218 "git describe --tags" | sed -E 's/^v?([^\-]+)(-.*)?$/\2/;s/-([0-9]*)-g(.*)/.\2/'); \
+            PKG_MAINTAINER=$(scl enable rh-git218 "git log -1 --pretty=format:'%an <%ae>'"); \
+        else \
+            PKG_VERSION="${REPO_COMMIT_OR_TAG#v}"; \
+            [ -n "$PKG_VERSION" ] && [ "$PKG_VERSION" != "HEAD" ] || PKG_VERSION="0.0.0"; \
+            PKG_RELEASE="0"; \
+            PKG_GITCOMMIT="local"; \
+            PKG_GITSUFFIX=".local"; \
+            PKG_MAINTAINER="local-build <noreply@local>"; \
+        fi \
+    && PKG_DESCRIPTION=$(cat README.md \
+        | awk '/# PKCS\\#11 tools/{flag=1} /Some features:/{flag=0} flag' \
+        | sed '/^##.*/d' \
+        | pandoc -f markdown -t plain \
+        | sed '/^[[:space:]]*$/d') \
+    && cat > /src/.meta/env <<EOF
+PKG_ARCH="$PKG_ARCH"
+PKG_GITSUFFIX="$PKG_GITSUFFIX"
+PKG_VERSION="$PKG_VERSION"
+PKG_RELEASE="$PKG_RELEASE"
+PKG_GITCOMMIT="$PKG_GITCOMMIT"
+PKG_MAINTAINER="$PKG_MAINTAINER"
+PKG_DESCRIPTION="$PKG_DESCRIPTION"
+export PKG_GITSUFFIX PKG_VERSION PKG_RELEASE PKG_GITCOMMIT PKG_MAINTAINER PKG_ARCH
+EOF
 
 
 FROM gitcloned AS builder
+USER root
 ARG CONFIG_ARGS
 
-# build the project for tar package (/usr/local)
+# Bring in the statically-built OpenSSL 3 (libcrypto.a, headers, pkg-config metadata).
+# Prepend its pkg-config directories so libcrypto >= 3.0.0 is found before the system 1.0.x.
+COPY --from=opensslbuilder /opt/openssl3 /opt/openssl3
+ENV PKG_CONFIG_PATH=/opt/openssl3/lib64/pkgconfig:/opt/openssl3/lib/pkgconfig
+
+# Prepare artifacts directory in builder so final stage can reuse it.
+RUN mkdir -p /artifacts
+
+# Build the project for tar package (/usr/local) and install docs in same RUN
+# (mkdir+install of docs is merged in the same RUN to avoid a Docker Desktop
+# layer-boundary permission issue on macOS where the freshly-made install tree
+# becomes non-writable in the next step.)
 RUN scl enable devtoolset-10 rh-git218 \
-    "./bootstrap.sh --shallow-clone\
+    "./bootstrap.sh --shallow-clone \
     && ./configure $CONFIG_ARGS \
     && make -j $(nproc) \
-    && make install DESTDIR=/tar_build"
-
-# install documentation
-RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
+    && make install DESTDIR=/tar_build" \
+    && mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
     && install -m 644 -t /tar_build/usr/local/share/doc/pkcs11-tools \
     README.md CHANGELOG.md COPYING \
     docs/INSTALL.md \
@@ -135,15 +232,13 @@ RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
     docs/TPLICENSES.md \
     docs/CONTRIBUTING.md
 
-# Build again the project for RPM package (/usr)
+# Build again the project for RPM package (/usr) and install docs in same RUN
 RUN scl enable devtoolset-10 rh-git218 \
     "make distclean \
     && ./configure --prefix=/usr $CONFIG_ARGS \
     && make -j $(nproc) \
-    && make install DESTDIR=/rpm_build"
-
-# Install documentation
-RUN mkdir -p /rpm_build/usr/share/doc/pkcs11-tools \
+    && make install DESTDIR=/rpm_build" \
+    && mkdir -p /rpm_build/usr/share/doc/pkcs11-tools \
     && install -m 644 -t /rpm_build/usr/share/doc/pkcs11-tools \
     README.md CHANGELOG.md COPYING \
     docs/INSTALL.md \
@@ -154,13 +249,13 @@ RUN mkdir -p /rpm_build/usr/share/doc/pkcs11-tools \
 
 # Final stage
 FROM builder AS final
+USER root
 ARG DISTRO_SHORT_NAME
-
-RUN mkdir -p /artifacts
+ARG REPO_URL
 
 # build the .tar.gz file
 WORKDIR /tar_build
-RUN . /meta/env && tar -czf /artifacts/pkcs-tools-${DISTRO_SHORT_NAME}-${PKG_ARCH}-${PKG_VERSION}${PKG_GITSUFFIX}.tar.gz usr
+RUN . /src/.meta/env && tar -czf /artifacts/pkcs11-tools-${DISTRO_SHORT_NAME}-${PKG_ARCH}-${PKG_VERSION}${PKG_GITSUFFIX}.tar.gz usr
 
 # build the RPM package
 WORKDIR /root
@@ -172,7 +267,7 @@ RUN mkdir -p /root/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 COPY --from=builder /rpm_build /root/rpmbuild/SOURCES/prebuilt
 
 # Create the RPM spec file
-RUN . /meta/env && cat <<EOF > /root/rpmbuild/SPECS/pkcs-tools.spec
+RUN . /src/.meta/env && cat <<EOF > /root/rpmbuild/SPECS/pkcs11-tools.spec
 Name:           pkcs11-tools
 Version:        $PKG_VERSION
 Release:        1$PKG_GITSUFFIX%{?dist}
@@ -198,12 +293,12 @@ cp -r %{_sourcedir}/prebuilt/usr %{buildroot}
 EOF
 
 # Build the RPM package
-RUN . /meta/env \
-    && rpmbuild -ba /root/rpmbuild/SPECS/pkcs-tools.spec
+RUN . /src/.meta/env \
+    && rpmbuild -ba /root/rpmbuild/SPECS/pkcs11-tools.spec
 
 # Copy the RPM package to the artifacts directory
-RUN . /meta/env \
-    && cp /root/rpmbuild/RPMS/$PKG_ARCH/pkcs-tools-${PKG_VERSION}-1${PKG_GITSUFFIX}$(rpm --eval "%{dist}").${PKG_ARCH}.rpm /artifacts
+RUN . /src/.meta/env \
+    && cp /root/rpmbuild/RPMS/$PKG_ARCH/pkcs11-tools-${PKG_VERSION}-1${PKG_GITSUFFIX}$(rpm --eval "%{dist}").${PKG_ARCH}.rpm /artifacts
 
 # Final command to list the artifacts
 CMD [ "find", "/artifacts", "-type", "f" ]
