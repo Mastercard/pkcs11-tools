@@ -9,11 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - support public key extraction for libraries with non-compliant `CKA_EC_POINT` implementations (with no OCTET STRING encapsulation)
 - support for Docker builds
 - support for Windows 64-bit cross-compilation via MinGW-w64 (`buildx/Dockerfile.mingw64`)
+- OpenSSL 3 provider-based signing support for RSA, DSA, ECDSA and EdDSA
+- Docker build support for local source builds (`buildx.sh --local-source`)
+- Docker build support for additional PKCS#11 headers injection (`buildx.sh --extra-header`)
 - `p11req` and `p11mkcert` now support RSA-PSS signature (add `-a pss` arguments to select it)
 - `p11kcv` beefed up, to support multiple MACing algorithms, as well as displaying the value of `CKA_CHECK_VALUE`
 - support for wrapping keys in JOSE Web Key format (JWK, RFC 7178)
 - new option `--enable-duplicate`, to override duplicate label protection when creating or importing a key (must be enabled at compile time)
 - search templates: it is now possible to add other attributes in a search, to filter out on more than one attribute
+
+### Changed
+- build now requires OpenSSL 3.0.0 or above (`libcrypto >= 3.0.0`)
+- Docker build files refactored to better support local repository builds, corporate proxies and static OpenSSL 3 fallback on older targets
 
 ### Fixed
 - small fix on with_xxx wrappers, replacing space with underscore in reply code
