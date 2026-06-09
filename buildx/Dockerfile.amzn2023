@@ -180,8 +180,12 @@ ARG CONFIG_ARGS
 RUN mkdir -p /artifacts
 
 # Build the project for tar package (/usr/local)
+# Amazon Linux is the AWS-native target: --with-awscloudhsm is enabled by
+# default. The awscloudhsm.h header is shipped with the source tree. A user
+# supplying --config-args="--without-awscloudhsm" will still win because
+# autoconf honors the last occurrence of conflicting --with-* flags.
 RUN ./bootstrap.sh --shallow-clone \
-    && ./configure $CONFIG_ARGS \
+    && ./configure --with-awscloudhsm $CONFIG_ARGS \
     && make -j $(nproc) \
     && make install DESTDIR=/tar_build
 
@@ -195,8 +199,9 @@ RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
     docs/CONTRIBUTING.md
 
 # Build again the project for RPM package (/usr)
+# --with-awscloudhsm is enabled by default for the same reason as above.
 RUN make distclean \
-    && ./configure --prefix=/usr $CONFIG_ARGS \
+    && ./configure --prefix=/usr --with-awscloudhsm $CONFIG_ARGS \
     && make -j $(nproc) \
     && make install DESTDIR=/rpm_build
 
