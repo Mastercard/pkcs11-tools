@@ -159,7 +159,7 @@ func_rc pkcs11_import_component(KeyImportCtx *kctx, unsigned char * comp, size_t
 
 	{
 	    int key_size = EVP_PKEY_get_size(_kctx->pk);
-	    if (key_size <= 11 || (size_t)len >= (size_t)(key_size - 11)) {
+	    if (key_size <= 11 || (size_t)len > (size_t)(key_size - 11)) {
 		fprintf(stderr,"RSA key too short to wrap %d bytes of component\n", (int)len);
 		rc = rc_error_wrapping_key_too_short;
 		goto error;

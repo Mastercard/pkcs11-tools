@@ -517,9 +517,6 @@ EVP_PKEY *pkcs11_provider_make_pkey(OSSL_LIB_CTX *libctx,
 	goto err;
     }
     provctx = (pkcs11_provctx *)OSSL_PROVIDER_get0_provider_ctx(prov);
-    /* OSSL_PROVIDER_load increments a ref count; keep the ref alive for the
-     * lifetime of the key by leaking the additional load. The provider is
-     * freed when OSSL_LIB_CTX_free runs. */
 
     kd = pkcs11_keydata_new(provctx, algo);
     if(kd == NULL) {
@@ -569,6 +566,7 @@ EVP_PKEY *pkcs11_provider_make_pkey(OSSL_LIB_CTX *libctx,
     pkcs11_keydata_free(kd);
     kd = NULL;
 
+    if(prov) { OSSL_PROVIDER_unload(prov); prov = NULL; }
     EVP_PKEY_CTX_free(pctx);
     return pkey;
 
@@ -576,5 +574,6 @@ err:
     if(pkey) { EVP_PKEY_free(pkey); }
     if(pctx) { EVP_PKEY_CTX_free(pctx); }
     if(kd)   { pkcs11_keydata_free(kd); }
+    if(prov) { OSSL_PROVIDER_unload(prov); }
     return NULL;
 }

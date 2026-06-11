@@ -351,25 +351,25 @@ function parse_and_build() {
         if [[ "$arg" == "all/all" ]]; then
             for distro in $SUPPORTED_DISTROS; do
                 for arch in $SUPPORTED_ARCHS; do
-                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args $repo_sslverify $ignore_proxy $source_mode $extra_headers_dir")
+                    build_args+=("$package" "$distro" "$arch" "$verbose" "$no_cache" "$repo_url" "$repo_commit" "$proxyrootca" "$config_args" "$repo_sslverify" "$ignore_proxy" "$source_mode" "$extra_headers_dir")
                 done
             done
         elif [[ "$arg" == "all" ]]; then
             local host_arch
             host_arch=$(host_arch_to_buildx_arch "$(uname -m)")
             for distro in $SUPPORTED_DISTROS; do
-                build_args+=("$package $distro $host_arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args $repo_sslverify $ignore_proxy $source_mode $extra_headers_dir")
+                build_args+=("$package" "$distro" "$host_arch" "$verbose" "$no_cache" "$repo_url" "$repo_commit" "$proxyrootca" "$config_args" "$repo_sslverify" "$ignore_proxy" "$source_mode" "$extra_headers_dir")
             done
         elif [[ "$arg" == */* ]]; then
             IFS='/' read -r distro arch_list <<< "$arg"
             if [[ "$arch_list" == "all" ]]; then
                 for arch in $SUPPORTED_ARCHS; do
-                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args $repo_sslverify $ignore_proxy $source_mode $extra_headers_dir")
+                    build_args+=("$package" "$distro" "$arch" "$verbose" "$no_cache" "$repo_url" "$repo_commit" "$proxyrootca" "$config_args" "$repo_sslverify" "$ignore_proxy" "$source_mode" "$extra_headers_dir")
                 done
             else
                 IFS=',' read -ra archs <<< "$arch_list"
                 for arch in "${archs[@]}"; do
-                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args $repo_sslverify $ignore_proxy $source_mode $extra_headers_dir")
+                    build_args+=("$package" "$distro" "$arch" "$verbose" "$no_cache" "$repo_url" "$repo_commit" "$proxyrootca" "$config_args" "$repo_sslverify" "$ignore_proxy" "$source_mode" "$extra_headers_dir")
                 done
             fi
         else
@@ -377,7 +377,7 @@ function parse_and_build() {
             local host_arch
             host_arch=$(host_arch_to_buildx_arch "$(uname -m)")
             for distro in "${distros[@]}"; do
-                build_args+=("$package $distro $host_arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args $repo_sslverify $ignore_proxy $source_mode $extra_headers_dir")
+                build_args+=("$package" "$distro" "$host_arch" "$verbose" "$no_cache" "$repo_url" "$repo_commit" "$proxyrootca" "$config_args" "$repo_sslverify" "$ignore_proxy" "$source_mode" "$extra_headers_dir")
             done
         fi
     done
@@ -388,8 +388,8 @@ function parse_and_build() {
     export -f gen_random_container_name
     export -f buildx_arch_to_platform_arch
 
-    # Run builds in parallel, limiting to the number of jobs specified by the user
-    printf "%s\n" "${build_args[@]}" | xargs -P $numprocs -I {} bash -c 'create_build {}'
+    # Run builds in parallel, preserving argument boundaries with NUL separators.
+    printf "%s\0" "${build_args[@]}" | xargs -0 -P "$numprocs" -n 13 bash -c 'create_build "$@"' _
 }
 
 #
