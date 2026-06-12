@@ -72,34 +72,20 @@ AM_CONDITIONAL([TARGET_OS_MINGW32], [test "$mingw32" = "1"])
 AM_CONDITIONAL([TARGET_OS_SOLARIS], [test "x$host_os" == "xsolaris2.10"])
 
 PKG_PROG_PKG_CONFIG
-dnl for libcrypto, we are first detecting libcrypo11,
-dnl as older distros may still run on top of openssl 1.0,
-dnl but have v1.1.x accessible through libcrypto11.pc file
-dnl if libcrypto11 is detected, a guess is made that for redhat-based systems,
-dnl the rpm package will have a "11" suffix in the nam; openssl_rpm_suffix variable
-dnl is substituted for that purpose.
-
+dnl OpenSSL 3.x only: rely on canonical libcrypto pkg-config metadata.
 PKG_CHECK_MODULES([LIBCRYPTO],
-	          [libcrypto11 >= 1.1.1e],
+	          [libcrypto >= 3.0.0],
 		  [ ac_save_CPPFLAGS=$CPPFLAGS
 		    CPPFLAGS="${CPPFLAGS} ${LIBCRYPTO_CFLAGS}"
 		    AC_CHECK_DECLS([OPENSSL_NO_RSA, OPENSSL_NO_DSA, OPENSSL_NO_DH, OPENSSL_NO_EC],
 		                  [AC_MSG_FAILURE([The OpenSSL crypto library is missing features/algorithm to allow compilation])],
-    				  [],
-				  [[ #include <openssl/opensslconf.h> ]])
+			  [],
+			  [[ #include <openssl/opensslconf.h> ]])
 		    CPPFLAGS=${ac_save_CPPFLAGS}
-		    AC_SUBST([openssl_rpm_suffix],[11])
-		    ],
-		    [ PKG_CHECK_MODULES([LIBCRYPTO],
-					[libcrypto >= 1.1.1e],
-				    	[ ac_save_CPPFLAGS=$CPPFLAGS
-				      	  CPPFLAGS="${CPPFLAGS} ${LIBCRYPTO_CFLAGS}"
-				      	  AC_CHECK_DECLS([OPENSSL_NO_RSA, OPENSSL_NO_DSA, OPENSSL_NO_DH, OPENSSL_NO_EC],
-		                      	  	     	 [AC_MSG_FAILURE([The OpenSSL crypto library is missing features/algorithm to allow compilation])],
-						     	 [],
-						     	 [[ #include <openssl/opensslconf.h> ]])
-					  CPPFLAGS=${ac_save_CPPFLAGS}
-					  AC_SUBST([openssl_rpm_suffix],[]) ])])
+		    AC_SUBST([openssl_rpm_suffix],[]) ])
+
+AC_DEFINE([HAVE_OPENSSL3], [1], [define when building against OpenSSL 3.x or newer])
+AM_CONDITIONAL([HAVE_OPENSSL3], [test "x1" = "x1"])
 
 dnl on UNIX platforms, check for dynamic loader lib
 AM_COND_IF( [TARGET_OS_MINGW32],

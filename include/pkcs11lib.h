@@ -694,21 +694,33 @@ void pkcs11_openssl_error(char * file, int line);
 CK_ULONG pkcs11_openssl_alloc_and_sha1(CK_BYTE_PTR data, CK_ULONG datalen, CK_VOID_PTR_PTR buf);
 void pkcs11_openssl_free(CK_VOID_PTR_PTR buf);
 
-/* pkcs11_ossl_rsa_meth.c */
-void pkcs11_rsa_method_setup();
-void pkcs11_rsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
+/* pkcs11_pkey.c - stable OpenSSL 3 helpers (EVP_PKEY / OSSL_PARAM) */
+int pkcs11_pkey_get_bn(EVP_PKEY *pk, const char *param, BIGNUM **out);
+int pkcs11_pkey_get_octets(EVP_PKEY *pk, const char *param,
+			   unsigned char **out, size_t *out_len);
+int pkcs11_pkey_get_utf8(EVP_PKEY *pk, const char *param,
+			 char *out, size_t out_size);
 
-/* pkcs11_ossl_dsa_meth.c */
-void pkcs11_dsa_method_setup();
-void pkcs11_dsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
+EVP_PKEY *pkcs11_pkey_from_rsa_public(const BIGNUM *n, const BIGNUM *e);
+EVP_PKEY *pkcs11_pkey_from_dsa_public(const BIGNUM *p, const BIGNUM *q,
+				      const BIGNUM *g, const BIGNUM *pub);
+EVP_PKEY *pkcs11_pkey_from_dh_public(const BIGNUM *p, const BIGNUM *g,
+				     const BIGNUM *q /* may be NULL */,
+				     const BIGNUM *pub);
+EVP_PKEY *pkcs11_pkey_from_ec_public(const char *group_name,
+				     const unsigned char *pub, size_t pub_len);
 
-/* pkcs11_ossl_ecdsa_meth.c */
-void pkcs11_ecdsa_method_setup();
-void pkcs11_ecdsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
+int pkcs11_pkey_write_params_pem(BIO *out, EVP_PKEY *pk);
+int pkcs11_pkey_write_rsa_pubkey_pkcs1_pem(BIO *out, EVP_PKEY *pk);
+int pkcs11_pkey_write_params_der(EVP_PKEY *pk, unsigned char **out, size_t *out_len);
+const char *pkcs11_pkey_ec_group_name_from_ecparams(const unsigned char *ecparams,
+						    size_t ecparams_len);
+EVP_PKEY *pkcs11_pkey_read_params_fp(FILE *fp, const char *type);
 
-/* pkcs11_ossl_eddsa_meth.c */
-void pkcs11_eddsa_method_setup();
-void pkcs11_eddsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
+/* SHA-1 helper: out gets a freshly OPENSSL_malloc'd buffer of size SHA_DIGEST_LENGTH.
+ * Returns the digest length (20) on success, 0 on failure. */
+size_t pkcs11_pkey_sha1_to_buf(const unsigned char *data, size_t data_len,
+			       unsigned char **out);
 
 
 /* list functions */

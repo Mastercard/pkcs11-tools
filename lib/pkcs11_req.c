@@ -38,8 +38,14 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+#include <openssl/crypto.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+#include <openssl/core_names.h>
+#include <openssl/params.h>
 
 #include "pkcs11lib.h"
+#include "pkcs11_provider.h"
 
 static bool req_add_ext(STACK_OF(X509_EXTENSION) *sk, int nid, char *value)
 {
@@ -74,6 +80,8 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 {
     X509_REQ *req = NULL, *retval = NULL;
     EVP_PKEY *pk = NULL;
+    EVP_PKEY *signing_pk = NULL;       /* provider-bound key when key_type == ed */
+    OSSL_LIB_CTX *prov_libctx = NULL;  /* private libctx hosting pkcs11tools provider */
     X509_NAME *name=NULL;
     STACK_OF(X509_EXTENSION) *exts = NULL;
     CK_ATTRIBUTE_PTR attr;
@@ -85,20 +93,21 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 	fprintf(stderr, "Error: SKI/AKI extension requested, but CKA_ID not provided");
 	goto err;
     }
-	
-    /* step 2: do key-type specific business*/
+
+    /* step 2: install the pkcs11tools OpenSSL 3 provider once for all
+     * supported key types - all signing paths go through it. */
+    if(!pkcs11_provider_install(&prov_libctx)) {
+	fprintf(stderr, "Error: failed to install pkcs11tools provider\n");
+	goto err;
+    }
+
+    /* step 3: do key-type specific business*/
     switch(key_type) {
     case rsa:
-	/* get SPKI */
 	if((pk = pkcs11_SPKI_from_RSA( attrlist )) == NULL ) {
 	    fprintf(stderr, "Error: unable to build SPKI structure\n");
 	    goto err;
 	}
-
-	/* determination between pkcs1 or pss is made later */
-	pkcs11_rsa_method_setup();
-	pkcs11_rsa_method_pkcs11_context(p11Context, hprivkey, fake);
-
 	/* default for RSA signature: set to pkcs1 for now*/
 	if(sig_alg==s_default) {
 	    sig_alg = s_rsa_pkcs1;
@@ -106,40 +115,34 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 	break;
 
     case dsa:
-	/* get SPKI */
 	if((pk = pkcs11_SPKI_from_DSA( attrlist )) == NULL ) {
 	    fprintf(stderr, "Error: unable to build SPKI structure\n");
 	    goto err;
 	}
-	/* hook our crypto to OpenSSL methods */
-	pkcs11_dsa_method_setup();
-	pkcs11_dsa_method_pkcs11_context(p11Context, hprivkey, fake);
 	break;
-		
+
     case ec:
-	/* get SPKI */
 	if((pk = pkcs11_SPKI_from_EC( attrlist )) == NULL ) {
 	    fprintf(stderr, "Error: unable to build SPKI structure\n");
 	    goto err;
 	}
-	/* hook our crypto to OpenSSL methods */
-	pkcs11_ecdsa_method_setup();
-	pkcs11_ecdsa_method_pkcs11_context(p11Context, hprivkey, fake);
 	break;
 
     case ed:
-	/* get SPKI */
 	if((pk = pkcs11_SPKI_from_ED( attrlist )) == NULL ) {
 	    fprintf(stderr, "Error: unable to build SPKI structure\n");
 	    goto err;
 	}
-	/* hook our crypto to OpenSSL methods */
-	pkcs11_eddsa_method_setup();
-	pkcs11_eddsa_method_pkcs11_context(p11Context, hprivkey, fake);
 	break;
 
     default:
 	fprintf(stderr, "Error: unsupported signing algorithm\n");
+	goto err;
+    }
+
+    /* step 4: bind the PKCS#11 private key handle into the provider. */
+    signing_pk = pkcs11_provider_make_pkey(prov_libctx, key_type, pk, p11Context, hprivkey, fake);
+    if(signing_pk == NULL) {
 	goto err;
     }
 
@@ -240,26 +243,71 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 	goto err;
     }
 
-    if (!EVP_DigestSignInit(mdctx, &pctx, pkcs11_get_EVP_MD(key_type, hash_alg), NULL, pk)) {
-	P_ERR();
-	goto err;
+    switch(key_type) {
+    case ed:
+	/* EdDSA path: PureEdDSA, signing key from our provider, private libctx. */
+	if (!EVP_DigestSignInit_ex(mdctx, &pctx, NULL, prov_libctx, NULL, signing_pk, NULL)) {
+	    P_ERR();
+	    goto err;
+	}
+	break;
+    case rsa: {
+	/* RSA path: signing key from our provider, private libctx.
+	 * For PSS, pass padding/digest/mgf1/saltlen via OSSL_PARAMs at init
+	 * time: the legacy EVP_PKEY_CTX_set_rsa_* helpers do not always route
+	 * to a provider-bound signature context (they short-circuit on legacy
+	 * detection), so explicit OSSL_PARAMs are the reliable path. */
+	const EVP_MD *md = pkcs11_get_EVP_MD(key_type, hash_alg);
+	const char *mdname = md ? EVP_MD_get0_name(md) : NULL;
+	OSSL_PARAM rsa_params[6];
+	OSSL_PARAM *rsa_p = rsa_params;
+	int saltlen_max = -1;
+	const char *pad_pkcs1 = OSSL_PKEY_RSA_PAD_MODE_PKCSV15;
+	const char *pad_pss   = OSSL_PKEY_RSA_PAD_MODE_PSS;
+	if(sig_alg == s_rsa_pss) {
+	    *rsa_p++ = OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_PAD_MODE,
+							(char *)pad_pss, 0);
+	    *rsa_p++ = OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_MGF1_DIGEST,
+							(char *)mdname, 0);
+	    *rsa_p++ = OSSL_PARAM_construct_int(OSSL_SIGNATURE_PARAM_PSS_SALTLEN,
+						&saltlen_max);
+	} else {
+	    *rsa_p++ = OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_PAD_MODE,
+							(char *)pad_pkcs1, 0);
+	}
+	*rsa_p = OSSL_PARAM_construct_end();
+	if (!EVP_DigestSignInit_ex(mdctx, &pctx, mdname, prov_libctx, NULL, signing_pk, rsa_params)) {
+	    P_ERR();
+	    goto err;
+	}
+	break;
     }
-
-    /* if signature is RSA pss, we need to set up the context */
-    if (key_type==rsa && sig_alg==s_rsa_pss) {
-	/* set the PSS parameters */
-	if (EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING) <= 0) {
+    case ec: {
+	/* ECDSA path: signing key from our provider, private libctx. */
+	const EVP_MD *md = pkcs11_get_EVP_MD(key_type, hash_alg);
+	const char *mdname = md ? EVP_MD_get0_name(md) : NULL;
+	if (!EVP_DigestSignInit_ex(mdctx, &pctx, mdname, prov_libctx, NULL, signing_pk, NULL)) {
 	    P_ERR();
 	    goto err;
 	}
-	if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, RSA_PSS_SALTLEN_MAX) <= 0) {
+	break;
+    }
+    case dsa: {
+	/* DSA path: signing key from our provider, private libctx. */
+	const EVP_MD *md = pkcs11_get_EVP_MD(key_type, hash_alg);
+	const char *mdname = md ? EVP_MD_get0_name(md) : NULL;
+	if (!EVP_DigestSignInit_ex(mdctx, &pctx, mdname, prov_libctx, NULL, signing_pk, NULL)) {
 	    P_ERR();
 	    goto err;
 	}
-	if (EVP_PKEY_CTX_set_rsa_mgf1_md(pctx, pkcs11_get_EVP_MD(key_type, hash_alg)) <= 0) {
+	break;
+    }
+    default:
+	if (!EVP_DigestSignInit(mdctx, &pctx, pkcs11_get_EVP_MD(key_type, hash_alg), NULL, pk)) {
 	    P_ERR();
 	    goto err;
 	}
+	break;
     }
 
     if (!X509_REQ_sign_ctx(req, mdctx)) {
@@ -276,7 +324,9 @@ err:
     if(exts != NULL) { sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free); exts=NULL; }
     if(name != NULL) { X509_NAME_free(name); name=NULL; }
     if(req!=NULL) { X509_REQ_free(req); req=NULL; }
+    if(signing_pk!=NULL) { EVP_PKEY_free(signing_pk); signing_pk=NULL; }
     if(pk!=NULL) { EVP_PKEY_free(pk); pk=NULL; }
+    if(prov_libctx!=NULL) { OSSL_LIB_CTX_free(prov_libctx); prov_libctx=NULL; }
     /* memory management */
 
     return retval;

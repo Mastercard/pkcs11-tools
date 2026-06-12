@@ -23,6 +23,7 @@
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
+#include <openssl/opensslv.h>
 #include <openssl/sha.h>
 #include "pkcs11lib.h"
 
@@ -30,7 +31,7 @@
 
 inline const char * pkcs11_openssl_version(void)
 {
-    return SSLeay_version(SSLEAY_VERSION);
+	return OpenSSL_version(OPENSSL_VERSION);
 }
 
 
@@ -38,20 +39,18 @@ inline const char * pkcs11_openssl_version(void)
 
 void pkcs11_openssl_error(char *file, int line)
 {
-    static int strings_loaded=0;
+	const char *err_func = NULL;
+	const char *err_data = NULL;
+	int err_flags = 0;
     int err_line;
     const char *err_file;
     unsigned long err;
+	char err_buf[256];
 
-
-    if(strings_loaded==0) {
-	ERR_load_crypto_strings();
-	strings_loaded=1;
-    }
-
-    err = ERR_get_error_line(&err_file, &err_line);
+	err = ERR_get_error_all(&err_file, &err_line, &err_func, &err_data, &err_flags);
     if(err) {
-	fprintf(stderr, "*** OpenSSL ERROR at %s:%d  '%s' - (from %s:%d)\n", file, line, ERR_error_string(err,NULL), err_file, err_line );
+	ERR_error_string_n(err, err_buf, sizeof err_buf);
+	fprintf(stderr, "*** OpenSSL ERROR at %s:%d  '%s' - (from %s:%d)\n", file, line, err_buf, err_file, err_line );
     }
 }
 
@@ -75,7 +74,7 @@ CK_ULONG pkcs11_openssl_alloc_and_sha1(CK_BYTE_PTR data, CK_ULONG datalen, CK_VO
 
 	if(*buf) {
 	    md = EVP_sha1();
-	    if ((mdctx = EVP_MD_CTX_create()) == NULL ) {
+	    if ((mdctx = EVP_MD_CTX_new()) == NULL ) {
 		P_ERR();
 		goto error;
 	    }
@@ -100,7 +99,7 @@ CK_ULONG pkcs11_openssl_alloc_and_sha1(CK_BYTE_PTR data, CK_ULONG datalen, CK_VO
 
     error:
 
-	if(mdctx) { EVP_MD_CTX_destroy(mdctx); mdctx=NULL; }
+	if(mdctx) { EVP_MD_CTX_free(mdctx); mdctx=NULL; }
 
     }
     return rv;

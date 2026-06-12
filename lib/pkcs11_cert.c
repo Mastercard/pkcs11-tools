@@ -35,11 +35,15 @@
 #include <string.h>
 
 #include <openssl/bio.h>
+#include <openssl/core_names.h>
+#include <openssl/err.h>
+#include <openssl/params.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
 #include "pkcs11lib.h"
+#include "pkcs11_provider.h"
 
 /* Add extension using V3 code: we can set the config file as NULL
  * because we wont reference any other sections.
@@ -72,6 +76,71 @@ static bool x509_add_ext(X509 *cert, int nid, char *value)
     return true;
 }
 
+/*
+ * Add an Authority Key Identifier (AKI) extension to `cert`, using the raw
+ * Subject Key Identifier bytes (`ski`, `ski_len`) as the keyIdentifier value.
+ *
+ * Used for self-signed certificates where the subject and issuer are the same
+ * entity: per RFC 5280 §4.2.1.1, the AKI keyIdentifier MUST then match the
+ * SKI of the same certificate. Caller is responsible for first emitting the
+ * SKI extension with the same bytes.
+ *
+ * Builds an AUTHORITY_KEYID ASN.1 structure carrying only the keyIdentifier
+ * field (no authorityCertIssuer / authorityCertSerialNumber), encodes it via
+ * X509V3_EXT_i2d() and appends it to the certificate.
+ *
+ * Returns true on success, false on any allocation/encoding failure (in which
+ * case nothing has been added to `cert`).
+ */
+static bool x509_add_aki_from_ski(X509 *cert, const unsigned char *ski, size_t ski_len)
+{
+	AUTHORITY_KEYID *akid = NULL;
+	X509_EXTENSION *ex = NULL;
+
+	/* allocate the AuthorityKeyIdentifier ASN.1 container */
+	akid = AUTHORITY_KEYID_new();
+	if(akid == NULL) {
+	P_ERR();
+	goto err;
+	}
+
+	/* allocate the keyIdentifier OCTET STRING field */
+	akid->keyid = ASN1_OCTET_STRING_new();
+	if(akid->keyid == NULL) {
+	P_ERR();
+	goto err;
+	}
+
+	/* copy the SKI bytes into the keyIdentifier; AKI.keyIdentifier and
+	 * SKI MUST hold the exact same value for a self-signed certificate */
+	if(ASN1_OCTET_STRING_set(akid->keyid, ski, (int)ski_len) == 0) {
+	P_ERR();
+	goto err;
+	}
+
+	/* DER-encode the AUTHORITY_KEYID into a non-critical X.509 extension */
+	ex = X509V3_EXT_i2d(NID_authority_key_identifier, 0, akid);
+	if(ex == NULL) {
+	P_ERR();
+	goto err;
+	}
+
+	/* append the freshly built extension to the certificate */
+	if(!X509_add_ext(cert, ex, -1)) {
+	P_ERR();
+	goto err;
+	}
+
+	X509_EXTENSION_free(ex);
+	AUTHORITY_KEYID_free(akid);
+	return true;
+
+err:
+	if(ex) { X509_EXTENSION_free(ex); }
+	if(akid) { AUTHORITY_KEYID_free(akid); }
+	return false;
+}
+
 
 CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 				    char *dn,
@@ -88,6 +157,8 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 {
     X509 *crt = NULL, *retval = NULL;
     EVP_PKEY *pk = NULL;
+    EVP_PKEY *signing_pk = NULL;        /* provider-bound key for signing */
+    OSSL_LIB_CTX *prov_libctx = NULL;   /* private libctx hosting pkcs11tools */
     X509_NAME *name=NULL;
     BIGNUM *bn_sn = NULL;
     CK_BYTE sn[20];
@@ -100,60 +171,56 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 	fprintf(stderr, "Error: SKI/AKI extension requested, but CKA_ID not provided");
 	goto err;
     }
-    
-    /* step 2: do key-type specific business*/
+
+    /* step 2: install the pkcs11tools OpenSSL 3 provider once for all
+     * supported key types - all signing paths go through it. */
+    if(!pkcs11_provider_install(&prov_libctx)) {
+	fprintf(stderr, "Error: failed to install pkcs11tools provider\n");
+	goto err;
+    }
+
+    /* step 3: do key-type specific business*/
     switch(key_type) {
     case rsa:
-	/* get SPKI */
 	if((pk = pkcs11_SPKI_from_RSA( attrlist )) == NULL ) {
 	    fprintf(stderr, "Error: unable to build SPKI structure\n");
 	    goto err;
 	}
-	/* hook our crypto to OpenSSL methods */
-	pkcs11_rsa_method_setup();
-	pkcs11_rsa_method_pkcs11_context(p11Context, hprivkey, false);
-
 	/* default for RSA signature: set to pkcs1 for now*/
 	if(sig_alg==s_default) {
 	    sig_alg = s_rsa_pkcs1;
-	}    
+	}
 	break;
-	
+
     case dsa:
-	/* get SPKI */
 	if((pk = pkcs11_SPKI_from_DSA( attrlist )) == NULL ) {
 	    fprintf(stderr, "Error: unable to build SPKI structure\n");
 	    goto err;
 	}
-	/* hook our crypto to OpenSSL methods */
-	pkcs11_dsa_method_setup();
-	pkcs11_dsa_method_pkcs11_context(p11Context, hprivkey, false);
 	break;
-	
+
     case ec:
-	/* get SPKI */
 	if((pk = pkcs11_SPKI_from_EC( attrlist )) == NULL ) {
 	    fprintf(stderr, "Error: unable to build SPKI structure\n");
 	    goto err;
 	}
-	/* hook our crypto to OpenSSL methods */
-	pkcs11_ecdsa_method_setup();
-	pkcs11_ecdsa_method_pkcs11_context(p11Context, hprivkey, false);
 	break;
 
     case ed:
-	/* get SPKI */
 	if((pk = pkcs11_SPKI_from_ED( attrlist )) == NULL ) {
 	    fprintf(stderr, "Error: unable to build SPKI structure\n");
 	    goto err;
 	}
-	/* hook our crypto to OpenSSL methods */
-	pkcs11_eddsa_method_setup();
-	pkcs11_eddsa_method_pkcs11_context(p11Context, hprivkey, false);
 	break;
 
     default:
 	fprintf(stderr, "Error: unsupported signing algorithm\n");
+	goto err;
+    }
+
+    /* step 4: bind the PKCS#11 private key handle into the provider. */
+    signing_pk = pkcs11_provider_make_pkey(prov_libctx, key_type, pk, p11Context, hprivkey, false);
+    if(signing_pk == NULL) {
 	goto err;
     }
 
@@ -246,10 +313,20 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
     if(ext_ski) {
 	char *value=NULL;
 	const char keyid_prefix[] = "keyid:";
+	uint8_t *ski=NULL;
+	size_t ski_len=0;
 
 	attr = pkcs11_get_attr_in_attrlist(attrlist, CKA_ID);
 
-	value=(char *) OPENSSL_zalloc( (attr->ulValueLen) * 2  + sizeof keyid_prefix + 1 );
+	ski_len = attr->ulValueLen;
+	ski=(uint8_t *) OPENSSL_malloc(ski_len);
+	if(ski == NULL) {
+	    P_ERR();
+	    goto err;
+	}
+	memcpy(ski, attr->pValue, ski_len);
+
+	value=(char *) OPENSSL_zalloc( (ski_len) * 2  + sizeof keyid_prefix + 1 );
 
 	if(value) {
 	    int i;
@@ -261,9 +338,10 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 	    }
 
 	    x509_add_ext(crt, NID_subject_key_identifier, &value[sizeof keyid_prefix - 1]); /* for SKI, we skip the 'keyid:' prefix */
-	    x509_add_ext(crt, NID_authority_key_identifier, &value[0]); /* if we self-sign, we need this guy also */
+	    x509_add_aki_from_ski(crt, ski, ski_len); /* AKI must match the SKI value exactly */
 	    OPENSSL_free(value);
 	}
+	if(ski) { OPENSSL_free(ski); }
     }
 
     /* step 12: sign certificate */
@@ -272,26 +350,57 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 	goto err;
     }
 
-    if (!EVP_DigestSignInit(mdctx, &pctx, pkcs11_get_EVP_MD(key_type, hash_alg), NULL, pk)) {
-	P_ERR();
-	goto err;
+    switch(key_type) {
+    case ed:
+	/* EdDSA path: PureEdDSA via pkcs11tools provider. */
+	if (!EVP_DigestSignInit_ex(mdctx, &pctx, NULL, prov_libctx, NULL, signing_pk, NULL)) {
+	    P_ERR();
+	    goto err;
+	}
+	break;
+    case rsa: {
+	/* RSA path: pass PSS params via OSSL_PARAMs at init time. */
+	const EVP_MD *md = pkcs11_get_EVP_MD(key_type, hash_alg);
+	const char *mdname = md ? EVP_MD_get0_name(md) : NULL;
+	OSSL_PARAM rsa_params[6];
+	OSSL_PARAM *rsa_p = rsa_params;
+	int saltlen_max = -1;
+	const char *pad_pkcs1 = OSSL_PKEY_RSA_PAD_MODE_PKCSV15;
+	const char *pad_pss   = OSSL_PKEY_RSA_PAD_MODE_PSS;
+	if(sig_alg == s_rsa_pss) {
+	    *rsa_p++ = OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_PAD_MODE,
+							(char *)pad_pss, 0);
+	    *rsa_p++ = OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_MGF1_DIGEST,
+							(char *)mdname, 0);
+	    *rsa_p++ = OSSL_PARAM_construct_int(OSSL_SIGNATURE_PARAM_PSS_SALTLEN,
+						&saltlen_max);
+	} else {
+	    *rsa_p++ = OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_PAD_MODE,
+							(char *)pad_pkcs1, 0);
+	}
+	*rsa_p = OSSL_PARAM_construct_end();
+	if (!EVP_DigestSignInit_ex(mdctx, &pctx, mdname, prov_libctx, NULL, signing_pk, rsa_params)) {
+	    P_ERR();
+	    goto err;
+	}
+	break;
     }
-
-    /* if signature is RSA pss, we need to set up the context */
-    if (key_type==rsa && sig_alg==s_rsa_pss) {
-	/* set the PSS parameters */
-	if (EVP_PKEY_CTX_set_rsa_padding(pctx, RSA_PKCS1_PSS_PADDING) <= 0) {
+    case ec:
+    case dsa: {
+	const EVP_MD *md = pkcs11_get_EVP_MD(key_type, hash_alg);
+	const char *mdname = md ? EVP_MD_get0_name(md) : NULL;
+	if (!EVP_DigestSignInit_ex(mdctx, &pctx, mdname, prov_libctx, NULL, signing_pk, NULL)) {
 	    P_ERR();
 	    goto err;
 	}
-	if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, RSA_PSS_SALTLEN_MAX) <= 0) {
+	break;
+    }
+    default:
+	if (!EVP_DigestSignInit(mdctx, &pctx, pkcs11_get_EVP_MD(key_type, hash_alg), NULL, pk)) {
 	    P_ERR();
 	    goto err;
 	}
-	if (EVP_PKEY_CTX_set_rsa_mgf1_md(pctx, pkcs11_get_EVP_MD(key_type, hash_alg)) <= 0) {
-	    P_ERR();
-	    goto err;
-	}
+	break;
     }
 
     if(!X509_sign_ctx(crt, mdctx)) {
@@ -309,7 +418,9 @@ err:
     if(name != NULL) { X509_NAME_free(name); name=NULL; }
     if(bn_sn != NULL) { BN_free(bn_sn); bn_sn=NULL; }
     if(crt!=NULL) { X509_free(crt); crt=NULL; }
+    if(signing_pk!=NULL) { EVP_PKEY_free(signing_pk); signing_pk=NULL; }
     if(pk!=NULL) { EVP_PKEY_free(pk); pk=NULL; }
+    if(prov_libctx!=NULL) { OSSL_LIB_CTX_free(prov_libctx); prov_libctx=NULL; }
     /* memory management */
 
     return retval;

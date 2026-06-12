@@ -23,13 +23,18 @@
 #include <string.h>
 
 #include <openssl/bio.h>
+#include <openssl/core_names.h>
 #include <openssl/err.h>
+#include <openssl/params.h>
 #include <openssl/pem.h>
 #include <openssl/conf.h>
+#include <openssl/objects.h>
+#include <openssl/rsa.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
 #include "pkcs11lib.h"
+#include "pkcs11_provider.h"
 
 
 static X509_REQ * new_X509_REQ_from_file(char *filename);
@@ -120,6 +125,11 @@ bool pkcs11_masq_X509_REQ(x509_req_handle_t *req,
 {
     bool retval = false;
     EVP_PKEY *pk = NULL;
+    EVP_PKEY *signing_pk = NULL;
+    OSSL_LIB_CTX *prov_libctx = NULL;
+    EVP_MD_CTX *mdctx = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
+    key_type_t key_type;
     X509_NAME *name=NULL;
     X509_REQ *xreq = (X509_REQ *)req;
     
@@ -137,25 +147,29 @@ bool pkcs11_masq_X509_REQ(x509_req_handle_t *req,
     switch(EVP_PKEY_base_id(pk)) {
 
     case EVP_PKEY_RSA:
-	/* hook our crypto to OpenSSL methods */
-	pkcs11_rsa_method_setup();
-	pkcs11_rsa_method_pkcs11_context(NULL_PTR, 0, true);
+	key_type = rsa;
 	break;
 	
     case EVP_PKEY_DSA:
-	/* hook our crypto to OpenSSL methods */
-	pkcs11_dsa_method_setup();
-	pkcs11_dsa_method_pkcs11_context(NULL_PTR, 0, true);
+	key_type = dsa;
 	break;
 	
     case EVP_PKEY_EC:
-	/* hook our crypto to OpenSSL methods */
-	pkcs11_ecdsa_method_setup();
-	pkcs11_ecdsa_method_pkcs11_context(NULL_PTR, 0, true);
+	key_type = ec;
 	break;
 
     default:
 	fprintf(stderr, "Error: unsupported signing algorithm\n");
+	goto err;
+    }
+
+    /* Route forged signing through the pkcs11tools OpenSSL 3 provider. */
+    if(!pkcs11_provider_install(&prov_libctx)) {
+	fprintf(stderr, "Error: failed to install pkcs11tools provider\n");
+	goto err;
+    }
+    signing_pk = pkcs11_provider_make_pkey(prov_libctx, key_type, pk, NULL_PTR, 0, true);
+    if(signing_pk == NULL) {
 	goto err;
     }
 
@@ -239,18 +253,90 @@ bool pkcs11_masq_X509_REQ(x509_req_handle_t *req,
 	}
     }    
 
-    /* step 10: sign PKCS#10 */
-    const EVP_MD *md = EVP_get_digestbynid(X509_REQ_get_signature_nid(xreq));
-    if(!X509_REQ_sign(xreq, pk, md)) {
-	P_ERR();
-	goto err;
+    /* step 10: sign PKCS#10 (forged signature via pkcs11tools provider). */
+    {
+	int sig_nid = X509_REQ_get_signature_nid(xreq);
+	int md_nid = NID_undef;
+	int pkey_nid = NID_undef;
+	const char *mdname = NULL;
+	bool is_pss = false;
+
+	if(sig_nid == NID_rsassaPss) {
+	    /* PSS — recover digest from the embedded PSS parameters. */
+	    const X509_ALGOR *sig_alg = NULL;
+	    const ASN1_OBJECT *aobj = NULL;
+	    int ptype = 0;
+	    const void *pval = NULL;
+	    X509_REQ_get0_signature(xreq, NULL, &sig_alg);
+	    if(sig_alg) {
+		X509_ALGOR_get0(&aobj, &ptype, &pval, sig_alg);
+		if(ptype == V_ASN1_SEQUENCE && pval) {
+		    const ASN1_STRING *str = (const ASN1_STRING *)pval;
+		    const unsigned char *p = str->data;
+		    RSA_PSS_PARAMS *pss = d2i_RSA_PSS_PARAMS(NULL, &p, str->length);
+		    if(pss && pss->hashAlgorithm) {
+			md_nid = OBJ_obj2nid(pss->hashAlgorithm->algorithm);
+		    }
+		    RSA_PSS_PARAMS_free(pss);
+		}
+	    }
+	    if(md_nid == NID_undef) {
+		md_nid = NID_sha1;      /* RFC 4055 default */
+	    }
+	    is_pss = true;
+	} else {
+	    OBJ_find_sigid_algs(sig_nid, &md_nid, &pkey_nid);
+	}
+	mdname = (md_nid != NID_undef) ? OBJ_nid2sn(md_nid) : NULL;
+
+	if((mdctx = EVP_MD_CTX_new()) == NULL) {
+	    P_ERR();
+	    goto err;
+	}
+
+	if(key_type == rsa) {
+	    OSSL_PARAM rsa_params[6];
+	    OSSL_PARAM *rsa_p = rsa_params;
+	    int saltlen_max = -1;
+	    const char *pad_pkcs1 = OSSL_PKEY_RSA_PAD_MODE_PKCSV15;
+	    const char *pad_pss   = OSSL_PKEY_RSA_PAD_MODE_PSS;
+	    if(is_pss) {
+		*rsa_p++ = OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_PAD_MODE,
+							    (char *)pad_pss, 0);
+		*rsa_p++ = OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_MGF1_DIGEST,
+							    (char *)mdname, 0);
+		*rsa_p++ = OSSL_PARAM_construct_int(OSSL_SIGNATURE_PARAM_PSS_SALTLEN,
+						    &saltlen_max);
+	    } else {
+		*rsa_p++ = OSSL_PARAM_construct_utf8_string(OSSL_SIGNATURE_PARAM_PAD_MODE,
+							    (char *)pad_pkcs1, 0);
+	    }
+	    *rsa_p = OSSL_PARAM_construct_end();
+	    if(!EVP_DigestSignInit_ex(mdctx, &pctx, mdname, prov_libctx, NULL, signing_pk, rsa_params)) {
+		P_ERR();
+		goto err;
+	    }
+	} else {
+	    if(!EVP_DigestSignInit_ex(mdctx, &pctx, mdname, prov_libctx, NULL, signing_pk, NULL)) {
+		P_ERR();
+		goto err;
+	    }
+	}
+
+	if(!X509_REQ_sign_ctx(xreq, mdctx)) {
+	    P_ERR();
+	    goto err;
+	}
     }
     
     retval = true;
 
 err:
     /* cleanup */
+    if(mdctx) { EVP_MD_CTX_free(mdctx); mdctx=NULL; }
     if(exts != NULL) { sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free); exts=NULL; }    if(name != NULL) { X509_NAME_free(name); }
+    if(signing_pk!=NULL) { EVP_PKEY_free(signing_pk); signing_pk=NULL; }
+    if(prov_libctx!=NULL) { OSSL_LIB_CTX_free(prov_libctx); prov_libctx=NULL; }
     /* memory management */
 
     return retval;

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - support public key extraction for libraries with non-compliant `CKA_EC_POINT` implementations (with no OCTET STRING encapsulation)
 - support for Docker builds
 - support for Windows 64-bit cross-compilation via MinGW-w64 (`buildx/Dockerfile.mingw64`)
+- OpenSSL 3 provider-based signing support for RSA, DSA, ECDSA and EdDSA
+- Docker build support for local source builds (`buildx.sh --local-source`)
+- Docker build support for additional PKCS#11 headers injection (`buildx.sh --extra-header`)
 - `p11req` and `p11mkcert` now support RSA-PSS signature (add `-a pss` arguments to select it)
 - `p11kcv` beefed up, to support multiple MACing algorithms, as well as displaying the value of `CKA_CHECK_VALUE`
 - support for wrapping keys in JOSE Web Key format (JWK, RFC 7178)
@@ -16,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - search templates: it is now possible to add other attributes in a search, to filter out on more than one attribute
 - support for PKCS#11 v3.0 `CKM_AES_KEY_WRAP_KWP` mechanism as an RFC5649 implementation; selectable via `rfc5649(flavour=CKM_AES_KEY_WRAP_KWP)` in wrapping algorithm strings
 - the `# wrapping algorithm:` informational header of a wrapped-key file now reports the concrete inner and outer mechanisms for envelope wraps (e.g. `Envelope (inner=PKCS#11 v3.0 CKM_AES_KEY_WRAP_KWP (RFC5649), outer=PKCS#1 OAEP)`) instead of a bare `Envelope` label, making it possible to see which RFC5649 mechanism was actually used when a token advertises several. This is a comment-only change; it does not alter the machine-readable `Wrapping-Algorithm:` line and is fully backwards-compatible with `p11unwrap`.
+
+### Changed
+- build now requires OpenSSL 3.0.0 or above (`libcrypto >= 3.0.0`)
+- Docker build files refactored to better support local repository builds, corporate proxies and static OpenSSL 3 fallback on older targets
 
 ### Fixed
 - small fix on with_xxx wrappers, replacing space with underscore in reply code

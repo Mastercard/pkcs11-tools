@@ -83,3 +83,5 @@ pkcs11-tools-*.zip
 .vscode/
 .clang-format
 
+# bear
+/compile_commands.json

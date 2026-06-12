@@ -73,7 +73,7 @@ mac_alg_t pick_algo(char *name, int *errflag) {
     }
 
     fprintf(stderr,"***Invalid KCV algorithm specified\n");
-    *errflag++;
+	(*errflag)++;
 
     return legacy;
 }
