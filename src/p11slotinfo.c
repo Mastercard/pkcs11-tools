@@ -49,6 +49,7 @@ void print_usage(char *progname)
 	     "  -t <token label> : if present, -s option is ignored\n"
 	     "  -S : login with SO privilege\n"
 	     "  -e : list also named elliptic curves supported by the token\n"
+	     "  -L : list all slots with a token available (for bash and zsh completion)\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
 	     "|\n"
@@ -87,6 +88,8 @@ int main( int argc, char ** argv )
     char * tokenlabel = NULL;
     int ec_support = 0;
     int so=0;
+    int list_slots=0;
+    func_rc finalize_retcode = rc_ok;
 
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_error_usage;
@@ -108,7 +111,7 @@ int main( int argc, char ** argv )
     }
     
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:s:t:eShV" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:s:t:eSLhV" ) ) != -1 )
     {
 	switch ( argnum )
 	{
@@ -139,6 +142,10 @@ int main( int argc, char ** argv )
 	case 'S':
 	    so=1;
 	  break;
+	
+	case 'L':
+	    list_slots=1;
+	    break;
 
 	case 'h':
 	    print_usage(argv[0]);
@@ -175,26 +182,31 @@ int main( int argc, char ** argv )
       goto err;
     }
 
-    {
-	retcode = pkcs11_info_library(p11Context);
+    if (list_slots) {
+        retcode = pkcs11_enumerate_slots_with_token(p11Context);
+    } else {
+        retcode = pkcs11_info_library(p11Context);
 
-	if( retcode == rc_ok ) {
+        if( retcode == rc_ok ) {
 
-	    retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
+            retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
 
-	    if( retcode == rc_ok ) {
-		pkcs11_info_slot(p11Context);
+            if( retcode == rc_ok ) {
+                pkcs11_info_slot(p11Context);
 
-		if(ec_support==1) {
-		    pkcs11_info_ecsupport(p11Context);
-		}
+                if(ec_support==1) {
+                    pkcs11_info_ecsupport(p11Context);
+                }
 
-		pkcs11_close_session( p11Context );
-	    }
-	}
+                pkcs11_close_session( p11Context );
+            }
+        }
     }
     
-    retcode = pkcs11_finalize( p11Context );
+    finalize_retcode = pkcs11_finalize( p11Context );
+    if (finalize_retcode != rc_ok) {
+        retcode = finalize_retcode;
+    }
 
     /* free allocated memory */
  err:

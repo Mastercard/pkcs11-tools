@@ -1,0 +1,169 @@
+# Common functions for p11* completion scripts             -*- shell-script -*-
+#
+# Description:
+#   This file provides reusable Bash functions to support autocompletion
+#   for various `p11*` CLI tools (p11cat, p11cp, p11mv, etc.).
+#
+#   Functions parse the command-line arguments dynamically and provide
+#   object filtering and completion based on loaded tokens via `p11ls`.
+#
+# Functions:
+#   - __p11_parse_args()
+#       Parses -l (lib), -s (slot), -t (token), -p (pin) from COMP_WORDS into global vars.
+#
+#   - __p11_complete_filepath(cur)
+#       Enables filename completion for file paths (library paths with -l,
+#       output files with -o, etc.).
+#
+#   - __p11_complete_dirpath(cur)
+#       Enables directory completion for NSS config directories with -m.
+#
+#   - __p11_complete_san_prefixes(cur)
+#       Completes SAN (Subject Alternative Name) prefixes for -e parameter
+#       (DNS:, email:, IP:) without adding trailing space.
+#
+#   - __p11_complete_slots(cur)
+#       Uses parsed lib to call p11slotinfo with -L and generate
+#       autocompletion candidates for slot numbers used with -s.
+#
+#   - __p11_complete_token_labels(cur)
+#       Uses parsed lib to call p11slotinfo with -L and generate
+#       autocompletion candidates for token labels used with -t.
+#
+#   - __p11_complete_objects(cur)
+#       Uses parsed lib/token (or slot if token not present)/pin to call p11ls
+#       and generate autocompletion candidates for existing PKCS#11 objects.
+#
+#   - __p11_complete_options(cur, opts)
+#       Generic completion for command-line options starting with -.
+#
+# Environment:
+#   These variables are used as fallback if -l, -s, -t or -p are not given:
+#     PKCS11LIB, PKCS11SLOT, PKCS11TOKENLABEL, PKCS11PASSWORD
+#
+# Limitations:
+#
+#   Inline environment variable assignments like the following:
+#     PKCS11LIB=/usr/lib/softhsm/libsofthsm2.so p11ls -s 0 -p 1234
+#
+#   will NOT be detected by Bash completion logic, because these assignments
+#   are not part of the shell's environment when autocompletion is triggered.
+#
+#   Instead, define them in the environment using `export`:
+#     export PKCS11LIB=/usr/lib/softhsm/libsofthsm2.so
+#     export PKCS11SLOT=0
+#     export PKCS11PASSWORD=1234
+#     p11ls <TAB>
+#
+#   This ensures that completion functions can access the variables reliably.
+#
+# Usage:
+#   Must be sourced by specific completion scripts, e.g.:
+#     source /usr/share/bash-completion/completions/p11-common
+
+# Parse -l, -s, -t, -p from COMP_WORDS into global vars
+__p11_parse_args() {
+  local i
+  __P11_LIB=""
+  __P11_SLOT=""
+  __P11_TOKEN=""
+  __P11_PIN=""
+
+  for ((i=0; i < ${#COMP_WORDS[@]}; i++)); do
+    case "${COMP_WORDS[i]}" in
+      -l) __P11_LIB="${COMP_WORDS[i+1]}" ;;
+      -s) __P11_SLOT="${COMP_WORDS[i+1]}" ;;
+      -t) __P11_TOKEN="${COMP_WORDS[i+1]}" ;;
+      -p) __P11_PIN="${COMP_WORDS[i+1]}" ;;
+    esac
+  done
+
+  # Fallback to env vars if CLI args not provided
+  [[ -z "$__P11_LIB"  && -n "$PKCS11LIB"      ]] && __P11_LIB="$PKCS11LIB"
+  [[ -z "$__P11_SLOT" && -n "$PKCS11SLOT"     ]] && __P11_SLOT="$PKCS11SLOT"
+  [[ -z "$__P11_TOKEN" && -n "$PKCS11TOKENLABEL" ]] && __P11_TOKEN="$PKCS11TOKENLABEL"
+  [[ -z "$__P11_PIN"  && -n "$PKCS11PASSWORD" ]] && __P11_PIN="$PKCS11PASSWORD"
+}
+
+# Complete file paths using Bash filename completion
+__p11_complete_filepath() {
+  local cur="$1"
+  compopt -o filenames 2>/dev/null
+  COMPREPLY=( $(compgen -f -- "$cur") )
+}
+
+# Complete directory paths using Bash directory completion
+__p11_complete_dirpath() {
+  local cur="$1"
+  compopt -o dirnames 2>/dev/null
+  COMPREPLY=( $(compgen -d -- "$cur") )
+}
+
+# Complete SAN prefixes without trailing space
+__p11_complete_san_prefixes() {
+  local cur="$1"
+  compopt -o nospace 2>/dev/null
+  COMPREPLY=( $(compgen -W "DNS: email: IP:" -- "$cur") )
+}
+
+# Build COMPREPLY from a newline-separated list while preserving spaces
+__p11_complete_from_lines() {
+  local cur="$1"
+  local lines="$2"
+  local line
+
+  COMPREPLY=()
+
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    [[ "$line" == "$cur"* ]] || continue
+    COMPREPLY+=("$line")
+  done <<< "$lines"
+}
+
+# Complete slot numbers using p11slotinfo -L
+__p11_complete_slots() {
+  local cur="$1"
+  __p11_parse_args
+
+  if [[ -n "$__P11_LIB" ]]; then
+    local slots
+    slots=$(p11slotinfo -l "$__P11_LIB" -L 2>/dev/null | cut -d: -f1)
+    COMPREPLY=( $(compgen -W "${slots}" -- "${cur}") )
+  fi
+}
+
+# Complete token labels using p11slotinfo -L
+__p11_complete_token_labels() {
+  local cur="$1"
+  __p11_parse_args
+
+  if [[ -n "$__P11_LIB" ]]; then
+    local labels
+    labels=$(p11slotinfo -l "$__P11_LIB" -L 2>/dev/null | cut -d: -f2-)
+    __p11_complete_from_lines "$cur" "$labels"
+  fi
+}
+
+# Complete PKCS#11 object labels/aliases using p11ls
+__p11_complete_objects() {
+  local cur="$1"
+  __p11_parse_args
+
+  if [[ -n "$__P11_LIB" && -n "$__P11_PIN" ]]; then
+    local objects
+    if [[ -n "$__P11_TOKEN" ]]; then
+      objects=$(PKCS11PASSWORD="$__P11_PIN" p11ls -l "$__P11_LIB" -t "$__P11_TOKEN" 2>/dev/null | sed -E 's/[[:space:]]{2,}.*$//')
+    elif [[ -n "$__P11_SLOT" ]]; then
+      objects=$(PKCS11PASSWORD="$__P11_PIN" p11ls -l "$__P11_LIB" -s "$__P11_SLOT" 2>/dev/null | sed -E 's/[[:space:]]{2,}.*$//')
+    fi
+    __p11_complete_from_lines "$cur" "$objects"
+  fi
+}
+
+# Complete command-line options
+__p11_complete_options() {
+  local cur="$1"
+  local opts="$2"
+  COMPREPLY=( $(compgen -W "${opts}" -- "$cur") )
+}

@@ -245,5 +245,99 @@ error:
 
 }
 
+/*
+ * pkcs11_enumerate_slots_with_token: list all slots with a token present
+ *
+ * this function is used when p11slotinfo is invoked with -L option
+ * The purpose is to return information consumable by bash or zsh completion
+ * We therefore go non-interactive, and just print the slot indexes (with token labels)
+ * 
+ * Caution: we select only tokens that are present and initialized
+ * 
+ */
+func_rc pkcs11_enumerate_slots_with_token( pkcs11Context * p11Context )
+{
+    CK_RV rv;
+    func_rc rc = rc_ok;
+    CK_SLOT_ID_PTR pSlotList = NULL;
+    CK_SLOT_INFO slotInfo;
+    CK_TOKEN_INFO tokenInfo;
+    CK_ULONG ulSlotCount = 0;
+    CK_ULONG i;
+
+    /* Get the number of slots */
+    if ( ( rv = p11Context->FunctionList.C_GetSlotList( CK_FALSE, NULL_PTR, &ulSlotCount ) ) != CKR_OK )
+    {
+	pkcs11_error( rv, "C_GetSlotList" );
+	rc = rc_error_pkcs11_api;
+	goto err;
+    }
+
+    if ( ulSlotCount == 0 )
+    {
+	return rc_ok;
+    }
+
+    /* Allocate memory for slots list */
+    if ( ( pSlotList = ( CK_SLOT_ID_PTR ) malloc( ulSlotCount * sizeof ( CK_SLOT_ID ) ) ) == NULL )
+    {
+	fprintf( stderr, "Error: No memory available\n" );
+	rc = rc_error_memory;
+	goto err;
+    }
+
+    memset( pSlotList, 0x00, ( ulSlotCount * sizeof ( CK_SLOT_ID ) ) );
+
+    if ( ( rv = p11Context->FunctionList.C_GetSlotList( CK_FALSE, pSlotList, &ulSlotCount ) ) != CKR_OK )
+    {
+	pkcs11_error( rv, "C_GetSlotList" );
+	rc = rc_error_pkcs11_api;
+	goto err;
+    }
+
+    /* Enumerate all slots with tokens present and initialized */
+    for ( i = 0; i < ulSlotCount; i++ )
+    {
+	if ( ( rv = p11Context->FunctionList.C_GetSlotInfo( pSlotList[i], &slotInfo ) ) != CKR_OK )
+	{
+	    pkcs11_error( rv, "C_GetSlotInfo" );
+	    continue;
+	}
+	/* Get token info */
+	if ( ( rv = p11Context->FunctionList.C_GetTokenInfo( pSlotList[i], &tokenInfo ) ) != CKR_OK )
+	{
+	    /* Skip slots without tokens */
+	    if ( rv == CKR_TOKEN_NOT_PRESENT )
+	    {
+		continue;
+	    }
+	    pkcs11_error( rv, "C_GetTokenInfo" );
+	    continue;
+	}
+
+	/* Check if token is initialized */
+	if ( ( tokenInfo.flags & CKF_TOKEN_INITIALIZED ) == 0 )
+	{
+	    continue;
+	}
+
+	/* Print slot index and token label in a format suitable for completion */
+	/* Trim trailing spaces from token label */
+	int label_len = sizeof( tokenInfo.label );
+	while ( label_len > 0 && ( isspace( (unsigned char) tokenInfo.label[label_len - 1] ) || tokenInfo.label[label_len - 1] == 0x00 ) )
+	{
+	    label_len--;
+	}
+
+	printf( "%lu:%.*s\n", i, label_len, tokenInfo.label );
+    }
+
+err:
+    if ( pSlotList )
+    {
+	free( pSlotList );
+    }
+    return rc;
+}
 
 /* EOF */

@@ -1,0 +1,58 @@
+# p11keygen(1) completion                                      -*- shell-script -*-
+#
+# Bash autocompletion for `p11keygen`.
+# Provides completions for options and PKCS#11 object labels.
+#
+# Depends on:
+#   - ./p11-common
+
+source "$(dirname "${BASH_SOURCE[0]}")/p11-common"
+
+_p11keygen_opts="-l -m -s -t -p -S -i -k -b -e -q -d -W -J -r -h -V"
+
+_p11keygen() {
+  local cur="${COMP_WORDS[COMP_CWORD]}"
+  local prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+  if [[ "$prev" == "-l" || "$prev" == "-d" ]]; then
+    __p11_complete_filepath "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-m" ]]; then
+    __p11_complete_dirpath "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-s" ]]; then
+    __p11_complete_slots "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-t" ]]; then
+    __p11_complete_token_labels "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-i" ]]; then
+    __p11_complete_objects "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-k" ]]; then
+    COMPREPLY=( $(compgen -W "aes des rsa ec ed dsa dh generic hmac hmacsha1 hmacsha224 hmacsha256 hmacsha384 hmacsha512" -- "$cur") )
+    return
+  fi
+
+  if [[ "$prev" == "-q" ]]; then
+    COMPREPLY=( $(compgen -W "prime256v1 secp384r1 secp521r1 ED25519 ED448" -- "$cur") )
+    return
+  fi
+
+  if [[ "$cur" == -* ]]; then
+    __p11_complete_options "$cur" "${_p11keygen_opts}"
+    return
+  fi
+}
+
+complete -F _p11keygen p11keygen

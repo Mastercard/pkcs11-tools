@@ -350,3 +350,17 @@ The default installation of `pkcs11-tools` does not support the creation of obje
 ```bash
 $ ./configure [...] --enable-duplicate
 ```
+
+## Shell completion
+On `make install`, `bash` and `zsh` completion scripts for the `p11*` tools are installed automatically:
+
+- `bash`: into `$(datadir)/bash-completion/completions/` (e.g. `/usr/local/share/bash-completion/completions/`)
+- `zsh`: into `$(datadir)/zsh/site-functions/` (e.g. `/usr/local/share/zsh/site-functions/`)
+
+These are the standard locations searched by the completion frameworks, so completion is loaded on demand with no additional configuration, provided the `bash-completion` package is present and the tools are on `PATH`.
+
+If the toolkit is installed under a non-standard `--prefix`, ensure that:
+- `$(prefix)/bin` is on your `PATH`, and
+- the completion framework searches `$(prefix)/share/bash-completion/completions` (for example via `XDG_DATA_DIRS` or `BASH_COMPLETION_USER_DIR`).
+
+The bash completion scripts share a common helper file, `p11-common`, installed alongside them. It is not tied to any command name and is only sourced as a dependency by the per-tool scripts. Completion that queries a token (slot, token-label and object-name completion) invokes `p11slotinfo -L` and `p11ls`, so those binaries must be installed and on `PATH` for live completion to function.

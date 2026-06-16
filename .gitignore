@@ -85,3 +85,6 @@ pkcs11-tools-*.zip
 
 # bear
 /compile_commands.json
+
+# Generated zsh completion
+/_p11tools
