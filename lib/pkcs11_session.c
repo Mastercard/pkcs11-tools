@@ -26,7 +26,7 @@
 
 
 /* prototypes and small/inline functions */
-static int tokenlabelcmp(const char *label, const char *reflabel, size_t reflabel_maxlen);
+/* tokenlabelcmp is exposed through pkcs11lib.h for reuse by other modules */
 static int _min(const int a, const int b);
 static int _max(const int a, const int b);
 
@@ -72,7 +72,7 @@ static inline int _max(const int a, const int b) {
 **          with a warning.
 */
 
-static int tokenlabelcmp(const char *label, const char *reflabel, size_t reflabel_maxlen)
+int tokenlabelcmp(const char *label, const char *reflabel, size_t reflabel_maxlen)
 {
 
     size_t label_len = strlen(label);

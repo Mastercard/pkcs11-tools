@@ -79,6 +79,7 @@ The following commands are supported:
 | `p11rewrap`     | unwraps a key, and wrap it again under one or several wrapping key(s)            |
 | `masqreq`       | tunes a CSR to adjust DN and other fields (without re-signing)                   |
 | `p11mkcert`     | generates a self-signed certificate, suitable for Java JCA                       |
+| `p11init`       | initializes a token and/or its user PIN, or resets an existing token             |
 
 ## common arguments
 
@@ -1020,6 +1021,124 @@ xL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4o
 xL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4o
 xL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4o
 -----END CERTIFICATE REQUEST-----
+```
+
+## p11init
+
+`p11init` initializes a PKCS\#11 token and/or its user (crypto officer) PIN, and can also reset (reinitialize) an
+already initialized token. It maps directly to the PKCS\#11 `C_InitToken` and `C_InitPIN` functions.
+
+Unlike the other commands, `p11init` does **not** honour the `PKCS11PASSWORD`, `PKCS11SLOT` or `PKCS11TOKENLABEL`
+environment variables. Because its operations are destructive, the target token must always be made explicit on the
+command line (`-s`/`-t`, or chosen from the interactive list) and the PINs must always be passed as arguments or typed at
+the prompt — there are no hidden defaults coming from the environment. The `:::exec:<command>` convention is supported (to
+fetch a PIN from a subprocess), but the `:::nologin` convention is not.
+
+When running interactively (the default), any value that is not supplied on the command line is prompted for, mirroring the
+behaviour of the other commands. When neither a slot index (`-s`) nor a token label (`-t`) is given, `p11init` prints the
+**full slot list** and prompts for a slot index — exactly like `p11slotinfo` and the other commands. When a slot or token
+*is* given, the selected slot is displayed. The SO PIN and user PIN are read with echo turned off, so a terminal is
+required. Any PIN that is being **defined** interactively (the SO PIN when initializing a token, and the new user PIN)
+is asked **twice** and the two entries must match, to guard against a typo; a mismatch aborts the command without
+performing any action. In batch mode (`-B`), nothing is prompted: the slot/token must be known up-front and every required value
+**must** be passed as a command-line argument; the command fails safely (without performing any action) if anything is
+missing or inconsistent.
+
+Operations are selected with explicit flags, which can be combined:
+
+- `-I`: initialize a token (`C_InitToken`, Security Officer credentials). Needs a token label (`-T`) and the SO PIN
+  (`-O`); both are mandatory in batch mode, and prompted for in interactive mode.
+- `-U`: initialize/change the user (crypto officer) PIN (`C_InitPIN`). Needs the SO PIN (`-O`, used to log in as SO) and the
+  new user PIN (`-P`).
+- `-I -U`: do both, in one go (the token is initialized first, then the user PIN is set on the freshly created token).
+
+The slot is **not** filtered by compatibility: the whole list is shown and the chosen slot is validated *after* selection.
+For `-I`, the chosen slot must hold an **uninitialized** token, unless `-R` is given to authorize the (destructive)
+reinitialization of an already initialized one. For a standalone `-U`, an explicit `(y/N)` confirmation is requested before the
+user PIN is (re)set. While initializing, `p11init` also prints a short description of the operation being performed.
+
+Options are:
+
+- `-l <path>`: path to the PKCS\#11 library (or `PKCS11LIB`).
+- `-m <NSS config dir>`: NSS configuration directory (or `PKCS11NSSDIR`).
+- `-s <slot index>`: the slot **index**. When omitted in interactive mode, the slot list is shown and a
+  slot index is prompted for. In batch mode it must be provided (for `-I`, and for `-U` unless `-t` is used).
+  (The `PKCS11SLOT` environment variable is **not** read by `p11init`.)
+- `-t <token label>`: a token label, allowed **only** together with `-U` alone, to address an already initialized token.
+  It cannot be used with `-I`. (The `PKCS11TOKENLABEL` environment variable is **not** read by `p11init`.)
+- `-I`: initialize a token (see above). The chosen slot must hold an **uninitialized** token, unless `-R` is given.
+- `-R`: explicitly authorize the reinitialization (reset) of an **already initialized** token. This is a destructive
+  operation that erases all of the token content; it must be combined with `-I`. The slot may be picked interactively.
+- `-U`: initialize/change the user PIN (see above). A standalone `-U` asks for an explicit `(y/N)` confirmation before proceeding.
+- `-O <SO PIN | :::exec:<command>>`: the Security Officer PIN (prompted if omitted in interactive mode, mandatory in batch mode).
+- `-P <user PIN | :::exec:<command>>`: the new user PIN (used by `-U`; prompted if omitted in interactive mode).
+- `-T <token label>`: the token label to set when initializing a token (`-I`); mandatory in batch mode, prompted for in interactive mode.
+- `-B`: batch mode: never prompt. All required values must be passed as arguments, and interactive confirmations are skipped.
+- `-h`: print usage information.
+- `-V`: print version information.
+
+### Resetting (erasing) an existing token
+
+In PKCS\#11, calling `C_InitToken` on an already initialized token erases all of its content: this is how a token is
+reset. To avoid accidental data loss, `p11init` refuses to reinitialize an already initialized token unless the `-R`
+option is explicitly provided. With `-R`, the slot can be picked from the regular slot list (or given with `-s`). When
+running interactively (i.e. without `-B`), it then prints a warning showing the token being reset and asks for an
+explicit `(y/N)` confirmation (answer `y` then ENTER to proceed). In batch mode (`-B`), `-R` is sufficient and no prompt is displayed.
+
+Note that, as required by the standard, the SO PIN passed with `-O` when resetting an already initialized token must
+match the token's current SO PIN.
+
+### Examples
+
+Initialize a blank token at slot index `0`, setting its label and SO PIN:
+
+```
+$ p11init -l /path/to/libpkcs11.so -I -s 0 -O 12345678 -T "my token"
+Token at slot index 0 initialized successfully.
+```
+
+Set the user (crypto officer) PIN of an already initialized token, addressed by label:
+
+```
+$ p11init -l /path/to/libpkcs11.so -U -t "my token" -O 12345678 -P 87654321
+User (crypto officer) PIN initialized successfully.
+```
+
+Initialize a token and set its user PIN in a single invocation:
+
+```
+$ p11init -l /path/to/libpkcs11.so -I -U -s 0 -O 12345678 -P 87654321 -T "my token"
+Token at slot index 0 initialized successfully.
+User (crypto officer) PIN initialized successfully.
+```
+
+Reset (erase and reinitialize) an already initialized token, in batch mode:
+
+```
+$ p11init -l /path/to/libpkcs11.so -I -R -B -s 0 -O 12345678 -T "my token"
+Token at slot index 0 initialized successfully.
+```
+
+Fetch the SO PIN from a subprocess:
+
+```
+$ p11init -l /path/to/libpkcs11.so -U -t "my token" -O :::exec:\"getsopin -label my-token\" -P 87654321
+```
+
+Initialize a token interactively (the slot list is shown, then the slot index, token label and SO PIN are prompted):
+
+```
+$ p11init -l /path/to/libpkcs11.so -I
+PKCS#11 module slot list:
+Slot index: 0
+----------------
+...
+Enter slot index: 0
+Enter new token label: my token
+Enter Security Officer (SO) PIN:
+Confirm Security Officer (SO) PIN:
+Initializing token at slot index 0 with label 'my token'...
+Token at slot index 0 initialized successfully.
 ```
 
 ## p11wrap and p11unwrap

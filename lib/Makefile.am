@@ -60,6 +60,7 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_error.c \
 	pkcs11_context.c \
 	pkcs11_session.c \
+	pkcs11_init.c \
 	pkcs11_template.c \
 	pkcs11_kcv.c \
 	pkcs11_keycomp.c \
