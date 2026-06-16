@@ -1,0 +1,49 @@
+# p11init(1) completion                                      -*- shell-script -*-
+#
+# Bash autocompletion for `p11init`.
+# Provides completions for options, slot indexes and token labels.
+#
+# Depends on:
+#   - ./p11-common
+
+source "$(dirname "${BASH_SOURCE[0]}")/p11-common"
+
+_p11init_opts="-l -m -s -t -I -R -U -O -P -T -B -h -V"
+
+_p11init() {
+  local cur="${COMP_WORDS[COMP_CWORD]}"
+  local prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+  if [[ "$prev" == "-l" ]]; then
+    __p11_complete_filepath "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-m" ]]; then
+    __p11_complete_dirpath "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-s" ]]; then
+    __p11_complete_slots "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-t" ]]; then
+    __p11_complete_token_labels "$cur"
+    return
+  fi
+
+  # -O (SO PIN), -P (user PIN) and -T (new token label) take free-form,
+  # often sensitive values: intentionally offer no completion.
+  if [[ "$prev" == "-O" || "$prev" == "-P" || "$prev" == "-T" ]]; then
+    return
+  fi
+
+  if [[ "$cur" == -* ]]; then
+    __p11_complete_options "$cur" "${_p11init_opts}"
+    return
+  fi
+}
+
+complete -F _p11init p11init
