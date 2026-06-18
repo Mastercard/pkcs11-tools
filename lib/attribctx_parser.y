@@ -169,7 +169,7 @@ template_expr:	CKATTR_TEMPLATE ASSIGN CURLY_OPEN
 		    ctx->level++; /*remind we are in a curly brace */
 
 		    ctx->current_idx = ctx->saved_idx + 1; /*increment current idx from ctx->saved_idx */
-		    if(ctx->current_idx>=4) {
+		    if(ctx->current_idx>=6) {
 			clerror(ctx, "***Error: too many templates specified");
 			YYERROR;
 		   }

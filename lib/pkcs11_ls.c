@@ -283,6 +283,10 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 #if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */
 				_ATTR(CKA_WRAP_TEMPLATE),
 #endif
+				_ATTR(CKA_ENCAPSULATE),
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */
+				_ATTR(CKA_ENCAPSULATE_TEMPLATE),
+#endif
 				_ATTR(CKA_TRUSTED), /* NSS: unknown */
 
 				_ATTR_END );
@@ -358,13 +362,42 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		}
 		break;
 
+#if defined(WITH_PQC)
+	    case CKK_ML_KEM:
+	    case CKK_ML_DSA:
+	    case CKK_SLH_DSA: {
+		CK_KEY_TYPE ckk = *((CK_KEY_TYPE *)(keytype->pValue));
+		key_type_t pqckt;
+
+		switch(ckk) {
+		case CKK_ML_KEM:  pqckt = ml_kem;  break;
+		case CKK_ML_DSA:  pqckt = ml_dsa;  break;
+		default:          pqckt = slh_dsa; break;
+		}
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_PARAMETER_SET),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    CK_ATTRIBUTE_PTR paramset = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_PARAMETER_SET );
+		    const pqc_paramset_t *psinfo = (paramset && paramset->pValue) ?
+			pkcs11_pqc_paramset_from_value(pqckt, *(CK_ULONG *)(paramset->pValue)) : NULL;
+		    if(psinfo) {
+			pkcs11_pqc_paramset_dispname(psinfo, keykind, sizeof keykind);
+		    } else {
+			snprintf(keykind, sizeof keykind, "pqc(\?\?\?)");
+		    }
+		}
+	    }
+		break;
+#endif
+
 	    default:
 		sprintf(keykind, "unknown(\?\?\?)");
 	    }
 
 	    label_or_id(label, id, buffer, buffer_len);
 
-	    printf("pubk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	    printf("pubk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs,CKA_TOKEN, "tok,", "ses,", ""),
@@ -377,8 +410,10 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		   value_for_boolattr(attrs,CKA_VERIFY, "vfy,", "", ""),
 		   value_for_boolattr(attrs,CKA_VERIFY_RECOVER, "vre,", "", ""),
 		   value_for_boolattr(attrs,CKA_WRAP, "wra,", "", ""),
+		   value_for_boolattr(attrs,CKA_ENCAPSULATE, "ncp,", "", ""),
 		   value_for_boolattr(attrs,CKA_TRUSTED, "tru,", "", ""),
 		   value_for_template(attrs,CKA_WRAP_TEMPLATE, "wrt,", ""),
+		   value_for_template(attrs,CKA_ENCAPSULATE_TEMPLATE, "nct,", ""),
 		   value_for_template(attrs,CKA_DERIVE_TEMPLATE, "drt,", ""),
 		   value_for_allowed_mechanisms(attrs, "alm,", ""),
 		   keykind
@@ -429,6 +464,10 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 				_ATTR(CKA_UNWRAP),
 #if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */
 				_ATTR(CKA_UNWRAP_TEMPLATE),
+#endif
+				_ATTR(CKA_DECAPSULATE),
+#if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle this */
+				_ATTR(CKA_DECAPSULATE_TEMPLATE),
 #endif
 				_ATTR(CKA_SENSITIVE),
 				_ATTR(CKA_ALWAYS_SENSITIVE),
@@ -521,13 +560,42 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		}
 		break;
 
+#if defined(WITH_PQC)
+	    case CKK_ML_KEM:
+	    case CKK_ML_DSA:
+	    case CKK_SLH_DSA: {
+		CK_KEY_TYPE ckk = *((CK_KEY_TYPE *)(keytype->pValue));
+		key_type_t pqckt;
+
+		switch(ckk) {
+		case CKK_ML_KEM:  pqckt = ml_kem;  break;
+		case CKK_ML_DSA:  pqckt = ml_dsa;  break;
+		default:          pqckt = slh_dsa; break;
+		}
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_PARAMETER_SET),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    CK_ATTRIBUTE_PTR paramset = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_PARAMETER_SET );
+		    const pqc_paramset_t *psinfo = (paramset && paramset->pValue) ?
+			pkcs11_pqc_paramset_from_value(pqckt, *(CK_ULONG *)(paramset->pValue)) : NULL;
+		    if(psinfo) {
+			pkcs11_pqc_paramset_dispname(psinfo, keykind, sizeof keykind);
+		    } else {
+			snprintf(keykind, sizeof keykind, "pqc(\?\?\?)");
+		    }
+		}
+	    }
+		break;
+#endif
+
 	    default:
 		sprintf(keykind, "unknown(\?\?\?)");
 	    }
 
 	    label_or_id(label, id, buffer, buffer_len);
 
-	    printf("prvk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	    printf("prvk/%-*s %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		   LABEL_WIDTH,
 		   buffer,
 		   value_for_boolattr(attrs,CKA_TOKEN, "tok,", "ses,", ""),
@@ -540,6 +608,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		   value_for_boolattr(attrs,CKA_SIGN, "sig,", "", ""),
 		   value_for_boolattr(attrs,CKA_SIGN_RECOVER, "sir,", "", ""),
 		   value_for_boolattr(attrs,CKA_UNWRAP, "unw,", "", ""),
+		   value_for_boolattr(attrs,CKA_DECAPSULATE, "dcp,", "", ""),
 		   value_for_boolattr(attrs,CKA_SENSITIVE, "sen,", "NSE,", ""),
 		   value_for_boolattr(attrs,CKA_ALWAYS_SENSITIVE, "ase,", "NAS,", ""),
 		   value_for_boolattr(attrs,CKA_EXTRACTABLE, "XTR,", "", ""),
@@ -547,6 +616,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		   value_for_boolattr(attrs,CKA_ALWAYS_AUTHENTICATE, "AAU,", "", ""),
 		   value_for_boolattr(attrs,CKA_WRAP_WITH_TRUSTED, "wwt,", "", ""),
 		   value_for_template(attrs,CKA_UNWRAP_TEMPLATE, "uwt,", ""),
+		   value_for_template(attrs,CKA_DECAPSULATE_TEMPLATE, "dct,", ""),
 		   value_for_template(attrs,CKA_DERIVE_TEMPLATE, "drt,", ""),
 		   value_for_allowed_mechanisms(attrs, "alm,", ""),
 		   keykind

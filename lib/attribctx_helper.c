@@ -153,6 +153,24 @@ func_rc _attribctx_parser_assign_list_to_template(attribCtx *clctx, CK_ATTRIBUTE
 	clctx->has_derive_template = true;
 	break;
 
+    case CKA_ENCAPSULATE_TEMPLATE:
+	if(clctx->has_encapsulate_template==true) {
+	    fprintf(stderr, "***Error: an encapsulate template can only be specified once\n");
+	    rc = rc_error_parsing;
+	    goto error;
+	}
+	clctx->has_encapsulate_template = true;
+	break;
+
+    case CKA_DECAPSULATE_TEMPLATE:
+	if(clctx->has_decapsulate_template==true) {
+	    fprintf(stderr, "***Error: a decapsulate template can only be specified once\n");
+	    rc = rc_error_parsing;
+	    goto error;
+	}
+	clctx->has_decapsulate_template = true;
+	break;
+
     default:
 	fprintf(stderr, "***Error: invalid template type - internal error\n");
 	rc = rc_error_oops;

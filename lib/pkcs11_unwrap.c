@@ -662,6 +662,11 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 		case CKK_RSA:
 		case CKK_EC:
 		case CKK_EC_EDWARDS:
+#if defined(WITH_PQC)
+		case CKK_ML_KEM:
+		case CKK_ML_DSA:
+		case CKK_SLH_DSA:
+#endif
 		    if(pkcs11_privatekey_exists(p11Context, label)) {
 #ifdef HAVE_DUPLICATES_ENABLED
 			if(p11Context->can_duplicate) {
@@ -981,6 +986,11 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 		case CKK_RSA:
 		case CKK_EC:
 		case CKK_EC_EDWARDS:
+#if defined(WITH_PQC)
+		case CKK_ML_KEM:
+		case CKK_ML_DSA:
+		case CKK_SLH_DSA:
+#endif
 		    if(pkcs11_privatekey_exists(p11Context, label)) {
 #ifdef HAVE_DUPLICATES_ENABLED
 			if(p11Context->can_duplicate) {

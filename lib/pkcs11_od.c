@@ -33,6 +33,7 @@ typedef enum { no_cast,
 	       as_key_type,
 	       as_cert_type,
 	       as_mech_type,
+	       as_paramset,
 	       as_template,
 } ck_cast;
 
@@ -113,6 +114,12 @@ static attrib_repr list[] = {
 
     { CKA_EC_POINT, "CKA_EC_POINT", no_cast },
 
+    { CKA_PARAMETER_SET, "CKA_PARAMETER_SET", as_paramset },
+    { CKA_ENCAPSULATE, "CKA_ENCAPSULATE", as_bool },
+    { CKA_DECAPSULATE, "CKA_DECAPSULATE", as_bool },
+    { CKA_ENCAPSULATE_TEMPLATE, "CKA_ENCAPSULATE_TEMPLATE", as_template },
+    { CKA_DECAPSULATE_TEMPLATE, "CKA_DECAPSULATE_TEMPLATE", as_template },
+
 /* CKA_SECONDARY_AUTH, CKA_AUTH_PIN_FLAGS,
  * are new for v2.10. Deprecated in v2.11 and onwards. */
     { CKA_SECONDARY_AUTH, "CKA_SECONDARY_AUTH", no_cast },
@@ -176,7 +183,7 @@ static attrib_repr list[] = {
 /* taken from linux kernel and modified */
 
 
-static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool template) {
+static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool template, CK_KEY_TYPE keytype) {
     unsigned long i;
     unsigned char buff[17];
     unsigned char *pc = (unsigned char*)addr;
@@ -211,6 +218,41 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 
 	// And print cast to CK_ULONG
 	printf ("  %s%ld (0x%8.8lx)\n", template ? "" : "  ", *((CK_ULONG *)addr), *((CK_ULONG *)addr));
+	break;
+
+    case as_paramset:
+	for (i = 0; i < len; i++) {
+	    if ((i % 16) == 0) {
+		// Output the offset.
+		printf (" %s %04lx ", template ? "| " : "", i);
+	    }
+
+	    printf (" %02x", pc[i]);
+	}
+
+	// Pad out last line if not exactly 16 characters.
+	while ((i % 16) != 0) {
+	    printf ("   ");
+	    i++;
+	}
+
+	// Print only the symbolic PKCS#11 parameter-set name (e.g. CKP_ML_KEM_512).
+	// CKP_* values overlap between families, so the key type is needed to
+	// disambiguate; the raw value is already shown in the hexdump on the left.
+	info = "??unknown parameter set";
+	{
+#if defined(WITH_PQC)
+	    CK_ULONG psval = *((CK_ULONG *)addr);
+	    key_type_t pqckt = keytype==CKK_ML_KEM  ? ml_kem  :
+		               keytype==CKK_ML_DSA  ? ml_dsa  :
+		               keytype==CKK_SLH_DSA ? slh_dsa : unknown;
+	    if(pqckt != unknown) {
+		const pqc_paramset_t *ps = pkcs11_pqc_paramset_from_value(pqckt, psval);
+		if(ps && ps->ckpname) { info = (char *)ps->ckpname; }
+	    }
+#endif
+	}
+	printf ("  %s%s\n", template ? "" : "  ", info);
 	break;
 
     case as_bool:
@@ -333,6 +375,20 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	case CKK_EC_EDWARDS:
 	    info = "CKK_EC_EDWARDS";
 	    break;
+
+#if defined(WITH_PQC)
+	case CKK_ML_KEM:
+	    info = "CKK_ML_KEM";
+	    break;
+
+	case CKK_ML_DSA:
+	    info = "CKK_ML_DSA";
+	    break;
+
+	case CKK_SLH_DSA:
+	    info = "CKK_SLH_DSA";
+	    break;
+#endif
 
 	case CKK_X9_42_DH:
 	    info = "CKK_X9_42_DH";
@@ -603,7 +659,7 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 
 	    /* if the template does not have a compliant length, do not show it. */
 	    if(item && item->pValue && item->ulValueLen) {
-		hexdump( &list[i], item->pValue, item->ulValueLen, true);
+		hexdump( &list[i], item->pValue, item->ulValueLen, true, keytype);
 	    }
 	}	
 	break;
@@ -720,6 +776,12 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 
 					    _ATTR(CKA_EC_POINT),
 
+					    _ATTR(CKA_PARAMETER_SET),
+					    _ATTR(CKA_ENCAPSULATE),
+					    _ATTR(CKA_DECAPSULATE),
+					    _ATTR(CKA_ENCAPSULATE_TEMPLATE),
+					    _ATTR(CKA_DECAPSULATE_TEMPLATE),
+
 /* CKA_SECONDARY_AUTH, CKA_AUTH_PIN_FLAGS,
  * are new for v2.10. Deprecated in v2.11 and onwards. */
 					    _ATTR(CKA_SECONDARY_AUTH),
@@ -786,6 +848,9 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 						      0L) == true) {
 
 		    int i;
+		    CK_ATTRIBUTE_PTR ktitem = pkcs11_get_attr_in_attrlist(attrs, CKA_KEY_TYPE);
+		    CK_KEY_TYPE keytype = (ktitem && ktitem->pValue && ktitem->ulValueLen==sizeof(CK_KEY_TYPE))
+			? *(CK_KEY_TYPE *)ktitem->pValue : (CK_KEY_TYPE)~0UL;
 
 		    if(label) {
 			printf("%s:\n", label);
@@ -798,7 +863,7 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 			CK_ATTRIBUTE_PTR item = pkcs11_get_attr_in_attrlist(attrs, list[i].attr );
 
 			if(item && item->ulValueLen) {
-			    hexdump( &list[i], item->pValue, item->ulValueLen, false);
+			    hexdump( &list[i], item->pValue, item->ulValueLen, false, keytype);
 			}
 		    }
 		    printf("\n");

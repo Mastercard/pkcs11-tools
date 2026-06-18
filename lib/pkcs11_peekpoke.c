@@ -221,6 +221,15 @@ func_rc pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hP
 	case CKK_DH:
 	    attr = pkcs11_get_attr_in_attrlist( attrs, CKA_VALUE );
 	    break;
+
+#if defined(WITH_PQC)
+	    /* PQC public keys are exposed as raw bytes in CKA_VALUE */
+	case CKK_ML_KEM:
+	case CKK_ML_DSA:
+	case CKK_SLH_DSA:
+	    attr = pkcs11_get_attr_in_attrlist( attrs, CKA_VALUE );
+	    break;
+#endif
 	}
 
 	if(attr!=NULL) {
@@ -395,6 +404,11 @@ key_type_t pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 	{ CKK_DSA, dsa, },
 	{ CKK_DH, dh, },
 	{ CKK_GENERIC_SECRET, generic, },
+#if defined(WITH_PQC)
+	{ CKK_ML_KEM, ml_kem, },
+	{ CKK_ML_DSA, ml_dsa, },
+	{ CKK_SLH_DSA, slh_dsa, },
+#endif
 #if defined(HAVE_NCIPHER)
 	{ CKK_SHA_1_HMAC, hmacsha1, },
 	{ CKK_SHA224_HMAC, hmacsha224, },

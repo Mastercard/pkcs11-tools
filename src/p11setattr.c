@@ -73,6 +73,7 @@ void print_usage(char *progname)
 	     "        CKA_LABEL, CKA_ID,\n"
              "        CKA_WRAP, CKA_UNWRAP,\n" 
              "        CKA_DECRYPT, CKA_ENCRYPT,\n"
+             "        CKA_ENCAPSULATE, CKA_DECAPSULATE,\n"
 	     "        CKA_SIGN, CKA_VERIFY,\n"
 	     "        CKA_SIGN_RECOVER, CKA_VERIFY_RECOVER,\n"
              "        CKA_TRUSTED, CKA_MODIFIABLE,\n"

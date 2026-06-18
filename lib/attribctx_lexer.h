@@ -270,8 +270,7 @@
 
 /* C99 systems have <inttypes.h>. Non-C99 systems may or may not. */
 
-#if defined(__FreeBSD__) || \
-    (defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L)
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 
 /* C99 says to define __STDC_LIMIT_MACROS before including stdint.h,
  * if you want the limit (max/min) macros for int types. 
@@ -706,9 +705,9 @@ extern int yylex (void);
 #undef yyTABLES_NAME
 #endif
 
-#line 159 "attribctx_lexer.l"
+#line 166 "attribctx_lexer.l"
 
 
-#line 712 "attribctx_lexer.h"
+#line 711 "attribctx_lexer.h"
 #undef clIN_HEADER
 #endif /* clHEADER_H */

@@ -238,6 +238,10 @@ CK_ATTRIBUTE_TYPE get_attribute_type(char *arg)
 	attrtype = CKA_ENCRYPT;
     } else if (strcasecmp(arg, "CKA_DECRYPT")==0 || strcasecmp(arg, "DECRYPT")==0) {
 	attrtype = CKA_DECRYPT;
+    } else if (strcasecmp(arg, "CKA_ENCAPSULATE")==0 || strcasecmp(arg, "ENCAPSULATE")==0) {
+	attrtype = CKA_ENCAPSULATE;
+    } else if (strcasecmp(arg, "CKA_DECAPSULATE")==0 || strcasecmp(arg, "DECAPSULATE")==0) {
+	attrtype = CKA_DECAPSULATE;
     } else if (strcasecmp(arg, "CKA_SIGN")==0 || strcasecmp(arg, "SIGN")==0) {
 	attrtype = CKA_SIGN;
     } else if (strcasecmp(arg, "CKA_VERIFY")==0 || strcasecmp(arg, "VERIFY")==0) {

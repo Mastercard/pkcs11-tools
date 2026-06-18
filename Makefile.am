@@ -18,7 +18,7 @@ EXTRA_DIST = \
 	m4/ax_with_dmalloc.m4	 \
 	include/cryptoki	 \
 	include/pkcs11lib.h      \
-	include/oasis-pkcs11/working/3-00-current \
+	include/oasis-pkcs11/published/3-02 \
 	with_beid	         \
 	with_luna	         \
 	with_nfast               \

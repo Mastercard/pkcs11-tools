@@ -30,6 +30,10 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/asn1.h>
+#if defined(HAVE_PQC_OPENSSL)
+#include <openssl/core_names.h>
+#include <openssl/params.h>
+#endif
 
 
 static void write_X509(X509* cert, BIO *sink)
@@ -173,6 +177,9 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
 				_ATTR(CKA_BASE), /* DSA/DH */
 				_ATTR(CKA_EC_PARAMS), /* EC/ED */
 				_ATTR(CKA_EC_POINT),  /* EC/ED */
+#if defined(WITH_PQC)
+				_ATTR(CKA_PARAMETER_SET), /* ML-KEM/ML-DSA/SLH-DSA */
+#endif
 				_ATTR_END );
 
     if( pkcs11_read_attr_from_handle_ext (attrs, hndl,
@@ -462,7 +469,74 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
 		}
 		    break;
 		    /* end of case_CKK_EC_EDWARDS */
-		    
+
+#if defined(HAVE_PQC_OPENSSL)
+		case CKK_ML_KEM:
+		case CKK_ML_DSA:
+		case CKK_SLH_DSA: {
+		    /* Post-Quantum public keys (FIPS 203/204/205).                  */
+		    /* The raw public key bytes are stored in CKA_VALUE and the      */
+		    /* parameter set in CKA_PARAMETER_SET; OpenSSL 3.5+ exposes one   */
+		    /* key type per parameter set (e.g. "ML-DSA-65"), so we rebuild   */
+		    /* the EVP_PKEY directly with EVP_PKEY_fromdata().                */
+		    EVP_PKEY *pk = NULL;
+		    EVP_PKEY_CTX *ctx = NULL;
+		    const pqc_paramset_t *ps = NULL;
+		    CK_ATTRIBUTE_PTR ovalue = NULL;
+		    CK_ATTRIBUTE_PTR oparamset = NULL;
+		    CK_KEY_TYPE kt = *(CK_KEY_TYPE *)(oktype->pValue);
+		    key_type_t pqckt;
+
+		    switch(kt) {
+		    case CKK_ML_KEM:  pqckt = ml_kem;  break;
+		    case CKK_ML_DSA:  pqckt = ml_dsa;  break;
+		    default:          pqckt = slh_dsa; break;
+		    }
+
+		    ovalue    = pkcs11_get_attr_in_attrlist(attrs, CKA_VALUE);
+		    oparamset = pkcs11_get_attr_in_attrlist(attrs, CKA_PARAMETER_SET);
+
+		    if(ovalue==NULL || oparamset==NULL) {
+			fprintf(stderr, "Error: object missing attribute(s) CKA_VALUE and/or CKA_PARAMETER_SET\n");
+			goto key_pqc_error;
+		    }
+
+		    ps = pkcs11_pqc_paramset_from_value(pqckt, *(CK_ULONG *)(oparamset->pValue));
+		    if(ps==NULL) {
+			fprintf(stderr, "Error: unsupported/unknown PQC parameter set\n");
+			goto key_pqc_error;
+		    }
+
+		    {
+			OSSL_PARAM params[2];
+			params[0] = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
+								      ovalue->pValue, ovalue->ulValueLen);
+			params[1] = OSSL_PARAM_construct_end();
+
+			if( (ctx = EVP_PKEY_CTX_new_from_name(NULL, ps->osslname, NULL)) == NULL ) {
+			    P_ERR();
+			    goto key_pqc_error;
+			}
+			if( EVP_PKEY_fromdata_init(ctx) <= 0 ) {
+			    P_ERR();
+			    goto key_pqc_error;
+			}
+			if( EVP_PKEY_fromdata(ctx, &pk, EVP_PKEY_PUBLIC_KEY, params) <= 0 ) {
+			    P_ERR();
+			    goto key_pqc_error;
+			}
+		    }
+
+		    write_pubk(pk, openssl_native_flag, sink);
+
+		    key_pqc_error:
+		    if(ctx) { EVP_PKEY_CTX_free(ctx); }
+		    if(pk) { EVP_PKEY_free(pk); }
+		}
+		    break;
+		    /* end of case_CKK_PQC */
+#endif /* HAVE_PQC_OPENSSL */
+
 		default:
 		    fprintf(stderr, "Sorry, (yet) unsupported key type\n");
 		    break;

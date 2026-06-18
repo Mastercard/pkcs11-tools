@@ -393,6 +393,25 @@ int main( int argc, char ** argv )
 					    _ATTR_END);
 	    break;
 
+#if defined(HAVE_PQC_OPENSSL)
+	case ml_dsa:
+	case slh_dsa:
+	    /* for ML-DSA and SLH-DSA, the public key value is stored in CKA_VALUE */
+	    /* on the public key object, together with CKA_PARAMETER_SET.          */
+	    if(hPublicKey==NULL_PTR) {
+		fprintf(stderr, "Error: a public key is required in order to generate a post-quantum certificate.\n");
+		retcode = rc_error_dsa_missing_public_key;
+		goto err;
+	    }
+	    handle_for_attributes = hPublicKey;
+	    attrlist = pkcs11_new_attrlist( p11Context,
+					    _ATTR(CKA_VALUE),
+					    _ATTR(CKA_PARAMETER_SET),
+					    _ATTR(CKA_ID),
+					    _ATTR_END);
+	    break;
+#endif
+
 	default:
 	    fprintf(stderr, "Error: unsupported key type\n");
 	    retcode = rc_error_unsupported;
