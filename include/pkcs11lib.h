@@ -842,6 +842,7 @@ size_t pkcs11_attribctx_get_allowed_mechanisms_len(attribCtx *ctx);
 /* Callback Prompt Strings */
 #define SLOT_PROMPT_STRING			"Enter slot index: "
 #define PASS_PROMPT_STRING			"Enter passphrase for token: "
+#define SO_PASS_PROMPT_STRING			"Enter Security Officer (SO) PIN for token: "
 // #define TOKEN_PASS_PROMPT_STRING		"Enter passphrase for token '%s': "
 
 #define MAXBUFSIZE              1024

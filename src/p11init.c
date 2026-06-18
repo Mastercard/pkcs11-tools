@@ -119,7 +119,7 @@ void print_usage(char *progname)
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
 	     "|\n"
-	     "+-> arguments marked with an asterix(*) are mandatory\n"
+	     "+-> arguments marked with an asterisk(*) are mandatory\n"
 	     "|   (except if environment variable sets the value)\n"
 	     "\n"
 	     " NOTES:\n"
@@ -145,9 +145,9 @@ void print_usage(char *progname)
 	     "\n"
 	     " ENVIRONMENT VARIABLES:\n"
 	     "    PKCS11LIB         : path to PKCS#11 library,\n"
-	     "                        overriden by option -l\n"
+	     "                        overridden by option -l\n"
 	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n"
-	     "                        overriden by option -m\n"
+	     "                        overridden by option -m\n"
 	     "    (PKCS11SLOT, PKCS11TOKENLABEL and PKCS11PASSWORD are intentionally ignored)\n"
 	     "\n"
 	     , pkcs11_ll_basename(progname));
@@ -205,8 +205,21 @@ int main( int argc, char ** argv )
 	    break;
 
 	case 's':
-	    slot = atoi(optarg);
+	{
+	    /* using atoi() here could be dangerous, as an invalid parsing would return slot 0 */
+	    /* a more accurate way to capture the slot number is implemented with sscanf() */
+ 	    int tmp;
+ 	    char extra;
+ 	    if (sscanf(optarg, "%d%c", &tmp, &extra) != 1 || tmp < 0) {
+ 		fprintf(stderr,
+ 			"*** Error: invalid slot index '%s' (must be a non-negative integer).\n",
+ 			optarg);
+ 		errflag++;
+ 		break;
+ 	    }
+ 	    slot = tmp;
 	    break;
+	}
 
 	case 't':
 	    tokenlabel = optarg;

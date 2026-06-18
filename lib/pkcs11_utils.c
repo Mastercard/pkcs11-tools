@@ -46,7 +46,7 @@ static char * prompt_core( char * prompt, CK_BBOOL echo )
     }
 
     fprintf( stderr, "%s", prompt );
-    fflush( stdout );
+    fflush( NULL );		/* flush all output streams */
 
     if ( !echo ) {
 	pkcs11_ll_echo_off();

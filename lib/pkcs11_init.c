@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #include "pkcs11lib.h"
 
 /* the PKCS#11 token label field is a fixed-size, space-padded, */
@@ -90,6 +91,44 @@ static void print_slot_entry(pkcs11Context *p11Context, CK_SLOT_ID slotID, CK_UL
 }
 
 
+/* parse_slot_index_input: parse and validate a user-provided slot index string.
+**
+** accepted format: optional leading/trailing spaces and a signed decimal integer.
+** rejected format: empty string, non-digit junk, and out-of-range values.
+*/
+static CK_BBOOL parse_slot_index_input(const char *input, long *out)
+{
+	char *endptr = NULL;
+
+	if (input == NULL || out == NULL) {
+	return CK_FALSE;
+	}
+
+	errno = 0;
+	*out = strtol(input, &endptr, 10);
+
+	/* no digit parsed */
+	if (endptr == input) {
+	return CK_FALSE;
+	}
+
+	/* only ERANGE is portable to detect overflow/underflow with strtol */
+	if (errno == ERANGE) {
+	return CK_FALSE;
+	}
+
+	/* allow trailing spaces only */
+	while (*endptr != '\0') {
+	if (!isspace((unsigned char)*endptr)) {
+	    return CK_FALSE;
+	}
+	endptr++;
+	}
+
+	return CK_TRUE;
+}
+
+
 /* pkcs11_get_slotindex: resolve a slot index, in the same fashion as the other
 **                       commands (pkcs11_open_session): when a slot index or a
 **                       token label is given, it is resolved (and the selected
@@ -100,12 +139,12 @@ static void print_slot_entry(pkcs11Context *p11Context, CK_SLOT_ID slotID, CK_UL
 **                       is left to the caller.
 **
 ** arguments:
-**  - p11Context: an initialized context (C_Initialize already called).
-**  - slotindex: in/out pointer to the slot index. On input, a negative or
-**               out-of-range value means "not specified". On success, it is set
-**               to a valid slot index.
-**  - tokenlabel: when non-NULL, the slot is resolved by matching this token
-**                label instead of using slotindex.
+**  - p11Context:  an initialized context (C_Initialize already called).
+**  - slotindex:   in/out pointer to the slot index. On input, a negative or
+**                 out-of-range value means "not specified". On success, it is set
+**                 to a valid slot index.
+**  - tokenlabel:  when non-NULL, the slot is resolved by matching this token
+**                 label instead of using slotindex.
 **  - interactive: when non-zero, an unspecified slot triggers the display of the
 **                 slot list and an interactive prompt; otherwise the function
 **                 fails safely.
@@ -121,7 +160,6 @@ func_rc pkcs11_get_slotindex(pkcs11Context *p11Context, int *slotindex, char *to
     CK_ULONG i;
     long s;
     char *tmpSlot = NULL;
-    char *pEnd = NULL;
 
     if ((rv = p11Context->FunctionList.C_GetSlotList(CK_FALSE, NULL_PTR, &ulSlotCount)) != CKR_OK) {
 	pkcs11_error(rv, "C_GetSlotList");
@@ -216,7 +254,13 @@ func_rc pkcs11_get_slotindex(pkcs11Context *p11Context, int *slotindex, char *to
 	    goto err;
 	}
 
-	s = strtol(tmpSlot, &pEnd, 0);
+	if (parse_slot_index_input(tmpSlot, &s) != CK_TRUE) {
+	    fprintf(stderr,
+		    "*** Error: invalid slot index '%s' (expected a decimal integer)\n",
+		    tmpSlot);
+	    pkcs11_prompt_free_buffer(tmpSlot);
+	    continue;
+	}
 	pkcs11_prompt_free_buffer(tmpSlot);
 
 	if (s >= 0 && (CK_ULONG)s < ulSlotCount) {

@@ -324,7 +324,7 @@ func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenla
 
     if (password == NULL) {
 	/* prompt for password */
-	pass = cbpass = pkcs11_prompt( PASS_PROMPT_STRING, CK_FALSE );	
+	pass = cbpass = pkcs11_prompt( (so > 0) ? SO_PASS_PROMPT_STRING : PASS_PROMPT_STRING, CK_FALSE );
     } else if(strncmp(PASSWORD_EXEC, password, strlen(PASSWORD_EXEC)) == 0) {
 	/* execute a command and use output as password */
 	pass = cbpass = pkcs11_pipe_password(password);
