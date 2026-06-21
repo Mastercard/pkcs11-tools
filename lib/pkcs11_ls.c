@@ -296,7 +296,7 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 	    CK_ATTRIBUTE_PTR label, id, modulus, keytype, ec_params, prime;
 	    char buffer[LABELORID_MAXLEN];
 	    int  buffer_len = sizeof buffer;
-	    char keykind[41];
+	    char keykind[41] = "unknown";
 	    char ecname[37];
 
 	    id         = pkcs11_get_attr_in_attrlist ( attrs, CKA_ID );
@@ -379,7 +379,8 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 							_ATTR_END );
 		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
 		    CK_ATTRIBUTE_PTR paramset = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_PARAMETER_SET );
-		    const pqc_paramset_t *psinfo = (paramset && paramset->pValue) ?
+		    const pqc_paramset_t *psinfo = (paramset && paramset->pValue &&
+			                            paramset->ulValueLen == sizeof(CK_ULONG)) ?
 			pkcs11_pqc_paramset_from_value(pqckt, *(CK_ULONG *)(paramset->pValue)) : NULL;
 		    if(psinfo) {
 			pkcs11_pqc_paramset_dispname(psinfo, keykind, sizeof keykind);
@@ -495,7 +496,7 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 	    CK_ATTRIBUTE_PTR label, id, modulus, keytype, ec_params, prime;
 	    char buffer[LABELORID_MAXLEN];
 	    int  buffer_len = sizeof buffer;
-	    char keykind[41];
+	    char keykind[41] = "unknown";
 	    char ecname[37];
 
 	    id         = pkcs11_get_attr_in_attrlist ( attrs, CKA_ID );
@@ -577,7 +578,8 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 							_ATTR_END );
 		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
 		    CK_ATTRIBUTE_PTR paramset = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_PARAMETER_SET );
-		    const pqc_paramset_t *psinfo = (paramset && paramset->pValue) ?
+		    const pqc_paramset_t *psinfo = (paramset && paramset->pValue &&
+			                            paramset->ulValueLen == sizeof(CK_ULONG)) ?
 			pkcs11_pqc_paramset_from_value(pqckt, *(CK_ULONG *)(paramset->pValue)) : NULL;
 		    if(psinfo) {
 			pkcs11_pqc_paramset_dispname(psinfo, keykind, sizeof keykind);

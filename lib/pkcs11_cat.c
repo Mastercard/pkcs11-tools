@@ -496,15 +496,19 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
 		    ovalue    = pkcs11_get_attr_in_attrlist(attrs, CKA_VALUE);
 		    oparamset = pkcs11_get_attr_in_attrlist(attrs, CKA_PARAMETER_SET);
 
-		    if(ovalue==NULL || oparamset==NULL) {
-			fprintf(stderr, "Error: object missing attribute(s) CKA_VALUE and/or CKA_PARAMETER_SET\n");
-			goto key_pqc_error;
+	    	if(ovalue==NULL || oparamset==NULL || oparamset->pValue==NULL) {
+				fprintf(stderr, "Error: object missing attribute(s) CKA_VALUE and/or CKA_PARAMETER_SET\n");
+				goto key_pqc_error;
+	    	}
+	    	if(oparamset->ulValueLen != sizeof(CK_ULONG)) {
+				fprintf(stderr, "Error: unexpected CKA_PARAMETER_SET size\n");
+				goto key_pqc_error;
 		    }
 
 		    ps = pkcs11_pqc_paramset_from_value(pqckt, *(CK_ULONG *)(oparamset->pValue));
 		    if(ps==NULL) {
-			fprintf(stderr, "Error: unsupported/unknown PQC parameter set\n");
-			goto key_pqc_error;
+				fprintf(stderr, "Error: unsupported/unknown PQC parameter set\n");
+				goto key_pqc_error;
 		    }
 
 		    {

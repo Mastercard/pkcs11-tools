@@ -451,8 +451,12 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 				ovalue    = pkcs11_get_attr_in_attrlist(attrs, CKA_VALUE);
 				oparamset = pkcs11_get_attr_in_attrlist(attrs, CKA_PARAMETER_SET);
 
-				if(ovalue==NULL || oparamset==NULL) {
-				    fprintf(stderr, "Error: object missing attribute(s) CKA_VALUE and/or CKA_PARAMETER_SET\n");
+				if(ovalue==NULL || oparamset==NULL || oparamset->pValue==NULL) {
+			    	fprintf(stderr, "Error: object missing attribute(s) CKA_VALUE and/or CKA_PARAMETER_SET\n");
+			    	goto key_pqc_error;
+				}
+				if(oparamset->ulValueLen != sizeof(CK_ULONG)) {
+			    	fprintf(stderr, "Error: unexpected CKA_PARAMETER_SET size\n");
 				    goto key_pqc_error;
 				}
 
