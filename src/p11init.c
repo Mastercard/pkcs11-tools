@@ -88,7 +88,19 @@ static int resolve_pin(const char *what, char *arg, char **resolved, int *alloca
 	return 0;
     }
 
-    *resolved = arg;
+    /* literal PIN on the command line: copy it to a private buffer, then scrub */
+    /* the original argv bytes so the PIN no longer appears in ps(1) /          */
+    /* /proc/<pid>/cmdline for the remaining lifetime of the process.           */
+    {
+	char *copy = strdup(arg);
+	if (copy == NULL) {
+	    fprintf(stderr, "*** Error: out of memory while handling %s.\n", what);
+	    return 1;
+	}
+	memset(arg, 0, strlen(arg));
+	*resolved = copy;
+	*allocated = 1;
+    }
     return 0;
 }
 
