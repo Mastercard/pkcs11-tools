@@ -194,6 +194,7 @@ int main( int argc, char ** argv )
     int newlabel_allocated = 0;
     int session_opened = 0;
 
+    CK_SLOT_ID hSlot = 0;
     pkcs11Context * p11Context = NULL;
     func_rc retcode = rc_error_usage;
 
@@ -370,13 +371,13 @@ int main( int argc, char ** argv )
 	/* resolve the slot index, in the same fashion as the other commands:    */
 	/* when -s is given, echo the selected slot; otherwise (interactive) list */
 	/* all slots and prompt.                                                  */
-	if ( ( retcode = pkcs11_get_slotindex( p11Context, &slot, NULL, interactive ) ) != rc_ok ) {
+	if ( ( retcode = pkcs11_get_slotindex( p11Context, &slot, NULL, &hSlot, interactive ) ) != rc_ok ) {
 	    goto finalize;
 	}
 
 	/* check the chosen slot BEFORE collecting a token label / SO PIN: it must */
 	/* hold an uninitialized token, unless -R authorizes a (confirmed) reset.  */
-	if ( ( retcode = pkcs11_inittoken_guard( p11Context, slot, reset, interactive ) ) != rc_ok ) {
+	if ( ( retcode = pkcs11_inittoken_guard( p11Context, hSlot, slot, reset, interactive ) ) != rc_ok ) {
 	    goto finalize;
 	}
 
@@ -403,7 +404,7 @@ int main( int argc, char ** argv )
 	    }
 	}
 
-	retcode = pkcs11_init_token( p11Context, slot, sopin, newlabel, reset, interactive );
+	retcode = pkcs11_init_token( p11Context, hSlot, slot, sopin, newlabel, reset, interactive );
 	if ( retcode != rc_ok ) {
 	    goto finalize;
 	}
@@ -418,7 +419,7 @@ int main( int argc, char ** argv )
 
 	/* resolve and display the target slot (by label or index), or, when nothing */
 	/* is specified interactively, list all slots and prompt for one.            */
-	if ( ( retcode = pkcs11_get_slotindex( p11Context, &useslot, uselabel, interactive ) ) != rc_ok ) {
+	if ( ( retcode = pkcs11_get_slotindex( p11Context, &useslot, uselabel, NULL, interactive ) ) != rc_ok ) {
 	    goto finalize;
 	}
 

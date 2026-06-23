@@ -416,9 +416,9 @@ func_rc pkcs11_close_session( pkcs11Context * p11Context );
 /* Returns 0 when they match.                                                      */
 int tokenlabelcmp( const char *label, const char *reflabel, size_t reflabel_maxlen );
 
-func_rc pkcs11_get_slotindex( pkcs11Context * p11Context, int *slotindex, char *tokenlabel, int interactive );
-func_rc pkcs11_inittoken_guard( pkcs11Context * p11Context, int slotindex, int reset_authorized, int interactive );
-func_rc pkcs11_init_token( pkcs11Context * p11Context, int slotindex, char *sopin, char *label, int reset_authorized, int interactive );
+func_rc pkcs11_get_slotindex( pkcs11Context * p11Context, int *slotindex, char *tokenlabel, CK_SLOT_ID *phSlot, int interactive );
+func_rc pkcs11_inittoken_guard( pkcs11Context * p11Context, CK_SLOT_ID hSlot, int slotindex, int reset_authorized, int interactive );
+func_rc pkcs11_init_token( pkcs11Context * p11Context, CK_SLOT_ID hSlot, int slotindex, char *sopin, char *label, int reset_authorized, int interactive );
 func_rc pkcs11_init_pin( pkcs11Context * p11Context, char *userpin, int interactive );
 
 // int setKeyLabel( pkcs11Context *, CK_OBJECT_HANDLE, char * );

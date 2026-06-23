@@ -145,11 +145,16 @@ static CK_BBOOL parse_slot_index_input(const char *input, long *out)
 **                 to a valid slot index.
 **  - tokenlabel:  when non-NULL, the slot is resolved by matching this token
 **                 label instead of using slotindex.
+**  - phSlot:      when non-NULL, receives the CK_SLOT_ID of the resolved slot,
+**                 captured during the same slot-list enumeration used to select
+**                 it. This lets the caller address the token directly, without a
+**                 second C_GetSlotList (and the slot-list change that could occur
+**                 in between).
 **  - interactive: when non-zero, an unspecified slot triggers the display of the
 **                 slot list and an interactive prompt; otherwise the function
 **                 fails safely.
 */
-func_rc pkcs11_get_slotindex(pkcs11Context *p11Context, int *slotindex, char *tokenlabel, int interactive)
+func_rc pkcs11_get_slotindex(pkcs11Context *p11Context, int *slotindex, char *tokenlabel, CK_SLOT_ID *phSlot, int interactive)
 {
     CK_RV rv;
     func_rc rc = rc_ok;
@@ -200,6 +205,7 @@ func_rc pkcs11_get_slotindex(pkcs11Context *p11Context, int *slotindex, char *to
 	}
 
 	*slotindex = found;
+	if (phSlot) { *phSlot = pSlotList[found]; }
 	/* echo the selected slot */
 	print_slot_entry(p11Context, pSlotList[found], (CK_ULONG)found);
 	goto err;		/* rc is still rc_ok */
@@ -207,6 +213,7 @@ func_rc pkcs11_get_slotindex(pkcs11Context *p11Context, int *slotindex, char *to
 
     /* if a valid slot index has already been provided, echo it and we are done */
     if (*slotindex >= 0 && (CK_ULONG)*slotindex < ulSlotCount) {
+	if (phSlot) { *phSlot = pSlotList[*slotindex]; }
 	print_slot_entry(p11Context, pSlotList[*slotindex], (CK_ULONG)*slotindex);
 	goto err;		/* rc is still rc_ok */
     }
@@ -271,59 +278,7 @@ func_rc pkcs11_get_slotindex(pkcs11Context *p11Context, int *slotindex, char *to
     }
 
     *slotindex = (int)s;
-
-err:
-    if (pSlotList) { free(pSlotList); }
-    return rc;
-}
-
-
-/* slot_index_to_token_info: resolve a slot index to its CK_SLOT_ID and fetch the
-** corresponding CK_TOKEN_INFO. The index is validated against the current slot list.
-*/
-static func_rc slot_index_to_token_info(pkcs11Context *p11Context,
-					int slotindex,
-					CK_SLOT_ID *phSlot,
-					CK_TOKEN_INFO *pTokenInfo)
-{
-    CK_RV rv;
-    func_rc rc = rc_ok;
-    CK_SLOT_ID_PTR pSlotList = NULL;
-    CK_ULONG ulSlotCount = 0;
-
-    if ((rv = p11Context->FunctionList.C_GetSlotList(CK_FALSE, NULL_PTR, &ulSlotCount)) != CKR_OK) {
-	pkcs11_error(rv, "C_GetSlotList");
-	rc = rc_error_pkcs11_api;
-	goto err;
-    }
-
-    if ((pSlotList = (CK_SLOT_ID_PTR) malloc(ulSlotCount * sizeof(CK_SLOT_ID))) == NULL) {
-	fprintf(stderr, "Error: No memory available\n");
-	rc = rc_error_memory;
-	goto err;
-    }
-
-    if ((rv = p11Context->FunctionList.C_GetSlotList(CK_FALSE, pSlotList, &ulSlotCount)) != CKR_OK) {
-	pkcs11_error(rv, "C_GetSlotList");
-	rc = rc_error_pkcs11_api;
-	goto err;
-    }
-
-    /* the token is always addressed by slot index for token initialization */
-    if (slotindex < 0 || (CK_ULONG)slotindex >= ulSlotCount) {
-	fprintf(stderr, "*** Error: slot index value %d not within range [0,%lu]\n",
-		slotindex, ulSlotCount > 0 ? ulSlotCount - 1 : 0);
-	rc = rc_error_invalid_slot_or_token;
-	goto err;
-    }
-
-    *phSlot = pSlotList[slotindex];
-
-    if ((rv = p11Context->FunctionList.C_GetTokenInfo(*phSlot, pTokenInfo)) != CKR_OK) {
-	pkcs11_error(rv, "C_GetTokenInfo");
-	rc = (rv == CKR_TOKEN_NOT_PRESENT) ? rc_error_invalid_slot_or_token : rc_error_pkcs11_api;
-	goto err;
-    }
+    if (phSlot) { *phSlot = pSlotList[s]; }
 
 err:
     if (pSlotList) { free(pSlotList); }
@@ -340,19 +295,23 @@ err:
 ** operator for a label/PIN -- when the chosen slot cannot or should not be
 ** (re)initialized.
 **
+** hSlot is the CK_SLOT_ID resolved by the caller (pkcs11_get_slotindex); the
+** token info is fetched directly from it. slotindex is used only for messages.
+**
 ** returns rc_ok when initialization may proceed.
 */
 func_rc pkcs11_inittoken_guard(pkcs11Context *p11Context,
+			       CK_SLOT_ID hSlot,
 			       int slotindex,
 			       int reset_authorized,
 			       int interactive)
 {
-    func_rc rc;
-    CK_SLOT_ID hSlot;
+    CK_RV rv;
     CK_TOKEN_INFO tokenInfo;
 
-    if ((rc = slot_index_to_token_info(p11Context, slotindex, &hSlot, &tokenInfo)) != rc_ok) {
-	return rc;
+    if ((rv = p11Context->FunctionList.C_GetTokenInfo(hSlot, &tokenInfo)) != CKR_OK) {
+	pkcs11_error(rv, "C_GetTokenInfo");
+	return (rv == CKR_TOKEN_NOT_PRESENT) ? rc_error_invalid_slot_or_token : rc_error_pkcs11_api;
     }
 
     /* guard against accidental destruction of an already initialized token */
@@ -398,8 +357,13 @@ func_rc pkcs11_inittoken_guard(pkcs11Context *p11Context,
 ** arguments:
 **  - p11Context: an initialized context (C_Initialize already called), with NO
 **                open session on the target token (a requirement of C_InitToken).
-**  - slotindex: index of the slot in the slot list (NOT a slot number). It must
-**               be a valid index (see pkcs11_get_slotindex).
+**  - hSlot: the CK_SLOT_ID of the target slot, as resolved by the caller through
+**           pkcs11_get_slotindex. The token is addressed directly by this slot ID;
+**           no second slot-list enumeration is performed. C_InitToken is the last
+**           use of hSlot, so a provider that reassigns slot IDs after token
+**           initialization (e.g. SoftHSM) does not affect this call.
+**  - slotindex: index of the slot in the slot list (NOT a slot number), used only
+**               for human-readable progress and error messages.
 **  - sopin: the Security Officer PIN (must already be resolved, never NULL).
 **  - label: the token label to set (will be space-padded to the field length).
 **  - reset_authorized: when non-zero, allows reinitializing an already
@@ -413,6 +377,7 @@ func_rc pkcs11_inittoken_guard(pkcs11Context *p11Context,
 ** pkcs11_inittoken_guard so that it happens before any label/PIN is collected.
 */
 func_rc pkcs11_init_token(pkcs11Context *p11Context,
+			  CK_SLOT_ID hSlot,
 			  int slotindex,
 			  char *sopin,
 			  char *label,
@@ -421,7 +386,6 @@ func_rc pkcs11_init_token(pkcs11Context *p11Context,
 {
     CK_RV rv;
     func_rc rc = rc_ok;
-    CK_SLOT_ID hSlot;
     CK_TOKEN_INFO tokenInfo;
     CK_UTF8CHAR paddedLabel[CK_TOKEN_INFO_LABEL_LEN];
     size_t labelLen;
@@ -448,8 +412,10 @@ func_rc pkcs11_init_token(pkcs11Context *p11Context,
 	goto err;
     }
 
-    /* resolve the slot index to its slot ID and current token info */
-    if ((rc = slot_index_to_token_info(p11Context, slotindex, &hSlot, &tokenInfo)) != rc_ok) {
+    /* fetch the current token info for the slot resolved by the caller */
+    if ((rv = p11Context->FunctionList.C_GetTokenInfo(hSlot, &tokenInfo)) != CKR_OK) {
+	pkcs11_error(rv, "C_GetTokenInfo");
+	rc = (rv == CKR_TOKEN_NOT_PRESENT) ? rc_error_invalid_slot_or_token : rc_error_pkcs11_api;
 	goto err;
     }
 
