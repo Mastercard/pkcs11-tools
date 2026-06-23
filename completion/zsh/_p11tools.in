@@ -1,4 +1,4 @@
-#compdef p11cat p11cp p11importcert p11importdata p11importpubk p11kcv p11keycomp p11keygen p11ls p11mkcert p11more p11mv p11od p11req p11rewrap p11rm p11setattr p11slotinfo p11unwrap p11wrap
+#compdef p11cat p11cp p11importcert p11importdata p11importpubk p11init p11kcv p11keycomp p11keygen p11ls p11mkcert p11more p11mv p11od p11req p11rewrap p11rm p11setattr p11slotinfo p11unwrap p11wrap
 
 # Zsh completion for p11* tools
 # This file uses bashcompinit to load and reuse the existing Bash completions
@@ -19,8 +19,8 @@ source "$completion_dir/p11-common"
 
 # List of p11tools commands to load completions for
 _p11tools_cmds=(
-    p11cat p11cp p11importcert p11importdata p11importpubk p11kcv
-    p11keycomp p11keygen p11ls p11mkcert p11more p11mv p11od
+    p11cat p11cp p11importcert p11importdata p11importpubk p11init
+    p11kcv p11keycomp p11keygen p11ls p11mkcert p11more p11mv p11od
     p11req p11rewrap p11rm p11setattr p11slotinfo p11unwrap p11wrap
 )
 

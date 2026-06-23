@@ -361,6 +361,7 @@ enum contenttype { ct_unknown,	/* unidentified app */
 /* pkcs11_utils.c */
 
 char * pkcs11_prompt( char *, CK_BBOOL );
+char * pkcs11_prompt_new_secret( char * prompt, char * confirm_prompt );
 void pkcs11_prompt_free_buffer(char *arg);
 char * pkcs11_pipe_password( char * passwordexec );
 func_rc prompt_for_hex(char *message, char *prompt, char *target, int len);
@@ -408,6 +409,17 @@ func_rc pkcs11_finalize( pkcs11Context * );
 /* pkcs11_GetSession.c */
 func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenlabel, char * password, int so, int interactive );
 func_rc pkcs11_close_session( pkcs11Context * p11Context );
+
+/* pkcs11_init.c */
+/* tokenlabelcmp (defined in pkcs11_session.c): compare a (trimmed) label against */
+/* a possibly space-padded, non null-terminated token label of given max length.  */
+/* Returns 0 when they match.                                                      */
+int tokenlabelcmp( const char *label, const char *reflabel, size_t reflabel_maxlen );
+
+func_rc pkcs11_get_slotindex( pkcs11Context * p11Context, int *slotindex, char *tokenlabel, CK_SLOT_ID *phSlot, int interactive );
+func_rc pkcs11_inittoken_guard( pkcs11Context * p11Context, CK_SLOT_ID hSlot, int slotindex, int reset_authorized, int interactive );
+func_rc pkcs11_init_token( pkcs11Context * p11Context, CK_SLOT_ID hSlot, int slotindex, char *sopin, char *label, int reset_authorized, int interactive );
+func_rc pkcs11_init_pin( pkcs11Context * p11Context, char *userpin, int interactive );
 
 // int setKeyLabel( pkcs11Context *, CK_OBJECT_HANDLE, char * );
 // int showKey( pkcs11Context *, CK_OBJECT_HANDLE );
@@ -830,6 +842,7 @@ size_t pkcs11_attribctx_get_allowed_mechanisms_len(attribCtx *ctx);
 /* Callback Prompt Strings */
 #define SLOT_PROMPT_STRING			"Enter slot index: "
 #define PASS_PROMPT_STRING			"Enter passphrase for token: "
+#define SO_PASS_PROMPT_STRING			"Enter Security Officer (SO) PIN for token: "
 // #define TOKEN_PASS_PROMPT_STRING		"Enter passphrase for token '%s': "
 
 #define MAXBUFSIZE              1024

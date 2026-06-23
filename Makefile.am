@@ -49,6 +49,7 @@ completions_DATA = \
 	completion/bash/p11importcert \
 	completion/bash/p11importdata \
 	completion/bash/p11importpubk \
+	completion/bash/p11init \
 	completion/bash/p11kcv \
 	completion/bash/p11keycomp \
 	completion/bash/p11keygen \

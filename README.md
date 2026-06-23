@@ -336,9 +336,9 @@ for f in completion/bash/p11*; do source "$f"; done
 To deregister the completions for the current shell:
 
 ```bash
-complete -r p11cat p11cp p11importcert p11importdata p11importpubk p11kcv \
-            p11keycomp p11keygen p11ls p11mkcert p11more p11mv p11od p11req \
-            p11rewrap p11rm p11setattr p11slotinfo p11unwrap p11wrap
+complete -r p11cat p11cp p11importcert p11importdata p11importpubk p11init \
+            p11kcv p11keycomp p11keygen p11ls p11mkcert p11more p11mv p11od \
+            p11req p11rewrap p11rm p11setattr p11slotinfo p11unwrap p11wrap
 ```
 
 To disable all programmable completion for the shell, use `shopt -u progcomp` (re-enable with `shopt -s progcomp`). To prevent completion from being installed at all, remove the files under `$(datadir)/bash-completion/completions/p11*` and `$(datadir)/zsh/site-functions/_p11tools`; the binaries are unaffected.

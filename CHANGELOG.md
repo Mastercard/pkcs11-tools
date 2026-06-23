@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [UNPUBLISHED]
 ### Added
+- new command `p11init`, to initialize a token (`C_InitToken`) and/or its user/crypto officer PIN (`C_InitPIN`), or to reset (reinitialize) an existing token. The SO PIN and user PIN must be passed as arguments (`-O`/`-P`, the `PKCS11PASSWORD` environment variable is not honoured), the `:::exec:` convention is supported, slots are addressed by index, a batch mode is available (`-B`), and reinitializing an already initialized token requires the explicit `-R` flag (with an interactive confirmation unless in batch mode)
 - support public key extraction for libraries with non-compliant `CKA_EC_POINT` implementations (with no OCTET STRING encapsulation)
 - support for Docker builds
 - support for Windows 64-bit cross-compilation via MinGW-w64 (`buildx/Dockerfile.mingw64`)
