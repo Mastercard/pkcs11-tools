@@ -140,7 +140,7 @@ func_rc pkcs11_info_slot(pkcs11Context *p11Context)
 	    
 	    fprintf(stdout, 
 		    "%.*s%*.*s %c"
-		    "%s %s %s %s %s %s %s %s %s %s %s %s %s (%8.8lx)", 
+		    "%s %s %s %s %s %s %s %s %s %s %s %s %s %s %s (%8.8lx)", 
 		    (int)strlen(mname), mname,
 		    (int) (40-strlen(mname)), (int) (40-strlen(mname)),
 		    "                                        ",
@@ -157,6 +157,8 @@ func_rc pkcs11_info_slot(pkcs11Context *p11Context)
 		    HAS_FLAG(mechinfo.flags, CKF_WRAP, "wra", "---"),
 		    HAS_FLAG(mechinfo.flags, CKF_UNWRAP, "unw", "---"),
 		    HAS_FLAG(mechinfo.flags, CKF_DERIVE, "der", "---"),
+		    HAS_FLAG(mechinfo.flags, CKF_ENCAPSULATE, "ncp", "---"),
+		    HAS_FLAG(mechinfo.flags, CKF_DECAPSULATE, "dcp", "---"),
 		    HAS_FLAG(mechinfo.flags, CKF_HW, "HW", "SW"),
 		    mechlist[i]);
 

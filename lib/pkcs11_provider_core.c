@@ -46,6 +46,9 @@
 #include <openssl/evp.h>
 #include <openssl/params.h>
 #include <openssl/provider.h>
+#if defined(HAVE_PQC_OPENSSL)
+#include <openssl/x509.h>       /* X509_PUBKEY / X509_ALGOR for the PQC AID */
+#endif
 
 #include "pkcs11lib.h"
 #include "pkcs11_provider.h"
@@ -127,6 +130,18 @@ void *pkcs11_keymgmt_new_ed448(void *vprovctx)
 {
     return pkcs11_keymgmt_new_generic(vprovctx, PKCS11_PROV_ALGO_ED448);
 }
+
+#if defined(HAVE_PQC_OPENSSL)
+void *pkcs11_keymgmt_new_mldsa(void *vprovctx)
+{
+    return pkcs11_keymgmt_new_generic(vprovctx, PKCS11_PROV_ALGO_ML_DSA);
+}
+
+void *pkcs11_keymgmt_new_slhdsa(void *vprovctx)
+{
+    return pkcs11_keymgmt_new_generic(vprovctx, PKCS11_PROV_ALGO_SLH_DSA);
+}
+#endif
 
 /*
  * Generic keymgmt free() callback. OpenSSL passes back whatever a `new`
@@ -258,6 +273,26 @@ static const OSSL_ALGORITHM pkcs11_keymgmt_algs[] = {
     { "DSA",     PKCS11_PROVIDER_PROPS, pkcs11_dsa_keymgmt_functions,           "PKCS#11 DSA keymgmt" },
     { "ED25519", PKCS11_PROVIDER_PROPS, pkcs11_eddsa_keymgmt_ed25519_functions, "PKCS#11 Ed25519 keymgmt" },
     { "ED448",   PKCS11_PROVIDER_PROPS, pkcs11_eddsa_keymgmt_ed448_functions,   "PKCS#11 Ed448 keymgmt" },
+#if defined(HAVE_PQC_OPENSSL)
+    /* Each ML-DSA / SLH-DSA parameter set is a distinct fetch name but shares
+     * its family keymgmt table; make_pkey() fetches by the public key's exact
+     * type name (e.g. "ML-DSA-65"). */
+    { "ML-DSA-44",          PKCS11_PROVIDER_PROPS, pkcs11_mldsa_keymgmt_functions,  "PKCS#11 ML-DSA-44 keymgmt" },
+    { "ML-DSA-65",          PKCS11_PROVIDER_PROPS, pkcs11_mldsa_keymgmt_functions,  "PKCS#11 ML-DSA-65 keymgmt" },
+    { "ML-DSA-87",          PKCS11_PROVIDER_PROPS, pkcs11_mldsa_keymgmt_functions,  "PKCS#11 ML-DSA-87 keymgmt" },
+    { "SLH-DSA-SHA2-128s",  PKCS11_PROVIDER_PROPS, pkcs11_slhdsa_keymgmt_functions, "PKCS#11 SLH-DSA-SHA2-128s keymgmt" },
+    { "SLH-DSA-SHAKE-128s", PKCS11_PROVIDER_PROPS, pkcs11_slhdsa_keymgmt_functions, "PKCS#11 SLH-DSA-SHAKE-128s keymgmt" },
+    { "SLH-DSA-SHA2-128f",  PKCS11_PROVIDER_PROPS, pkcs11_slhdsa_keymgmt_functions, "PKCS#11 SLH-DSA-SHA2-128f keymgmt" },
+    { "SLH-DSA-SHAKE-128f", PKCS11_PROVIDER_PROPS, pkcs11_slhdsa_keymgmt_functions, "PKCS#11 SLH-DSA-SHAKE-128f keymgmt" },
+    { "SLH-DSA-SHA2-192s",  PKCS11_PROVIDER_PROPS, pkcs11_slhdsa_keymgmt_functions, "PKCS#11 SLH-DSA-SHA2-192s keymgmt" },
+    { "SLH-DSA-SHAKE-192s", PKCS11_PROVIDER_PROPS, pkcs11_slhdsa_keymgmt_functions, "PKCS#11 SLH-DSA-SHAKE-192s keymgmt" },
+    { "SLH-DSA-SHA2-192f",  PKCS11_PROVIDER_PROPS, pkcs11_slhdsa_keymgmt_functions, "PKCS#11 SLH-DSA-SHA2-192f keymgmt" },
+    { "SLH-DSA-SHAKE-192f", PKCS11_PROVIDER_PROPS, pkcs11_slhdsa_keymgmt_functions, "PKCS#11 SLH-DSA-SHAKE-192f keymgmt" },
+    { "SLH-DSA-SHA2-256s",  PKCS11_PROVIDER_PROPS, pkcs11_slhdsa_keymgmt_functions, "PKCS#11 SLH-DSA-SHA2-256s keymgmt" },
+    { "SLH-DSA-SHAKE-256s", PKCS11_PROVIDER_PROPS, pkcs11_slhdsa_keymgmt_functions, "PKCS#11 SLH-DSA-SHAKE-256s keymgmt" },
+    { "SLH-DSA-SHA2-256f",  PKCS11_PROVIDER_PROPS, pkcs11_slhdsa_keymgmt_functions, "PKCS#11 SLH-DSA-SHA2-256f keymgmt" },
+    { "SLH-DSA-SHAKE-256f", PKCS11_PROVIDER_PROPS, pkcs11_slhdsa_keymgmt_functions, "PKCS#11 SLH-DSA-SHAKE-256f keymgmt" },
+#endif
     { NULL, NULL, NULL, NULL }
 };
 
@@ -267,6 +302,11 @@ static const OSSL_ALGORITHM pkcs11_signature_algs[] = {
     { "DSA",     PKCS11_PROVIDER_PROPS, pkcs11_dsa_signature_functions,           "PKCS#11 DSA signature" },
     { "ED25519", PKCS11_PROVIDER_PROPS, pkcs11_eddsa_signature_ed25519_functions, "PKCS#11 Ed25519 signature" },
     { "ED448",   PKCS11_PROVIDER_PROPS, pkcs11_eddsa_signature_ed448_functions,   "PKCS#11 Ed448 signature" },
+#if defined(HAVE_PQC_OPENSSL)
+    /* One signature per family; the bound key selects the mechanism + AID. */
+    { "ML-DSA",  PKCS11_PROVIDER_PROPS, pkcs11_pqc_signature_functions,           "PKCS#11 ML-DSA signature" },
+    { "SLH-DSA", PKCS11_PROVIDER_PROPS, pkcs11_pqc_signature_functions,           "PKCS#11 SLH-DSA signature" },
+#endif
     { NULL, NULL, NULL, NULL }
 };
 
@@ -458,11 +498,67 @@ static int resolve_algo(key_type_t key_type, EVP_PKEY *pubkey,
 	*algo = PKCS11_PROV_ALGO_DSA;
 	*algname = "DSA";
 	return 1;
+#if defined(HAVE_PQC_OPENSSL)
+    case ml_dsa:
+    case slh_dsa:
+	/* The exact parameter-set name (e.g. "ML-DSA-65", "SLH-DSA-SHA2-128s")
+	 * is carried by the default-provider public key; we register a keymgmt
+	 * under each such name pointing to the shared family table. */
+	*algo = (key_type == ml_dsa) ? PKCS11_PROV_ALGO_ML_DSA : PKCS11_PROV_ALGO_SLH_DSA;
+	*algname = EVP_PKEY_get0_type_name(pubkey);
+	if(*algname == NULL) {
+	    fprintf(stderr, "Error: cannot resolve PQC public key type name\n");
+	    return 0;
+	}
+	return 1;
+#endif
     default:
 	fprintf(stderr, "Error: pkcs11tools provider: unsupported key type %d\n", (int)key_type);
 	return 0;
     }
 }
+
+#if defined(HAVE_PQC_OPENSSL)
+/*
+ * Compute and cache the DER-encoded AlgorithmIdentifier for an ML-DSA /
+ * SLH-DSA public key. We let OpenSSL encode the SubjectPublicKeyInfo and lift
+ * the AlgorithmIdentifier straight out of it, so the value matches exactly
+ * what the default provider emits for this parameter set (correct OID, absent
+ * parameters) without us hand-encoding fifteen OIDs.
+ *
+ * Returns 1 on success (kd->aid / kd->aidlen filled), 0 on failure.
+ */
+static int pqc_fill_aid(pkcs11_keydata *kd, EVP_PKEY *pubkey)
+{
+    X509_PUBKEY *xpk = NULL;
+    X509_ALGOR *alg = NULL;
+    unsigned char *der = NULL;
+    int derlen;
+    int ok = 0;
+
+    if(X509_PUBKEY_set(&xpk, pubkey) != 1) {
+	fprintf(stderr, "Error: pkcs11tools PQC: X509_PUBKEY_set failed\n");
+	goto done;
+    }
+    if(X509_PUBKEY_get0_param(NULL, NULL, NULL, &alg, xpk) != 1 || alg == NULL) {
+	fprintf(stderr, "Error: pkcs11tools PQC: cannot read AlgorithmIdentifier\n");
+	goto done;
+    }
+    derlen = i2d_X509_ALGOR(alg, &der);
+    if(derlen <= 0 || (size_t)derlen > sizeof(kd->aid)) {
+	fprintf(stderr, "Error: pkcs11tools PQC: AlgorithmIdentifier encoding failed\n");
+	goto done;
+    }
+    memcpy(kd->aid, der, (size_t)derlen);
+    kd->aidlen = (size_t)derlen;
+    ok = 1;
+
+done:
+    if(der) { OPENSSL_free(der); }
+    if(xpk) { X509_PUBKEY_free(xpk); }
+    return ok;
+}
+#endif
 
 /*
  * Build a provider-bound EVP_PKEY for signing.
@@ -531,6 +627,17 @@ EVP_PKEY *pkcs11_provider_make_pkey(OSSL_LIB_CTX *libctx,
     kd->p11ctx = p11ctx;
     kd->hkey = hkey;
     kd->fake = fake;
+
+#if defined(HAVE_PQC_OPENSSL)
+    /* For ML-DSA / SLH-DSA, precompute the signature AlgorithmIdentifier now
+     * (while we still hold the typed public key) so the signature op can serve
+     * it back without re-deriving the parameter set. */
+    if(algo == PKCS11_PROV_ALGO_ML_DSA || algo == PKCS11_PROV_ALGO_SLH_DSA) {
+	if(!pqc_fill_aid(kd, pubkey)) {
+	    goto err;
+	}
+    }
+#endif
 
     /*
      * Build the EVP_PKEY by routing through EVP_PKEY_fromdata: OpenSSL allocates

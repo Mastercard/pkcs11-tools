@@ -39,6 +39,10 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+#if defined(HAVE_PQC_OPENSSL)
+#include <openssl/core_names.h>
+#include <openssl/params.h>
+#endif
 
 #include "pkcs11lib.h"
 
@@ -616,5 +620,65 @@ key_ed_error:
 
     return pk;
 }
+
+#if defined(HAVE_PQC_OPENSSL)
+/* create an EVP_PKEY (default provider) from ML-DSA / SLH-DSA public key bytes.
+ *
+ * Unlike the Edwards case, OpenSSL 3.5 knows these algorithms natively: we just
+ * feed the raw public key (CKA_VALUE) to EVP_PKEY_fromdata() under the exact
+ * parameter-set fetch name resolved from CKA_PARAMETER_SET. The resulting key
+ * lives in the default provider and is used to build the SubjectPublicKeyInfo;
+ * signing is later routed through the pkcs11tools provider. */
+EVP_PKEY *pkcs11_SPKI_from_PQC(pkcs11AttrList *attrlist, key_type_t keytype)
+{
+    EVP_PKEY *pk = NULL;
+    EVP_PKEY_CTX *ctx = NULL;
+    CK_ATTRIBUTE_PTR ovalue = NULL;
+    CK_ATTRIBUTE_PTR oparamset = NULL;
+    const pqc_paramset_t *ps = NULL;
+    OSSL_PARAM params[2];
+
+    ovalue    = pkcs11_get_attr_in_attrlist(attrlist, CKA_VALUE);
+    oparamset = pkcs11_get_attr_in_attrlist(attrlist, CKA_PARAMETER_SET);
+
+    if(ovalue == NULL || oparamset == NULL) {
+	fprintf(stderr, "Error: object missing attribute(s) CKA_VALUE and/or CKA_PARAMETER_SET\n");
+	goto key_pqc_error;
+    }
+    if(oparamset->ulValueLen != sizeof(CK_ULONG)) {
+	fprintf(stderr, "Error: unexpected CKA_PARAMETER_SET size\n");
+	goto key_pqc_error;
+    }
+
+    ps = pkcs11_pqc_paramset_from_value(keytype, *(CK_ULONG *)oparamset->pValue);
+    if(ps == NULL) {
+	fprintf(stderr, "Error: unknown or mismatched PQC parameter set\n");
+	goto key_pqc_error;
+    }
+
+    params[0] = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
+						  ovalue->pValue, ovalue->ulValueLen);
+    params[1] = OSSL_PARAM_construct_end();
+
+    ctx = EVP_PKEY_CTX_new_from_name(NULL, ps->osslname, NULL);
+    if(ctx == NULL) {
+	P_ERR();
+	goto key_pqc_error;
+    }
+    if(EVP_PKEY_fromdata_init(ctx) <= 0) {
+	P_ERR();
+	goto key_pqc_error;
+    }
+    if(EVP_PKEY_fromdata(ctx, &pk, EVP_PKEY_PUBLIC_KEY, params) <= 0) {
+	P_ERR();
+	goto key_pqc_error;
+    }
+
+key_pqc_error:
+    if(ctx) { EVP_PKEY_CTX_free(ctx); }
+
+    return pk;
+}
+#endif /* HAVE_PQC_OPENSSL */
 
 /* EOF */

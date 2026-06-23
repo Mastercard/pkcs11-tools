@@ -16,7 +16,7 @@ AM_CPPFLAGS = \
 	-I$(top_builddir)/gl \
 	-I$(top_srcdir)/gl \
 	-I$(top_srcdir)/include \
-	-I$(top_srcdir)/include/oasis-pkcs11/working/3-00-current \
+	-I$(top_srcdir)/include/oasis-pkcs11/published/3-02 \
 	-I$(top_srcdir)/include/cryptoki
 
 AM_CFLAGS = $(LIBCRYPTO_CFLAGS) $(PTHREAD_CFLAGS)

@@ -551,7 +551,8 @@ pkcs11AttrList *pkcs11_attrlist_extend(pkcs11AttrList *attrlist, CK_ATTRIBUTE_PT
 }
 
 inline bool pkcs11_attr_is_template(CK_ATTRIBUTE_TYPE attrtype) {
-    return attrtype == CKA_WRAP_TEMPLATE || attrtype == CKA_UNWRAP_TEMPLATE || attrtype == CKA_DERIVE_TEMPLATE;
+    return attrtype == CKA_WRAP_TEMPLATE || attrtype == CKA_UNWRAP_TEMPLATE || attrtype == CKA_DERIVE_TEMPLATE
+	|| attrtype == CKA_ENCAPSULATE_TEMPLATE || attrtype == CKA_DECAPSULATE_TEMPLATE;
 }
 
 inline bool pkcs11_attr_is_allowed_mechanisms(CK_ATTRIBUTE_TYPE attrtype) {

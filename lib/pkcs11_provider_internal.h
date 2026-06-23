@@ -40,6 +40,11 @@ typedef enum {
     PKCS11_PROV_ALGO_EC,        /* ECDSA */
     PKCS11_PROV_ALGO_ED25519,
     PKCS11_PROV_ALGO_ED448
+#if defined(HAVE_PQC_OPENSSL)
+    ,
+    PKCS11_PROV_ALGO_ML_DSA,    /* ML-DSA (FIPS 204), every parameter set */
+    PKCS11_PROV_ALGO_SLH_DSA    /* SLH-DSA (FIPS 205), every parameter set */
+#endif
 } pkcs11_prov_algo_t;
 
 /* Provider context. One instance per loaded provider. */
@@ -61,6 +66,14 @@ typedef struct pkcs11_keydata_st {
     pkcs11Context *p11ctx;
     CK_OBJECT_HANDLE hkey;
     bool fake;
+#if defined(HAVE_PQC_OPENSSL)
+    /* DER-encoded AlgorithmIdentifier for ML-DSA / SLH-DSA signatures,
+     * computed once at make_pkey() time from the public key. The same value
+     * is served back through OSSL_SIGNATURE_PARAM_ALGORITHM_ID. Left empty
+     * (aidlen == 0) for the classic key types. */
+    unsigned char aid[32];
+    size_t aidlen;
+#endif
 } pkcs11_keydata;
 
 /* Allocate a zero-initialized keydata bound to provctx. */
@@ -84,6 +97,20 @@ extern const OSSL_DISPATCH pkcs11_ecdsa_signature_functions[];
 extern const OSSL_DISPATCH pkcs11_dsa_keymgmt_functions[];
 extern const OSSL_DISPATCH pkcs11_dsa_signature_functions[];
 
+#if defined(HAVE_PQC_OPENSSL)
+/*
+ * Post-Quantum dispatch tables (ML-DSA / SLH-DSA). The keymgmt tables are
+ * shared by every parameter set of their family (ML-DSA-44/65/87, the twelve
+ * SLH-DSA sets) and registered under each parameter-set name in
+ * pkcs11_provider_core.c. A single signature table serves both families: the
+ * mechanism (CKM_ML_DSA / CKM_SLH_DSA) and AlgorithmIdentifier are read from
+ * the per-key pkcs11_keydata at signing time.
+ */
+extern const OSSL_DISPATCH pkcs11_mldsa_keymgmt_functions[];
+extern const OSSL_DISPATCH pkcs11_slhdsa_keymgmt_functions[];
+extern const OSSL_DISPATCH pkcs11_pqc_signature_functions[];
+#endif
+
 /*
  * Generic keymgmt helpers used by per-algorithm files.
  *
@@ -92,6 +119,10 @@ extern const OSSL_DISPATCH pkcs11_dsa_signature_functions[];
  */
 OSSL_FUNC_keymgmt_new_fn        pkcs11_keymgmt_new_ed25519;
 OSSL_FUNC_keymgmt_new_fn        pkcs11_keymgmt_new_ed448;
+#if defined(HAVE_PQC_OPENSSL)
+OSSL_FUNC_keymgmt_new_fn        pkcs11_keymgmt_new_mldsa;
+OSSL_FUNC_keymgmt_new_fn        pkcs11_keymgmt_new_slhdsa;
+#endif
 OSSL_FUNC_keymgmt_free_fn       pkcs11_keymgmt_free;
 OSSL_FUNC_keymgmt_has_fn        pkcs11_keymgmt_has;
 OSSL_FUNC_keymgmt_match_fn      pkcs11_keymgmt_match;

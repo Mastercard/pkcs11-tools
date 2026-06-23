@@ -83,6 +83,8 @@ CKA_ENCRYPT        { yylval.ckattr = CKA_ENCRYPT; return CKATTR_BOOL; }
 CKA_DECRYPT        { yylval.ckattr = CKA_DECRYPT; return CKATTR_BOOL; }
 CKA_WRAP           { yylval.ckattr = CKA_WRAP; return CKATTR_BOOL; }
 CKA_UNWRAP         { yylval.ckattr = CKA_UNWRAP; return CKATTR_BOOL; }
+CKA_ENCAPSULATE    { yylval.ckattr = CKA_ENCAPSULATE; return CKATTR_BOOL; }
+CKA_DECAPSULATE    { yylval.ckattr = CKA_DECAPSULATE; return CKATTR_BOOL; }
 CKA_SIGN           { yylval.ckattr = CKA_SIGN; return CKATTR_BOOL; }
 CKA_SIGN_RECOVER   { yylval.ckattr = CKA_SIGN_RECOVER; return CKATTR_BOOL; }
 CKA_VERIFY         { yylval.ckattr = CKA_VERIFY; return CKATTR_BOOL; }
@@ -101,6 +103,8 @@ CKA_WRAP_WITH_TRUSTED { yylval.ckattr = CKA_WRAP_WITH_TRUSTED; return CKATTR_BOO
 CKA_WRAP_TEMPLATE  { yylval.ckattr = CKA_WRAP_TEMPLATE; return CKATTR_TEMPLATE; }
 CKA_UNWRAP_TEMPLATE { yylval.ckattr = CKA_UNWRAP_TEMPLATE; return CKATTR_TEMPLATE; }
 CKA_DERIVE_TEMPLATE { yylval.ckattr = CKA_DERIVE_TEMPLATE; return CKATTR_TEMPLATE; }
+CKA_ENCAPSULATE_TEMPLATE { yylval.ckattr = CKA_ENCAPSULATE_TEMPLATE; return CKATTR_TEMPLATE; }
+CKA_DECAPSULATE_TEMPLATE { yylval.ckattr = CKA_DECAPSULATE_TEMPLATE; return CKATTR_TEMPLATE; }
 CKA_ALLOWED_MECHANISMS { yylval.ckattr = CKA_ALLOWED_MECHANISMS; return CKATTR_ALLOWEDMECH; }
 
 CKK_GENERIC_SECRET { yylval.val_key = CKK_GENERIC_SECRET; return KEYTYPE; }
@@ -121,6 +125,9 @@ CKK_DH             { yylval.val_key = CKK_DH            ; return KEYTYPE; }
 CKK_DSA            { yylval.val_key = CKK_DSA           ; return KEYTYPE; }
 CKK_EC             { yylval.val_key = CKK_EC            ; return KEYTYPE; }
 CKK_EC_EDWARDS     { yylval.val_key = CKK_EC_EDWARDS    ; return KEYTYPE; }
+CKK_ML_KEM         { yylval.val_key = CKK_ML_KEM        ; return KEYTYPE; }
+CKK_ML_DSA         { yylval.val_key = CKK_ML_DSA        ; return KEYTYPE; }
+CKK_SLH_DSA        { yylval.val_key = CKK_SLH_DSA       ; return KEYTYPE; }
 
 CKO_DATA           { yylval.val_cls = CKO_DATA ; return OCLASS; }
 CKO_CERTIFICATE    { yylval.val_cls = CKO_CERTIFICATE ; return OCLASS; }

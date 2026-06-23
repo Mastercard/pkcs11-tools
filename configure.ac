@@ -87,6 +87,34 @@ PKG_CHECK_MODULES([LIBCRYPTO],
 AC_DEFINE([HAVE_OPENSSL3], [1], [define when building against OpenSSL 3.x or newer])
 AM_CONDITIONAL([HAVE_OPENSSL3], [test "x1" = "x1"])
 
+dnl ========================================================================
+dnl Post-Quantum Cryptography (PQC) support: ML-KEM, ML-DSA and SLH-DSA.
+dnl Key generation and object inspection only require PKCS#11 v3.2 mechanisms
+dnl (any OpenSSL 3.x). Public key export, CSR and certificate creation rely on
+dnl OpenSSL's native PQC implementation, available since libcrypto 3.5.0.
+dnl PQC support is enabled by default; it can be turned off with --disable-pqc.
+AC_ARG_ENABLE([pqc],
+	[AS_HELP_STRING([--disable-pqc],
+		[disable Post-Quantum Cryptography support (ML-KEM, ML-DSA, SLH-DSA); enabled by default])],
+	[enable_pqc=$enableval],
+	[enable_pqc=yes])
+
+haspqc="no"
+haspqcopenssl="no"
+AS_IF([test "x$enable_pqc" != xno],
+      [ AC_DEFINE([WITH_PQC], [1], [define to compile with Post-Quantum Cryptography support (ML-KEM, ML-DSA, SLH-DSA).])
+	haspqc="yes"
+	dnl OpenSSL native PQC algorithms (public key export, CSR, certificate) require libcrypto >= 3.5.0.
+	PKG_CHECK_MODULES([LIBCRYPTO_PQC],
+			  [libcrypto >= 3.5.0],
+			  [ AC_DEFINE([HAVE_PQC_OPENSSL], [1],
+				[define when libcrypto provides native PQC algorithms (>= 3.5.0): enables PQC public key export, CSR and certificate creation.])
+			    haspqcopenssl="yes" ],
+			  [ AC_MSG_NOTICE([libcrypto < 3.5.0: PQC key generation and inspection remain available, but public key export, CSR and certificate creation are disabled.]) ]) ])
+
+AM_CONDITIONAL([WITH_PQC], [test "x$haspqc" = "xyes"])
+AM_CONDITIONAL([HAVE_PQC_OPENSSL], [test "x$haspqcopenssl" = "xyes"])
+
 dnl on UNIX platforms, check for dynamic loader lib
 AM_COND_IF( [TARGET_OS_MINGW32],
 	    [],
@@ -216,5 +244,7 @@ AC_MSG_NOTICE([with_ncipher       : $hasncipher])
 AC_MSG_NOTICE([with_awscloudhsm   : $hasawscloudhsm])
 AC_MSG_NOTICE([libcrypto rpath    : $LIBCRYPTO_RPATH])
 AC_MSG_NOTICE([enable_duplicate   : $hasduplicate])
+AC_MSG_NOTICE([enable_pqc         : $haspqc])
+AC_MSG_NOTICE([pqc via openssl    : $haspqcopenssl])
 AC_MSG_NOTICE([------------------------------------------------------------------------])
 

@@ -435,6 +435,24 @@ func_rc _wrappedkey_parser_assign_list_to_template(wrappedKeyCtx *wctx, CK_ATTRI
 	actx->has_derive_template = true;
 	break;
 
+    case CKA_ENCAPSULATE_TEMPLATE:
+	if(actx->has_encapsulate_template==true) {
+	    fprintf(stderr, "***Error: an encapsulate template can only be specified once\n");
+	    rc = rc_error_parsing;
+	    goto error;
+	}
+	actx->has_encapsulate_template = true;
+	break;
+
+    case CKA_DECAPSULATE_TEMPLATE:
+	if(actx->has_decapsulate_template==true) {
+	    fprintf(stderr, "***Error: a decapsulate template can only be specified once\n");
+	    rc = rc_error_parsing;
+	    goto error;
+	}
+	actx->has_decapsulate_template = true;
+	break;
+
     default:
 	fprintf(stderr, "***Error: invalid template type - internal error\n");
 	rc = rc_error_oops;

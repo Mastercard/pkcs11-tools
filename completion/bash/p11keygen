@@ -8,11 +8,13 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/p11-common"
 
-_p11keygen_opts="-l -m -s -t -p -S -i -k -b -e -q -d -W -J -r -h -V"
+_p11keygen_opts="-l -m -s -t -p -S -i -k -b -e -q -d -W -J -r -n -h -V"
 
 _p11keygen() {
   local cur="${COMP_WORDS[COMP_CWORD]}"
   local prev="${COMP_WORDS[COMP_CWORD-1]}"
+  local keytype=""
+  local i
 
   if [[ "$prev" == "-l" || "$prev" == "-d" ]]; then
     __p11_complete_filepath "$cur"
@@ -40,12 +42,93 @@ _p11keygen() {
   fi
 
   if [[ "$prev" == "-k" ]]; then
-    COMPREPLY=( $(compgen -W "aes des rsa ec ed dsa dh generic hmac hmacsha1 hmacsha224 hmacsha256 hmacsha384 hmacsha512" -- "$cur") )
+    COMPREPLY=( $(compgen -W "aes des rsa ec ed dsa dh generic hmac hmacsha1 hmacsha224 hmacsha256 hmacsha384 hmacsha512 mlkem mldsa slhdsa" -- "$cur") )
+    return
+  fi
+
+  if [[ "$prev" == "-b" ]]; then
+    # Find the last -k option to determine key type context
+    for ((i=${COMP_CWORD}-1; i>=0; i--)); do
+      if [[ "${COMP_WORDS[$i]}" == "-k" && $((i+1)) -lt ${#COMP_WORDS[@]} ]]; then
+        keytype="${COMP_WORDS[$((i+1))]}"
+        break
+      fi
+    done
+    
+    case "$keytype" in
+      mlkem)
+        COMPREPLY=( $(compgen -W "512 768 1024" -- "$cur") )
+        ;;
+      mldsa)
+        COMPREPLY=( $(compgen -W "44 65 87" -- "$cur") )
+        ;;
+      rsa)
+        COMPREPLY=( $(compgen -W "1024 2048 3072 4096" -- "$cur") )
+        ;;
+      aes)
+        COMPREPLY=( $(compgen -W "128 192 256" -- "$cur") )
+        ;;
+      des)
+        COMPREPLY=( $(compgen -W "128 192" -- "$cur") )
+        ;;
+      hmac|generic)
+        COMPREPLY=( $(compgen -W "128" -- "$cur") )
+        ;;
+      hmacsha1)
+        COMPREPLY=( $(compgen -W "80" -- "$cur") )
+        ;;
+      hmacsha224)
+        COMPREPLY=( $(compgen -W "112" -- "$cur") )
+        ;;
+      hmacsha256)
+        COMPREPLY=( $(compgen -W "128" -- "$cur") )
+        ;;
+      hmacsha384)
+        COMPREPLY=( $(compgen -W "192" -- "$cur") )
+        ;;
+      hmacsha512)
+        COMPREPLY=( $(compgen -W "256" -- "$cur") )
+        ;;
+      *)
+        # For other types, suggest generic values or leave empty
+        ;;
+    esac
     return
   fi
 
   if [[ "$prev" == "-q" ]]; then
-    COMPREPLY=( $(compgen -W "prime256v1 secp384r1 secp521r1 ED25519 ED448" -- "$cur") )
+    # Find the last -k option to determine key type context
+    for ((i=${COMP_CWORD}-1; i>=0; i--)); do
+      if [[ "${COMP_WORDS[$i]}" == "-k" && $((i+1)) -lt ${#COMP_WORDS[@]} ]]; then
+        keytype="${COMP_WORDS[$((i+1))]}"
+        break
+      fi
+    done
+    
+    case "$keytype" in
+      ec)
+        COMPREPLY=( $(compgen -W "prime256v1 secp384r1 secp521r1" -- "$cur") )
+        ;;
+      ed)
+        COMPREPLY=( $(compgen -W "ED25519 ED448" -- "$cur") )
+        ;;
+      mlkem)
+        COMPREPLY=( $(compgen -W "ml-kem-512 ml-kem-768 ml-kem-1024" -- "$cur") )
+        ;;
+      mldsa)
+        COMPREPLY=( $(compgen -W "ml-dsa-44 ml-dsa-65 ml-dsa-87" -- "$cur") )
+        ;;
+      slhdsa)
+        COMPREPLY=( $(compgen -W "sha2-128s sha2-128f sha2-192s sha2-192f sha2-256s sha2-256f shake-128s shake-128f shake-192s shake-192f shake-256s shake-256f" -- "$cur") )
+        ;;
+      "")
+        # No -k found: fallback to EC curves
+        COMPREPLY=( $(compgen -W "prime256v1 secp384r1 secp521r1 ED25519 ED448" -- "$cur") )
+        ;;
+      *)
+        # Key type does not use -q (e.g. aes, des, rsa, hmac...)
+        ;;
+    esac
     return
   fi
 

@@ -35,8 +35,8 @@
 #include "cryptoki.h"
 
 /* grammar version, for wrapped keys */
-#define  SUPPORTED_GRAMMAR_VERSION "2.2"
-#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "2.5.0"
+#define  SUPPORTED_GRAMMAR_VERSION "2.3"
+#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "3.0.0"
 
 /* Program Error Codes */
 #define RC_OK                    0x00
@@ -195,6 +195,11 @@ typedef enum {
     dsa,
     dh,
     generic,
+#if defined(WITH_PQC)
+    ml_kem,			/* ML-KEM (FIPS 203) */
+    ml_dsa,			/* ML-DSA (FIPS 204) */
+    slh_dsa,		/* SLH-DSA (FIPS 205) */
+#endif
 #if defined(HAVE_NCIPHER)
     hmacsha1,
     hmacsha224,
@@ -252,13 +257,15 @@ typedef struct s_p11_attribctx {
     bool has_wrap_template;	/* whether or not we have a wrap template */
     bool has_unwrap_template;	/* whether or not we have an unwrap template */
     bool has_derive_template;	/* whether or not we have a derive template */
+    bool has_encapsulate_template; /* whether or not we have an encapsulate template */
+    bool has_decapsulate_template; /* whether or not we have a decapsulate template */
     int level;			/* used by parser to prevent mutli-level templates */
     size_t saved_idx;		/* used by lexer to temporary store the index used for the template */
 
     struct {
 	CK_ATTRIBUTE *attrlist;
 	size_t attrnum;
-    } attrs[4];
+    } attrs[6];
 
     /* the following two members keep track of allowed mechanisms, when specified */
     CK_MECHANISM_TYPE_PTR allowedmechs;
@@ -501,6 +508,47 @@ void pkcs11_ec_freeoid(CK_BYTE_PTR buf);
 char * pkcs11_ed_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *where, size_t maxlen);
 // void pkcs11_ed_freeoid(CK_BYTE_PTR buf);
 
+#if defined(WITH_PQC)
+/* pkcs11_pqc.c */
+
+/* descriptor for a single PQC parameter set (ML-KEM, ML-DSA or SLH-DSA) */
+typedef struct {
+    key_type_t        keytype;	  /* ml_kem / ml_dsa / slh_dsa */
+    union {
+        CK_ML_KEM_PARAMETER_SET_TYPE  mlkem;
+        CK_ML_DSA_PARAMETER_SET_TYPE  mldsa;
+        CK_SLH_DSA_PARAMETER_SET_TYPE slhdsa;
+    } paramset;	  /* CKP_* value, as stored in CKA_PARAMETER_SET */
+    CK_MECHANISM_TYPE keygenmech; /* CKM_*_KEY_PAIR_GEN */
+    CK_MECHANISM_TYPE opmech;	  /* CKM_ML_KEM / CKM_ML_DSA / CKM_SLH_DSA */
+    const char       *cliname;	  /* canonical lower-case name, e.g. "ml-dsa-65" */
+    const char       *osslname;	  /* OpenSSL fetch name, e.g. "ML-DSA-65" */
+    const char       *ckpname;	  /* PKCS#11 symbol name, e.g. "CKP_ML_DSA_65" */
+} pqc_paramset_t;
+
+/* map the '-k' keyword (mlkem/mldsa/slhdsa) to a key type, or unknown if no match */
+key_type_t pkcs11_pqc_keytype_from_kw(const char *kw);
+/* short keyword (mlkem/mldsa/slhdsa) for a PQC key type, or NULL */
+const char *pkcs11_pqc_keytype_kw(key_type_t keytype);
+/* look up a parameter set by its (case-insensitive) name, or NULL if unknown */
+const pqc_paramset_t *pkcs11_pqc_paramset_from_name(const char *name);
+/* look up a parameter set by key type and CKA_PARAMETER_SET value, or NULL */
+const pqc_paramset_t *pkcs11_pqc_paramset_from_value(key_type_t keytype, CK_ULONG paramset);
+/* return the CKA_PARAMETER_SET value (CKP_*) carried by a descriptor */
+CK_ULONG pkcs11_pqc_paramset_value(const pqc_paramset_t *ps);
+/* default parameter set for a PQC key type, or NULL */
+const pqc_paramset_t *pkcs11_pqc_default_paramset(key_type_t keytype);
+/* resolve a parameter set from the keygen CLI selectors: ML-KEM/ML-DSA use the
+ * numeric strength kb (-b), SLH-DSA uses the variant string qstr (-q). A zero kb
+ * with a NULL qstr selects the algorithm default. Returns NULL if no match. */
+const pqc_paramset_t *pkcs11_pqc_paramset_from_selector(key_type_t keytype, CK_ULONG kb, const char *qstr);
+/* build the listing display name, ec(prime256v1)-style, e.g. "mldsa(65)",
+ * "mlkem(768)", "slhdsa(sha2-128s)". Writes into buf and returns it, or NULL. */
+const char *pkcs11_pqc_paramset_dispname(const pqc_paramset_t *ps, char *buf, size_t buflen);
+/* print the list of supported parameter sets for a key type to fp (for usage/errors) */
+void pkcs11_pqc_print_paramsets(FILE *fp, key_type_t keytype);
+#endif
+
 /* pkcs11_keygen.c */
 typedef enum {
     kg_token,			/* token key */
@@ -562,6 +610,35 @@ func_rc pkcs11_genED( pkcs11Context * p11Context,
 		      CK_OBJECT_HANDLE_PTR hPrivateKey,
 		      key_generation_t gentype);
 
+#if defined(WITH_PQC)
+func_rc pkcs11_genMLKEM( pkcs11Context * p11Context,
+			 char *label,
+			 char *param,
+			 CK_ATTRIBUTE attrs[],
+			 CK_ULONG numattrs,
+			 CK_OBJECT_HANDLE_PTR hPublicKey,
+			 CK_OBJECT_HANDLE_PTR hPrivateKey,
+			 key_generation_t gentype);
+
+func_rc pkcs11_genMLDSA( pkcs11Context * p11Context,
+			 char *label,
+			 char *param,
+			 CK_ATTRIBUTE attrs[],
+			 CK_ULONG numattrs,
+			 CK_OBJECT_HANDLE_PTR hPublicKey,
+			 CK_OBJECT_HANDLE_PTR hPrivateKey,
+			 key_generation_t gentype);
+
+func_rc pkcs11_genSLHDSA( pkcs11Context * p11Context,
+			  char *label,
+			  char *param,
+			  CK_ATTRIBUTE attrs[],
+			  CK_ULONG numattrs,
+			  CK_OBJECT_HANDLE_PTR hPublicKey,
+			  CK_OBJECT_HANDLE_PTR hPrivateKey,
+			  key_generation_t gentype);
+#endif /* WITH_PQC */
+
 int pkcs11_testgenEC_support( pkcs11Context * p11Context, const char *param );
 
 func_rc pkcs11_genDSA(pkcs11Context * p11Context,
@@ -590,6 +667,9 @@ EVP_PKEY *pkcs11_SPKI_from_RSA(pkcs11AttrList *attrlist );
 EVP_PKEY *pkcs11_SPKI_from_DSA(pkcs11AttrList *attrlist );
 EVP_PKEY *pkcs11_SPKI_from_EC(pkcs11AttrList *attrlist );
 EVP_PKEY *pkcs11_SPKI_from_ED(pkcs11AttrList *attrlist );
+#if defined(HAVE_PQC_OPENSSL)
+EVP_PKEY *pkcs11_SPKI_from_PQC(pkcs11AttrList *attrlist, key_type_t keytype );
+#endif
 
 
 /* pkcs11_req.c */

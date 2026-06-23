@@ -259,6 +259,8 @@ The following table lists the meaning of abbreviations:
 | `wra`        | Wrapping                   |
 | `unw`        | Unwrapping                 |
 | `der`        | Derivation                 |
+| `ncp`        | Encapsulation (KEM)        |
+| `dcp`        | Decapsulation (KEM)        |
 
 The last column tells whether the operation takes place inside the boundaries of the cryptographic module (`HW`) or at the
 library level (`SW`).
@@ -393,6 +395,8 @@ For each object, a quick list of attributes is displayed. The following table li
 | `AAU`        | the key requires authentication each time it is used                   |
 | `ase`        | the key has always been sensitive                                      |
 | `alm`        | the key has associated allowed mechanisms (use `p11od` to reveal)      |
+| `dcp`        | the key can be used for decapsulation (KEM private key)                |
+| `dct`        | the key has a decapsulate template (use `p11od` to reveal)             |
 | `dec`        | the key can be used for decryption                                     |
 | `der`        | the key can be used for key derivation                                 |
 | `drt`        | the key has a derive template (use `p11od` to reveal)                  |
@@ -400,6 +404,8 @@ For each object, a quick list of attributes is displayed. The following table li
 | `imp`        | the key has been imported (e.g. unwrapped)                             |
 | `loc`        | the key has been generated locally                                     |
 | `NAS`        | the key has not always been sensitive                                  |
+| `ncp`        | the key can be used for encapsulation (KEM public key)                 |
+| `nct`        | the key has an encapsulate template (use `p11od` to reveal)            |
 | `NSE`        | the key is not sensitive (clear text value could leave token boundary) |
 | `nxt`        | the key has never been extractable                                     |
 | `prv`        | the object is private, i.e. requires login to access                   |
@@ -745,7 +751,8 @@ curly braces. Valid examples:
 
 #### attribute array value
 
-For template attributes such as `CKA_UNWRAP_TEMPLATE` and `CKA_WRAP_TEMPLATE`, the value is provided as a list of
+For template attributes such as `CKA_UNWRAP_TEMPLATE`, `CKA_WRAP_TEMPLATE`, `CKA_DERIVE_TEMPLATE`,
+`CKA_ENCAPSULATE_TEMPLATE` and `CKA_DECAPSULATE_TEMPLATE`, the value is provided as a list of
 attributes, delimited by curly braces `{` and `}`, each attribute being separated by whitespaces and/or commas `,`.
 Valid examples:
 
@@ -791,9 +798,11 @@ The following table describes a list of all supported attributes.
 | `CKA_ALLOWED_MECHANISMS` | `allowed_mechanisms` | mechanisms array |                                             |
 | `CKA_CLASS`              | `class`              | class            |                                             |
 | `CKA_COPYABLE`           | `copyable`           | boolean          |                                             |
+| `CKA_DECAPSULATE_TEMPLATE` | `decapsulate_template` | attributes array |                                             |
 | `CKA_DECRYPT`            | `decrypt`            | boolean          | `false`                                     |
 | `CKA_DERIVE`             | `derive`             | boolean          | `false`                                     |
 | `CKA_EC_PARAMS`          | `ec_params`          | hex              |                                             |
+| `CKA_ENCAPSULATE_TEMPLATE` | `encapsulate_template` | attributes array |                                             |
 | `CKA_ENCRYPT`            | `encrypt`            | boolean          | `false`                                     |
 | `CKA_END_DATE`           | `end_date`           | date             |                                             |
 | `CKA_EXTRACTABLE`        | `extractable`        | boolean          | `false`                                     |

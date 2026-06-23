@@ -135,6 +135,16 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 	}
 	break;
 
+#if defined(HAVE_PQC_OPENSSL)
+    case ml_dsa:
+    case slh_dsa:
+	if((pk = pkcs11_SPKI_from_PQC( attrlist, key_type )) == NULL ) {
+	    fprintf(stderr, "Error: unable to build SPKI structure\n");
+	    goto err;
+	}
+	break;
+#endif
+
     default:
 	fprintf(stderr, "Error: unsupported signing algorithm\n");
 	goto err;
@@ -251,6 +261,16 @@ CK_VOID_PTR pkcs11_create_X509_REQ(pkcs11Context *p11Context,
 	    goto err;
 	}
 	break;
+#if defined(HAVE_PQC_OPENSSL)
+    case ml_dsa:
+    case slh_dsa:
+	/* ML-DSA / SLH-DSA path: pure signatures (mdname NULL), like EdDSA. */
+	if (!EVP_DigestSignInit_ex(mdctx, &pctx, NULL, prov_libctx, NULL, signing_pk, NULL)) {
+	    P_ERR();
+	    goto err;
+	}
+	break;
+#endif
     case rsa: {
 	/* RSA path: signing key from our provider, private libctx.
 	 * For PSS, pass padding/digest/mgf1/saltlen via OSSL_PARAMs at init
