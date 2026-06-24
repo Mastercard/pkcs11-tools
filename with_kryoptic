@@ -1,0 +1,48 @@
+#!/bin/sh
+# Copyright (c) 2020 Mastercard
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#   http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# wrapper script for Kryoptic tokens (https://github.com/latchset/kryoptic)
+# see with_pkcs11_common for usage and alternate invocations
+#
+# Kryoptic-specific notes:
+#   - library: libkryoptic_pkcs11.so (.dylib on macOS)
+#   - KRYOPTIC_CONF: path to the TOML configuration file (highest precedence)
+#   - if KRYOPTIC_CONF is not set, falls back to:
+#       ${XDG_CONFIG_HOME}/kryoptic/token.conf  or
+#       ${HOME}/.config/kryoptic/token.conf
+
+PKCS11PASSWORD=${PKCS11PASSWORD:-changeit}
+
+_p11_vendor=kryoptic
+
+# vendor-specific settings
+case $(uname -s) in
+    Darwin) PKCS11_LIBNAME=libkryoptic_pkcs11.dylib ;;
+    *)      PKCS11_LIBNAME=libkryoptic_pkcs11.so    ;;
+esac
+PKCS11_LIBPATHS=""
+LIB_ENVVARS="KRYOPTIC_CONF"
+
+# set KRYOPTIC_CONF to the default location if not already set and the file exists
+if [ -z "${KRYOPTIC_CONF:-}" ]; then
+    _default_conf="${XDG_CONFIG_HOME:-$HOME/.config}/kryoptic/token.conf"
+    if [ -e "$_default_conf" ]; then
+        KRYOPTIC_CONF="$_default_conf"
+    fi
+    unset _default_conf
+fi
+
+# load common logic
+. "$(dirname "$0")/with_pkcs11_common" "$@"
