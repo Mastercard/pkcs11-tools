@@ -1,58 +1,74 @@
 # PKCS\#11 tools
 
 pkcs11-tools is a toolkit containing a bunch of small utilities to perform key management tasks on cryptographic tokens
-implementing a PKCS\#11 interface. It features a number of commands similar to the unix CLI utilities, such as `ls`
+implementing a PKCS\#11 interface. It features a number of commands similar to the Unix CLI utilities, such as `ls`
 , `mv`, `rm`, `od`, and `more`. It also has specific commands to generate keys, generate CSRs, import certificates and
-other files, in a fashion compatible with most implementations, including both IBM and Oracle JVMs. It is also able to
-interface with NSS libraries from [mozilla.org](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS).
+other files, in a fashion compatible with many implementations, including both IBM and Oracle JVMs. It is also able to
+interface with software tokens, such as SoftHSM and NSS.
 
 Some features:
 
 - support for DES, 3DES, AES, HMAC, RSA, DSA, DH, Elliptic curves (NIST curves, Edwards curves)
+- support for Post-Quantum Cryptography: ML-KEM (FIPS 203), ML-DSA (FIPS 204) and SLH-DSA (FIPS 205)
 - generation of PKCS\#10 (CSR) and self-signed certificates
 - import of certificates, public keys, data files
 - support for wrapping and unwrapping keys, for both symmetric and asymmetric keys
 - support for templates during key creation, public key import, key wrapping and key unwrapping
 - support for session key generation and direct wrapping under one or several keys, in a single command
-- support for key rewrapping (i.e. key unwrapping and key wrapping)
+- support for key rewrapping (i.e. key unwrapping as a session key, followed by key wrapping)
 
 ## News
+
+### June 2026
+
+In preparation for a new major release, the toolkit now requires OpenSSL 3.x (`libcrypto >= 3.0.0`).
+Support for Post-Quantum Cryptography (PQC) is also introduced, covering the three NIST/PKCS\#11 v3.2 algorithms ML-KEM
+(FIPS 203), ML-DSA (FIPS 204) and SLH-DSA (FIPS 205). `p11keygen` can generate `mlkem`, `mldsa` and `slhdsa` key pairs,
+and `p11req`/`p11mkcert` can produce CSRs and self-signed certificates for ML-DSA and SLH-DSA keys. Key generation and
+object inspection work with any OpenSSL 3.x; public key export, CSR and certificate creation require `libcrypto >= 3.5.0`.
+PQC support is enabled by default and can be turned off with `--disable-pqc`. See the [manual](docs/MANUAL.md) for details.
+
 ### July 2023
+
 Version 2.6 brings support for the AWS CloudHSM platform, library version 5.9.
+
 Limitations are:
- - Certificates are not supported by the platform, therefore any command handling certificates will fail
- - Changing attributes values is not supported by the platform; several commands rely on that capability to adjust `CKA_ID` accross objects. These commands may occasionally report an error when executed; key material is usually created.
- - For the same reason, `p11mv` and `p11setattr`  will not operate on this platform.
- - The platform does not allow for duplicate `CKA_ID` attributes, which occasionally brings issues when generating key material. This will be adjusted in a later release.
- - `p11od` command will not work, due to the way CloudHSM handles attributes.
- - When using wrapped key files, `CKA_SIGN_RECOVER` and `CKA_VERIFY_RECOVER` are not supported, and should be commented out.
- - Wrap and unwrap templates are not supported by this platform. These should also be commented out in wrapped key files.
+
+- Certificates are not supported by the platform, therefore any command handling certificates will fail
+- Changing attribute values is not supported by the platform; several commands rely on that capability to adjust `CKA_ID` across objects. These commands may occasionally report an error when executed; key material is usually created.
+- For the same reason, `p11mv` and `p11setattr` will not operate on this platform.
+- The platform does not allow for duplicate `CKA_ID` attributes, which occasionally brings issues when generating key material. This will be adjusted in a later release.
+- `p11od` command will not work, due to the way CloudHSM handles attributes.
+- When using wrapped key files, `CKA_SIGN_RECOVER` and `CKA_VERIFY_RECOVER` are not supported, and should be commented out.
+- Wrap and unwrap templates are not supported by this platform. These should also be commented out in wrapped key files.
+
 AWS CloudHSM support is disabled by default; please refer to [installation instructions](docs/INSTALL.md) for more details.
 
 ### June 2023
-Version 2.6, introduces support for JWK - JOSE Web Key output (RFC 7517) on the `p11keygen`, `p11wrap`, and `p11rewrap`
+
+Version 2.6 introduces support for JWK - JOSE Web Key output (RFC 7517) on the `p11keygen`, `p11wrap`, and `p11rewrap`
 commands. The JWK format is not supported for importing keys.
 
 ### October 2021
 
-Version 2.5, that brings support for `CKA_ALLOWED_MECHANISMS`, on many key management commands: `p11keygen`, `p11wrap`
+Version 2.5 brings support for `CKA_ALLOWED_MECHANISMS` on many key management commands: `p11keygen`, `p11wrap`
 , `p11unwrap`, `p11rewrap`, `p11od`, `p11ls`. Note that the wrapped key grammar has changed; the grammar version number
 has been incremented to `2.2`.
 
 ### July 2021
 
-Version 2.4, to support templates in many commands: `p11keygen`, `p11importpubk`, `p11wrap`, `p11unwrap`, `p11od`
-, `p11ls`. Keys created with a template can be wrapped, the template attributes will be carried. Note that the wrapped
+Version 2.4 adds support for templates in many commands: `p11keygen`, `p11importpubk`, `p11wrap`, `p11unwrap`, `p11od`
+, `p11ls`. Keys created with a template can be wrapped, and the template attributes will be carried. Note that the wrapped
 key grammar has changed, and the grammar version number has been incremented to `2.1`.
 
 ### April 2021
 
-Version 2.3, that adds extra options to p11kcv, so that tokens not supporting NULL-length HMAC computation can be also
+Version 2.3 adds extra options to p11kcv, so that tokens not supporting NULL-length HMAC computation can also be
 supported.
 
 ### March 2021
 
-Version 2.2 is slightly changing the layout of `p11slotinfo`. Edwards Curve support enhanced. The toolkit is also
+Version 2.2 slightly changes the layout of `p11slotinfo`. Edwards Curve support is enhanced. The toolkit is also
 adapted to be packaged as a [FreeBSD port](https://www.freshports.org/security/pkcs11-tools/).
 
 ### January 2021
@@ -69,12 +85,12 @@ The toolkit has reached v2.0. It features several major changes:
 - major overhaul of the wrapping/unwrapping system: it is now possible to perform double wrapping (aka envelope
   wrapping) with a single command, in a secure fashion
 - `p11keygen` can now generate a session key and wrap it under one or several wrapping keys
-- a new command, `p11rewrap`, allows to unwrap a key and immediately rewrap in under one or several wrapping keys, in a
+- a new command, `p11rewrap`, allows you to unwrap a key and immediately rewrap it under one or several wrapping keys, in a
   secure fashion.
 
 ## Introduction
 
-Ensure the prerequisites listed in the [Install Document](https://github.com/Mastercard/pkcs11-tools/blob/master/docs/INSTALL.md) are installed before proceeding
+Ensure the prerequisites listed in the [Install Document](https://github.com/Mastercard/pkcs11-tools/blob/master/docs/INSTALL.md) are installed before proceeding.
 
 To build the source code, simply execute (with appropriate privileges)
 
@@ -84,8 +100,7 @@ $ ./configure
 $ make install
 ```
 
-To list the methods available on a PKCS#11 token, use `p11slotinfo`, that will return the list of available mechanisms,
-together with allowed APIs.
+To list the mechanisms available on a PKCS#11 token, use `p11slotinfo`, which will return the list of available mechanisms,
 
 ```bash
 $ using PKCS11LIB at /opt/softhsm2-devel/lib/softhsm/libsofthsm2.so
@@ -140,8 +155,8 @@ CKM_RSA_PKCS                              enc dec --- sig --- vfy --- --- --- wr
 ...
 ```
 
-To list the objects sitting on the token at slot with index 0, use `p11ls`. objects are listed together with their
-attributes;
+To list the objects sitting on the token at slot with index 0, use `p11ls`. Objects are listed together with their
+attributes:
 
 ```bash
 $ p11ls -l /usr/local/opt/softhsm/lib/softhsm/libsofthsm2.so -s 0
@@ -218,7 +233,7 @@ Certificate:
 ...
 ```
 
-Moreover, `p11od`can be used to extract all attribute values from an object:
+Moreover, `p11od` can be used to extract all attribute values from an object:
 
 ```bash
 $ p11od pubk/dh
@@ -304,7 +319,7 @@ key unwrapping succeeded
 
 ## Installation
 
-The project can compile on many platforms, including Linux, AIX, Solaris. Using cross-compilers, it is also possible to
+The project can compile on many platforms, including Linux, AIX, and Solaris. Using cross-compilers, it is also possible to
 compile for the Windows platform. Compilation under macOS requires [brew](https://brew.sh/). Please refer
 to [docs/INSTALL.md](docs/INSTALL.md) for installation instructions.
 
@@ -360,7 +375,7 @@ Eric Devolder (Mastercard, https://www.mastercard.com)
 
 ## Licensing terms
 
-Except when specified differently in source files, the following license apply:
+Except when specified differently in source files, the following license applies:
 
 ---------------
 Copyright (c) 2018 Mastercard
