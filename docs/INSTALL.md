@@ -351,6 +351,11 @@ The default installation of `pkcs11-tools` does not support the creation of obje
 $ ./configure [...] --enable-duplicate
 ```
 
+Post-Quantum Cryptography (PQC) support — the ML-KEM (FIPS 203), ML-DSA (FIPS 204) and SLH-DSA (FIPS 205) algorithms — is **enabled by default**. Key generation and object inspection only require any OpenSSL 3.x, while public key export, CSR and certificate creation rely on OpenSSL's native PQC implementation and therefore require `libcrypto >= 3.5.0`. When building against an older libcrypto, those operations are disabled automatically while key generation and inspection remain available. To turn PQC support off entirely, configure with `--disable-pqc`:
+```bash
+$ ./configure [...] --disable-pqc
+```
+
 ## Shell completion
 On `make install`, `bash` and `zsh` completion scripts for the `p11*` tools are installed automatically:
 

@@ -675,11 +675,15 @@ Generate a key or a key pair on a PKCS\#11 token, or generate and wrap under one
 options, but the more important are:
 
 - `-i`: the label of the key
-- `-k`: the key algorithm: `rsa`, `ec`, `des`, `aes`, `generic`, `hmac` (`hmac` and `generic` are synonyms), `hmacsha1`
-  , `hmacsha256`, `hmacsha384`, `hmacsha512` (these are nCipher-specific, and only available when the toolkit is
-  compiled with nCipher extensions)
-- `-b`: the key length in bits / `-q`: curve parameter name for elliptic curve. Please check
+- `-k`: the key algorithm: `rsa`, `ec`, `ed`, `des`, `aes`, `generic`, `hmac` (`hmac` and `generic` are synonyms)
+  , `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512` (these are nCipher-specific, and only available when the
+  toolkit is compiled with nCipher extensions), and, when compiled with Post-Quantum Cryptography support (the
+  default, see `--disable-pqc`), `mlkem`, `mldsa` and `slhdsa`
+- `-b`: the key length in bits / `-q`: curve/parameter set name for elliptic and Edwards keys. For EC keys, please check
   out `openssl ecparam -list_curves` for a list of supported curves (obviously, the PKCS\#11 token must support it).
+  For post-quantum keys, the parameter set is selected through `-b` for ML-KEM (`512`, `768`, `1024`; default `768`)
+  and ML-DSA (`44`, `65`, `87`; default `65`), and through `-q` for SLH-DSA (`{sha2,shake}-{128,192,256}{s,f}`, e.g.
+  `sha2-128s` (default) or `shake-256f`). See [post-quantum keys](#post-quantum-keys) below.
 
 ### attributes
 
@@ -782,12 +786,15 @@ The following table provides a list of currently supported key types:
 | `CKK_EC`             | `ec`                          |
 | `CKK_GENERIC_SECRET` | `generic_secret`, `generic`   |
 | `CKK_MD5_HMAC`       | `md5_hmac`                    |
+| `CKK_ML_DSA`         | `ml_dsa`, `mldsa`             |
+| `CKK_ML_KEM`         | `ml_kem`, `mlkem`             |
 | `CKK_RSA`            | `rsa`                         |
 | `CKK_SHA224_HMAC`    | `sha224_hmac`                 |
 | `CKK_SHA256_HMAC`    | `sha256_hmac`                 |
 | `CKK_SHA384_HMAC`    | `sha384_hmac`                 |
 | `CKK_SHA512_HMAC`    | `sha512_hmac`                 |
 | `CKK_SHA_1_HMAC`     | `sha_1_hmac`, `sha1_hmac`     |
+| `CKK_SLH_DSA`        | `slh_dsa`, `slhdsa`           |
 
 ### supported attributes
 
@@ -798,10 +805,12 @@ The following table describes a list of all supported attributes.
 | `CKA_ALLOWED_MECHANISMS` | `allowed_mechanisms` | mechanisms array |                                             |
 | `CKA_CLASS`              | `class`              | class            |                                             |
 | `CKA_COPYABLE`           | `copyable`           | boolean          |                                             |
+| `CKA_DECAPSULATE`        | `decapsulate`        | boolean          | `false`                                     |
 | `CKA_DECAPSULATE_TEMPLATE` | `decapsulate_template` | attributes array |                                             |
 | `CKA_DECRYPT`            | `decrypt`            | boolean          | `false`                                     |
 | `CKA_DERIVE`             | `derive`             | boolean          | `false`                                     |
 | `CKA_EC_PARAMS`          | `ec_params`          | hex              |                                             |
+| `CKA_ENCAPSULATE`        | `encapsulate`        | boolean          | `false`                                     |
 | `CKA_ENCAPSULATE_TEMPLATE` | `encapsulate_template` | attributes array |                                             |
 | `CKA_ENCRYPT`            | `encrypt`            | boolean          | `false`                                     |
 | `CKA_END_DATE`           | `end_date`           | date             |                                             |
@@ -839,6 +848,36 @@ Generating, please wait... Key Generation succeeded
 For generating HMAC key on Entrust HSM, you need to use one of the following key types: `hmacsha1`, `hmacsha256`
 , `hmacsha384`, `hmacsha512`; In addition, specify `sign` and `verify`. The `-b` parameter specifies how many bits are
 used to generate the key. It is rounded up to the next byte boundary.
+
+### post-quantum keys
+
+When the toolkit is compiled with Post-Quantum Cryptography support (enabled by default, see `--disable-pqc` in the
+[install document](INSTALL.md)), `p11keygen` can generate the three NIST/PKCS\#11 v3.2 post-quantum algorithms:
+
+| key type | `-k` value | algorithm           | parameter set selector                                                       |
+| -------- | ---------- | ------------------- | ---------------------------------------------------------------------------- |
+| ML-KEM   | `mlkem`    | FIPS 203 (KEM)      | `-b 512`, `-b 768` (default), `-b 1024`                                       |
+| ML-DSA   | `mldsa`    | FIPS 204 (signature)| `-b 44`, `-b 65` (default), `-b 87`                                           |
+| SLH-DSA  | `slhdsa`   | FIPS 205 (signature)| `-q {sha2,shake}-{128,192,256}{s,f}`, e.g. `sha2-128s` (default), `shake-256f`|
+
+ML-DSA and SLH-DSA are signature algorithms: assert `sign` on the private key and `verify` on the public key. ML-KEM is
+a key encapsulation mechanism (KEM): assert `decapsulate` on the private key and `encapsulate` on the public key (these
+map to the new `CKA_DECAPSULATE` / `CKA_ENCAPSULATE` boolean attributes; `CKA_DECAPSULATE_TEMPLATE` /
+`CKA_ENCAPSULATE_TEMPLATE` are supported as well).
+
+```
+$ p11keygen -k mldsa -b 65 -i my-mldsa-key sign verify
+Generating, please wait... Key Generation succeeded
+$ p11keygen -k slhdsa -q sha2-128s -i my-slhdsa-key sign verify
+Generating, please wait... Key Generation succeeded
+$ p11keygen -k mlkem -b 768 -i my-mlkem-key encapsulate decapsulate
+Generating, please wait... Key Generation succeeded
+```
+
+Key generation and object inspection (`p11ls`, `p11od`, `p11cat`, `p11more`) only require any OpenSSL 3.x. Public key
+export, as well as CSR (`p11req`) and self-signed certificate (`p11mkcert`) creation for ML-DSA and SLH-DSA, rely on
+OpenSSL's native PQC implementation and therefore require `libcrypto >= 3.5.0`. When building against an older
+libcrypto, key generation and inspection remain available while those operations are disabled.
 
 ### creating wrapped keys
 
@@ -899,6 +938,9 @@ Generate a PKCS\#10 CSR. Important options are:
 - `-o [filename]`: output to file
 - `-a [pkcs1 | pss]`: choose digital signature algorithm. The current default is `pkcs1` (PKCS\#1 v1.5); choose RSA-PSS with `pss`
 
+Post-quantum keys are supported: a CSR can be generated for ML-DSA and SLH-DSA keys (in which case a public key object is
+required). This requires the toolkit to be compiled with PQC support and a `libcrypto >= 3.5.0`.
+
 ```
 $ p11req -i test-rsa-2048 -d \'/CN=test/OU=my dept/C=BE\' -H sha256 -e DNS:anotherhost.int -e email:writeme\@mastercard.com
 -----BEGIN CERTIFICATE REQUEST-----
@@ -942,6 +984,9 @@ Options are:
 - `-v`: be verbose.
 - `-o [filename]`: output to file
 - `-a [pkcs1 | pss]`: choose digital signature algorithm. The current default is `pkcs1` (PKCS\#1 v1.5); choose RSA-PSS with `pss`
+
+Post-quantum keys are supported: a self-signed certificate can be generated for ML-DSA and SLH-DSA keys (in which case a
+public key object is required). This requires the toolkit to be compiled with PQC support and a `libcrypto >= 3.5.0`.
 
 ```
 $ p11mkcert -i test-rsa-2048 -d \'/CN=test/OU=my dept/C=BE\' -H sha256 -e DNS:anotherhost.int -e email:writeme\@mastercard.com
