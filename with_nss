@@ -44,7 +44,7 @@ PKCS11NSSDIR=${PKCS11NSSDIR:-sql:$HOME/.pki/nssdb}
 # early rather than letting NSS silently operate on a missing/unexpected path.
 p11_post_rc()
 {
-    NSS_LIB_PARAMS=${NSS_LIB_PARAMS:-configDir=\'${PKCS11NSSDIR}\'}
+    NSS_LIB_PARAMS=${NSS_LIB_PARAMS:-"configDir='${PKCS11NSSDIR}'"}
 
     # Strip a leading database-type prefix ("sql:", "dbm:", ...) to get the path.
     _nssdir=${PKCS11NSSDIR#*:}

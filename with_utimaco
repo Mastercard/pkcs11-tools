@@ -51,13 +51,23 @@ _find_utimaco_cfg()
     return 1
 }
 
-CS_PKCS11_R3_CFG=${CS_PKCS11_R3_CFG:-$(_find_utimaco_cfg)}
-CS_PKCS11_R2_CFG=${CS_PKCS11_R2_CFG:-$(_find_utimaco_cfg)}
+# Resolve and validate the config file *after* .pkcs11rc has been sourced, so a
+# user can point CS_PKCS11_R3_CFG/CS_PKCS11_R2_CFG at it from .pkcs11rc.
+# with_pkcs11_common calls this hook once the rc file has been loaded.
+p11_post_rc()
+{
+    CS_PKCS11_R3_CFG=${CS_PKCS11_R3_CFG:-$(_find_utimaco_cfg)}
+    CS_PKCS11_R2_CFG=${CS_PKCS11_R2_CFG:-$(_find_utimaco_cfg)}
 
-if [ "$CS_PKCS11_R2_CFG" = "NOT_FOUND" ] && [ "$CS_PKCS11_R3_CFG" = "NOT_FOUND" ]; then
-    echo "***Error: Utimaco configuration file not found, please set CS_PKCS11_R3_CFG/CS_PKCS11_R2_CFG accordingly." >&2
-    exit 1
-fi
+    if [ "$CS_PKCS11_R2_CFG" = "NOT_FOUND" ] && [ "$CS_PKCS11_R3_CFG" = "NOT_FOUND" ]; then
+        echo "***Error: Utimaco configuration file not found, please set CS_PKCS11_R3_CFG/CS_PKCS11_R2_CFG accordingly." >&2
+        exit 1
+    fi
+
+    # Never export the NOT_FOUND sentinel to the library.
+    [ "$CS_PKCS11_R3_CFG" = "NOT_FOUND" ] && unset CS_PKCS11_R3_CFG
+    [ "$CS_PKCS11_R2_CFG" = "NOT_FOUND" ] && unset CS_PKCS11_R2_CFG
+}
 
 # Utimaco has multiple possible library names; override find_p11_lib
 find_p11_lib()

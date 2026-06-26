@@ -104,9 +104,11 @@ build_p11_libpaths()
     p11_path_once /usr/lib
     p11_path_once /usr/lib/pkcs11
     if [ "$(uname -s)" = "Linux" ]; then
+        _p11_triplet="$(uname -m)-linux-gnu"
         p11_path_once /usr/lib64
         p11_path_once /usr/lib64/pkcs11
-        p11_path_once "/usr/lib/$(uname -m)-linux-gnu"
+        p11_path_once "/usr/lib/$_p11_triplet"
+        p11_path_once "/usr/lib/$_p11_triplet/pkcs11"
     fi
     p11_path_once /usr/local/lib
     p11_path_once /usr/local/lib/pkcs11
