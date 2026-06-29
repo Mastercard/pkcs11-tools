@@ -116,9 +116,17 @@ build_p11_libpaths()
 }
 
 # find_p11_lib: search PKCS11_LIBPATHS for PKCS11_LIBNAME
+# A with_xxx wrapper may define its own find_p11_lib() *before* sourcing this
+# file (e.g. with_utimaco, which probes several candidate library names via
+# PKCS11_LIBNAMES).  Only provide this default when no override is in place,
+# otherwise sourcing this file would clobber the wrapper's version.
+if ! type find_p11_lib > /dev/null 2>&1; then
 find_p11_lib()
 {
     lib=$PKCS11_LIBNAME
+    # An empty library name would turn the test below into [ -e "$path/" ],
+    # which matches any existing directory and returns a bogus path; guard it.
+    [ -z "$lib" ] && { echo "NOT_FOUND"; return 1; }
     _old_ifs=$IFS
     IFS='
 '
@@ -133,9 +141,13 @@ find_p11_lib()
     echo "NOT_FOUND"
     return 1
 }
+fi
 
 # find_shim_lib: locate libpkcs11shim.dylib / libpkcs11shim.so
 # Try .dylib first (preferred on Darwin), then .so, in every search path.
+# As with find_p11_lib, a wrapper may override this; only define the default
+# when the wrapper has not already provided one.
+if ! type find_shim_lib > /dev/null 2>&1; then
 find_shim_lib()
 {
     _old_ifs=$IFS
@@ -157,6 +169,7 @@ find_shim_lib()
     echo "NOT_FOUND"
     return 1
 }
+fi
 
 # find_cfg_file FILE PATH...
 # Generic helper: locate FILE in a list of directories.

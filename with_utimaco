@@ -69,22 +69,29 @@ p11_post_rc()
     [ "$CS_PKCS11_R2_CFG" = "NOT_FOUND" ] && unset CS_PKCS11_R2_CFG
 }
 
-# Utimaco has multiple possible library names; override find_p11_lib
+# Utimaco has multiple possible library names; override find_p11_lib.
+# Names are space-separated (PKCS11_LIBNAMES) while build_p11_libpaths emits
+# one path per line (paths may contain spaces).  Iterate names first using the
+# default IFS so they split on spaces, and only switch IFS to newline for the
+# inner path loop.  Doing it the other way round makes the inner name loop run
+# with IFS=newline, so PKCS11_LIBNAMES is never split and nothing is found.
+# Name-major order also means the preferred R3 library wins over R2 even when
+# R2 sits in an earlier search directory.
 find_p11_lib()
 {
     _old_ifs=$IFS
-    IFS='
+    for lib in $PKCS11_LIBNAMES; do
+        IFS='
 '
-    for path in $(build_p11_libpaths); do
-        for lib in $PKCS11_LIBNAMES; do
+        for path in $(build_p11_libpaths); do
             if [ -e "$path/$lib" ]; then
                 echo "$path/$lib"
                 IFS=$_old_ifs
                 return 0
             fi
         done
+        IFS=$_old_ifs
     done
-    IFS=$_old_ifs
     echo "NOT_FOUND"
     return 1
 }
