@@ -369,38 +369,50 @@ fi
 
 ########################################################################
 # Source .pkcs11rc (or .pkcs11rc.<vendor> if _p11_vendor is set)
-# Walk up from CWD to $HOME; at each level try the vendor-specific file
-# first, then the generic one.  Stop at the first match found.
-# Never go above $HOME.
-if [ -z "${NORC:-}" ]; then
-    _dir="$PWD"
-    _found_rc=""
-    while :; do
-        if [ -n "${_p11_vendor:-}" ] && [ -e "$_dir/.pkcs11rc.$_p11_vendor" ]; then
-            _found_rc="$_dir/.pkcs11rc.$_p11_vendor"
-            break
-        fi
-        if [ -e "$_dir/.pkcs11rc" ]; then
-            _found_rc="$_dir/.pkcs11rc"
-            break
-        fi
-        # stop once we have checked $HOME
-        if [ "$_dir" = "$HOME" ]; then
-            break
-        fi
-        # stop if we are already at the filesystem root
-        if [ "$_dir" = "/" ]; then
-            break
-        fi
-        _dir="${_dir%/*}"
-        # edge case: _dir becomes empty when PWD is a top-level dir
-        [ -z "$_dir" ] && _dir="/"
-    done
-    if [ -n "$_found_rc" ]; then
-        # shellcheck source=/dev/null
-        . "$_found_rc"
-    fi
-    unset _dir _found_rc
+# Walk up from CWD to $HOME, trying the vendor-specific file first and then the
+# generic one at each level; the first match wins.
+#
+# The walk NEVER goes above $HOME: a .pkcs11rc is only ever sourced from $HOME
+# or one of its subdirectories.  This is deliberate as the file is sourced as a
+# shell script, so honoring one found above $HOME (for instance a world-
+# writable /tmp/.pkcs11rc seen when running from outside your home tree) would
+# let another user execute code in this process.  When CWD is outside $HOME no
+# .pkcs11rc is sourced; keep your configuration under $HOME, or use NORC=1 to
+# skip this step entirely.
+if [ -z "${NORC:-}" ] && [ -n "${HOME:-}" ] && [ "$HOME" != "/" ]; then
+    # A .pkcs11rc is honored only when CWD is $HOME or a directory beneath it,
+    # so the walk below can never escape $HOME.  Strip any trailing slash from
+    # $HOME so the containment test and the loop's stop condition agree.
+    _home=${HOME%/}
+    case "$PWD/" in
+        "$_home"/*)
+            _dir="$PWD"
+            _found_rc=""
+            while :; do
+                if [ -n "${_p11_vendor:-}" ] && [ -e "$_dir/.pkcs11rc.$_p11_vendor" ]; then
+                    _found_rc="$_dir/.pkcs11rc.$_p11_vendor"
+                    break
+                fi
+                if [ -e "$_dir/.pkcs11rc" ]; then
+                    _found_rc="$_dir/.pkcs11rc"
+                    break
+                fi
+                # Stop at $HOME; never walk above it.  $HOME is always reached
+                # because CWD was verified to be within it.
+                [ "$_dir" = "$_home" ] && break
+                [ "$_dir" = "/" ] && break
+                _dir="${_dir%/*}"
+                # edge case: _dir becomes empty when a parent is a top-level dir
+                [ -z "$_dir" ] && _dir="/"
+            done
+            if [ -n "$_found_rc" ]; then
+                # shellcheck source=/dev/null
+                . "$_found_rc"
+            fi
+            unset _dir _found_rc
+            ;;
+    esac
+    unset _home
 fi
 
 ########################################################################
