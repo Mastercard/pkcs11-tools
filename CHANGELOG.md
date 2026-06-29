@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - build now requires OpenSSL 3.0.0 or above (`libcrypto >= 3.0.0`)
 - Docker build files refactored to better support local repository builds, corporate proxies and static OpenSSL 3 fallback on older targets
+- `with_xxx` wrapper scripts refactored: all common logic now lives in a single, POSIX `/bin/sh` file (`with_pkcs11_common`) sourced by every wrapper, removing the previous `zsh` dependency. New options are available across all wrappers: `-n` (no slot / interactive selection), `-s` and `-S dest` (SHIM tracing), `-c` (create a commented `.pkcs11rc` template), `-e` (open `.pkcs11rc` in `$VISUAL`/`$EDITOR`) and `-h` (usage help). Library auto-detection now probes common system locations and the Homebrew prefix (`HOMEBREW_PREFIX`), and can be overridden with `PKCS11LIB`. The `.pkcs11rc` lookup walks up from the current directory to `$HOME`, honours a vendor-specific `.pkcs11rc.<vendor>` file in priority over the generic one, and exposes `$_p11_vendor` so a shared `.pkcs11rc` can dispatch per vendor. New wrappers `with_aws` (AWS CloudHSM) and `with_kryoptic` (Kryoptic) are provided, and `with_utimaco` now auto-detects the R3 client library (falling back to R2). The previous `SPY`/`pkcs11-spy.so` mechanism is replaced by `SHIM`/`libpkcs11shim`
 
 ### Fixed
 - small fix on with_xxx wrappers, replacing space with underscore in reply code

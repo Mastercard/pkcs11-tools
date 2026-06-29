@@ -26,6 +26,8 @@ EXTRA_DIST = \
 	with_softhsm             \
 	with_utimaco	         \
 	with_aws		 \
+	with_kryoptic		 \
+	with_pkcs11_common       \
 	docs/INSTALL.md	         \
 	docs/CONTRIBUTING.md     \
 	docs/MANUAL.md           \
@@ -87,6 +89,8 @@ install-exec-hook:
 		$(srcdir)/with_softhsm \
 		$(srcdir)/with_utimaco \
 		$(srcdir)/with_aws     \
+		$(srcdir)/with_kryoptic \
+		$(srcdir)/with_pkcs11_common \
 		$(DESTDIR)$(bindir)
 
 dist-hook:

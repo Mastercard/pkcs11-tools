@@ -28,6 +28,13 @@ and `p11req`/`p11mkcert` can produce CSRs and self-signed certificates for ML-DS
 object inspection work with any OpenSSL 3.x; public key export, CSR and certificate creation require `libcrypto >= 3.5.0`.
 PQC support is enabled by default and can be turned off with `--disable-pqc`. See the [manual](docs/MANUAL.md) for details.
 
+The `with_xxx` wrapper scripts have also been overhauled. They now share a single, POSIX `/bin/sh` implementation
+(`with_pkcs11_common`, no more `zsh` dependency), automatically locate the vendor library (including the Homebrew prefix
+on macOS), and gain new options: `-c`/`-e` to create or edit a `.pkcs11rc` configuration file, `-n` for interactive slot
+selection, and `-s`/`-S` to trace PKCS\#11 calls through `libpkcs11shim`. The `.pkcs11rc` lookup now supports
+vendor-specific files (`.pkcs11rc.<vendor>`). Two new wrappers are provided, `with_aws` (AWS CloudHSM) and
+`with_kryoptic` ([Kryoptic](https://github.com/latchset/kryoptic)). See the [manual](docs/MANUAL.md) for details.
+
 ### July 2023
 
 Version 2.6 brings support for the AWS CloudHSM platform, library version 5.9.

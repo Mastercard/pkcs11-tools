@@ -156,22 +156,62 @@ command line will override the corresponding environment variable.
 
 ## wrapper scripts
 
-To facilitate setting environment variables and/or arguments, there are wrapper scripts that can be used to interface
-with the cryptographic tokens. All wrapper scripts begin with `with_` and are followed by the name of the platform. The
-following table lists existing scripts:
+To facilitate setting environment variables and/or arguments, a set of wrapper scripts is provided to interface with the
+most common cryptographic tokens. All wrapper script names begin with `with_` and are followed by the name of the
+platform; you simply prefix your `pkcs11-tools` command with the relevant wrapper, e.g. `with_softhsm p11ls`. The
+following table lists the existing scripts:
 
-| script name    | library              | equipment                                             |
-| -------------- | -------------------- | ----------------------------------------------------- |
-| `with_beid`    | `libbeidpkcs11.so`   | Belgian national electronic ID card PKCS#11 interface |
-| `with_luna`    | `libCryptoki2_64.so` | Thales (Gemalto) Safenet Luna HSM                     |
-| `with_nfast`   | `libcknfast.so`      | Entrust (nCipher) nShield HSM                         |
-| `with_nss`     | `libsoftokn3.so`     | Mozilla.org NSS soft token                            |
-| `with_softhsm` | `libsofthsm2.so`     | OpenDNSSSEC SoftHSM v2                                |
-| `with_utimaco` | `libcs_pkcs11_R2.so` | Utimaco Security Server HSM                           |
+| script name     | library                                  | equipment                                             |
+| --------------- | ---------------------------------------- | ----------------------------------------------------- |
+| `with_aws`      | `libcloudhsm_pkcs11.so`                  | AWS CloudHSM                                          |
+| `with_beid`     | `libbeidpkcs11.so`                       | Belgian national electronic ID card PKCS#11 interface |
+| `with_kryoptic` | `libkryoptic_pkcs11.so`                  | [Kryoptic](https://github.com/latchset/kryoptic) soft token |
+| `with_luna`     | `libCryptoki2_64.so`                     | Thales (Gemalto) Safenet Luna HSM                     |
+| `with_nfast`    | `libcknfast.so`                          | Entrust (nCipher) nShield HSM                         |
+| `with_nss`      | `libsoftokn3.so`                         | Mozilla.org NSS soft token                            |
+| `with_softhsm`  | `libsofthsm2.so`                         | OpenDNSSEC SoftHSM v2                                 |
+| `with_utimaco`  | `libcs_pkcs11_R3.so` / `libcs_pkcs11_R2.so` | Utimaco Security Server HSM (R3 preferred, R2 fallback) |
 
-Each wrapper script is looking for a file `.pkcs11rc` within the current directory, or within any parent directory up to
-the root. This file is sourced as a shell script; default variables defined here will override defaults from the wrapper
-script.
+On macOS, the wrappers look for the corresponding `.dylib` library (the SoftHSM2 module keeps its `.so` extension on all
+platforms, as it is a libtool module).
+
+All wrappers share a common implementation, `with_pkcs11_common`, which is sourced by each `with_xxx` script. It locates
+the vendor library, sources the configuration file (see below), handles the options and environment variables described
+here, and finally executes the requested command with the right environment in place.
+
+### library auto-detection
+
+Each wrapper knows the filename(s) of its vendor library and a list of vendor-specific directories to search. If the
+library is not found there, a set of common locations is also probed (`/usr/lib`, `/usr/lib64`, the multiarch
+`/usr/lib/<arch>-linux-gnu` directory on Linux, `/usr/local/lib`, `$HOME/.local/lib`, and their `pkcs11` subdirectories).
+When the Homebrew environment is active (i.e. `HOMEBREW_PREFIX` is set, typically through `eval "$(brew shellenv)"`),
+`$HOMEBREW_PREFIX/lib` and `$HOMEBREW_PREFIX/lib/pkcs11` are searched as well. The auto-detection can always be
+overridden by setting `PKCS11LIB` to the full path of the library.
+
+### the `.pkcs11rc` configuration file
+
+Before executing the command, each wrapper looks for a configuration file, starting in the current directory and walking
+up the directory tree until `$HOME` is reached (the search never goes above `$HOME`). The first match wins. At each
+level, a vendor-specific file `.pkcs11rc.<vendor>` (e.g. `.pkcs11rc.softhsm`, `.pkcs11rc.nss`) is looked up first, then
+the generic `.pkcs11rc`. The file is sourced as a POSIX shell script, so any variable it sets overrides the wrapper
+defaults.
+
+Because the same generic `.pkcs11rc` may be shared by several vendors, the wrapper exports `$_p11_vendor` (a short
+identifier such as `softhsm`, `nss`, `luna`, `aws`, `beid`, `kryoptic`, `nfast`, `utimaco`) so the file can dispatch on
+it:
+
+```sh
+case ${_p11_vendor:-} in
+    softhsm) SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf ;;
+    luna)    PKCS11TOKENLABEL=mytoken ;;
+    nss)     PKCS11NSSDIR=sql:$HOME/nssdb ;;
+esac
+```
+
+The fastest way to get started is to let the wrapper generate a template for you:
+
+- `with_xxx -c` creates a fully commented `.pkcs11rc` template (with all vendor sections) in the current directory.
+- `with_xxx -e` opens the `.pkcs11rc` in `$VISUAL`/`$EDITOR` (falling back to `vi`), creating it first if none is found.
 
 As an example, you could create a `.pkcs11rc` file to access your favorite SoftHSM token:
 
@@ -187,13 +227,41 @@ Then just invoke `with_softhsm` in front of your pkcs11-tools command:
 $ with_softhsm p11ls
 ```
 
-when invoking the wrapper scripts, a few environment variables may be specified:
+### options
 
-- `NOSLOT`: when set to `1`, slot or token are unset. It allows you to trigger the interactive mode (handy if you need
-  to check which slots are available)
-- `SPY`: set this value to a target log file, or to `/dev/stdout` or `/dev/stderr` to invoke `pkcs11-spy.so`, a shim
-  PKCS#11 interface that will trace calls and forward them to the library. Please refer to
-  the [OpenSC project](https://github.com/OpenSC/OpenSC) for more information about the spy module.
+Wrapper options are consumed by the wrapper itself and never reach the executed command:
+
+| option    | description                                                                                   |
+| --------- | --------------------------------------------------------------------------------------------- |
+| `-n`      | no slot: unset `PKCS11SLOT` and `PKCS11TOKENLABEL`, triggering interactive slot selection      |
+| `-s`      | SHIM mode: trace PKCS#11 calls through `libpkcs11shim`, output to `stderr`                     |
+| `-S dest` | SHIM mode: trace PKCS#11 calls through `libpkcs11shim`, output to `dest` (a file, or `/dev/stdout`) |
+| `-c`      | create a template `.pkcs11rc` in the current directory and exit                               |
+| `-e`      | open `.pkcs11rc` in `$VISUAL`/`$EDITOR` (creating it first if absent)                          |
+| `-h`      | show a usage summary and exit                                                                  |
+
+The `-s`/`-S` options (and the equivalent `SHIM` environment variable) rely on
+[`libpkcs11shim`](https://github.com/Mastercard/libpkcs11shim), a lightweight Mastercard open-source PKCS#11 shim that
+logs every call before forwarding it to the vendor library — a handy way to debug interactions with a token. Install it
+separately so the wrappers can find it.
+
+### environment variables
+
+When invoking the wrapper scripts, a few environment variables may be specified:
+
+- `PKCS11LIB`: override the auto-detected library with an explicit path.
+- `PKCS11SLOT`: slot index to use (default: `0`, unless `PKCS11TOKENLABEL` is set).
+- `PKCS11TOKENLABEL`: select the slot by token label instead of by index.
+- `PKCS11PASSWORD`: the token PIN (defaults are vendor-specific, e.g. `changeit`).
+- `PKCS11NSSDIR`: NSS database directory (NSS only; defaults to `sql:$HOME/.pki/nssdb`).
+- `NOSLOT`: when set to `1`, slot and token are unset (equivalent to `-n`). It allows you to trigger the interactive
+  mode (handy if you need to check which slots are available).
+- `NORC`: when set to `1`, skip sourcing any `.pkcs11rc` file.
+- `SHIM`: set this value to a target log file, or to `/dev/stdout` or `/dev/stderr`, to interpose
+  [`libpkcs11shim`](https://github.com/Mastercard/libpkcs11shim), a shim PKCS#11 interface that traces every call and
+  forwards it to the vendor library (equivalent to `-S dest`). `libpkcs11shim` is a separate Mastercard open-source
+  project; install it and make sure it is reachable through one of the library search paths to use the SHIM/`-s`/`-S`
+  options.
 
 example:
 
