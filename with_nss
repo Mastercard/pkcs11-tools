@@ -44,17 +44,37 @@ PKCS11NSSDIR=${PKCS11NSSDIR:-sql:$HOME/.pki/nssdb}
 # early rather than letting NSS silently operate on a missing/unexpected path.
 p11_post_rc()
 {
+    # Pick the NSS_LIB_PARAMS NSS will actually use: an explicit value (from the
+    # environment or .pkcs11rc) wins; otherwise derive one from PKCS11NSSDIR.
     NSS_LIB_PARAMS=${NSS_LIB_PARAMS:-"configDir='${PKCS11NSSDIR}'"}
 
-    # Strip a leading database-type prefix ("sql:", "dbm:", ...) to get the path.
-    _nssdir=${PKCS11NSSDIR#*:}
-    if [ ! -d "$_nssdir" ]; then
-        echo "***Error: NSS database directory '$_nssdir' does not exist (PKCS11NSSDIR='$PKCS11NSSDIR')." >&2
-        echo "          Create it first, e.g.:  mkdir -p '$_nssdir' && certutil -N -d 'sql:$_nssdir'" >&2
-        echo "          or set PKCS11NSSDIR in .pkcs11rc to an existing database directory." >&2
-        exit 1
-    fi
-    unset _nssdir
+    # Verify that the NSS database directory exists, failing early rather than
+    # letting NSS silently operate on a missing/unexpected path.  Take the path
+    # from the effective NSS_LIB_PARAMS' configDir so the check follows an
+    # explicit NSS_LIB_PARAMS, not just the PKCS11NSSDIR default it may have
+    # overridden.  When NSS_LIB_PARAMS carries no configDir, NSS falls back to
+    # its own default and there is nothing here for us to validate.
+    case "$NSS_LIB_PARAMS" in
+        configDir=*|*[!_a-zA-Z0-9]configDir=*)
+            _nssdir=${NSS_LIB_PARAMS#*configDir=}
+            # The value may be single-quoted, double-quoted, or bare (ending at
+            # the next space); keep just the value.
+            case "$_nssdir" in
+                \'*) _nssdir=${_nssdir#\'}; _nssdir=${_nssdir%%\'*} ;;
+                \"*) _nssdir=${_nssdir#\"}; _nssdir=${_nssdir%%\"*} ;;
+                *)    _nssdir=${_nssdir%% *} ;;
+            esac
+            # Strip a leading database-type prefix ("sql:", "dbm:", ...).
+            _nssdir=${_nssdir#*:}
+            if [ -n "$_nssdir" ] && [ ! -d "$_nssdir" ]; then
+                echo "***Error: NSS database directory '$_nssdir' does not exist (NSS_LIB_PARAMS='$NSS_LIB_PARAMS')." >&2
+                echo "          Create it first, e.g.:  mkdir -p '$_nssdir' && certutil -N -d 'sql:$_nssdir'" >&2
+                echo "          or set PKCS11NSSDIR (or NSS_LIB_PARAMS) to an existing database directory." >&2
+                exit 1
+            fi
+            unset _nssdir
+            ;;
+    esac
 }
 
 _p11_vendor=nss
