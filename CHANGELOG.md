@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [UNPUBLISHED]
+# [3.0.0] - 2026-06-30
 ### Added
 - support for Post-Quantum Cryptography (PQC): the three NIST/PKCS#11 v3.2 algorithms ML-KEM (FIPS 203), ML-DSA (FIPS 204) and SLH-DSA (FIPS 205) are now supported. `p11keygen` can generate `mlkem`, `mldsa` and `slhdsa` key pairs; the parameter set is selected through `-b` for ML-KEM (`512`, `768`, `1024`) and ML-DSA (`44`, `65`, `87`), and through `-q` for SLH-DSA (`{sha2,shake}-{128,192,256}{s,f}`, e.g. `sha2-128s` or `shake-256f`). `p11ls`, `p11od`, `p11cat` and `p11more` display and export the new key types, and `p11req`/`p11mkcert` can produce CSRs and self-signed certificates for ML-DSA and SLH-DSA keys. PQC support is enabled by default and can be turned off at compile time with `--disable-pqc`; key generation and object inspection only require any OpenSSL 3.x, while public key export, CSR and certificate creation additionally require `libcrypto >= 3.5.0` (when older, those operations are disabled while key generation and inspection remain available). `bash`/`zsh` completion has been extended to the new key types and parameter sets
 - new boolean attributes `CKA_ENCAPSULATE` and `CKA_DECAPSULATE`, and new template attributes `CKA_ENCAPSULATE_TEMPLATE` and `CKA_DECAPSULATE_TEMPLATE`, used by key encapsulation mechanism (KEM) keys. `p11ls` reports the matching `ncp`/`dcp` capability flags and `nct`/`dct` template flags, and `p11slotinfo` lists the `ncp` (Encapsulation) and `dcp` (Decapsulation) mechanism abbreviations
@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker build support for local source builds (`buildx.sh --local-source`)
 - Docker build support for additional PKCS#11 headers injection (`buildx.sh --extra-header`)
 - `p11req` and `p11mkcert` now support RSA-PSS signature (add `-a pss` arguments to select it)
+- `p11keygen` can now generate RSA keys with a custom public exponent, through the new `-e <exponent>` option (default `65537`)
 - `p11kcv` beefed up, to support multiple MACing algorithms, as well as displaying the value of `CKA_CHECK_VALUE`
 - support for wrapping keys in JOSE Web Key format (JWK, RFC 7178)
 - new option `--enable-duplicate`, to override duplicate label protection when creating or importing a key (must be enabled at compile time)
@@ -32,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - small fix on with_xxx wrappers, replacing space with underscore in reply code
+- `p11rm` can now delete all objects of a given class: the labels `cert`, `pubk`, `prvk`, `seck` and `data` are accepted as shortcuts for the corresponding object class (the command was already documented to support this)
+- memory leak fixed in `p11req` and `p11mkcert`: the `X509` and `X509_REQ` structures were not released after use
 - AES key wrap mechanism auto-selection: the `compare_mech_type()` qsort comparator computed `*(b) - *(a)` on `CK_MECHANISM_TYPE` (`unsigned long`) values and truncated the result to `int`. For vendor-defined mechanisms (e.g. `CKM_VENDOR_DEFINED`-based value `>= 0x80000000`) this overflowed, which is undefined behaviour and produced an incorrect, non-total ordering. On the affected platforms it sorted standard mechanisms *after* vendor-specific ones, contrary to the documented "standard mechanism preferred" behaviour (impacting both the `rfc3394` and `rfc5649` auto-pick lists). Replaced with a well-defined ascending comparison `(a>b)-(a<b)`, so standard mechanisms (`CKM_AES_KEY_WRAP`, `CKM_AES_KEY_WRAP_PAD`, `CKM_AES_KEY_WRAP_KWP`) are now reliably attempted before vendor-specific variants on all platforms. Output is unchanged for the common single-mechanism case; the byte-compatible RFC3394/RFC5649 result is also unchanged when multiple mechanisms are advertised.
 
 # [2.6.0]
@@ -169,6 +172,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release
 
+[3.0.0]: https://github.com/Mastercard/pkcs11-tools/tree/v3.0.0
 [2.6.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.6.0
 [2.5.1]: https://github.com/Mastercard/pkcs11-tools/tree/v2.5.1
 [2.5.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.5.0
