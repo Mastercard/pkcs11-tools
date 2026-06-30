@@ -21,7 +21,7 @@ Some features:
 
 ### June 2026
 
-In preparation for a new major release, the toolkit now requires OpenSSL 3.x (`libcrypto >= 3.0.0`).
+As of the 3.0.0 release, the toolkit requires OpenSSL 3.x (`libcrypto >= 3.0.0`).
 Support for Post-Quantum Cryptography (PQC) is also introduced, covering the three NIST/PKCS\#11 v3.2 algorithms ML-KEM
 (FIPS 203), ML-DSA (FIPS 204) and SLH-DSA (FIPS 205). `p11keygen` can generate `mlkem`, `mldsa` and `slhdsa` key pairs,
 and `p11req`/`p11mkcert` can produce CSRs and self-signed certificates for ML-DSA and SLH-DSA keys. Key generation and
