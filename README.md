@@ -4,7 +4,7 @@ pkcs11-tools is a toolkit containing a bunch of small utilities to perform key m
 implementing a PKCS\#11 interface. It features a number of commands similar to the Unix CLI utilities, such as `ls`
 , `mv`, `rm`, `od`, and `more`. It also has specific commands to generate keys, generate CSRs, import certificates and
 other files, in a fashion compatible with many implementations, including both IBM and Oracle JVMs. It is also able to
-interface with software tokens, such as SoftHSM and NSS.
+interface with software tokens, such as SoftHSM, NSS, and Kryoptic.
 
 Some features:
 
@@ -16,24 +16,20 @@ Some features:
 - support for templates during key creation, public key import, key wrapping and key unwrapping
 - support for session key generation and direct wrapping under one or several keys, in a single command
 - support for key rewrapping (i.e. key unwrapping as a session key, followed by key wrapping)
+- support for token initialization and reset
 
 ## News
 
-### June 2026
+### July 2026
+After three years of waiting, the 3.0.0 release is finally here! It brings support for OpenSSL 3.x, Post-Quantum Cryptography (PQC), new commands, updated grammar for wrapped keys, new wrapping methods, better integration with [libpkcs11shim](https://github.com/Mastercard/libpkcs11shim), support for new token types (including [Kryoptic](https://github.com/latchset/kryoptic)), a major overhaul of the `with_xxx` wrapper scripts, a distribution build subsystem leveraging Docker, and many other improvements. Please refer to the [manual](docs/MANUAL.md) and the [change log](CHANGELOG.md) for details.
 
-As of the 3.0.0 release, the toolkit requires OpenSSL 3.x (`libcrypto >= 3.0.0`).
-Support for Post-Quantum Cryptography (PQC) is also introduced, covering the three NIST/PKCS\#11 v3.2 algorithms ML-KEM
-(FIPS 203), ML-DSA (FIPS 204) and SLH-DSA (FIPS 205). `p11keygen` can generate `mlkem`, `mldsa` and `slhdsa` key pairs,
-and `p11req`/`p11mkcert` can produce CSRs and self-signed certificates for ML-DSA and SLH-DSA keys. Key generation and
-object inspection work with any OpenSSL 3.x; public key export, CSR and certificate creation require `libcrypto >= 3.5.0`.
-PQC support is enabled by default and can be turned off with `--disable-pqc`. See the [manual](docs/MANUAL.md) for details.
+Note that the toolkit is now built with OpenSSL 3.x (`libcrypto >= 3.0.0`), and support for OpenSSL 1.1.1 has been dropped. Support for older platforms (AIX, Solaris) has also been deprecated, and will be removed from the source base (unless a contributor with access to those platforms volunteers).
 
-The `with_xxx` wrapper scripts have also been overhauled. They now share a single, POSIX `/bin/sh` implementation
-(`with_pkcs11_common`, no more `zsh` dependency), automatically locate the vendor library (including the Homebrew prefix
-on macOS), and gain new options: `-c`/`-e` to create or edit a `.pkcs11rc` configuration file, `-n` for interactive slot
-selection, and `-s`/`-S` to trace PKCS\#11 calls through `libpkcs11shim`. The `.pkcs11rc` lookup now supports
-vendor-specific files (`.pkcs11rc.<vendor>`). Two new wrappers are provided, `with_aws` (AWS CloudHSM) and
-`with_kryoptic` ([Kryoptic](https://github.com/latchset/kryoptic)). See the [manual](docs/MANUAL.md) for details.
+On the PQC front, the three NIST/PKCS\#11 v3.2 algorithms ML-KEM (FIPS 203), ML-DSA (FIPS 204) and SLH-DSA (FIPS 205) are now supported. `p11keygen` can generate `mlkem`, `mldsa` and `slhdsa` key pairs, and `p11req`/`p11mkcert` can produce CSRs and self-signed certificates for ML-DSA and SLH-DSA keys. Key generation and object inspection work with any OpenSSL 3.x; public key export, CSR and certificate creation require `libcrypto >= 3.5.0`. PQC support is enabled by default and can be turned off with `--disable-pqc`.
+
+The `with_xxx` wrapper scripts have also been thoroughly reworked. They now share a single, POSIX `/bin/sh` implementation (`with_pkcs11_common`), automatically locate the vendor library (including the Homebrew prefix on macOS), and gain new options: `-c`/`-e` to create or edit a `.pkcs11rc` configuration file, `-n` for interactive slot selection, and `-s`/`-S` to trace PKCS\#11 calls through `libpkcs11shim`. The `.pkcs11rc` lookup now supports vendor-specific files (`.pkcs11rc.<vendor>`). Two new wrappers are provided, `with_aws` (AWS CloudHSM) and `with_kryoptic` ([Kryoptic](https://github.com/latchset/kryoptic)).
+
+We hope you enjoy the new release, and we look forward to your feedback and contributions!
 
 ### July 2023
 
