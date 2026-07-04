@@ -63,7 +63,7 @@ void print_usage(char *progname)
 	     "  -V : print version information\n"
 	     "\n"
 	     "|\n"
-	     "+-> arguments marked with an asterix(*) are mandatory\n"
+	     "+-> arguments marked with an asterisk(*) are mandatory\n"
 	     "+-> arguments marked with a plus sign(+) can be repeated\n"
 	     "\n"
 	     , pkcs11_ll_basename(progname) );
