@@ -105,6 +105,22 @@ CKK_ML_KEM|ML_KEM|MLKEM                   { cllval.val_key = CKK_ML_KEM        ;
 CKK_ML_DSA|ML_DSA|MLDSA                   { cllval.val_key = CKK_ML_DSA        ; return KEYTYPE; }
 CKK_SLH_DSA|SLH_DSA|SLHDSA                { cllval.val_key = CKK_SLH_DSA       ; return KEYTYPE; }
 
+CKK_YUBICO_AES128_CCM_WRAP|YUBICO_AES128_CCM_WRAP { {
+#if defined(HAVE_YUBICO)
+    cllval.val_key = CKK_YUBICO_AES128_CCM_WRAP; return KEYTYPE;
+#endif
+} }
+CKK_YUBICO_AES192_CCM_WRAP|YUBICO_AES192_CCM_WRAP { {
+#if defined(HAVE_YUBICO)
+    cllval.val_key = CKK_YUBICO_AES192_CCM_WRAP; return KEYTYPE;
+#endif
+} }
+CKK_YUBICO_AES256_CCM_WRAP|YUBICO_AES256_CCM_WRAP { {
+#if defined(HAVE_YUBICO)
+    cllval.val_key = CKK_YUBICO_AES256_CCM_WRAP; return KEYTYPE;
+#endif
+} }
+
 CKO_DATA|DATA                             { cllval.val_cls = CKO_DATA ; return OCLASS; }
 CKO_CERTIFICATE|CERTIFICATE|CERT          { cllval.val_cls = CKO_CERTIFICATE ; return OCLASS; }
 CKO_PUBLIC_KEY|PUBLIC_KEY|PUBK            { cllval.val_cls = CKO_PUBLIC_KEY ; return OCLASS; }

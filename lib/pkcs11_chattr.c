@@ -24,6 +24,10 @@
 #include <stdlib.h>
 #include "pkcs11lib.h"
 
+#ifndef PKCS11_PREFETCH_MAX_OBJECTS
+#define PKCS11_PREFETCH_MAX_OBJECTS 1000
+#endif
+
 
 func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, CK_ATTRIBUTE *p_attr, size_t cnt, int interactive)
 {
@@ -41,9 +45,27 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
 	if(search) {		/* we just need one hit */
 
 	    CK_OBJECT_HANDLE hndl=0;
+	    CK_OBJECT_HANDLE handles[PKCS11_PREFETCH_MAX_OBJECTS];
+	    CK_ULONG handle_count = 0;
+	    CK_ULONG i = 0;
 
 	    while( (hndl = pkcs11_fetch_next(search))!=0 ) {
+		if(handle_count >= PKCS11_PREFETCH_MAX_OBJECTS) {
+		    fprintf(stderr,
+			    "Error: too many objects matched '%s' (limit=%d). Reconfigure with --with-prefetch-max-objects=NUM.\n",
+			    label,
+			    PKCS11_PREFETCH_MAX_OBJECTS);
+		    rv = rc_error_usage;
+		    goto error;
+		}
+		handles[handle_count++] = hndl;
+	    }
+
+	    pkcs11_delete_search(search);
+	    search = NULL;
 		/* set the attributes */
+	    for(i=0; i<handle_count; i++) {
+		hndl = handles[i];
 
 		CK_RV rc;
 		int ok_to_move=1;
@@ -121,15 +143,17 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
 		    
 		    if ( rc != CKR_OK ) {
 			pkcs11_error( rc, "C_SetAttributeValue" );
-			rc = rc_error_pkcs11_api;
+			rv = rc_error_pkcs11_api;
 			/* we carry on anyway to cycle through all objects */
 		    }
 		}
 	    }
-	    pkcs11_delete_search(search);
 	}
-	pkcs11_delete_idtemplate(idtmpl);
     }
+
+error:
+    if(search) { pkcs11_delete_search(search); }
+    if(idtmpl) { pkcs11_delete_idtemplate(idtmpl); }
 
     return rv;
 }

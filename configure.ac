@@ -161,6 +161,23 @@ AC_ARG_ENABLE([duplicate],
 				[Flag used to enable duplicates])hasduplicate="yes"],
 			[])
 
+dnl max number of PKCS#11 objects prefetched before mutation commands (cp/mv/rm/setattr)
+AC_ARG_WITH([prefetch-max-objects],
+	[AS_HELP_STRING([--with-prefetch-max-objects=NUM],
+	[max number of PKCS#11 objects prefetched before mutation (default: 1000)])],
+	[p11_prefetch_max_objects="$withval"],
+	[p11_prefetch_max_objects="1000"])
+
+AS_CASE([$p11_prefetch_max_objects],
+	[""|*[!0-9]*],
+	[AC_MSG_FAILURE([--with-prefetch-max-objects expects a positive integer])])
+
+AS_IF([test "$p11_prefetch_max_objects" -le 0],
+	[AC_MSG_FAILURE([--with-prefetch-max-objects must be > 0])])
+
+AC_DEFINE_UNQUOTED([PKCS11_PREFETCH_MAX_OBJECTS], [$p11_prefetch_max_objects],
+	[Maximum number of PKCS#11 objects prefetched before mutation])
+
 dnl check if Gemalto Luna extensions can be compiled. If requested, specific file must exist in include/cryptoki
 AC_ARG_WITH([luna],
 	[AS_HELP_STRING([--with-luna],
@@ -177,6 +194,26 @@ AS_IF([test "x$with_luna" != xno],
               [if test "x$with_luna" != xcheck; then
                  AC_MSG_FAILURE(
                    [--with-luna was given, but required luna.h include file missing])
+               fi
+              ] )])
+
+dnl check if Yubico (YubiHSM) extensions can be compiled. Enabled by default when yubico.h is present.
+dnl Use --without-yubico to disable. The yubico.h header is shipped with the source code.
+AC_ARG_WITH([yubico],
+	[AS_HELP_STRING([--without-yubico],
+	[disable support for the Yubico (YubiHSM) extensions (enabled by default when include/cryptoki/yubico.h is present)])],
+        [],
+        [with_yubico=check])
+
+hasyubico="no"
+AS_IF([test "x$with_yubico" != xno],
+      [AS_IF([test -r $srcdir/include/cryptoki/yubico.h],
+              [AC_DEFINE([HAVE_YUBICO], [1], [define to compile with the Yubico (YubiHSM) extensions.])
+	      hasyubico="yes"
+              ],
+              [if test "x$with_yubico" != xcheck; then
+                 AC_MSG_FAILURE(
+                   [--with-yubico was given, but required yubico.h include file missing])
                fi
               ] )])
 
@@ -231,20 +268,21 @@ AC_OUTPUT
 AX_CREATE_TARGET_H([include/target.h])
 
 AC_MSG_NOTICE([------------------------------------------------------------------------])
-AC_MSG_NOTICE([compiler           : $CC])
-AC_MSG_NOTICE([compiler flags     : ${LIBCRYPTO_CFLAGS} ${PTHREAD_CFLAGS} $CFLAGS])
-AC_MSG_NOTICE([linker             : $LD])
-AC_MSG_NOTICE([linker flags       : $LDFLAGS])
-AC_MSG_NOTICE([libraries          : ${LIBCRYPTO_LIBS} ${PTHREAD_LIBS} $LIBS])
-AC_MSG_NOTICE([lexer              : $LEX])
-AC_MSG_NOTICE([parser             : $YACC])
-AC_MSG_NOTICE([parser flags       : $YFLAGS])
-AC_MSG_NOTICE([with_luna          : $hasluna])
-AC_MSG_NOTICE([with_ncipher       : $hasncipher])
-AC_MSG_NOTICE([with_awscloudhsm   : $hasawscloudhsm])
-AC_MSG_NOTICE([libcrypto rpath    : $LIBCRYPTO_RPATH])
-AC_MSG_NOTICE([enable_duplicate   : $hasduplicate])
-AC_MSG_NOTICE([enable_pqc         : $haspqc])
-AC_MSG_NOTICE([pqc via openssl    : $haspqcopenssl])
+AC_MSG_NOTICE([compiler               : $CC])
+AC_MSG_NOTICE([compiler flags         : ${LIBCRYPTO_CFLAGS} ${PTHREAD_CFLAGS} $CFLAGS])
+AC_MSG_NOTICE([linker                 : $LD])
+AC_MSG_NOTICE([linker flags           : $LDFLAGS])
+AC_MSG_NOTICE([libraries           : ${LIBCRYPTO_LIBS} ${PTHREAD_LIBS} $LIBS])
+AC_MSG_NOTICE([lexer               : $LEX])
+AC_MSG_NOTICE([parser              : $YACC])
+AC_MSG_NOTICE([parser flags        : $YFLAGS])
+AC_MSG_NOTICE([luna extensions     : $hasluna])
+AC_MSG_NOTICE([entrust extensions  : $hasncipher])
+AC_MSG_NOTICE([yubico extensions   : $hasyubico])
+AC_MSG_NOTICE([awscloudhsm extensions: $hasawscloudhsm])
+AC_MSG_NOTICE([libcrypto rpath     : $LIBCRYPTO_RPATH])
+AC_MSG_NOTICE([enable_duplicate    : $hasduplicate])
+AC_MSG_NOTICE([enable_pqc          : $haspqc])
+AC_MSG_NOTICE([pqc via openssl     : $haspqcopenssl])
+AC_MSG_NOTICE([prefetch max objects: $p11_prefetch_max_objects])
 AC_MSG_NOTICE([------------------------------------------------------------------------])
-

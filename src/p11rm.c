@@ -185,6 +185,10 @@ int main( int argc, char ** argv )
 	goto err;
     }
 
+	/* save optind before opening the library */
+	/* some tokens change its value - e.g. Yubikey */
+	int saved_optind = optind;
+
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
       goto err;
     }
@@ -198,8 +202,8 @@ int main( int argc, char ** argv )
 
     if ( retcode == rc_ok )
     {
-	while(optind<argc) {
-	    pkcs11_rm_objects_with_label(p11Context, argv[optind++], ask_confirm, verbose);
+	while(saved_optind<argc) {
+	    pkcs11_rm_objects_with_label(p11Context, argv[saved_optind++], ask_confirm, verbose);
 	}
 	
 	pkcs11_close_session( p11Context );

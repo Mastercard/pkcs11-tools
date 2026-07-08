@@ -266,6 +266,13 @@ case ${_p11_vendor:-} in
         #CS_PKCS11_R2_CFG=/opt/utimaco/cs_pkcs11_R2.cfg
         ;;
 
+    yubico)
+        # Yubihsm configuration file
+	#YUBIHSM_PKCS11_CONF=$HOME/.config/yubico/token.conf
+	# The password incorporate the key id (0001 is the default authentication key)
+	#PKCS11PASSWORD=${PKCS11PASSWORD:-0001password}
+        ;;
+
 esac
 # vim: set ft=sh :
 EOF

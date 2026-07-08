@@ -259,9 +259,12 @@ static CK_ULONG get_X509_pubkey_sha1(X509 *hndl, CK_BYTE_PTR *buf)
 	break;
     }
 
-    case EVP_PKEY_EC: {
-	/* SHA-1 of the DER-encoded ASN1_OCTET_STRING wrapping the
-	   uncompressed point. Match historical CKA_ID derivation. */
+    case EVP_PKEY_EC:
+    case EVP_PKEY_ED25519:
+    case EVP_PKEY_ED448:
+    {
+ 	/* SHA-1 of the DER-encoded ASN1_OCTET_STRING wrapping public key bytes.
+	   Match historical CKA_ID derivation for EC and ED keys. */
 	unsigned char *point = NULL;
 	size_t point_len = 0;
 
@@ -351,8 +354,7 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 	{CKA_ISSUER, NULL, 0 },				     /* 6  */
 	{CKA_VALUE, NULL, 0 },				     /* 7  */
 	{CKA_SERIAL_NUMBER, NULL, 0 },			     /* 8  */
-	{CKA_MODIFIABLE, &ck_true, sizeof ck_true },	     /* 9  */
-	{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 10 */
+	{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 9  */
 	/* CKA_TRUSTED set at last position   */
 	/* this flag is FALSE by default      */
 	/* So we don't present it in case     */
@@ -413,14 +415,9 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 			    certTemplate[8].pValue = serial_number;
 			    certTemplate[8].ulValueLen = serial_number_len;
 
-			    /* if -T is set: we want trusted */
-			    if(trusted) {
-				certTemplate[9].pValue = &ck_false; /* then CKA_MODIFIABLE must be CK_FALSE */
-			    }
-
 			    retCode = pC_CreateObject(p11Context->Session,
 						      certTemplate,
-						      (trusted ? sizeof(certTemplate) : sizeof(certTemplate)-2) / sizeof(CK_ATTRIBUTE),
+						      (trusted ? sizeof(certTemplate) : sizeof(certTemplate)-1) / sizeof(CK_ATTRIBUTE),
 						      &hCert);
 
 			    if(retCode != CKR_OK) {

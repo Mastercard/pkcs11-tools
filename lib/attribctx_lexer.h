@@ -2,10 +2,10 @@
 #define clHEADER_H 1
 #define clIN_HEADER 1
 
-#line 5 "attribctx_lexer.h"
+#line 6 "attribctx_lexer.h"
 #include <config.h>
 
-#line 8 "attribctx_lexer.h"
+#line 9 "attribctx_lexer.h"
 
 #define  YY_INT_ALIGNED short int
 
@@ -705,9 +705,9 @@ extern int yylex (void);
 #undef yyTABLES_NAME
 #endif
 
-#line 166 "attribctx_lexer.l"
+#line 182 "attribctx_lexer.l"
 
 
-#line 711 "attribctx_lexer.h"
+#line 712 "attribctx_lexer.h"
 #undef clIN_HEADER
 #endif /* clHEADER_H */

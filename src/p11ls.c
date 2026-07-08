@@ -230,6 +230,10 @@ int main( int argc, char ** argv )
 	goto err;
     }
 
+    /* save optind before opening the library */
+    /* some tokens change its value - e.g. Yubikey */
+    int saved_optind = optind;
+    
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
       goto err;
     }
@@ -243,12 +247,12 @@ int main( int argc, char ** argv )
 
     if ( retcode == rc_ok )
     {	
-	if(optind==argc) {
+	if(saved_optind==argc) {
 	    pkcs11_ls( p11Context, "CKA_TOKEN/{01}");
 
 	} else {
-	    while(optind<argc) {
-		pkcs11_ls(p11Context, argv[optind++]);
+	    while(saved_optind<argc) {
+		pkcs11_ls(p11Context, argv[saved_optind++]);
 	    }
 	}
 

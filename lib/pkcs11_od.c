@@ -462,6 +462,20 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	    info = "CKK_AES";
 	    break;
 
+#if defined(HAVE_YUBICO)
+	case CKK_YUBICO_AES128_CCM_WRAP:
+	    info = "CKK_YUBICO_AES128_CCM_WRAP";
+	    break;
+
+	case CKK_YUBICO_AES192_CCM_WRAP:
+	    info = "CKK_YUBICO_AES192_CCM_WRAP";
+	    break;
+
+	case CKK_YUBICO_AES256_CCM_WRAP:
+	    info = "CKK_YUBICO_AES256_CCM_WRAP";
+	    break;
+#endif
+
 	case CKK_BLOWFISH:
 	    info = "CKK_BLOWFISH";
 	    break;

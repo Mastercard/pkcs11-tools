@@ -129,6 +129,22 @@ CKK_ML_KEM         { yylval.val_key = CKK_ML_KEM        ; return KEYTYPE; }
 CKK_ML_DSA         { yylval.val_key = CKK_ML_DSA        ; return KEYTYPE; }
 CKK_SLH_DSA        { yylval.val_key = CKK_SLH_DSA       ; return KEYTYPE; }
 
+CKK_YUBICO_AES128_CCM_WRAP|YUBICO_AES128_CCM_WRAP { {
+#if defined(HAVE_YUBICO)
+    yylval.val_key = CKK_YUBICO_AES128_CCM_WRAP; return KEYTYPE;
+#endif
+} }
+CKK_YUBICO_AES192_CCM_WRAP|YUBICO_AES192_CCM_WRAP { {
+#if defined(HAVE_YUBICO)
+    yylval.val_key = CKK_YUBICO_AES192_CCM_WRAP; return KEYTYPE;
+#endif
+} }
+CKK_YUBICO_AES256_CCM_WRAP|YUBICO_AES256_CCM_WRAP { {
+#if defined(HAVE_YUBICO)
+    yylval.val_key = CKK_YUBICO_AES256_CCM_WRAP; return KEYTYPE;
+#endif
+} }
+
 CKO_DATA           { yylval.val_cls = CKO_DATA ; return OCLASS; }
 CKO_CERTIFICATE    { yylval.val_cls = CKO_CERTIFICATE ; return OCLASS; }
 CKO_PUBLIC_KEY     { yylval.val_cls = CKO_PUBLIC_KEY ; return OCLASS; }
