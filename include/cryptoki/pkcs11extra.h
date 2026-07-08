@@ -29,4 +29,8 @@
 #include "luna.h"
 #endif
 
+#if defined(HAVE_YUBICO)
+#include "yubico.h"		/* Yubico YubiHSM */
+#endif
+
 #endif /* PKCS11_EXTRA_H */

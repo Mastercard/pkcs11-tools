@@ -164,6 +164,20 @@ static char* value_for_keytype( pkcs11AttrList *attrlist )
 	    }
 	    break;
 
+#if defined(HAVE_YUBICO)
+	case CKK_YUBICO_AES128_CCM_WRAP:
+	    rv = "aes(128,yubico-ccm-wrap)";
+	    break;
+
+	case CKK_YUBICO_AES192_CCM_WRAP:
+	    rv = "aes(192,yubico-ccm-wrap)";
+	    break;
+
+	case CKK_YUBICO_AES256_CCM_WRAP:
+	    rv = "aes(256,yubico-ccm-wrap)";
+	    break;
+#endif
+
 	case CKK_MD5_HMAC:
 	    rv = "hmac-md5";
 	    break;

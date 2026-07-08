@@ -45,7 +45,11 @@ foreach $item (@lines) {
 #print Dumper(@uniq);
 
 
-my @sorted = sort { $a->[0] cmp $b->[0] } @uniq;
+# sort by attribute name. We must use a case-insensitive comparison to stay
+# consistent with the strcasecmp() based bsearch() used in pkcs11_attrdesc.c
+# (the name-lookup table _a[] is not re-sorted at runtime). A case-sensitive
+# sort here would break the binary search for names using mixed letter case.
+my @sorted = sort { lc($a->[0]) cmp lc($b->[0]) } @uniq;
 
 #print Dumper(@sorted);
 

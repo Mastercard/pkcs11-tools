@@ -25,6 +25,10 @@
 #include <ctype.h>
 #include "pkcs11lib.h"
 
+#ifndef PKCS11_PREFETCH_MAX_OBJECTS
+#define PKCS11_PREFETCH_MAX_OBJECTS 1000
+#endif
+
 
 
 /* high-level search functions */
@@ -62,10 +66,28 @@ int pkcs11_rm_objects_with_label(pkcs11Context *p11Context, char *label, int int
 	if(search) {		/* we just need one hit */
 
 	    CK_OBJECT_HANDLE hndl=0;
+	    CK_OBJECT_HANDLE handles[PKCS11_PREFETCH_MAX_OBJECTS];
+	    CK_ULONG handle_count = 0;
+	    CK_ULONG i = 0;
 	    int ok_to_delete=1;
 
 	    while( (hndl = pkcs11_fetch_next(search))!=0 ) {
+		if(handle_count >= PKCS11_PREFETCH_MAX_OBJECTS) {
+		    fprintf(stderr,
+			    "Error: too many objects matched '%s' (limit=%d). Reconfigure with --with-prefetch-max-objects=NUM.\n",
+			    label,
+			    PKCS11_PREFETCH_MAX_OBJECTS);
+		    rv = RC_ERROR_USAGE;
+		    goto error;
+		}
+		handles[handle_count++] = hndl;
+	    }
 
+	    pkcs11_delete_search(search);
+	    search = NULL;
+
+	    for(i=0; i<handle_count; i++) {
+		hndl = handles[i];
 		if(interactive) {
 		    pkcs11AttrList *attrs;
 		    char * prefixptr;
@@ -140,10 +162,11 @@ int pkcs11_rm_objects_with_label(pkcs11Context *p11Context, char *label, int int
 		}
 
 	    }
-	    pkcs11_delete_search(search);
 	}
-	pkcs11_delete_idtemplate(idtmpl);
     }
+error:
+    if(search) { pkcs11_delete_search(search); }
+    if(idtmpl) { pkcs11_delete_idtemplate(idtmpl); }
     return rv;
 }
 

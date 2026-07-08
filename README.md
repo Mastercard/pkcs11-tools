@@ -47,6 +47,8 @@ Limitations are:
 
 AWS CloudHSM support is disabled by default; please refer to [installation instructions](docs/INSTALL.md) for more details.
 
+> These limitations are consolidated in the [Vendor-specific limitations](docs/MANUAL.md#vendor-specific-limitations) section of the manual.
+
 ### June 2023
 
 Version 2.6 introduces support for JWK - JOSE Web Key output (RFC 7517) on the `p11keygen`, `p11wrap`, and `p11rewrap`
