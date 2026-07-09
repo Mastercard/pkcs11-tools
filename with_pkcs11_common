@@ -269,7 +269,7 @@ case ${_p11_vendor:-} in
     yubico)
         # Yubihsm configuration file
 	#YUBIHSM_PKCS11_CONF=$HOME/.config/yubico/token.conf
-	# The password incorporate the key id (0001 is the default authentication key)
+	# The password incorporates the key id (0001 is the default authentication key)
 	#PKCS11PASSWORD=${PKCS11PASSWORD:-0001password}
         ;;
 

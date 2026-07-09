@@ -128,22 +128,9 @@ CKK_EC_EDWARDS     { yylval.val_key = CKK_EC_EDWARDS    ; return KEYTYPE; }
 CKK_ML_KEM         { yylval.val_key = CKK_ML_KEM        ; return KEYTYPE; }
 CKK_ML_DSA         { yylval.val_key = CKK_ML_DSA        ; return KEYTYPE; }
 CKK_SLH_DSA        { yylval.val_key = CKK_SLH_DSA       ; return KEYTYPE; }
-
-CKK_YUBICO_AES128_CCM_WRAP|YUBICO_AES128_CCM_WRAP { {
-#if defined(HAVE_YUBICO)
-    yylval.val_key = CKK_YUBICO_AES128_CCM_WRAP; return KEYTYPE;
-#endif
-} }
-CKK_YUBICO_AES192_CCM_WRAP|YUBICO_AES192_CCM_WRAP { {
-#if defined(HAVE_YUBICO)
-    yylval.val_key = CKK_YUBICO_AES192_CCM_WRAP; return KEYTYPE;
-#endif
-} }
-CKK_YUBICO_AES256_CCM_WRAP|YUBICO_AES256_CCM_WRAP { {
-#if defined(HAVE_YUBICO)
-    yylval.val_key = CKK_YUBICO_AES256_CCM_WRAP; return KEYTYPE;
-#endif
-} }
+CKK_YUBICO_AES128_CCM_WRAP { yylval.val_key = CKK_YUBICO_AES128_CCM_WRAP; return KEYTYPE; }
+CKK_YUBICO_AES192_CCM_WRAP { yylval.val_key = CKK_YUBICO_AES192_CCM_WRAP; return KEYTYPE; }
+CKK_YUBICO_AES256_CCM_WRAP { yylval.val_key = CKK_YUBICO_AES256_CCM_WRAP; return KEYTYPE; }
 
 CKO_DATA           { yylval.val_cls = CKO_DATA ; return OCLASS; }
 CKO_CERTIFICATE    { yylval.val_cls = CKO_CERTIFICATE ; return OCLASS; }

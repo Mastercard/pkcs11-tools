@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-/* This source code was built up from pkcs11y.h, distributed /* 
+/* This source code was built up from pkcs11y.h, distributed */
 /* by Yubico (https://github.com/Yubico/yubihsm-shell/blob/master/pkcs11/pkcs11y.h) */
 /* it has been modified to fit the need of the PKCS#11 toolkit */
 /* The original license is stated here below. */
