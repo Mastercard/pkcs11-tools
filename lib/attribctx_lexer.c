@@ -2171,79 +2171,67 @@ YY_RULE_SETUP
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 108 "attribctx_lexer.l"
-{ {
-#if defined(HAVE_YUBICO)
-    cllval.val_key = CKK_YUBICO_AES128_CCM_WRAP; return KEYTYPE;
-#endif
-} }
+#line 107 "attribctx_lexer.l"
+{ cllval.val_key = CKK_YUBICO_AES128_CCM_WRAP; return KEYTYPE; }
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 113 "attribctx_lexer.l"
-{ {
-#if defined(HAVE_YUBICO)
-    cllval.val_key = CKK_YUBICO_AES192_CCM_WRAP; return KEYTYPE;
-#endif
-} }
+#line 108 "attribctx_lexer.l"
+{ cllval.val_key = CKK_YUBICO_AES192_CCM_WRAP; return KEYTYPE; }
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 118 "attribctx_lexer.l"
-{ {
-#if defined(HAVE_YUBICO)
-    cllval.val_key = CKK_YUBICO_AES256_CCM_WRAP; return KEYTYPE;
-#endif
-} }
+#line 109 "attribctx_lexer.l"
+{ cllval.val_key = CKK_YUBICO_AES256_CCM_WRAP; return KEYTYPE; }
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 124 "attribctx_lexer.l"
+#line 111 "attribctx_lexer.l"
 { cllval.val_cls = CKO_DATA ; return OCLASS; }
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 125 "attribctx_lexer.l"
+#line 112 "attribctx_lexer.l"
 { cllval.val_cls = CKO_CERTIFICATE ; return OCLASS; }
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 126 "attribctx_lexer.l"
+#line 113 "attribctx_lexer.l"
 { cllval.val_cls = CKO_PUBLIC_KEY ; return OCLASS; }
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 127 "attribctx_lexer.l"
+#line 114 "attribctx_lexer.l"
 { cllval.val_cls = CKO_PRIVATE_KEY ; return OCLASS; }
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 128 "attribctx_lexer.l"
+#line 115 "attribctx_lexer.l"
 { cllval.val_cls = CKO_SECRET_KEY ; return OCLASS; }
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 129 "attribctx_lexer.l"
+#line 116 "attribctx_lexer.l"
 { cllval.val_cls = CKO_HW_FEATURE ; return OCLASS; }
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 130 "attribctx_lexer.l"
+#line 117 "attribctx_lexer.l"
 { cllval.val_cls = CKO_DOMAIN_PARAMETERS ; return OCLASS; }
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 131 "attribctx_lexer.l"
+#line 118 "attribctx_lexer.l"
 { cllval.val_cls = CKO_MECHANISM ; return OCLASS; }
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 132 "attribctx_lexer.l"
+#line 119 "attribctx_lexer.l"
 { cllval.val_cls = CKO_OTP_KEY ; return OCLASS; }
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
-#line 134 "attribctx_lexer.l"
+#line 121 "attribctx_lexer.l"
 { cllval.val_mech = pkcs11_get_mechanism_type_from_name(cltext);
                      if (cllval.val_mech==0xFFFFFFFF) {
 			clerror(NULL, "Unknown mechanism identifier <%s>", cltext);
@@ -2254,7 +2242,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 142 "attribctx_lexer.l"
+#line 129 "attribctx_lexer.l"
 {   if(strlen(cltext)%2==1) {
 			clerror(NULL, "Invalid hexadecimal string <%s>: odd length", cltext);
 			yyterminate();
@@ -2285,52 +2273,52 @@ YY_RULE_SETUP
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 170 "attribctx_lexer.l"
+#line 157 "attribctx_lexer.l"
 { memcpy(cllval.val_date.as_buffer, cltext, 8); return TOK_DATE; }
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
-#line 172 "attribctx_lexer.l"
+#line 159 "attribctx_lexer.l"
 { cllval.val_bool = 1; return TOK_BOOLEAN; }
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
-#line 173 "attribctx_lexer.l"
+#line 160 "attribctx_lexer.l"
 { cllval.val_bool = 0; return TOK_BOOLEAN; }
 	YY_BREAK
 case 77:
 /* rule 77 can match eol */
 YY_RULE_SETUP
-#line 175 "attribctx_lexer.l"
+#line 162 "attribctx_lexer.l"
 { /* ignore whitespace and comma */ }
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 176 "attribctx_lexer.l"
+#line 163 "attribctx_lexer.l"
 { return ASSIGN; }
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 177 "attribctx_lexer.l"
+#line 164 "attribctx_lexer.l"
 { return CURLY_OPEN; }
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 178 "attribctx_lexer.l"
+#line 165 "attribctx_lexer.l"
 { return CURLY_CLOSE; }
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 179 "attribctx_lexer.l"
+#line 166 "attribctx_lexer.l"
 { return cltext[0]; } /* catch-all http://stackoverflow.com/questions/18837828/how-should-i-handle-lexical-errors-in-my-flex-lexer */
 	YY_BREAK
 /* gives it back to bison, so error comes from parser */
 case 82:
 YY_RULE_SETUP
-#line 182 "attribctx_lexer.l"
+#line 169 "attribctx_lexer.l"
 ECHO;
 	YY_BREAK
-#line 2334 "attribctx_lexer.c"
+#line 2322 "attribctx_lexer.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -3350,7 +3338,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 182 "attribctx_lexer.l"
+#line 169 "attribctx_lexer.l"
 
 
 
