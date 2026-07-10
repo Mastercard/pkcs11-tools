@@ -252,7 +252,6 @@ case ${_p11_vendor:-} in
         #PKCS11SLOT=1
         #PKCS11PASSWORD=ch@nge1t
         #PKCS11NSSDIR=sql:.
-        #NSS_LIB_PARAMS=configDir=\'${PKCS11NSSDIR}\'
         ;;
 
     softhsm)

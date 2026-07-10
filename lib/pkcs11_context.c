@@ -131,32 +131,33 @@ func_rc pkcs11_initialize( pkcs11Context * p11Context )
 
     pC_Initialize = pFunctionList->C_Initialize;
 
-    rv = pC_Initialize( &InitArgs );
+    if ( p11Context->nssinitparams != NULL ) {
+	/*
+	 * A configDir was supplied via '-m'.  It must reach the token through
+	 * CK_NSS_C_INITIALIZE_ARGS, whose LibraryParameters field overlaps the
+	 * standard pReserved slot, so we try the NSS-style args FIRST.  Modern
+	 * NSS (>= 3.95, bug 1837987) accepts a standard C_Initialize with
+	 * pReserved==NULL and then ignores our configDir, sourcing its config
+	 * from the environment or a built-in default instead.  Older NSS (and
+	 * any non-NSS token handed '-m') rejects the NSS args with
+	 * CKR_ARGUMENTS_BAD, so we fall back to the standard args, then NULL.
+	 */
+	rv = pC_Initialize( &NSS_InitArgs );
+	if ( rv == CKR_ARGUMENTS_BAD ) {
+	    rv = pC_Initialize( &InitArgs );
+	}
+	if ( rv == CKR_ARGUMENTS_BAD ) {
+	    rv = pC_Initialize( NULL_PTR );
+	}
+    } else {
+	rv = pC_Initialize( &InitArgs );
+    }
+
     if ( rv!=CKR_OK && rv!=CKR_CRYPTOKI_ALREADY_INITIALIZED )
     {
-	if(p11Context->nssinitparams==NULL) {
-	    /* if we don't have NSS parameters, */
-	    /* then show an error */
-	    pkcs11_error( rv, "C_Initialize" );
-	    rc = rc_error_pkcs11_api;
-	    goto err;
-	}
-
-	else if ( rv == CKR_ARGUMENTS_BAD )
-	{
-	    rv = pC_Initialize( &NSS_InitArgs );
-	    if ( rv == CKR_ARGUMENTS_BAD )
-	    {
-		pkcs11_error( rv, "C_Initialize" );
-
-		rv = pC_Initialize( NULL_PTR );
-		if ( rv == CKR_ARGUMENTS_BAD ) {
-		    pkcs11_error( rv, "C_Initialize" );
-		    rc = rc_error_pkcs11_api;
-		    goto err;
-		}
-	    }
-	}
+	pkcs11_error( rv, "C_Initialize" );
+	rc = rc_error_pkcs11_api;
+	goto err;
     }
 
     p11Context->initialized = CK_TRUE;
