@@ -32,6 +32,15 @@
 #include "wrappedkey_lexer.h"
 #include "wrappedkey_parser.h"
 
+/*
+ * parsing_envelope is a parser global (defined in wrappedkey_parser.y). It is
+ * normally balanced by the envelope() grammar rule, but a parse error inside an
+ * envelope() clause aborts via YYERROR before the closing action runs, leaving
+ * it non-zero. Each parse entry point resets it so state never leaks from a
+ * failed parse into the next one.
+ */
+extern int parsing_envelope;
+
 
 /*--------------------------------------------------------------------------------*/
 /* PROTOTYPES */
@@ -130,6 +139,8 @@ wrappedKeyCtx *pkcs11_new_wrapped_key_from_file(pkcs11Context *p11Context, char 
     }
 
     yyrestart(fp);
+
+    parsing_envelope = 0;	/* reset leftover parser state before a fresh parse */
 
     do {
 	parserc = yyparse(wctx);
