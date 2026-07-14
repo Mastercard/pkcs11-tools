@@ -214,8 +214,8 @@ int main( int argc, char ** argv )
 #ifdef HAVE_DUPLICATES_ENABLED
 	p11Context->can_duplicate = can_duplicate;
 #endif
-	pkcs11_cp_objects(p11Context, argv[optind], argv[optind+1], ask_confirm, verbose);
-	
+	retcode = pkcs11_cp_objects(p11Context, argv[optind], argv[optind+1], ask_confirm, verbose);
+
 	pkcs11_close_session( p11Context );
     }
     pkcs11_finalize( p11Context );
