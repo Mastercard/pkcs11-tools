@@ -109,7 +109,7 @@ int pkcs11_mv_objects(pkcs11Context *p11Context, char *src, char *dest, int inte
 	break;
 
     case prvk:
-	if(pkcs11_privatekey_exists( p11Context, dest)) {
+	if(pkcs11_privatekey_exists( p11Context, destlabel)) {
 #ifdef HAVE_DUPLICATES_ENABLED
 		if(p11Context->can_duplicate) {	
 	    	fprintf(stdout,"Warning: a private key already exists for destination label '%s', duplicating.\n", dest);
@@ -126,7 +126,7 @@ int pkcs11_mv_objects(pkcs11Context *p11Context, char *src, char *dest, int inte
 	break;
 
     case pubk:
-	if(pkcs11_publickey_exists( p11Context, dest)) {
+	if(pkcs11_publickey_exists( p11Context, destlabel)) {
 #ifdef HAVE_DUPLICATES_ENABLED
 		if(p11Context->can_duplicate) {	
 	    	fprintf(stdout,"Warning: a public key already exists for destination label '%s', duplicating.\n", dest);
@@ -143,7 +143,7 @@ int pkcs11_mv_objects(pkcs11Context *p11Context, char *src, char *dest, int inte
 	break;
 
     case seck:
-	if(pkcs11_secretkey_exists( p11Context, dest)) {
+	if(pkcs11_secretkey_exists( p11Context, destlabel)) {
 #ifdef HAVE_DUPLICATES_ENABLED
 		if(p11Context->can_duplicate) {	
 	    	fprintf(stdout,"Warning: a secret key already exists for destination label '%s', duplicating.\n", dest);
@@ -160,7 +160,7 @@ int pkcs11_mv_objects(pkcs11Context *p11Context, char *src, char *dest, int inte
 	break;
 
     case cert:
-	if(pkcs11_certificate_exists( p11Context, dest)) {
+	if(pkcs11_certificate_exists( p11Context, destlabel)) {
 #ifdef HAVE_DUPLICATES_ENABLED
 		if(p11Context->can_duplicate) {	
 	    	fprintf(stdout,"Warning: a certificate already exists for destination label '%s', duplicating.\n", dest);
