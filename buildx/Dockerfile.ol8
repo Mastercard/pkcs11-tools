@@ -48,7 +48,9 @@ ARG DISTRO_SHORT_NAME
 USER root
 ENV TZ=UTC
 
-# ol8_codeready_builder is required to install autoconf-archive
+# ol8_codeready_builder is required to install autoconf-archive.
+# softhsm (EPEL) drives the integration tests exercised by `make check`;
+# nss-tools provides certutil/libsoftokn3 for the NSS-backed tests.
 
 RUN OL=ol$(rpm --eval "%{rhel}") EL=el$(rpm --eval "%{rhel}") \
     && dnf update -y \
@@ -69,6 +71,8 @@ RUN OL=ol$(rpm --eval "%{rhel}") EL=el$(rpm --eval "%{rhel}") \
     rpm-build \
     wget \
     openssl-devel \
+    nss-tools \
+    && dnf install -y softhsm \
     && dnf clean all
 
 # Reuse pandoc static binary from official image to avoid flaky GitHub release download.
@@ -98,9 +102,11 @@ RUN if [ "$IGNORE_PROXY" = "true" ]; then \
         else \
             git clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
         fi
-RUN ./Configure no-shared no-tests no-docs no-apps --prefix=/opt/openssl3 --openssldir=/opt/openssl3/ssl \
+RUN ./Configure no-shared no-tests no-docs --prefix=/opt/openssl3 --openssldir=/opt/openssl3/ssl \
     && make -j $(nproc) \
     && make install_sw \
+    && mkdir -p /opt/openssl3/ssl \
+    && install -m 644 apps/openssl.cnf /opt/openssl3/ssl/openssl.cnf \
     && rm -rf /opt/openssl-src
 
 
@@ -211,7 +217,10 @@ ARG CONFIG_ARGS
 # Bring in the statically-built OpenSSL 3 (libcrypto.a, headers, pkg-config metadata).
 # Prepend its pkg-config directories so libcrypto >= 3.0.0 is found before the system 1.1.1.
 COPY --from=opensslbuilder /opt/openssl3 /opt/openssl3
+ENV PATH=/opt/openssl3/bin:$PATH
 ENV PKG_CONFIG_PATH=/opt/openssl3/lib64/pkgconfig:/opt/openssl3/lib/pkgconfig
+ENV OPENSSL_CONF=/opt/openssl3/ssl/openssl.cnf
+ENV OPENSSL_MODULES=/opt/openssl3/lib/ossl-modules
 
 # Prepare artifacts directory in builder so final stage can reuse it.
 RUN mkdir -p /artifacts
@@ -220,6 +229,7 @@ RUN mkdir -p /artifacts
 RUN ./bootstrap.sh --shallow-clone \
     && ./configure $CONFIG_ARGS \
     && make -j $(nproc) \
+    && make check \
     && make install DESTDIR=/tar_build
 
 # install documentation
@@ -235,6 +245,7 @@ RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
 RUN make distclean \
     && ./configure --prefix=/usr $CONFIG_ARGS \
     && make -j $(nproc) \
+    && make check \
     && make install DESTDIR=/rpm_build
 
 # Install documentation

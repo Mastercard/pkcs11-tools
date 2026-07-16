@@ -211,6 +211,32 @@ AS_IF([test "x$with_libcrypto_rpath" != xno] && [test "x$with_libcrypto_rpath" !
       [AC_DEFINE([LIBCRYPTO_RPATH], [$with_libcrypto_rpath], [RPATH to libcrypto]) ])
 
 
+dnl ========================================================================
+dnl Test suite support.
+dnl
+dnl Optional gcov code coverage instrumentation, used by the test suite.
+dnl Enable with --enable-coverage, then run `make check` followed by
+dnl `make coverage`. Disabled by default so normal builds are unaffected.
+AC_ARG_ENABLE([coverage],
+	[AS_HELP_STRING([--enable-coverage],
+		[instrument the build with gcov code coverage, for the test suite; disabled by default])],
+	[enable_coverage=$enableval],
+	[enable_coverage=no])
+
+AS_IF([test "x$enable_coverage" = xyes],
+      [ AS_IF([test "x$GCC" != xyes],
+	      [AC_MSG_FAILURE([--enable-coverage requires a GCC-compatible compiler (gcc or clang)])])
+	CFLAGS="$CFLAGS -O0 -g --coverage"
+	LDFLAGS="$LDFLAGS --coverage" ])
+AM_CONDITIONAL([CODE_COVERAGE], [test "x$enable_coverage" = xyes])
+
+dnl tools used by the test suite / coverage reporting (optional; tests self-skip)
+AC_CHECK_PROGS([SOFTHSM2_UTIL], [softhsm2-util])
+AC_CHECK_PROGS([GCOVR], [gcovr])
+AC_CHECK_PROGS([LCOV], [lcov])
+AC_CHECK_PROGS([GENHTML], [genhtml])
+
+
 dnl check endianness
 AC_C_BIGENDIAN
 dnl we need to know sizeof(long) for dealing with endianness conversion
@@ -222,6 +248,7 @@ AC_CONFIG_HEADERS([include/config.h])
 AC_CONFIG_FILES([	gl/Makefile
 			lib/Makefile
 			src/Makefile
+			tests/Makefile
 			Makefile
 			dist/solaris/pkgproto
 			dist/solaris/pkginfo
@@ -246,5 +273,7 @@ AC_MSG_NOTICE([libcrypto rpath    : $LIBCRYPTO_RPATH])
 AC_MSG_NOTICE([enable_duplicate   : $hasduplicate])
 AC_MSG_NOTICE([enable_pqc         : $haspqc])
 AC_MSG_NOTICE([pqc via openssl    : $haspqcopenssl])
+AC_MSG_NOTICE([enable_coverage    : $enable_coverage])
+AC_MSG_NOTICE([softhsm2-util      : ${SOFTHSM2_UTIL:-not found (integration tests will skip)}])
 AC_MSG_NOTICE([------------------------------------------------------------------------])
 

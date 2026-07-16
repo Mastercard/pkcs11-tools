@@ -60,9 +60,11 @@ ENV TZ=UTC
 # Enable the community and testing repositories for Alpine
 RUN echo "@testing http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
 
-# Install required packages for building the project
+# Install required packages for building and running the test suite.
 # coreutils is needed for 'fmt' command
 # sed is needed for string manipulation, busybox sed does not support all features
+# NSS is intentionally not installed: Alpine (main/community/testing) ships no
+# nss/nss-tools package, so the NSS-backed integration tests self-skip here.
 RUN apk add --no-cache \
     coreutils \
     sed \
@@ -82,12 +84,45 @@ RUN apk add --no-cache \
     alpine-sdk \
     sudo \
     fakeroot \
-    openssl-dev
+    openssl-dev \
+    softhsm
 
 # Reuse pandoc static binary from official image to avoid flaky GitHub release download.
 # The pandoc/minimal:3-static image ships a fully statically-linked binary that
 # works on both glibc and musl-based hosts.
 COPY --from=pandocbin /usr/local/bin/pandoc /usr/local/bin/pandoc
+
+
+# Build OpenSSL 3.5 from source as a static library. Alpine 3.21 ships OpenSSL
+# 3.3, but the post-quantum tests (ML-DSA/SLH-DSA/ML-KEM) require OpenSSL >= 3.5.
+# Building it statically here keeps the resulting pkcs11-tools binaries
+# self-contained and provides a PQC-capable `openssl` CLI for the test suite.
+FROM base AS opensslbuilder
+USER root
+ARG REPO_SSLVERIFY
+ARG IGNORE_PROXY
+ARG OPENSSL_VERSION="openssl-3.5.0"
+
+RUN apk add --no-cache perl linux-headers
+
+WORKDIR /opt/openssl-src
+RUN if [ "$IGNORE_PROXY" = "true" ]; then \
+            if [ "$REPO_SSLVERIFY" != "true" ]; then \
+                env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u no_proxy -u NO_PROXY git -c http.sslVerify=false clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
+            else \
+                env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u no_proxy -u NO_PROXY git clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
+            fi; \
+        elif [ "$REPO_SSLVERIFY" != "true" ]; then \
+            git -c http.sslVerify=false clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
+        else \
+            git clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
+        fi
+RUN ./Configure no-shared no-tests no-docs --prefix=/opt/openssl3 --openssldir=/opt/openssl3/ssl \
+    && make -j $(nproc) \
+    && make install_sw \
+    && mkdir -p /opt/openssl3/ssl \
+    && install -m 644 apps/openssl.cnf /opt/openssl3/ssl/openssl.cnf \
+    && rm -rf /opt/openssl-src
 
 
 # Source stage: --local-source mode.
@@ -194,6 +229,16 @@ FROM gitcloned AS builder
 USER root
 ARG CONFIG_ARGS
 
+# Bring in the statically-built OpenSSL 3.5 (libcrypto.a, headers, pkg-config
+# metadata). Prepend its pkg-config directories so libcrypto >= 3.5 is found
+# before the system 3.3, and put its `openssl` CLI first on PATH so the PQC
+# integration test verifies CSRs/certs with a PQC-capable tool.
+COPY --from=opensslbuilder /opt/openssl3 /opt/openssl3
+ENV PATH=/opt/openssl3/bin:$PATH
+ENV PKG_CONFIG_PATH=/opt/openssl3/lib64/pkgconfig:/opt/openssl3/lib/pkgconfig
+ENV OPENSSL_CONF=/opt/openssl3/ssl/openssl.cnf
+ENV OPENSSL_MODULES=/opt/openssl3/lib/ossl-modules
+
 # Prepare artifacts directory in builder so final stage can reuse it.
 RUN mkdir -p /artifacts
 
@@ -201,6 +246,7 @@ RUN mkdir -p /artifacts
 RUN ./bootstrap.sh --shallow-clone \
     && ./configure --prefix=/usr $CONFIG_ARGS \
     && make -j $(nproc) \
+    && make check \
     && make install DESTDIR=/build
 
 # Install documentation
