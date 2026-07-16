@@ -63,6 +63,7 @@ RUN OL=ol$(rpm --eval "%{rhel}") EL=el$(rpm --eval "%{rhel}") \
     tar \
     gzip \
     devtoolset-10-gcc \
+    devtoolset-10-gcc-c++ \
     rpm-build \
     wget \
     perl \
@@ -95,10 +96,46 @@ RUN if [ "$IGNORE_PROXY" = "true" ]; then \
         else \
             scl enable rh-git218 "git clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git ."; \
         fi
-RUN scl enable devtoolset-10 "./Configure no-shared no-tests no-docs no-apps --prefix=/opt/openssl3 --openssldir=/opt/openssl3/ssl \
+RUN scl enable devtoolset-10 "./Configure no-shared no-tests no-docs --libdir=lib --prefix=/opt/openssl3 --openssldir=/opt/openssl3/ssl \
     && make -j $(nproc) \
-    && make install_sw" \
+    && make install_sw \
+    && mkdir -p /opt/openssl3/ssl \
+    && install -m 644 apps/openssl.cnf /opt/openssl3/ssl/openssl.cnf" \
     && rm -rf /opt/openssl-src
+
+
+# Build SoftHSM 2.6.1 from source so `make check` can run on OL7. The only
+# SoftHSM packaged for EL7 is EPEL's 2.1.0, which is too old to back the test
+# suite (it rejects mechanisms such as CKM_GENERIC_SECRET_KEY_GEN). We clone the
+# 2.6.1 release from GitHub (dist.opendnssec.org is not reachable from the build
+# network) and regenerate the build system with autoreconf. It is linked against
+# the embedded OpenSSL 3.5 so it supports the modern mechanisms the suite
+# exercises (e.g. Ed25519) and stays self-contained (no runtime libcrypto dep).
+FROM base AS softhsmbuilder
+USER root
+ARG REPO_SSLVERIFY
+ARG IGNORE_PROXY
+ARG SOFTHSM_VERSION="2.6.1"
+
+COPY --from=opensslbuilder /opt/openssl3 /opt/openssl3
+
+WORKDIR /opt/softhsm-src
+RUN if [ "$IGNORE_PROXY" = "true" ]; then \
+            if [ "$REPO_SSLVERIFY" != "true" ]; then \
+                env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u no_proxy -u NO_PROXY scl enable rh-git218 "git -c http.sslVerify=false clone --depth 1 -b ${SOFTHSM_VERSION} https://github.com/opendnssec/SoftHSMv2.git ."; \
+            else \
+                env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u no_proxy -u NO_PROXY scl enable rh-git218 "git clone --depth 1 -b ${SOFTHSM_VERSION} https://github.com/opendnssec/SoftHSMv2.git ."; \
+            fi; \
+        elif [ "$REPO_SSLVERIFY" != "true" ]; then \
+            scl enable rh-git218 "git -c http.sslVerify=false clone --depth 1 -b ${SOFTHSM_VERSION} https://github.com/opendnssec/SoftHSMv2.git ."; \
+        else \
+            scl enable rh-git218 "git clone --depth 1 -b ${SOFTHSM_VERSION} https://github.com/opendnssec/SoftHSMv2.git ."; \
+        fi
+RUN scl enable devtoolset-10 "autoreconf -vfi \
+    && ./configure --prefix=/opt/softhsm2 --libdir=/opt/softhsm2/lib --disable-gost --with-crypto-backend=openssl --with-openssl=/opt/openssl3 LIBS='-lpthread -ldl' \
+    && make -j $(nproc) \
+    && make install" \
+    && rm -rf /opt/softhsm-src
 
 
 # Source stage: --local-source mode.
@@ -207,10 +244,22 @@ FROM gitcloned AS builder
 USER root
 ARG CONFIG_ARGS
 
-# Bring in the statically-built OpenSSL 3 (libcrypto.a, headers, pkg-config metadata).
-# Prepend its pkg-config directories so libcrypto >= 3.0.0 is found before the system 1.0.x.
+# Bring in the statically-built OpenSSL 3.5 (libcrypto.a, headers, pkg-config
+# metadata and the PQC-capable `openssl` CLI). Prepend its pkg-config dirs so
+# libcrypto >= 3.5 is found before the system 1.0.x, and put its bin first on
+# PATH so the PQC integration test verifies CSRs/certs with a PQC-capable tool.
 COPY --from=opensslbuilder /opt/openssl3 /opt/openssl3
+ENV PATH=/opt/openssl3/bin:$PATH
 ENV PKG_CONFIG_PATH=/opt/openssl3/lib64/pkgconfig:/opt/openssl3/lib/pkgconfig
+ENV OPENSSL_CONF=/opt/openssl3/ssl/openssl.cnf
+ENV OPENSSL_MODULES=/opt/openssl3/lib/ossl-modules
+
+# Bring in the source-built SoftHSM 2.6.1 (EPEL only offers 2.1.0, too old for
+# the test suite). Put its softhsm2-util first on PATH and point the harness at
+# its module via SOFTHSM2_LIB so `make check` uses it.
+COPY --from=softhsmbuilder /opt/softhsm2 /opt/softhsm2
+ENV PATH=/opt/softhsm2/bin:$PATH
+ENV SOFTHSM2_LIB=/opt/softhsm2/lib/softhsm/libsofthsm2.so
 
 # Prepare artifacts directory in builder so final stage can reuse it.
 RUN mkdir -p /artifacts
@@ -223,6 +272,7 @@ RUN scl enable devtoolset-10 rh-git218 \
     "./bootstrap.sh --shallow-clone \
     && ./configure $CONFIG_ARGS \
     && make -j $(nproc) \
+    && make check \
     && make install DESTDIR=/tar_build" \
     && mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
     && install -m 644 -t /tar_build/usr/local/share/doc/pkcs11-tools \
@@ -237,6 +287,7 @@ RUN scl enable devtoolset-10 rh-git218 \
     "make distclean \
     && ./configure --prefix=/usr $CONFIG_ARGS \
     && make -j $(nproc) \
+    && make check \
     && make install DESTDIR=/rpm_build" \
     && mkdir -p /rpm_build/usr/share/doc/pkcs11-tools \
     && install -m 644 -t /rpm_build/usr/share/doc/pkcs11-tools \

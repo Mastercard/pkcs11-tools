@@ -1,0 +1,66 @@
+name: build-and-check
+
+# Build every supported distro image with buildx.sh and run the full test
+# suite. `make check` (SoftHSM + NSS integration tests and the unit tests,
+# including the PQC test) runs *inside* the Docker build, so a failing test
+# fails `docker buildx build`, which fails the job.
+#
+# Notes:
+#  * We deliberately do NOT use docker/setup-buildx-action. buildx.sh extracts
+#    the produced packages with `docker run <tag>`, which requires the image to
+#    live in the local image store. The runner's default builder uses the
+#    "docker" driver, which loads built images into that store automatically;
+#    the "docker-container" driver created by setup-buildx-action would not.
+#  * No proxy CA (-x) is needed on public CI: without it buildx.sh writes an
+#    empty proxyrootca.crt and the Dockerfiles' update-ca-* steps accept it.
+#  * --local-source builds from the checked-out git history (bind-mounted as
+#    /host-repo), so we need submodules and tags -> submodules: recursive and
+#    fetch-depth: 0.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: build-and-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - deb12
+          - ol9
+          - mingw64
+    name: ${{ matrix.distro }}
+    steps:
+      - name: Checkout (with submodules and tags)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Build image and run make check
+        run: ./buildx.sh --local-source -v ${{ matrix.distro }}
+
+      - name: Upload packages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkcs11-tools-${{ matrix.distro }}
+          path: |
+            pkcs11-tools-*.rpm
+            pkcs11-tools-*.deb
+            pkcs11-tools-*.apk
+            pkcs11-tools-*.tar.gz
+            pkcs11-tools-*.zip
+          if-no-files-found: ignore
