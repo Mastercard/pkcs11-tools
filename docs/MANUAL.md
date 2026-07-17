@@ -102,6 +102,13 @@ The following arguments are common to almost every command:
 * `-V` will print version information
 * `-n` when configured with the `--enable-duplicate` feature, this option allows the user to generate objects with the same label.
 
+## Exit status
+
+All commands return `0` on success and a non-zero code on failure.
+
+- usage or argument errors return a non-zero status
+- command execution failures (PKCS#11/API/object-processing errors) return a non-zero status
+
 ## Interfacing with NSS tokens
 
 NSS has a comprehensive set of mechanisms implemented in software, and given certain conditions, its keystores can be
@@ -282,6 +289,9 @@ When an object does not have a label value, then the `CKA_ID` attribute is used,
 as `[object_class]/id/{[hex-string-of-CKA_ID-value]}`
 
 e.g.: `prvk/id/{39363231313338383739}`
+
+Some commands also accept an extended object filter by appending `+attribute=value` pairs to the main object selector.
+For example: `cert/sn/12335344+CKA_ENCRYPT/{01}`.
 
 ## Commands accepting PKCS\#11 attributes
 
@@ -641,6 +651,8 @@ Certificate:
 
 given an object identifier, rename an object or a class of object. If no object class is given ( i.e. `pubk/`, `prvk/`
 , `cert/`, `seck/` or `data/`) then all objects of the class are renamed.
+
+The destination can be provided as a plain label or as a class-prefixed label (for example `seck/new-name`).
 
 The tool is interactive by default: if a match is found, the user is requested to confirm the action. To force a
 non-interactive execution, use `-y` argument.
