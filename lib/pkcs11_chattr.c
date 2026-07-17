@@ -66,7 +66,7 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
 
 			CK_ATTRIBUTE_PTR oclass = pkcs11_get_attr_in_attrlist(attrs, CKA_CLASS);
 			CK_ATTRIBUTE_PTR olabel = pkcs11_get_attr_in_attrlist(attrs, CKA_LABEL);
-			CK_ATTRIBUTE_PTR oid    = pkcs11_get_attr_in_attrlist(attrs, CKA_LABEL);
+			CK_ATTRIBUTE_PTR oid    = pkcs11_get_attr_in_attrlist(attrs, CKA_ID);
 
 
 			if(oclass) {

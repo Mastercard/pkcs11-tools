@@ -406,6 +406,7 @@ int main( int argc, char ** argv )
 		pkcs11_free_X509_REQ(req);
 	    } else {
 		fprintf(stderr, "Error: Unable to generate certificate request\n");
+		retcode = rc_error_other_error;
 	    }
 	    pkcs11_delete_attrlist(attrlist);
 	} else {

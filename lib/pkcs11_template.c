@@ -273,8 +273,8 @@ bool parse_attributes(char* attributes, pkcs11IdTemplate* template_buffer) {
 		return false;
 	}
 
-	const char forward_slash_delim = '/';
-	const char plus_delim = '+';
+	const char *forward_slash_delim = "/";
+	const char *plus_delim = "+";
 
 	char* attr_value_regex_str = "^(\\{([[:xdigit:].:[:space:]]+)\\}|([^/{}]+))$";
 	regex_t attr_value_regex;
@@ -286,12 +286,12 @@ bool parse_attributes(char* attributes, pkcs11IdTemplate* template_buffer) {
 	}
 	
 	char* label_ptr = NULL;
-	char* attr_type, *attr_value;
+	char* attr_type, *attr_value = NULL;
 	size_t label_len = 0;
 	CK_ATTRIBUTE_TYPE cka_resourceid;
-	char* attr = strsep(&attributes, &plus_delim);
+	char* attr = strsep(&attributes, plus_delim);
 	while(attr != NULL) {
-		attr_type = strsep(&attr, &forward_slash_delim);
+		attr_type = strsep(&attr, forward_slash_delim);
 		cka_resourceid = parse_attribute_type(attr_type);
 
 		if(cka_resourceid == 0xFFFFFFFF) {
@@ -302,7 +302,7 @@ bool parse_attributes(char* attributes, pkcs11IdTemplate* template_buffer) {
 		}
 		
 		if(!attr_value){
-			attr_value = strsep(&attr, &plus_delim);
+			attr_value = strsep(&attr, plus_delim);
 		}
 
 		label_ptr = parse_attribute_value(attr_value, &attr_value_regex, &label_len);
@@ -323,7 +323,7 @@ bool parse_attributes(char* attributes, pkcs11IdTemplate* template_buffer) {
 		else {
 			fprintf(stderr, "parse_attributes: failed to parse attribute value. - [%s]\n", attr);
 		}
-		attr = strsep(&attributes, &plus_delim);
+		attr = strsep(&attributes, plus_delim);
 		attr_type = NULL;
 		attr_value = NULL;
 	}
@@ -371,11 +371,11 @@ pkcs11IdTemplate * pkcs11_make_idtemplate_with_extra_attributes(char* url)
 		goto err;
     }
 
-	const char forward_slash_delim = '/';
+	const char *forward_slash_delim = "/";
 	char* savepoint = strdup(url);
 	char* cursor = savepoint;
 	CK_OBJECT_CLASS objectclass;
-	char* object_type = strsep(&cursor, &forward_slash_delim);
+	char* object_type = strsep(&cursor, forward_slash_delim);
 	if(object_type == NULL){
 		error_msg = "no class/data found.\n";
 	    goto err;
