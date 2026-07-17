@@ -51,16 +51,3 @@ jobs:
 
       - name: Build image and run make check
         run: ./buildx.sh --local-source -v ${{ matrix.distro }}
-
-      - name: Upload packages
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pkcs11-tools-${{ matrix.distro }}
-          path: |
-            pkcs11-tools-*.rpm
-            pkcs11-tools-*.deb
-            pkcs11-tools-*.apk
-            pkcs11-tools-*.tar.gz
-            pkcs11-tools-*.zip
-          if-no-files-found: ignore
