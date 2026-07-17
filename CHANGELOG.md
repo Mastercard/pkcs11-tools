@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [Unreleased]
+### Fixed
+- `p11wrap`: fixed usage-error handling so invalid/missing CLI arguments now return a non-zero status (`rc_error_usage`) instead of success.
+- `p11req` and `p11mkcert`: fixed error propagation so CSR/certificate generation failures now return a non-zero status (`rc_error_other_error`) instead of success.
+- `p11cp` and `p11mv`: fixed return-code propagation so copy/move failures are no longer silently reported as success by the command entry points.
+- `p11cp` and `p11mv`: fixed destination-existence checks for prefixed destinations (`<class>/<label>`) by checking the parsed destination label rather than the raw destination string.
+- fixed extended object-filter parsing (`class/attr/value+...`) in search templates (`pkcs11_template`) by correcting `strsep` delimiter usage and attribute value tokenization.
+- fixed wrapped-key parser state leakage across parses by resetting `parsing_envelope` before each parse entry point (`pkcs11_prepare_wrappingctx`, `pkcs11_new_wrapped_key_from_file`).
+- `pkcs11_change_object_attributes`: fixed OID/ID retrieval to read `CKA_ID` (not `CKA_LABEL`) when inspecting matched objects.
+
 # [3.0.0] - 2026-06-30
 ### Added
 - support for Post-Quantum Cryptography (PQC): the three NIST/PKCS#11 v3.2 algorithms ML-KEM (FIPS 203), ML-DSA (FIPS 204) and SLH-DSA (FIPS 205) are now supported. `p11keygen` can generate `mlkem`, `mldsa` and `slhdsa` key pairs; the parameter set is selected through `-b` for ML-KEM (`512`, `768`, `1024`) and ML-DSA (`44`, `65`, `87`), and through `-q` for SLH-DSA (`{sha2,shake}-{128,192,256}{s,f}`, e.g. `sha2-128s` or `shake-256f`). `p11ls`, `p11od`, `p11cat` and `p11more` display and export the new key types, and `p11req`/`p11mkcert` can produce CSRs and self-signed certificates for ML-DSA and SLH-DSA keys. PQC support is enabled by default and can be turned off at compile time with `--disable-pqc`; key generation and object inspection only require any OpenSSL 3.x, while public key export, CSR and certificate creation additionally require `libcrypto >= 3.5.0` (when older, those operations are disabled while key generation and inspection remain available). `bash`/`zsh` completion has been extended to the new key types and parameter sets
@@ -173,6 +183,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial public release
 
 [3.0.0]: https://github.com/Mastercard/pkcs11-tools/tree/v3.0.0
+[Unreleased]: https://github.com/Mastercard/pkcs11-tools/compare/v3.0.0...HEAD
 [2.6.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.6.0
 [2.5.1]: https://github.com/Mastercard/pkcs11-tools/tree/v2.5.1
 [2.5.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.5.0
