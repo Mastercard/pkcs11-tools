@@ -1313,10 +1313,23 @@ By default, the wrapping algorithm is set to `oaep`. You can change this with th
       for more details.
 - `-a rfc3394`: private and secret key wrapping, as documented in RFC3394 and NIST.SP.800-38F, using `CKM_AES_KEY_WRAP`
   mechanism, or an equivalent vendor-specific mechanism. The standard mechanism is preferred automatically when several are advertised by the token.
-- `-a rfc5649` or `-a rfc5649(flavour=<mech>)`: private and secret key wrapping, as documented in RFC5649 and NIST.SP.800-38F,
+- `-a rfc5649` or `-a rfc5649(flavour=<flavour>)`: private and secret key wrapping, as documented in RFC5649 and NIST.SP.800-38F,
   using `CKM_AES_KEY_WRAP_PAD` mechanism, or an equivalent vendor-specific mechanism. When several RFC5649-compatible mechanisms are advertised by the token, `CKM_AES_KEY_WRAP_PAD` (PKCS#11 v2.40) is preferred by default; otherwise the only mechanism available is used.
-  Use `flavour=` to force a specific mechanism on wrap (and to record it in the wrapped-key file so the receiver picks the same one on unwrap):
-    * `flavour=CKM_AES_KEY_WRAP_KWP` selects the PKCS#11 v3.0 standard mechanism
+  Use `flavour=` to force a specific mechanism on wrap.
+  The `<flavour>` value accepts either a short alias or a full PKCS#11 mechanism name (both forms are equivalent):
+
+  | shortcut | mechanism                  | remark                                            |
+  | -------- | -------------------------- | ------------------------------------------------- |
+  | `pad`    | `CKM_AES_KEY_WRAP_PAD`     | PKCS#11 v2.40, the default                         |
+  | `kwp`    | `CKM_AES_KEY_WRAP_KWP`     | PKCS#11 v3.0                                       |
+  | `nss`    | `CKM_NSS_AES_KEY_WRAP_PAD` | NSS variant (not fully RFC5649-compliant)         |
+  | `luna`   | `CKM_LUNA_AES_KWP`         | Safenet/Gemalto Luna (needs a Luna-enabled build) |
+
+  For example, `-a rfc5649(flavour=kwp)` and `-a rfc5649(flavour=CKM_AES_KEY_WRAP_KWP)` are equivalent. The `pad`, `kwp` and `luna`
+  mechanisms are interoperable (all produce standard RFC5649 / NIST SP 800-38F KWP output), so the wrapped-key file simply records
+  `rfc5649/1.0` and the receiver may unwrap with whichever of these its token provides. The `nss` variant is *not* fully RFC5649-compliant,
+  so it is explicitly flagged (`flavour=nss`) in the file to avoid an accidental unwrap with a different mechanism. Any other full `CKM_*`
+  mechanism name is also accepted (with a warning) to give experienced users direct control over a vendor-specific mechanism.
 - `-a envelope`: private and secret key wrapping, using the envelope wrapping technique (see envelope wrapping below)
 
 Alternatively, it is possible to specify one or more key/wrapping algorithm/output filename using `-W` optional and
