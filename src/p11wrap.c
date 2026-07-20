@@ -300,7 +300,7 @@ int main(int argc, char **argv) {
 
     if (errflag) {
 	fprintf(stderr, "Try `%s -h' for more information.\n", argv[0]);
-	p11wraprc = rc_error_usage;
+	retcode = rc_error_usage;
 	goto epilog;
     }
 
@@ -308,7 +308,7 @@ int main(int argc, char **argv) {
 	option == option_unknown || (option == option_separate && wrappingjob[0].wrappingkeylabel == NULL)) {
 	fprintf(stderr, "At least one required option or argument is wrong or missing.\n"
 			"Try `%s -h' for more information.\n", argv[0]);
-	p11wraprc = rc_error_usage;
+	retcode = rc_error_usage;
 	goto epilog;
     }
 

@@ -445,6 +445,7 @@ int main( int argc, char ** argv )
 		pkcs11_free_X509_CERT(x509); /* free cert structure */
 	    } else {
 		fprintf(stderr, "Error: Unable to generate certificate\n");
+		retcode = rc_error_other_error;
 	    }
 	    pkcs11_delete_attrlist(attrlist);
 	} else {

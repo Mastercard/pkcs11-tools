@@ -31,6 +31,10 @@
 #include "wrappedkey_lexer.h"
 #include "wrappedkey_parser.h"
 
+/* parser global (defined in wrappedkey_parser.y); reset before each parse so a
+ * failed envelope() parse cannot leak state into a subsequent parse. */
+extern int parsing_envelope;
+
 typedef enum {
     meth_label,
     meth_keyhandle
@@ -1037,6 +1041,8 @@ func_rc pkcs11_prepare_wrappingctx(wrappedKeyCtx *wctx, char *wrapjob) {
 	/* http://stackoverflow.com/questions/1907847/how-to-use-yy-scan-string-in-lex     */
 	/* copy string into new buffer and Switch buffers*/
 	YY_BUFFER_STATE yybufstate = yy_scan_string(wrapjob);
+
+	parsing_envelope = 0;	/* reset leftover parser state before a fresh parse */
 
 	/* parse string */
 	parserc = yyparse(wctx);
