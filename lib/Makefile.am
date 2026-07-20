@@ -23,7 +23,7 @@ AM_CPPFLAGS = \
 	-I$(top_builddir)/gl \
 	-I$(top_srcdir)/gl \
 	-I$(top_srcdir)/include \
-	-I$(top_srcdir)/include/oasis-pkcs11/working/3-00-current \
+	-I$(top_srcdir)/include/oasis-pkcs11/published/3-02 \
 	-I$(top_srcdir)/include/cryptoki
 
 noinst_LTLIBRARIES = libp11.la
@@ -60,6 +60,7 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_error.c \
 	pkcs11_context.c \
 	pkcs11_session.c \
+	pkcs11_init.c \
 	pkcs11_template.c \
 	pkcs11_kcv.c \
 	pkcs11_keycomp.c \
@@ -82,17 +83,29 @@ libp11_la_SOURCES += pkcs11_attr.c \
 	pkcs11_data.c \
 	pkcs11_ec.c \
 	pkcs11_openssl.c \
+	pkcs11_pkey.c \
 	pkcs11_dsa.c \
 	pkcs11_dh.c \
-	pkcs11_ossl_rsa_meth.c \
-	pkcs11_ossl_dsa_meth.c \
-	pkcs11_ossl_ecdsa_meth.c \
-	pkcs11_ossl_eddsa_meth.c \
-	pkcs11_ossl_fake_sign.c
+	pkcs11_ossl_fake_sign.c \
+	pkcs11_provider_core.c \
+	pkcs11_provider_eddsa.c \
+	pkcs11_provider_rsa.c \
+	pkcs11_provider_ecdsa.c \
+	pkcs11_provider_dsa.c
 
+# Post-Quantum Cryptography support (ML-KEM, ML-DSA, SLH-DSA), enabled by default.
+if WITH_PQC
+libp11_la_SOURCES += pkcs11_pqc.c
+endif
+
+# ML-DSA / SLH-DSA signing provider (CSR & certificate) needs OpenSSL >= 3.5.
+if HAVE_PQC_OPENSSL
+libp11_la_SOURCES += pkcs11_provider_pqc.c
+endif
 
 dist_libp11_la_SOURCES = \
 	gen_attrinfo_h.pl gen_mechinfo_h.pl pkcs11_ossl.h \
+	pkcs11_provider.h pkcs11_provider_internal.h \
 	wrappedkey_parser.h wrappedkey_parser.c \
 	wrappedkey_lexer.h wrappedkey_lexer.c \
 	attribctx_parser.h attribctx_parser.c \
@@ -125,7 +138,7 @@ pkcs11_mechanism.$(OBJEXT): _mechinfo.h
 _mechinfo.h: Makefile gen_mechinfo_h.pl
 	$(AM_V_GEN) $(PERL) $(srcdir)/gen_mechinfo_h.pl \
 				$(top_srcdir)/include/cryptoki/*.h \
-				$(top_srcdir)/include/oasis-pkcs11/working/3-00-current/*.h \
+				$(top_srcdir)/include/oasis-pkcs11/published/3-02/*.h \
 				>$@
 
 pkcs11_attrdesc.$(OBJEXT): _attrinfo.h
@@ -133,7 +146,7 @@ pkcs11_attrdesc.$(OBJEXT): _attrinfo.h
 _attrinfo.h: Makefile gen_attrinfo_h.pl
 	$(AM_V_GEN) $(PERL) $(srcdir)/gen_attrinfo_h.pl  \
 				$(top_srcdir)/include/cryptoki/*.h \
-				$(top_srcdir)/include/oasis-pkcs11/working/3-00-current/*.h \
+				$(top_srcdir)/include/oasis-pkcs11/published/3-02/*.h \
 				>$@
 
 

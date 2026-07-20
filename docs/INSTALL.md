@@ -55,7 +55,7 @@ __Note that support for AWS CloudHSM is disabling a few features in the toolkit,
 ### Important Notes
  * While a prefix can be specified at configuration time, the toolkit utility make no use of any hardcoded path.  Using `--prefix=$PWD`will deploy the binaries into a `bin` subdir, relative to the current directory.
  if that option is omitted, the default is to deploy in `/usr/local`, when invoking `make install`. In which case, you will need to be a `root` user when `make install` (or to use `su` or `sudo`) .
- * OpenSSL v1.1.1e or above is required to compile the toolkit. Please refer to [OpenSSL 1.1.1](#openssl-111) for details how to deploy it on your system.
+ * OpenSSL v3.0.0 or above is required to compile the toolkit. Please refer to [OpenSSL 3.x](#openssl-3x) for details on deploying it on your system.
  * Windows 64 bits is supported through cross-compilation with MinGW-w64. See [Windows 64-bit (cross-compiling with Docker)](#windows-64-bit-cross-compiling-with-docker) for more information.
 
 ### Pre-requisites
@@ -71,7 +71,7 @@ In order to build the project from scratch, you will need
    $ sudo apt-get install autoconf-archive autoconf automake libtool pkg-config
    ```
    If the autotools suite is not available or obsolete on your platform, or if the build host has no connection to Internet, please check [this section](#when-autotools-utils-are-not-available-on-my-platform) for an alternative way to build.
- - the OpenSSL header files and libraries. Please check [this section](#openssl-111)  for more details.
+ - the OpenSSL header files and libraries. Please check [this section](#openssl-3x)  for more details.
    If your host is Debian-based (e.g. Ubuntu), you can execute the following command:
    ```sh
    $ sudo apt-get install libssl-dev
@@ -84,24 +84,24 @@ In order to build the project from scratch, you will need
  - a connection to Internet (to fetch `gnulib` and the pkcs11 headers)
 
 
-#### OpenSSL 1.1.1
-The vast majority of recent distros (FreeBSD and Linux) have OpenSSL 1.1.1e+ by default.
+#### OpenSSL 3.x
+The vast majority of recent distros (FreeBSD and Linux) have OpenSSL 3.x by default.
 
 If your platform does not have it, proceed as follows:
 
- 1. Clone OpenSSL [from GitHub](https://github.com/openssl/openssl.git), and checkout the latest OpenSSL 1.1.1 release.
- 2. Configure and build. In the examples below, we assume that OpenSSL will be deployed at `/opt/openssl-1.1.1`, change the location to match your preference.
+ 1. Clone OpenSSL [from GitHub](https://github.com/openssl/openssl.git), and checkout an OpenSSL 3.x release.
+ 2. Configure and build. In the examples below, we assume that OpenSSL will be deployed at `/opt/openssl-3`, change the location to match your preference.
 
     - A typical build on linux look as follows:
       ```bash
-      $ ./config no-zlib shared --prefix=/opt/openssl-1.1.1 linux-x86_64
+      $ ./config no-zlib shared --prefix=/opt/openssl-3 linux-x86_64
       $ make
       $ sudo make install
       ```
 
     - If you want static libraries instead of dynamic ones, use the following instructions instead:
       ```bash
-      $ ./config no-zlib no-shared --prefix=/opt/openssl-1.1.1 linux-x86_64
+      $ ./config no-zlib no-shared --prefix=/opt/openssl-3 linux-x86_64
       $ make
       $ sudo make install
       ```
@@ -156,17 +156,17 @@ $ make
 $ sudo make install
 ```
 
-If OpenSSL 1.1.1 is not available as a package on your platform, you will have to specify where it can be found by using the `PKG_CONFIG_PATH` environment variable and pointing it to the location of your OpenSSL installation. 
+If OpenSSL 3.x is not available as a package on your platform, you will have to specify where it can be found by using the `PKG_CONFIG_PATH` environment variable and pointing it to the location of your OpenSSL installation.
 In addition, you might want to set the `LIBCRYPTO_RPATH` variable, if the location of OpenSSL libraries is not in the default library path.
 ```bash
-$ ./configure PKG_CONFIG_PATH=/opt/openssl-1.1.1/lib/pkgconfig LIBCRYPTO_RPATH=/opt/openssl-1.1.1/lib
+$ ./configure PKG_CONFIG_PATH=/opt/openssl-3/lib/pkgconfig LIBCRYPTO_RPATH=/opt/openssl-3/lib
 $ make
 $ sudo make install
 ```
 
 Alternatively, if you do not have [`pkg-config`](https://www.freedesktop.org/wiki/Software/pkg-config/) installed on your system, you can use `LIBCRYPTO_CFLAGS` and `LIBCRYPTO_LIBS` variables to point to libraries and includes. Again, `LIBCRYPTO_RPATH` can optionally be specified (see 
 ```bash
-$ ./configure LIBCRYPTO_CFLAGS='-I/opt/openssl-1.1.1i/include' LIBCRYPTO_LIBS='-L/opt/openssl-1.1.1/lib -lcrypto' LIBCRYPTO_RPATH=/opt/openssl-1.1.1/lib
+$ ./configure LIBCRYPTO_CFLAGS='-I/opt/openssl-3/include' LIBCRYPTO_LIBS='-L/opt/openssl-3/lib -lcrypto' LIBCRYPTO_RPATH=/opt/openssl-3/lib
 $ make
 $ sudo make install
 ```
@@ -174,7 +174,7 @@ $ sudo make install
 ### Linux, with OpenSSL statically linked
 In case you need to deploy the tooklit on target environments where OpenSSL is not installed, you have the option to statically link the OpenSSL library functions into the binaries. This results, obviously, into larger executables, but you get portable binaries that do not depend upon OpenSSL libraries to run.
 
-To achieve this, please refer to section [OpenSSL 1.1.1](#openssl-1.1.1), to compile OpenSSL statically. the process to build the toolkit itself remains the same.
+To achieve this, please refer to section [OpenSSL 3.x](#openssl-3x), to compile OpenSSL statically. The process to build the toolkit itself remains the same.
 
 
 ### FreeBSD
@@ -191,7 +191,7 @@ Then proceed as with Linux. Note that clang should be used instead of gcc.
 
 If you had to install OpenSSL differently (e.g. older versions of FreeBSD), and if the path to OpenSSL libraries is not configured on the system, you need to specify an additional parameter (`LIBCRYPTO_RPATH`) when configuring the pkcs11-tools package, to set a run path to the libraries. See [rtld(1)](https://www.freebsd.org/cgi/man.cgi?query=rtld&apropos=0&sektion=1&manpath=FreeBSD+12.0-RELEASE&arch=default&format=html) for more information.
 ```bash
-$ ./configure CC=clang PKG_CONFIG_PATH=/opt/openssl-1.1.1/lib/pkgconfig LIBCRYPTO_RPATH=/opt/openssl-1.1.1/lib
+$ ./configure CC=clang PKG_CONFIG_PATH=/opt/openssl-3/lib/pkgconfig LIBCRYPTO_RPATH=/opt/openssl-3/lib
 $ make
 $ sudo make install
 ```
@@ -216,11 +216,11 @@ You need to have GCC deployed on your computer. You can obtain and deploy GCC on
 #### static build
  * To buill 32 bits binaries (both sparc and intel):
    ```bash
-   $ CFLAGS='-I/opt/openssl-1.1.1/include' LDFLAGS=-L/opt/openssl-1.1.1/lib ./configure --prefix=$PWD
+   $ CFLAGS='-I/opt/openssl-3/include' LDFLAGS=-L/opt/openssl-3/lib ./configure --prefix=$PWD
    ```
  * To build sparcv9 64 bits binaries:
    ```bash
-   $ CFLAGS='-m64 -mcpu=ultrasparc3 -I/opt/openssl-1.1.1/include' LDFLAGS=-L/opt/openssl-1.1.1/lib ./configure --prefix=$PWD
+   $ CFLAGS='-m64 -mcpu=ultrasparc3 -I/opt/openssl-3/include' LDFLAGS=-L/opt/openssl-3/lib ./configure --prefix=$PWD
    ```
 Compile and deploy using `make install`
 ```bash
@@ -237,7 +237,22 @@ $ export PATH=/opt/csw/gnu:$PATH
 Then proceed as documented for [FreeBSD](#freebsd).
 
 #### Notes
-Building OpenSSL 1.1.1 on Solaris 10 may prove to be challenging. Please refer to [https://github.com/openssl/openssl/issues/6333](https://github.com/openssl/openssl/issues/6333) for additional information.
+Building OpenSSL 3.x on Solaris 10 may prove to be challenging. Please refer to [https://github.com/openssl/openssl/issues/6333](https://github.com/openssl/openssl/issues/6333) for additional information.
+
+### Buildx options for constrained environments
+Recent `buildx.sh` versions include options that are useful in enterprise and offline-like setups:
+
+- `--local-source`: build directly from the local workspace context instead of cloning from the remote repository.
+- `--proxyrootca FILE`: inject an additional root CA used during Docker builds.
+- `--ignore-proxy`: ignore host proxy variables during Docker build execution.
+- `--skip-git-sslverify`: disable git SSL verification inside Docker build stages.
+- `--extra-header FILE` (repeatable): inject additional PKCS#11 header files under `include/cryptoki/` during Docker builds.
+
+Example:
+
+```bash
+$ ./buildx.sh --local-source --proxyrootca /path/to/root-ca.pem --extra-header /path/to/vendor.h ol9 ubuntu2404
+```
 
 ### Windows 64-bit (cross-compiling with Docker)
 Windows 64-bit binaries are produced via MinGW-w64 cross-compilation, using the same `buildx.sh` workflow as the other supported distros. This requires Docker or Podman:
@@ -313,7 +328,7 @@ $ make dist-solaris
 
 #### RPM
 To build an RPM package:
-(this assumes that `rpmbuild` is installed and properly configured for the user; it also assumes that OpenSSL 1.1.1 is the default on your platform)
+(this assumes that `rpmbuild` is installed and properly configured for the user; it also assumes that OpenSSL 3.x is the default on your platform)
 ```bash
 $ ./configure [...] --prefix=$PWD
 $ make dist
@@ -335,3 +350,22 @@ The default installation of `pkcs11-tools` does not support the creation of obje
 ```bash
 $ ./configure [...] --enable-duplicate
 ```
+
+Post-Quantum Cryptography (PQC) support — the ML-KEM (FIPS 203), ML-DSA (FIPS 204) and SLH-DSA (FIPS 205) algorithms — is **enabled by default**. Key generation and object inspection only require any OpenSSL 3.x, while public key export, CSR and certificate creation rely on OpenSSL's native PQC implementation and therefore require `libcrypto >= 3.5.0`. When building against an older libcrypto, those operations are disabled automatically while key generation and inspection remain available. To turn PQC support off entirely, configure with `--disable-pqc`:
+```bash
+$ ./configure [...] --disable-pqc
+```
+
+## Shell completion
+On `make install`, `bash` and `zsh` completion scripts for the `p11*` tools are installed automatically:
+
+- `bash`: into `$(datadir)/bash-completion/completions/` (e.g. `/usr/local/share/bash-completion/completions/`)
+- `zsh`: into `$(datadir)/zsh/site-functions/` (e.g. `/usr/local/share/zsh/site-functions/`)
+
+These are the standard locations searched by the completion frameworks, so completion is loaded on demand with no additional configuration, provided the `bash-completion` package is present and the tools are on `PATH`.
+
+If the toolkit is installed under a non-standard `--prefix`, ensure that:
+- `$(prefix)/bin` is on your `PATH`, and
+- the completion framework searches `$(prefix)/share/bash-completion/completions` (for example via `XDG_DATA_DIRS` or `BASH_COMPLETION_USER_DIR`).
+
+The bash completion scripts share a common helper file, `p11-common`, installed alongside them. It is not tied to any command name and is only sourced as a dependency by the per-tool scripts. Completion that queries a token (slot, token-label and object-name completion) invokes `p11slotinfo -L` and `p11ls`, so those binaries must be installed and on `PATH` for live completion to function.

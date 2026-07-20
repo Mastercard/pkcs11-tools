@@ -32,10 +32,13 @@
 #include "attribctx_parser.h"
 
 /* attribCtx contains attributes captured from command-line interface */
-/* it is designed to hold attributes into three lists: */
+/* it is designed to hold attributes into six lists: */
 /* - the main list */
 /* - a wrap template list */
 /* - an unwrap template list */
+/* - a derive template list */
+/* - an encapsulate template list */
+/* - a decapsulate template list */
 
 
 attribCtx *pkcs11_new_attribcontext()
@@ -52,8 +55,8 @@ attribCtx *pkcs11_new_attribcontext()
 
     int i;
 
-    /* pre-allocate arrays for three attribute lists */
-    for(i=0; i<3; i++) {
+    /* pre-allocate arrays for all attribute lists (main + templates) */
+    for(i=0; i<6; i++) {
 	ctx->attrs[i].attrlist = calloc( CMDLINE_MAX_ATTRS, sizeof(CK_ATTRIBUTE) );
 	if(ctx->attrs[i].attrlist == NULL) {
 	    fprintf(stderr, "Error: not enough memory when allocating memory for attribute array of wrappedKeyCtx\n");
@@ -77,7 +80,7 @@ void pkcs11_free_attribcontext(attribCtx *ctx)
 	
 	int i;
 
-	for(i=0;i<3;i++) {
+	for(i=0;i<6;i++) {
 	    /* free up attributes */
 	    if(ctx->attrs[i].attrlist) {
 

@@ -65,6 +65,10 @@ void print_usage(char *progname) {
 	    "  -S : login with SO privilege\n"
 	    "* -i <key_alias>: label/alias of the key\n"
 	    "* -k <key type> : aes, des, rsa, dsa, dh, ec, ed, generic / hmac"
+#if defined(WITH_PQC)
+	    ",\n"
+	    "                  mlkem, mldsa, slhdsa"
+#endif
 #if defined(HAVE_NCIPHER)
 	    ",\n"
 	    "                  hmacsha1, hmacsha224, hmacsha256, hmacsha384, hmacsha512\n"
@@ -76,17 +80,28 @@ void print_usage(char *progname) {
 	    "                   - 128(=DES2), 192=(DES3) for DES\n"
 	    "                   - 1024, 2048, 3072, 4096 for RSA\n"
 	    "                   - any length>56 for generic and HMAC\n"
+#if defined(WITH_PQC)
+	    "                   - 512, 768, 1024 for ML-KEM\n"
+	    "                   - 44, 65, 87 for ML-DSA\n"
+#endif
 	    "                   if unspeficied, defaults are:\n"
 	    "                   - 256 for AES\n"
 	    "                   - 192 for DES (DES3 key)\n"
 	    "                   - 2048 for RSA\n"
 	    "                   - 160 for Generic/HMAC\n"
+#if defined(WITH_PQC)
+	    "                   - 768 for ML-KEM, 65 for ML-DSA\n"
+#endif
 	    "                   - ignored for DH/DSA (taken out from parameter file)\n"
 	    "  -e <exponent>   : RSA public key exponent (default: 65537)\n"
-	    "  -q <curve param>: EC curve parameter or ED kind\n"
+	    "  -q <curve param>: EC curve parameter, ED kind or SLH-DSA variant\n"
 	    "                    for EC: prime256v1, secp384r1 and secp521r1\n"
 	    "                            (default: prime256v1)\n"
 	    "                    for ED: ED25519 or ED448 (default: ED25519)\n"
+#if defined(WITH_PQC)
+	    "                    for SLH-DSA: {sha2,shake}-{128,192,256}{s,f},\n"
+	    "                                 e.g. sha2-128s (default), shake-256f\n"
+#endif
 	    "  -d <dh/dsa param>  : DH or DSA parameter file\n"
 	    "  -W wrappingkey=\"<label>\"[,algorithm=<algorithm>][,filename=\"<path>\"]\n"
 	    "     a specifier for wrapping the key, with the following parameters:\n"
@@ -138,7 +153,7 @@ void print_usage(char *progname) {
 	    "  -n : allow duplicate objects\n"
 #endif
 	    "|\n"
-	    "+-> parameters marked with an asterix(*) are mandatory\n"
+	    "+-> parameters marked with an asterisk(*) are mandatory\n"
 	    "|   (except if environment variable sets the value)\n"
 	    "+-> arguments marked with a plus sign(+) can be repeated\n"
 	    "\n"
@@ -147,6 +162,7 @@ void print_usage(char *progname) {
 	    "                 CKA_LABEL, CKA_ID,\n"
 	    "                 CKA_UNWRAP,CKA_WRAP\n"
 	    "                 CKA_DECRYPT,CKA_ENCRYPT,\n"
+	    "                 CKA_ENCAPSULATE, CKA_DECAPSULATE,\n"
 	    "                 CKA_SIGN, CKA_VERIFY,\n"
 	    "                 CKA_SIGN_RECOVER, CKA_VERIFY_RECOVER,\n"
 	    "                 CKA_DERIVE,\n"
@@ -155,21 +171,23 @@ void print_usage(char *progname) {
 	    "                 CKA_WRAP_WITH_TRUSTED\n"
 	    "                 CKA_UNWRAP_TEMPLATE\n"
 	    "                 CKA_WRAP_TEMPLATE\n"
+	    "                 CKA_ENCAPSULATE_TEMPLATE\n"
+	    "                 CKA_DECAPSULATE_TEMPLATE\n"
 	    "   supported values:\n"
 	    "                 true / false / [ASCII-string] / date / { template attributes }\n"
 	    "\n"
 	    " ENVIRONMENT VARIABLES:\n"
 	    "    PKCS11LIB         : path to PKCS#11 library,\n"
-	    "                        overriden by option -l\n"
+	    "                        overridden by option -l\n"
 	    "    PKCS11NSSDIR      : NSS configuration directory directive,\n"
-	    "                        overriden by option -m\n"
+	    "                        overridden by option -m\n"
 	    "    PKCS11SLOT        : token slot (integer)\n"
-	    "                        overriden by PKCS11TOKENLABEL,\n"
+	    "                        overridden by PKCS11TOKENLABEL,\n"
 	    "                        options -t or -s\n"
 	    "    PKCS11TOKENLABEL  : token label\n"
-	    "                        overriden by options -t or -s\n"
+	    "                        overridden by options -t or -s\n"
 	    "    PKCS11PASSWORD    : password\n"
-	    "                        overriden by option -p\n"
+	    "                        overridden by option -p\n"
 	    "\n", pkcs11_ll_basename(progname));
 
     exit(EX_USAGE);
@@ -297,6 +315,15 @@ int main(int argc, char **argv) {
 	    } else if (strcasecmp(optarg, "dh") == 0) {
 		keytype = dh;
 	    }
+#if defined(WITH_PQC)
+	    else if (strcasecmp(optarg, "mlkem") == 0) {
+		keytype = ml_kem;
+	    } else if (strcasecmp(optarg, "mldsa") == 0) {
+		keytype = ml_dsa;
+	    } else if (strcasecmp(optarg, "slhdsa") == 0) {
+		keytype = slh_dsa;
+	    }
+#endif
 #if defined(HAVE_NCIPHER)
 	    else if(strcasecmp(optarg,"hmacsha1")==0) {
 		keytype = hmacsha1;
@@ -515,6 +542,57 @@ int main(int argc, char **argv) {
 		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
 		}
 		break;
+
+#if defined(WITH_PQC)
+	    case ml_kem:
+	    case ml_dsa:
+	    case slh_dsa: {
+		/* ML-KEM and ML-DSA take their numeric strength from -b (kb);
+		 * SLH-DSA takes its {sha2,shake}-{128,192,256}{s,f} variant from -q (param). */
+		const pqc_paramset_t *ps = pkcs11_pqc_paramset_from_selector(keytype, kb, param);
+		if (ps == NULL) {
+		    fprintf(stderr, "***Error: unknown/unsupported parameter set for %s. Supported values are:\n",
+			    pkcs11_pqc_keytype_kw(keytype));
+		    pkcs11_pqc_print_paramsets(stderr, keytype);
+		    retcode = rc_error_usage;
+		    break;
+		}
+
+		switch (keytype) {
+		case ml_kem:
+		    retcode = pkcs11_genMLKEM(p11Context, label, (char *)ps->cliname,
+					      pkcs11_get_attrlist_from_attribctx(actx),
+					      pkcs11_get_attrnum_from_attribctx(actx),
+					      &pubkhandle,
+					      &keyhandle,
+					      keygentype);
+		    break;
+
+		case ml_dsa:
+		    retcode = pkcs11_genMLDSA(p11Context, label, (char *)ps->cliname,
+					      pkcs11_get_attrlist_from_attribctx(actx),
+					      pkcs11_get_attrnum_from_attribctx(actx),
+					      &pubkhandle,
+					      &keyhandle,
+					      keygentype);
+		    break;
+
+		default: /* slh_dsa */
+		    retcode = pkcs11_genSLHDSA(p11Context, label, (char *)ps->cliname,
+					       pkcs11_get_attrlist_from_attribctx(actx),
+					       pkcs11_get_attrnum_from_attribctx(actx),
+					       &pubkhandle,
+					       &keyhandle,
+					       keygentype);
+		    break;
+		}
+
+		if (retcode == rc_ok) {
+		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
+		}
+	    }
+		break;
+#endif /* WITH_PQC */
 
 	    case dsa:
 		retcode = pkcs11_genDSA(p11Context, label, param,

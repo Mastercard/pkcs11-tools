@@ -39,6 +39,10 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
+#if defined(HAVE_PQC_OPENSSL)
+#include <openssl/core_names.h>
+#include <openssl/params.h>
+#endif
 
 #include "pkcs11lib.h"
 
@@ -270,8 +274,9 @@ const EVP_MD *pkcs11_get_EVP_MD(key_type_t key_type, hash_alg_t hash_alg)
 {
     const EVP_MD *rv;
 
-    if(key_type == ed ) {	
-	rv = EVP_md_null(); /* PureEdDSA has no pre-hash */
+    if(key_type == ed ) {
+        /* For Ed25519/Ed448, OpenSSL expects a NULL digest (PureEdDSA). */
+        rv = NULL;
     } else {
 	switch(hash_alg) {
 
@@ -307,7 +312,6 @@ const EVP_MD *pkcs11_get_EVP_MD(key_type_t key_type, hash_alg_t hash_alg)
 EVP_PKEY *pkcs11_SPKI_from_RSA(pkcs11AttrList *attrlist )
 {
     EVP_PKEY *pk = NULL;
-    RSA *rsa = NULL;
     BIGNUM *bn_modulus = NULL;
     BIGNUM *bn_exponent = NULL;
     CK_ATTRIBUTE_PTR attr;
@@ -318,24 +322,13 @@ EVP_PKEY *pkcs11_SPKI_from_RSA(pkcs11AttrList *attrlist )
 	fprintf(stderr, "Error: missing attributes to create Subject Public Key Information\n");
 	goto err;
     }
-    
-    /* create RSA key object */
-    if( (rsa=RSA_new()) == NULL ) {
-	P_ERR();
-	goto err;
-    }
-
-    if ((pk=EVP_PKEY_new()) == NULL) {
-	P_ERR();
-	goto err;
-    }
 
     attr = pkcs11_get_attr_in_attrlist(attrlist, CKA_MODULUS);
     if(attr == NULL) {
 	fprintf(stderr, "Error: missing CKA_MODULUS attribute in key\n");
 	goto err;
     }
-    
+
     if ( (bn_modulus = BN_bin2bn(attr->pValue, attr->ulValueLen, NULL)) == NULL ) {
 	P_ERR();
 	goto err;
@@ -352,23 +345,15 @@ EVP_PKEY *pkcs11_SPKI_from_RSA(pkcs11AttrList *attrlist )
 	goto err;
     }
 
-    if(!RSA_set0_key(rsa, bn_modulus, bn_exponent, NULL)) {
+    if ( (pk = pkcs11_pkey_from_rsa_public(bn_modulus, bn_exponent)) == NULL ) {
 	P_ERR();
 	goto err;
     }
-    bn_modulus = bn_exponent = NULL;
-
-    if (!EVP_PKEY_assign_RSA(pk,rsa)) {
-	P_ERR();
-	goto err;
-    }
-    rsa=NULL;	/* forget it, moved to pk */
 
 err:
     if(bn_modulus != NULL) { BN_free(bn_modulus); bn_modulus=NULL; }
     if(bn_exponent != NULL) { BN_free(bn_exponent); bn_exponent=NULL; }
-    if(rsa!=NULL) { RSA_free(rsa); rsa=NULL; }
-    
+
     return pk;
 }
 
@@ -377,7 +362,6 @@ err:
 EVP_PKEY *pkcs11_SPKI_from_DSA(pkcs11AttrList *attrlist )
 {
     EVP_PKEY *pk = NULL;
-    DSA *dsa = NULL;
     BIGNUM *bn_prime = NULL;
     BIGNUM *bn_subprime = NULL;
     BIGNUM *bn_base = NULL;
@@ -390,17 +374,6 @@ EVP_PKEY *pkcs11_SPKI_from_DSA(pkcs11AttrList *attrlist )
 	!pkcs11_attrlist_has_attribute(attrlist, CKA_BASE) ||
 	!pkcs11_attrlist_has_attribute(attrlist, CKA_VALUE)) {
 	fprintf(stderr, "Error: missing attributes to create Subject Public Key Information\n");
-	goto err;
-    }
-    
-    /* create DSA key object */
-    if( (dsa=DSA_new()) == NULL ) {
-	P_ERR();
-	goto err;
-    }
-
-    if ((pk=EVP_PKEY_new()) == NULL) {
-	P_ERR();
 	goto err;
     }
 
@@ -436,7 +409,7 @@ EVP_PKEY *pkcs11_SPKI_from_DSA(pkcs11AttrList *attrlist )
 	P_ERR();
 	goto err;
     }
-    
+
     attr = pkcs11_get_attr_in_attrlist(attrlist, CKA_VALUE);
     if(attr == NULL) {
 	fprintf(stderr, "Error: missing CKA_VALUE attribute in key\n");
@@ -448,31 +421,17 @@ EVP_PKEY *pkcs11_SPKI_from_DSA(pkcs11AttrList *attrlist )
 	goto err;
     }
 
-    if(!DSA_set0_pqg(dsa, bn_prime, bn_subprime, bn_base)) {
+    if ( (pk = pkcs11_pkey_from_dsa_public(bn_prime, bn_subprime, bn_base, bn_pubkey)) == NULL ) {
 	P_ERR();
 	goto err;
     }
-    bn_prime = bn_subprime = bn_base = NULL;
-
-    if(!DSA_set0_key(dsa, bn_pubkey, NULL)) {
-	P_ERR();
-	goto err;
-    }
-    bn_pubkey = NULL;
-
-    if (!EVP_PKEY_assign_DSA(pk,dsa)) {
-	P_ERR();
-	goto err;
-    }
-    dsa=NULL;	/* forget it, moved to pk */
 
 err:
     if(bn_prime != NULL) { BN_free(bn_prime); bn_prime=NULL; }
     if(bn_subprime != NULL) { BN_free(bn_subprime); bn_subprime=NULL; }
     if(bn_base != NULL) { BN_free(bn_base); bn_base=NULL; }
     if(bn_pubkey != NULL) { BN_free(bn_pubkey); bn_pubkey=NULL; }
-    if(dsa!=NULL) { DSA_free(dsa); dsa=NULL; }
-    
+
     return pk;
 }
 
@@ -480,11 +439,8 @@ err:
 EVP_PKEY *pkcs11_SPKI_from_EC(pkcs11AttrList *attrlist )
 {
     EVP_PKEY *pk = NULL;
-    EC_KEY *ec = NULL;
     ASN1_OCTET_STRING *ec_point_container = NULL;
-    ECPARAMETERS *ec_parameters = NULL;
-    EC_GROUP *ec_group = NULL;
-    EC_POINT *ec_point = NULL;
+    const char *group_name = NULL;
     CK_ATTRIBUTE_PTR attr;
     const unsigned char *ptr;
 
@@ -494,43 +450,17 @@ EVP_PKEY *pkcs11_SPKI_from_EC(pkcs11AttrList *attrlist )
 	fprintf(stderr, "Error: missing attributes to create Subject Public Key Information\n");
 	goto err;
     }
-    
-    /* create EC key object */
-    if( (ec=EC_KEY_new()) == NULL ) {
-	P_ERR();
-	goto err;
-    }
 
-    /* create EC group from curve parameters */
+    /* resolve the named curve from CKA_EC_PARAMS (DER-encoded ECPKParameters) */
     attr = pkcs11_get_attr_in_attrlist(attrlist, CKA_EC_PARAMS);
     if(attr == NULL) {
 	fprintf(stderr, "Error: missing CKA_EC_PARAMS attribute in key\n");
 	goto err;
     }
-    ptr = attr->pValue;
-    
-    if( (ec_group = d2i_ECPKParameters(&ec_group, &ptr, attr->ulValueLen)) == NULL) {
-	P_ERR();
+    group_name = pkcs11_pkey_ec_group_name_from_ecparams(attr->pValue, attr->ulValueLen);
+    if(group_name == NULL) {
+	fprintf(stderr, "Error: unable to resolve EC named curve from CKA_EC_PARAMS\n");
 	goto err;
-    }
-
-    /* create ec_point on the group */
-    if( (ec_point=EC_POINT_new(ec_group)) == NULL ) {
-	P_ERR();
-	goto err;
-    }
-
-    if ((pk=EVP_PKEY_new()) == NULL) {
-	P_ERR();
-	goto err;
-    }
-
-    /* 1. first we take care of the public key information */
-
-    /* assign group to key */
-    if(EC_KEY_set_group(ec, ec_group) == 0) {
-      P_ERR();
-      goto err;
     }
 
     /* extract point value into ASN1_OCTET_STRING structure */
@@ -540,51 +470,31 @@ EVP_PKEY *pkcs11_SPKI_from_EC(pkcs11AttrList *attrlist )
 	goto err;
     }
     ptr = attr->pValue; /* copy the pointer, check OpenSSL d2i & i2d API doc for details */
-    
+
     if(d2i_ASN1_OCTET_STRING(&ec_point_container, &ptr, attr->ulValueLen) == NULL ) {
-	/* P_ERR(); */
 	fprintf(stderr, "Warning: CKA_EC_POINT format likely not compliant, trying alternate way to decode public key\n");
 	/* d2i_TYPE() will NULLify the destination pointer in case of error (??!) */
-	/* we need to reset the value */
 	if( (ec_point_container=ASN1_OCTET_STRING_new()) == NULL ) {
 	    P_ERR();
 	    goto err;
 	}
-
 	if(ASN1_OCTET_STRING_set(ec_point_container, attr->pValue, attr->ulValueLen) == 0) {
 	    P_ERR();
 	    goto err;
 	}
     }
 
-    /* extract point from PKCS#11 attribute */
-    /* embedded into ec_point_container     */
-    if(EC_POINT_oct2point(ec_group, ec_point, ec_point_container->data, ec_point_container->length, NULL) == 0 ) {
+    pk = pkcs11_pkey_from_ec_public(group_name,
+				    ec_point_container->data,
+				    (size_t)ec_point_container->length);
+    if (pk == NULL) {
 	P_ERR();
 	goto err;
     }
-
-    /* assign point to key */
-    if( EC_KEY_set_public_key(ec, ec_point) == 0) {
-	P_ERR();
-	goto err;
-    }
-    /* TODO: check if ec_point must be freed (is the reference stolen?) */
-
-    /* assign EC key to EVP */
-    if (!EVP_PKEY_assign_EC_KEY(pk, ec)) {
-      P_ERR();
-      goto err;
-    }
-    ec=NULL;	/* forget it, moved to pk */
 
 err:
-    if(ec) { EC_KEY_free(ec); ec = NULL; }
     if(ec_point_container) { ASN1_OCTET_STRING_free(ec_point_container); ec_point_container = NULL; }
-    if(ec_parameters) { ECPARAMETERS_free(ec_parameters); ec_parameters = NULL; }
-    if(ec_group) { EC_GROUP_free(ec_group); ec_group = NULL; }
-    if(ec_point) { EC_POINT_free(ec_point); ec_point = NULL; }
-    
+
     return pk;
 }
 
@@ -609,6 +519,7 @@ EVP_PKEY *pkcs11_SPKI_from_ED(pkcs11AttrList *attrlist )
     uint8_t *output = NULL;
     size_t outputlen = 0;
     const uint8_t * pp ;
+    int expected_point_len = 0;
 		    
     oecparams = pkcs11_get_attr_in_attrlist(attrlist, CKA_EC_PARAMS);
     oecpoint  = pkcs11_get_attr_in_attrlist(attrlist, CKA_EC_POINT);
@@ -618,13 +529,6 @@ EVP_PKEY *pkcs11_SPKI_from_ED(pkcs11AttrList *attrlist )
 	goto key_ed_error;
     }
 		    
-    /* extract point into octet string */
-    pp = oecpoint->pValue;
-    if( (ed_point = d2i_ASN1_OCTET_STRING(NULL, &pp, oecpoint->ulValueLen)) == NULL ) {
-	P_ERR();
-	goto key_ed_error;
-    }
-
     /* extract param into OID */
     /* for Edwards curve, it may come it two flavours: 
      * - as an OID, in which case it will be parsed by d2i_ASN1_OBJECT
@@ -643,6 +547,43 @@ EVP_PKEY *pkcs11_SPKI_from_ED(pkcs11AttrList *attrlist )
     if( ed_oid == NULL ) {
 	P_ERR();
 	goto key_ed_error;
+    }
+
+    switch(OBJ_obj2nid(ed_oid)) {
+    case NID_ED25519:
+    expected_point_len = 32;
+    break;
+    case NID_ED448:
+    expected_point_len = 57;
+    break;
+    default:
+    break;
+    }
+
+    /* extract point into octet string */
+    pp = oecpoint->pValue;
+    ed_point = d2i_ASN1_OCTET_STRING(NULL, &pp, oecpoint->ulValueLen);
+
+    /*
+     * Some tokens expose CKA_EC_POINT as raw bytes instead of DER-wrapped
+     * OCTET STRING. Also reject suspicious DER decodes with unexpected point length.
+     */
+    if(ed_point == NULL || (expected_point_len > 0 && ed_point->length != expected_point_len)) {
+    if(ed_point) {
+        ASN1_OCTET_STRING_free(ed_point);
+        ed_point = NULL;
+    }
+
+    ed_point = ASN1_OCTET_STRING_new();
+    if(ed_point == NULL) {
+        P_ERR();
+        goto key_ed_error;
+    }
+
+    if(ASN1_OCTET_STRING_set(ed_point, oecpoint->pValue, oecpoint->ulValueLen) == 0) {
+        P_ERR();
+        goto key_ed_error;
+    }
     }
 
     /* create new X509_PUBKEY object and assign point and params */
@@ -679,5 +620,65 @@ key_ed_error:
 
     return pk;
 }
+
+#if defined(HAVE_PQC_OPENSSL)
+/* create an EVP_PKEY (default provider) from ML-DSA / SLH-DSA public key bytes.
+ *
+ * Unlike the Edwards case, OpenSSL 3.5 knows these algorithms natively: we just
+ * feed the raw public key (CKA_VALUE) to EVP_PKEY_fromdata() under the exact
+ * parameter-set fetch name resolved from CKA_PARAMETER_SET. The resulting key
+ * lives in the default provider and is used to build the SubjectPublicKeyInfo;
+ * signing is later routed through the pkcs11tools provider. */
+EVP_PKEY *pkcs11_SPKI_from_PQC(pkcs11AttrList *attrlist, key_type_t keytype)
+{
+    EVP_PKEY *pk = NULL;
+    EVP_PKEY_CTX *ctx = NULL;
+    CK_ATTRIBUTE_PTR ovalue = NULL;
+    CK_ATTRIBUTE_PTR oparamset = NULL;
+    const pqc_paramset_t *ps = NULL;
+    OSSL_PARAM params[2];
+
+    ovalue    = pkcs11_get_attr_in_attrlist(attrlist, CKA_VALUE);
+    oparamset = pkcs11_get_attr_in_attrlist(attrlist, CKA_PARAMETER_SET);
+
+    if(ovalue == NULL || oparamset == NULL) {
+	fprintf(stderr, "Error: object missing attribute(s) CKA_VALUE and/or CKA_PARAMETER_SET\n");
+	goto key_pqc_error;
+    }
+    if(oparamset->ulValueLen != sizeof(CK_ULONG)) {
+	fprintf(stderr, "Error: unexpected CKA_PARAMETER_SET size\n");
+	goto key_pqc_error;
+    }
+
+    ps = pkcs11_pqc_paramset_from_value(keytype, *(CK_ULONG *)oparamset->pValue);
+    if(ps == NULL) {
+	fprintf(stderr, "Error: unknown or mismatched PQC parameter set\n");
+	goto key_pqc_error;
+    }
+
+    params[0] = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
+						  ovalue->pValue, ovalue->ulValueLen);
+    params[1] = OSSL_PARAM_construct_end();
+
+    ctx = EVP_PKEY_CTX_new_from_name(NULL, ps->osslname, NULL);
+    if(ctx == NULL) {
+	P_ERR();
+	goto key_pqc_error;
+    }
+    if(EVP_PKEY_fromdata_init(ctx) <= 0) {
+	P_ERR();
+	goto key_pqc_error;
+    }
+    if(EVP_PKEY_fromdata(ctx, &pk, EVP_PKEY_PUBLIC_KEY, params) <= 0) {
+	P_ERR();
+	goto key_pqc_error;
+    }
+
+key_pqc_error:
+    if(ctx) { EVP_PKEY_CTX_free(ctx); }
+
+    return pk;
+}
+#endif /* HAVE_PQC_OPENSSL */
 
 /* EOF */

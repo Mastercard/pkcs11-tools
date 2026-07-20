@@ -28,10 +28,35 @@ GITHUB_REPO_COMMIT="HEAD"
 SUPPORTED_ARCHS="amd64 arm64"
 SUPPORTED_DISTROS="ol7 ol8 ol9 deb12 ubuntu2004 ubuntu2204 ubuntu2404 amzn2023 alpine321 mingw64"
 
-# Declare an associative array, needed by docker buildx --platform option
-declare -A rev_arch_map
-rev_arch_map["x86_64"]="amd64"
-rev_arch_map["aarch64"]="arm64"
+function host_arch_to_buildx_arch() {
+    case "$1" in
+        x86_64) echo "amd64" ;;
+        aarch64|arm64) echo "arm64" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+function buildx_arch_to_platform_arch() {
+    case "$1" in
+        amd64) echo "x86_64" ;;
+        arm64) echo "aarch64" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+function detect_numprocs() {
+    if command -v nproc >/dev/null 2>&1; then
+        nproc
+        return
+    fi
+    if command -v getconf >/dev/null 2>&1; then
+        getconf _NPROCESSORS_ONLN 2>/dev/null && return
+    fi
+    if command -v sysctl >/dev/null 2>&1; then
+        sysctl -n hw.logicalcpu 2>/dev/null && return
+    fi
+    echo 1
+}
 
 #
 # Usage information
@@ -46,10 +71,15 @@ function usage() {
     echo "Options:"
     echo "  --repo URL, -r URL           Repository URL (default: $GITHUB_REPO)"
     echo "  --commit COMMIT, -c COMMIT   Commit hash, tag or branch to build (default: $GITHUB_REPO_COMMIT)"
+    echo "  --skip-git-sslverify, -k      Disable SSL verification for git clone in Docker build"
+    echo "  --ignore-proxy                Ignore proxy environment variables during Docker build"
+    echo "  --local-source                Build from local Docker context instead of cloning repository"
     echo "  --verbose, -v                Increase verbosity (can be specified multiple times)"
     echo "  --no-cache, -n               Do not use docker build cache"
     echo "  --max-procs N, -j N          Maximum number of concurrent build processes (default: all available CPUs)"
     echo "  --proxyrootca FILE, -x FILE  Root CA file to use for the build"
+    echo "  --extra-header FILE, -H FILE Additional cryptoki header (.h) to inject under include/cryptoki/"
+    echo "                                in the build (read-only mount, repeatable). Overrides workspace stubs."
     echo "  --config-args ARGS           Additional arguments to pass to the configure script"
     echo "  --help, -h                   Show this help message"
     echo ""
@@ -129,6 +159,10 @@ function create_build() {
     local repo_commit="$7"
     local proxyrootca="$8"
     local config_args="$9"
+    local repo_sslverify="${10}"
+    local ignore_proxy="${11}"
+    local source_mode="${12}"
+    local extra_headers_dir="${13}"
 
     local verbosearg="--quiet"
 
@@ -143,22 +177,33 @@ function create_build() {
         no_cachearg="--no-cache"
     fi
 
-    # TODO: keep this outside of this function, should be a global variable
-    declare -A arch_map
-    arch_map["amd64"]="x86_64"
-    arch_map["arm64"]="aarch64"
+    local proxy_build_args=""
+    if [ "$ignore_proxy" = "true" ]; then
+        proxy_build_args="--build-arg HTTP_PROXY= --build-arg HTTPS_PROXY= --build-arg http_proxy= --build-arg https_proxy= --build-arg ALL_PROXY= --build-arg all_proxy= --build-arg NO_PROXY= --build-arg no_proxy="
+    fi
 
-    local platformarch="${arch_map[$arch]:-$arch}"
+    local extra_headers_arg=""
+    if [ -n "$extra_headers_dir" ] && [ "$extra_headers_dir" != "NONE" ]; then
+        extra_headers_arg="--build-context extra-headers=$extra_headers_dir"
+    fi
+
+    local platformarch
+    platformarch="$(buildx_arch_to_platform_arch "$arch")"
 
     echo "Building artifacts for $distro on arch $arch (platform: $platformarch)..."
-    
+
     local containername=$(gen_random_container_name)
     docker buildx build $verbosearg $no_cachearg \
         --platform linux/$platformarch \
         --build-arg REPO_URL=$repo_url \
         --build-arg REPO_COMMIT_OR_TAG=$repo_commit \
+        --build-arg REPO_SSLVERIFY=$repo_sslverify \
+        --build-arg IGNORE_PROXY=$ignore_proxy \
+        --build-arg SOURCE_MODE=$source_mode \
         --build-arg PROXY_ROOT_CA=$proxyrootca \
         --build-arg CONFIG_ARGS="$config_args" \
+        $proxy_build_args \
+        $extra_headers_arg \
         -t $package-build-$distro-$arch \
         -f $(get_script_dir)/buildx/Dockerfile.$distro \
         $(get_script_dir)
@@ -185,10 +230,16 @@ function parse_and_build() {
     local repo_commit="HEAD"
     local verbose=0
     local no_cache=0
+    local repo_sslverify="true"
+    local ignore_proxy="false"
+    local source_mode="git"
     local args=()
-    local numprocs=$(nproc)
+    local max_numprocs
+    max_numprocs=$(detect_numprocs)
+    local numprocs="$max_numprocs"
     local proxyrootca=""
     local config_args=""
+    local extra_headers=()
 
     # Parse optional arguments
     while [[ "$1" == --* || "$1" == -* ]]; do
@@ -210,6 +261,15 @@ function parse_and_build() {
                     verbose=$(($verbose + 1))
                 fi
                 ;;
+            --skip-git-sslverify|-k)
+                repo_sslverify="false"
+                ;;
+            --ignore-proxy)
+                ignore_proxy="true"
+                ;;
+            --local-source)
+                source_mode="local"
+                ;;
             -vv)
                 verbose=2
                 ;;
@@ -222,7 +282,7 @@ function parse_and_build() {
                 # Validate the number of processes:
                 # - Must be a positive integer
                 # - Must be less than or equal to the number of CPUs
-                if ! [[ "$numprocs" =~ ^[0-9]+$ ]] || [ "$numprocs" -le 0 ] || [ "$numprocs" -gt "$(nproc)" ]; then
+                if ! [[ "$numprocs" =~ ^[0-9]+$ ]] || [ "$numprocs" -le 0 ] || [ "$numprocs" -gt "$max_numprocs" ]; then
                     echo "Invalid number of processes: $numprocs"
                     usage
                 fi
@@ -230,6 +290,14 @@ function parse_and_build() {
             --proxyrootca|-x)
                 shift
                 proxyrootca="$1"
+                ;;
+            --extra-header|-H)
+                shift
+                if [ ! -f "$1" ]; then
+                    echo "Extra header file not found: $1"
+                    exit 1
+                fi
+                extra_headers+=("$1")
                 ;;
             --config-args)
                 shift
@@ -261,6 +329,19 @@ function parse_and_build() {
         config_args="DUMMY=dummy"
     fi
 
+    # Stage extra cryptoki headers (if any) into a single temp directory that
+    # will be passed to docker buildx as the named build context "extra-headers".
+    # The directory is bind-mounted read-only inside the build (see Dockerfiles).
+    local extra_headers_dir="NONE"
+    if [ "${#extra_headers[@]}" -gt 0 ]; then
+        extra_headers_dir=$(mktemp -d -t pkcs11-tools-extra-headers.XXXXXX)
+        trap 'rm -rf "$extra_headers_dir"' EXIT
+        for h in "${extra_headers[@]}"; do
+            cp "$h" "$extra_headers_dir/"
+        done
+        echo "Staged ${#extra_headers[@]} extra cryptoki header(s) into $extra_headers_dir"
+    fi
+
     # Collect remaining arguments
     local args=("$@")
 
@@ -270,31 +351,33 @@ function parse_and_build() {
         if [[ "$arg" == "all/all" ]]; then
             for distro in $SUPPORTED_DISTROS; do
                 for arch in $SUPPORTED_ARCHS; do
-                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args")
+                    build_args+=("$package" "$distro" "$arch" "$verbose" "$no_cache" "$repo_url" "$repo_commit" "$proxyrootca" "$config_args" "$repo_sslverify" "$ignore_proxy" "$source_mode" "$extra_headers_dir")
                 done
             done
         elif [[ "$arg" == "all" ]]; then
-            local host_arch=$(uname -m)
+            local host_arch
+            host_arch=$(host_arch_to_buildx_arch "$(uname -m)")
             for distro in $SUPPORTED_DISTROS; do
-                build_args+=("$package $distro $host_arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args")
+                build_args+=("$package" "$distro" "$host_arch" "$verbose" "$no_cache" "$repo_url" "$repo_commit" "$proxyrootca" "$config_args" "$repo_sslverify" "$ignore_proxy" "$source_mode" "$extra_headers_dir")
             done
         elif [[ "$arg" == */* ]]; then
             IFS='/' read -r distro arch_list <<< "$arg"
             if [[ "$arch_list" == "all" ]]; then
                 for arch in $SUPPORTED_ARCHS; do
-                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args")
+                    build_args+=("$package" "$distro" "$arch" "$verbose" "$no_cache" "$repo_url" "$repo_commit" "$proxyrootca" "$config_args" "$repo_sslverify" "$ignore_proxy" "$source_mode" "$extra_headers_dir")
                 done
             else
                 IFS=',' read -ra archs <<< "$arch_list"
                 for arch in "${archs[@]}"; do
-                    build_args+=("$package $distro $arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args")
+                    build_args+=("$package" "$distro" "$arch" "$verbose" "$no_cache" "$repo_url" "$repo_commit" "$proxyrootca" "$config_args" "$repo_sslverify" "$ignore_proxy" "$source_mode" "$extra_headers_dir")
                 done
             fi
         else
             IFS=',' read -ra distros <<< "$arg"
-            local host_arch=${rev_arch_map[$(uname -m)]:-$(uname -m)}
+            local host_arch
+            host_arch=$(host_arch_to_buildx_arch "$(uname -m)")
             for distro in "${distros[@]}"; do
-                build_args+=("$package $distro $host_arch $verbose $no_cache $repo_url $repo_commit $proxyrootca $config_args")
+                build_args+=("$package" "$distro" "$host_arch" "$verbose" "$no_cache" "$repo_url" "$repo_commit" "$proxyrootca" "$config_args" "$repo_sslverify" "$ignore_proxy" "$source_mode" "$extra_headers_dir")
             done
         fi
     done
@@ -303,9 +386,10 @@ function parse_and_build() {
     export -f get_current_dir
     export -f get_script_dir
     export -f gen_random_container_name
+    export -f buildx_arch_to_platform_arch
 
-    # Run builds in parallel, limiting to the number of jobs specified by the user
-    printf "%s\n" "${build_args[@]}" | xargs -P $numprocs -I {} bash -c 'create_build {}'
+    # Run builds in parallel, preserving argument boundaries with NUL separators.
+    printf "%s\0" "${build_args[@]}" | xargs -0 -P "$numprocs" -n 13 bash -c 'create_build "$@"' _
 }
 
 #

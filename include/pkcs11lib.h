@@ -35,8 +35,8 @@
 #include "cryptoki.h"
 
 /* grammar version, for wrapped keys */
-#define  SUPPORTED_GRAMMAR_VERSION "2.2"
-#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "2.5.0"
+#define  SUPPORTED_GRAMMAR_VERSION "2.3"
+#define  TOOLKIT_VERSION_SUPPORTING_GRAMMAR "3.0.0"
 
 /* Program Error Codes */
 #define RC_OK                    0x00
@@ -195,6 +195,11 @@ typedef enum {
     dsa,
     dh,
     generic,
+#if defined(WITH_PQC)
+    ml_kem,			/* ML-KEM (FIPS 203) */
+    ml_dsa,			/* ML-DSA (FIPS 204) */
+    slh_dsa,		/* SLH-DSA (FIPS 205) */
+#endif
 #if defined(HAVE_NCIPHER)
     hmacsha1,
     hmacsha224,
@@ -252,13 +257,15 @@ typedef struct s_p11_attribctx {
     bool has_wrap_template;	/* whether or not we have a wrap template */
     bool has_unwrap_template;	/* whether or not we have an unwrap template */
     bool has_derive_template;	/* whether or not we have a derive template */
+    bool has_encapsulate_template; /* whether or not we have an encapsulate template */
+    bool has_decapsulate_template; /* whether or not we have a decapsulate template */
     int level;			/* used by parser to prevent mutli-level templates */
     size_t saved_idx;		/* used by lexer to temporary store the index used for the template */
 
     struct {
 	CK_ATTRIBUTE *attrlist;
 	size_t attrnum;
-    } attrs[4];
+    } attrs[6];
 
     /* the following two members keep track of allowed mechanisms, when specified */
     CK_MECHANISM_TYPE_PTR allowedmechs;
@@ -361,6 +368,7 @@ enum contenttype { ct_unknown,	/* unidentified app */
 /* pkcs11_utils.c */
 
 char * pkcs11_prompt( char *, CK_BBOOL );
+char * pkcs11_prompt_new_secret( char * prompt, char * confirm_prompt );
 void pkcs11_prompt_free_buffer(char *arg);
 char * pkcs11_pipe_password( char * passwordexec );
 func_rc prompt_for_hex(char *message, char *prompt, char *target, int len);
@@ -408,6 +416,17 @@ func_rc pkcs11_finalize( pkcs11Context * );
 /* pkcs11_GetSession.c */
 func_rc pkcs11_open_session( pkcs11Context * p11Context, int slot, char *tokenlabel, char * password, int so, int interactive );
 func_rc pkcs11_close_session( pkcs11Context * p11Context );
+
+/* pkcs11_init.c */
+/* tokenlabelcmp (defined in pkcs11_session.c): compare a (trimmed) label against */
+/* a possibly space-padded, non null-terminated token label of given max length.  */
+/* Returns 0 when they match.                                                      */
+int tokenlabelcmp( const char *label, const char *reflabel, size_t reflabel_maxlen );
+
+func_rc pkcs11_get_slotindex( pkcs11Context * p11Context, int *slotindex, char *tokenlabel, CK_SLOT_ID *phSlot, int interactive );
+func_rc pkcs11_inittoken_guard( pkcs11Context * p11Context, CK_SLOT_ID hSlot, int slotindex, int reset_authorized, int interactive );
+func_rc pkcs11_init_token( pkcs11Context * p11Context, CK_SLOT_ID hSlot, int slotindex, char *sopin, char *label, int reset_authorized, int interactive );
+func_rc pkcs11_init_pin( pkcs11Context * p11Context, char *userpin, int interactive );
 
 // int setKeyLabel( pkcs11Context *, CK_OBJECT_HANDLE, char * );
 // int showKey( pkcs11Context *, CK_OBJECT_HANDLE );
@@ -489,6 +508,47 @@ void pkcs11_ec_freeoid(CK_BYTE_PTR buf);
 char * pkcs11_ed_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *where, size_t maxlen);
 // void pkcs11_ed_freeoid(CK_BYTE_PTR buf);
 
+#if defined(WITH_PQC)
+/* pkcs11_pqc.c */
+
+/* descriptor for a single PQC parameter set (ML-KEM, ML-DSA or SLH-DSA) */
+typedef struct {
+    key_type_t        keytype;	  /* ml_kem / ml_dsa / slh_dsa */
+    union {
+        CK_ML_KEM_PARAMETER_SET_TYPE  mlkem;
+        CK_ML_DSA_PARAMETER_SET_TYPE  mldsa;
+        CK_SLH_DSA_PARAMETER_SET_TYPE slhdsa;
+    } paramset;	  /* CKP_* value, as stored in CKA_PARAMETER_SET */
+    CK_MECHANISM_TYPE keygenmech; /* CKM_*_KEY_PAIR_GEN */
+    CK_MECHANISM_TYPE opmech;	  /* CKM_ML_KEM / CKM_ML_DSA / CKM_SLH_DSA */
+    const char       *cliname;	  /* canonical lower-case name, e.g. "ml-dsa-65" */
+    const char       *osslname;	  /* OpenSSL fetch name, e.g. "ML-DSA-65" */
+    const char       *ckpname;	  /* PKCS#11 symbol name, e.g. "CKP_ML_DSA_65" */
+} pqc_paramset_t;
+
+/* map the '-k' keyword (mlkem/mldsa/slhdsa) to a key type, or unknown if no match */
+key_type_t pkcs11_pqc_keytype_from_kw(const char *kw);
+/* short keyword (mlkem/mldsa/slhdsa) for a PQC key type, or NULL */
+const char *pkcs11_pqc_keytype_kw(key_type_t keytype);
+/* look up a parameter set by its (case-insensitive) name, or NULL if unknown */
+const pqc_paramset_t *pkcs11_pqc_paramset_from_name(const char *name);
+/* look up a parameter set by key type and CKA_PARAMETER_SET value, or NULL */
+const pqc_paramset_t *pkcs11_pqc_paramset_from_value(key_type_t keytype, CK_ULONG paramset);
+/* return the CKA_PARAMETER_SET value (CKP_*) carried by a descriptor */
+CK_ULONG pkcs11_pqc_paramset_value(const pqc_paramset_t *ps);
+/* default parameter set for a PQC key type, or NULL */
+const pqc_paramset_t *pkcs11_pqc_default_paramset(key_type_t keytype);
+/* resolve a parameter set from the keygen CLI selectors: ML-KEM/ML-DSA use the
+ * numeric strength kb (-b), SLH-DSA uses the variant string qstr (-q). A zero kb
+ * with a NULL qstr selects the algorithm default. Returns NULL if no match. */
+const pqc_paramset_t *pkcs11_pqc_paramset_from_selector(key_type_t keytype, CK_ULONG kb, const char *qstr);
+/* build the listing display name, ec(prime256v1)-style, e.g. "mldsa(65)",
+ * "mlkem(768)", "slhdsa(sha2-128s)". Writes into buf and returns it, or NULL. */
+const char *pkcs11_pqc_paramset_dispname(const pqc_paramset_t *ps, char *buf, size_t buflen);
+/* print the list of supported parameter sets for a key type to fp (for usage/errors) */
+void pkcs11_pqc_print_paramsets(FILE *fp, key_type_t keytype);
+#endif
+
 /* pkcs11_keygen.c */
 typedef enum {
     kg_token,			/* token key */
@@ -550,6 +610,35 @@ func_rc pkcs11_genED( pkcs11Context * p11Context,
 		      CK_OBJECT_HANDLE_PTR hPrivateKey,
 		      key_generation_t gentype);
 
+#if defined(WITH_PQC)
+func_rc pkcs11_genMLKEM( pkcs11Context * p11Context,
+			 char *label,
+			 char *param,
+			 CK_ATTRIBUTE attrs[],
+			 CK_ULONG numattrs,
+			 CK_OBJECT_HANDLE_PTR hPublicKey,
+			 CK_OBJECT_HANDLE_PTR hPrivateKey,
+			 key_generation_t gentype);
+
+func_rc pkcs11_genMLDSA( pkcs11Context * p11Context,
+			 char *label,
+			 char *param,
+			 CK_ATTRIBUTE attrs[],
+			 CK_ULONG numattrs,
+			 CK_OBJECT_HANDLE_PTR hPublicKey,
+			 CK_OBJECT_HANDLE_PTR hPrivateKey,
+			 key_generation_t gentype);
+
+func_rc pkcs11_genSLHDSA( pkcs11Context * p11Context,
+			  char *label,
+			  char *param,
+			  CK_ATTRIBUTE attrs[],
+			  CK_ULONG numattrs,
+			  CK_OBJECT_HANDLE_PTR hPublicKey,
+			  CK_OBJECT_HANDLE_PTR hPrivateKey,
+			  key_generation_t gentype);
+#endif /* WITH_PQC */
+
 int pkcs11_testgenEC_support( pkcs11Context * p11Context, const char *param );
 
 func_rc pkcs11_genDSA(pkcs11Context * p11Context,
@@ -578,6 +667,9 @@ EVP_PKEY *pkcs11_SPKI_from_RSA(pkcs11AttrList *attrlist );
 EVP_PKEY *pkcs11_SPKI_from_DSA(pkcs11AttrList *attrlist );
 EVP_PKEY *pkcs11_SPKI_from_EC(pkcs11AttrList *attrlist );
 EVP_PKEY *pkcs11_SPKI_from_ED(pkcs11AttrList *attrlist );
+#if defined(HAVE_PQC_OPENSSL)
+EVP_PKEY *pkcs11_SPKI_from_PQC(pkcs11AttrList *attrlist, key_type_t keytype );
+#endif
 
 
 /* pkcs11_req.c */
@@ -694,21 +786,33 @@ void pkcs11_openssl_error(char * file, int line);
 CK_ULONG pkcs11_openssl_alloc_and_sha1(CK_BYTE_PTR data, CK_ULONG datalen, CK_VOID_PTR_PTR buf);
 void pkcs11_openssl_free(CK_VOID_PTR_PTR buf);
 
-/* pkcs11_ossl_rsa_meth.c */
-void pkcs11_rsa_method_setup();
-void pkcs11_rsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
+/* pkcs11_pkey.c - stable OpenSSL 3 helpers (EVP_PKEY / OSSL_PARAM) */
+int pkcs11_pkey_get_bn(EVP_PKEY *pk, const char *param, BIGNUM **out);
+int pkcs11_pkey_get_octets(EVP_PKEY *pk, const char *param,
+			   unsigned char **out, size_t *out_len);
+int pkcs11_pkey_get_utf8(EVP_PKEY *pk, const char *param,
+			 char *out, size_t out_size);
 
-/* pkcs11_ossl_dsa_meth.c */
-void pkcs11_dsa_method_setup();
-void pkcs11_dsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
+EVP_PKEY *pkcs11_pkey_from_rsa_public(const BIGNUM *n, const BIGNUM *e);
+EVP_PKEY *pkcs11_pkey_from_dsa_public(const BIGNUM *p, const BIGNUM *q,
+				      const BIGNUM *g, const BIGNUM *pub);
+EVP_PKEY *pkcs11_pkey_from_dh_public(const BIGNUM *p, const BIGNUM *g,
+				     const BIGNUM *q /* may be NULL */,
+				     const BIGNUM *pub);
+EVP_PKEY *pkcs11_pkey_from_ec_public(const char *group_name,
+				     const unsigned char *pub, size_t pub_len);
 
-/* pkcs11_ossl_ecdsa_meth.c */
-void pkcs11_ecdsa_method_setup();
-void pkcs11_ecdsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
+int pkcs11_pkey_write_params_pem(BIO *out, EVP_PKEY *pk);
+int pkcs11_pkey_write_rsa_pubkey_pkcs1_pem(BIO *out, EVP_PKEY *pk);
+int pkcs11_pkey_write_params_der(EVP_PKEY *pk, unsigned char **out, size_t *out_len);
+const char *pkcs11_pkey_ec_group_name_from_ecparams(const unsigned char *ecparams,
+						    size_t ecparams_len);
+EVP_PKEY *pkcs11_pkey_read_params_fp(FILE *fp, const char *type);
 
-/* pkcs11_ossl_eddsa_meth.c */
-void pkcs11_eddsa_method_setup();
-void pkcs11_eddsa_method_pkcs11_context(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPrivateKey, bool fake);
+/* SHA-1 helper: out gets a freshly OPENSSL_malloc'd buffer of size SHA_DIGEST_LENGTH.
+ * Returns the digest length (20) on success, 0 on failure. */
+size_t pkcs11_pkey_sha1_to_buf(const unsigned char *data, size_t data_len,
+			       unsigned char **out);
 
 
 /* list functions */
@@ -751,9 +855,11 @@ const char *pkcs11_get_mechanism_name_from_type(CK_MECHANISM_TYPE mech); /* pkcs
 CK_ATTRIBUTE_TYPE pkcs11_get_attribute_type_from_name(char *name); /* pkcs11_attrdesc.c */
 // const char *pkcs11_get_attribute_name_from_type(CK_ATTRIBUTE_TYPE attrtyp); /* pkcs11_attrdesc.c */
 
+/* library, slot and token info */
 func_rc pkcs11_info_library(pkcs11Context *p11Context);
 func_rc pkcs11_info_slot(pkcs11Context *p11Context);
 func_rc pkcs11_info_ecsupport(pkcs11Context *p11Context);
+func_rc pkcs11_enumerate_slots_with_token(pkcs11Context *p11Context);
 
 /* chattr function */
 func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, CK_ATTRIBUTE *attr, size_t cnt, int interactive );
@@ -816,6 +922,7 @@ size_t pkcs11_attribctx_get_allowed_mechanisms_len(attribCtx *ctx);
 /* Callback Prompt Strings */
 #define SLOT_PROMPT_STRING			"Enter slot index: "
 #define PASS_PROMPT_STRING			"Enter passphrase for token: "
+#define SO_PASS_PROMPT_STRING			"Enter Security Officer (SO) PIN for token: "
 // #define TOKEN_PASS_PROMPT_STRING		"Enter passphrase for token '%s': "
 
 #define MAXBUFSIZE              1024

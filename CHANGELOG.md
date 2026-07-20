@@ -4,21 +4,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [UNPUBLISHED]
+# [3.0.0] - 2026-06-30
 ### Added
+- support for Post-Quantum Cryptography (PQC): the three NIST/PKCS#11 v3.2 algorithms ML-KEM (FIPS 203), ML-DSA (FIPS 204) and SLH-DSA (FIPS 205) are now supported. `p11keygen` can generate `mlkem`, `mldsa` and `slhdsa` key pairs; the parameter set is selected through `-b` for ML-KEM (`512`, `768`, `1024`) and ML-DSA (`44`, `65`, `87`), and through `-q` for SLH-DSA (`{sha2,shake}-{128,192,256}{s,f}`, e.g. `sha2-128s` or `shake-256f`). `p11ls`, `p11od`, `p11cat` and `p11more` display and export the new key types, and `p11req`/`p11mkcert` can produce CSRs and self-signed certificates for ML-DSA and SLH-DSA keys. PQC support is enabled by default and can be turned off at compile time with `--disable-pqc`; key generation and object inspection only require any OpenSSL 3.x, while public key export, CSR and certificate creation additionally require `libcrypto >= 3.5.0` (when older, those operations are disabled while key generation and inspection remain available). `bash`/`zsh` completion has been extended to the new key types and parameter sets
+- new boolean attributes `CKA_ENCAPSULATE` and `CKA_DECAPSULATE`, and new template attributes `CKA_ENCAPSULATE_TEMPLATE` and `CKA_DECAPSULATE_TEMPLATE`, used by key encapsulation mechanism (KEM) keys. `p11ls` reports the matching `ncp`/`dcp` capability flags and `nct`/`dct` template flags, and `p11slotinfo` lists the `ncp` (Encapsulation) and `dcp` (Decapsulation) mechanism abbreviations
+- new command `p11init`, to initialize a token (`C_InitToken`) and/or its user/crypto officer PIN (`C_InitPIN`), or to reset (reinitialize) an existing token. The SO PIN and user PIN must be passed as arguments (`-O`/`-P`, the `PKCS11PASSWORD` environment variable is not honoured), the `:::exec:` convention is supported, slots are addressed by index, a batch mode is available (`-B`), and reinitializing an already initialized token requires the explicit `-R` flag (with an interactive confirmation unless in batch mode)
 - support public key extraction for libraries with non-compliant `CKA_EC_POINT` implementations (with no OCTET STRING encapsulation)
 - support for Docker builds
 - support for Windows 64-bit cross-compilation via MinGW-w64 (`buildx/Dockerfile.mingw64`)
+- OpenSSL 3 provider-based signing support for RSA, DSA, ECDSA and EdDSA
+- Docker build support for local source builds (`buildx.sh --local-source`)
+- Docker build support for additional PKCS#11 headers injection (`buildx.sh --extra-header`)
 - `p11req` and `p11mkcert` now support RSA-PSS signature (add `-a pss` arguments to select it)
+- `p11keygen` can now generate RSA keys with a custom public exponent, through the new `-e <exponent>` option (default `65537`)
 - `p11kcv` beefed up, to support multiple MACing algorithms, as well as displaying the value of `CKA_CHECK_VALUE`
 - support for wrapping keys in JOSE Web Key format (JWK, RFC 7178)
 - new option `--enable-duplicate`, to override duplicate label protection when creating or importing a key (must be enabled at compile time)
 - search templates: it is now possible to add other attributes in a search, to filter out on more than one attribute
 - support for PKCS#11 v3.0 `CKM_AES_KEY_WRAP_KWP` mechanism as an RFC5649 implementation; selectable via `rfc5649(flavour=CKM_AES_KEY_WRAP_KWP)` in wrapping algorithm strings
 - the `# wrapping algorithm:` informational header of a wrapped-key file now reports the concrete inner and outer mechanisms for envelope wraps (e.g. `Envelope (inner=PKCS#11 v3.0 CKM_AES_KEY_WRAP_KWP (RFC5649), outer=PKCS#1 OAEP)`) instead of a bare `Envelope` label, making it possible to see which RFC5649 mechanism was actually used when a token advertises several. This is a comment-only change; it does not alter the machine-readable `Wrapping-Algorithm:` line and is fully backwards-compatible with `p11unwrap`.
+- shell completion for all `p11*` tools, for both `bash` and `zsh`. Completion covers command options, key types, elliptic curves, wrapping algorithms, SAN prefixes and file paths; when a library is provided (via `-l` or `PKCS11LIB`) it also completes live slot indexes and token labels, and when a PIN is also provided (via `-p` or `PKCS11PASSWORD`) it completes existing PKCS#11 object names. Completion files are installed under `$(datadir)/bash-completion/completions/` and `$(datadir)/zsh/site-functions/`, and are auto-loaded on demand by the completion framework (no sourcing required).
+- `p11slotinfo`: new `-L` option, which lists all slots holding an initialized token in a machine-readable `index:label` format. It runs non-interactively and performs no login; it is primarily intended to drive shell completion.
+
+### Changed
+- build now requires OpenSSL 3.0.0 or above (`libcrypto >= 3.0.0`)
+- Docker build files refactored to better support local repository builds, corporate proxies and static OpenSSL 3 fallback on older targets
+- `with_xxx` wrapper scripts refactored: all common logic now lives in a single, POSIX `/bin/sh` file (`with_pkcs11_common`) sourced by every wrapper, removing the previous `zsh` dependency. New options are available across all wrappers: `-n` (no slot / interactive selection), `-s` and `-S dest` (SHIM tracing), `-c` (create a commented `.pkcs11rc` template), `-e` (open `.pkcs11rc` in `$VISUAL`/`$EDITOR`) and `-h` (usage help). Library auto-detection now probes common system locations and the Homebrew prefix (`HOMEBREW_PREFIX`), and can be overridden with `PKCS11LIB`. The `.pkcs11rc` lookup walks up from the current directory to `$HOME`, honours a vendor-specific `.pkcs11rc.<vendor>` file in priority over the generic one, and exposes `$_p11_vendor` so a shared `.pkcs11rc` can dispatch per vendor. New wrappers `with_aws` (AWS CloudHSM) and `with_kryoptic` (Kryoptic) are provided, and `with_utimaco` now auto-detects the R3 client library (falling back to R2). The previous `SPY`/`pkcs11-spy.so` mechanism is replaced by `SHIM`/`libpkcs11shim`
 
 ### Fixed
 - small fix on with_xxx wrappers, replacing space with underscore in reply code
+- `p11rm` can now delete all objects of a given class: the labels `cert`, `pubk`, `prvk`, `seck` and `data` are accepted as shortcuts for the corresponding object class (the command was already documented to support this)
+- memory leak fixed in `p11req` and `p11mkcert`: the `X509` and `X509_REQ` structures were not released after use
 - AES key wrap mechanism auto-selection: the `compare_mech_type()` qsort comparator computed `*(b) - *(a)` on `CK_MECHANISM_TYPE` (`unsigned long`) values and truncated the result to `int`. For vendor-defined mechanisms (e.g. `CKM_VENDOR_DEFINED`-based value `>= 0x80000000`) this overflowed, which is undefined behaviour and produced an incorrect, non-total ordering. On the affected platforms it sorted standard mechanisms *after* vendor-specific ones, contrary to the documented "standard mechanism preferred" behaviour (impacting both the `rfc3394` and `rfc5649` auto-pick lists). Replaced with a well-defined ascending comparison `(a>b)-(a<b)`, so standard mechanisms (`CKM_AES_KEY_WRAP`, `CKM_AES_KEY_WRAP_PAD`, `CKM_AES_KEY_WRAP_KWP`) are now reliably attempted before vendor-specific variants on all platforms. Output is unchanged for the common single-mechanism case; the byte-compatible RFC3394/RFC5649 result is also unchanged when multiple mechanisms are advertised.
 
 # [2.6.0]
@@ -156,6 +172,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release
 
+[3.0.0]: https://github.com/Mastercard/pkcs11-tools/tree/v3.0.0
 [2.6.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.6.0
 [2.5.1]: https://github.com/Mastercard/pkcs11-tools/tree/v2.5.1
 [2.5.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.5.0

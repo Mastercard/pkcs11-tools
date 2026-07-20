@@ -76,22 +76,22 @@ void print_usage(char *progname)
 	     "  -n: allow duplicate objects\n"
 #endif
 	     "|\n"
-	     "+-> options marked with an asterix(*) are mandatory\n"
+	     "+-> options marked with an asterisk(*) are mandatory\n"
              "|   (except if environment variable sets the value)\n"
 	     "+-> options marked with a plus sign(+) can be repeated\n"
 	     "\n"
              " ENVIRONMENT VARIABLES:\n"
 	     "    PKCS11LIB         : path to PKCS#11 library,\n"
-             "                        overriden by option -l\n"
+             "                        overridden by option -l\n"
 	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n"
-             "                        overriden by option -m\n"
+             "                        overridden by option -m\n"
 	     "    PKCS11SLOT        : token slot (integer)\n"
-	     "                        overriden by PKCS11TOKENLABEL,\n"
+	     "                        overridden by PKCS11TOKENLABEL,\n"
 	     "                        options -t or -s\n"
 	     "    PKCS11TOKENLABEL  : token label\n"
-	     "                        overriden by options -t or -s\n"
+	     "                        overridden by options -t or -s\n"
 	     "    PKCS11PASSWORD    : password\n"
-             "                        overriden by option -p\n"
+             "                        overridden by option -p\n"
 	     "\n"
 	     , pkcs11_ll_basename(progname) );
 
@@ -392,6 +392,25 @@ int main( int argc, char ** argv )
 					    _ATTR(CKA_ID),
 					    _ATTR_END);
 	    break;
+
+#if defined(HAVE_PQC_OPENSSL)
+	case ml_dsa:
+	case slh_dsa:
+	    /* for ML-DSA and SLH-DSA, the public key value is stored in CKA_VALUE */
+	    /* on the public key object, together with CKA_PARAMETER_SET.          */
+	    if(hPublicKey==NULL_PTR) {
+		fprintf(stderr, "Error: a public key is required in order to generate a post-quantum certificate.\n");
+		retcode = rc_error_dsa_missing_public_key;
+		goto err;
+	    }
+	    handle_for_attributes = hPublicKey;
+	    attrlist = pkcs11_new_attrlist( p11Context,
+					    _ATTR(CKA_VALUE),
+					    _ATTR(CKA_PARAMETER_SET),
+					    _ATTR(CKA_ID),
+					    _ATTR_END);
+	    break;
+#endif
 
 	default:
 	    fprintf(stderr, "Error: unsupported key type\n");

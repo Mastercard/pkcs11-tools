@@ -24,14 +24,16 @@
 #include <stdarg.h>
 #include "pkcs11lib.h"
 
-#include <openssl/rsa.h>
-#include <openssl/dh.h>
-#include <openssl/dsa.h>
-#include <openssl/ec.h>
 #include <openssl/bio.h>
+#include <openssl/bn.h>
+#include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/asn1.h>
+#if defined(HAVE_PQC_OPENSSL)
+#include <openssl/core_names.h>
+#include <openssl/params.h>
+#endif
 
 
 static void more_X509(X509* cert)
@@ -131,6 +133,9 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 					    _ATTR(CKA_BASE), /* DSA/DH */
 					    _ATTR(CKA_EC_PARAMS), /* EC */
 					    _ATTR(CKA_EC_POINT),  /* EC */
+#if defined(WITH_PQC)
+					    _ATTR(CKA_PARAMETER_SET), /* ML-KEM/ML-DSA/SLH-DSA */
+#endif
 					    _ATTR_END );
 
 		if( pkcs11_read_attr_from_handle_ext (attrs, hndl,
@@ -147,7 +152,6 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 			    switch(*(CK_OBJECT_CLASS *)(oktype->pValue)) {
 
 			    case CKK_RSA: {
-				RSA *rsa = NULL;
 				EVP_PKEY *pk = NULL;
 				BIGNUM *bn_modulus = NULL;
 				BIGNUM *bn_exponent = NULL;
@@ -165,32 +169,16 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 				    goto key_rsa_error;
 				}
 
-				if( (rsa=RSA_new()) == NULL ) {
+				if ( (pk = pkcs11_pkey_from_rsa_public(bn_modulus, bn_exponent)) == NULL ) {
 				    P_ERR();
 				    goto key_rsa_error;
 				}
-
-				if ((pk=EVP_PKEY_new()) == NULL) {
-				    P_ERR();
-				    goto key_rsa_error;
-				}
-
-				RSA_set0_key(rsa, bn_modulus, bn_exponent, NULL);
-				bn_modulus = NULL; /* forget, moved to rsa */
-				bn_exponent = NULL; /* forget, moved to rsa */
-
-				if (!EVP_PKEY_assign_RSA(pk,rsa)) {
-				    P_ERR();
-				    goto key_rsa_error;
-				}
-				rsa=NULL;	/* forget it, moved to pk */
 
 				more_pubk(pk);
 
 				key_rsa_error:
 				if(bn_modulus)  { BN_free(bn_modulus); }
 				if(bn_exponent) { BN_free(bn_exponent); }
-				if(rsa)         { RSA_free(rsa); }
 				if(pk)          { EVP_PKEY_free(pk); }
 			    }
 				break;
@@ -198,7 +186,6 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 
 
 			    case CKK_DSA: {
-				DSA *dsa = NULL;
 				EVP_PKEY *pk = NULL;
 				BIGNUM *bn_prime = NULL;
 				BIGNUM *bn_subprime = NULL;
@@ -231,28 +218,10 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 				    goto key_dsa_error;
 				}
 
-				if( (dsa=DSA_new()) == NULL ) {
+				if ( (pk = pkcs11_pkey_from_dsa_public(bn_prime, bn_subprime, bn_base, bn_pubkey)) == NULL ) {
 				    P_ERR();
 				    goto key_dsa_error;
 				}
-
-				if ((pk=EVP_PKEY_new()) == NULL) {
-				    P_ERR();
-				    goto key_dsa_error;
-				}
-
-				DSA_set0_pqg(dsa, bn_prime, bn_subprime, bn_base);
-				bn_prime = NULL;    /* forget, moved to dsa */
-				bn_subprime = NULL; /* forget, moved to dsa */
-				bn_base = NULL;     /* forget, moved to dsa */
-				DSA_set0_key(dsa, bn_pubkey, NULL);
-				bn_pubkey = NULL;   /* forget, moved to dsa */
-
-				if (!EVP_PKEY_assign_DSA(pk,dsa)) {
-				    P_ERR();
-				    goto key_dsa_error;
-				}
-				dsa=NULL;	/* forget it, moved to pk */
 
 				more_pubk(pk);
 
@@ -261,7 +230,6 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 				if(bn_subprime) { BN_free(bn_subprime); }
 				if(bn_base)     { BN_free(bn_base); }
 				if(bn_pubkey)   { BN_free(bn_pubkey); }
-				if(dsa)         { DSA_free(dsa); }
 				if(pk)          { EVP_PKEY_free(pk); }
 
 			    }
@@ -270,7 +238,6 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 
 
 			    case CKK_DH: {
-				DH *dh = NULL;
 				EVP_PKEY *pk = NULL;
 				BIGNUM *bn_prime = NULL;
 				BIGNUM *bn_base = NULL;
@@ -296,27 +263,10 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 				    goto key_dh_error;
 				}
 
-				if( (dh=DH_new()) == NULL ) {
+				if ( (pk = pkcs11_pkey_from_dh_public(bn_prime, bn_base, NULL, bn_pubkey)) == NULL ) {
 				    P_ERR();
 				    goto key_dh_error;
 				}
-
-				if ((pk=EVP_PKEY_new()) == NULL) {
-				    P_ERR();
-				    goto key_dh_error;
-				}
-
-				DH_set0_pqg(dh, bn_prime, NULL, bn_base);
-				bn_prime = NULL;    /* forget, moved to dh */
-				bn_base = NULL;     /* forget, moved to dh */
-				DH_set0_key(dh, bn_pubkey, NULL);
-				bn_pubkey = NULL;   /* forget, moved to dh */
-
-				if (!EVP_PKEY_assign_DH(pk,dh)) {
-				    P_ERR();
-				    goto key_dh_error;
-				}
-				dh=NULL;	/* forget it, moved to pk */
 
 				more_pubk(pk);
 
@@ -324,7 +274,6 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 				if(bn_prime)    { BN_free(bn_prime); }
 				if(bn_base)     { BN_free(bn_base); }
 				if(bn_pubkey)   { BN_free(bn_pubkey); }
-				if(dh)          { DH_free(dh); }
 				if(pk)          { EVP_PKEY_free(pk); }
 
 			    }
@@ -333,94 +282,47 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 
 
 			    case CKK_EC: {
-				EC_KEY *ec = NULL;
-				EC_GROUP *ec_group = NULL;
 				ASN1_OCTET_STRING *ec_point_container = NULL;
-				EC_POINT *ec_point = NULL;
 				EVP_PKEY *pk = NULL;
-
+				const char *group_name = NULL;
 
 				CK_ATTRIBUTE_PTR oecparams = pkcs11_get_attr_in_attrlist(attrs, CKA_EC_PARAMS);
 				CK_ATTRIBUTE_PTR oecpoint  = pkcs11_get_attr_in_attrlist(attrs, CKA_EC_POINT);
-				const unsigned char * pp;
+				const unsigned char *pp;
 
-				if( (ec=EC_KEY_new()) == NULL ) {
-				    P_ERR();
+				group_name = pkcs11_pkey_ec_group_name_from_ecparams(oecparams->pValue,
+										     oecparams->ulValueLen);
+				if (group_name == NULL) {
+				    fprintf(stderr, "Error: unable to resolve EC named curve from CKA_EC_PARAMS\n");
 				    goto key_ec_error;
 				}
 
-				/* extract CKA_EC_PARAMS into EC_GROUP (which is auto-allocated by call) */
-				/* openssl pattern: &pp will be incremented beyond size of DER struct */
-				pp = oecparams->pValue; /* copy the pointer */
-				if(d2i_ECPKParameters(&ec_group, &pp, oecparams->ulValueLen) == NULL ) {
-				    P_ERR();
-				    goto key_ec_error;
-				}
-
-				/* assign group to key */
-				if(EC_KEY_set_group(ec, ec_group) == 0) {
-				    P_ERR();
-				    goto err;
-				}
-
-				/* create point */
-				if( (ec_point=EC_POINT_new(ec_group)) == NULL ) {
-				    P_ERR();
-				    goto key_ec_error;
-				}
-
-				/* extract point value into ASN1_OCTET_STRING structure */
-				/* openssl pattern: &pp will be incremented beyond size of DER struct */
-				pp = oecpoint->pValue; /* copy the pointer */
+				pp = oecpoint->pValue;
 				if(d2i_ASN1_OCTET_STRING(&ec_point_container, &pp, oecpoint->ulValueLen) == NULL ) {
 				    fprintf(stderr, "Warning: CKA_EC_POINT format likely not compliant, trying alternate way to decode public key\n");
-				    /* d2i_TYPE() will NULLify the destination pointer in case of error (??!) */
-				    /* we need to reset the value */
 				    if( (ec_point_container=ASN1_OCTET_STRING_new()) == NULL ) {
 					P_ERR();
 					goto key_ec_error;
 				    }
-
 				    if(ASN1_OCTET_STRING_set(ec_point_container, oecpoint->pValue, oecpoint->ulValueLen) == 0) {
 					P_ERR();
 					goto key_ec_error;
 				    }
 				}
 
-				/* extract point from PKCS#11 attribute */
-				/* embedded into ec_point_container     */
-				if(EC_POINT_oct2point(ec_group, ec_point, ec_point_container->data, ec_point_container->length, NULL) == 0 ) {
+				pk = pkcs11_pkey_from_ec_public(group_name,
+								ec_point_container->data,
+								(size_t)ec_point_container->length);
+				if (pk == NULL) {
 				    P_ERR();
 				    goto key_ec_error;
 				}
-
-				/* assign point to key */
-				if( EC_KEY_set_public_key(ec, ec_point) == 0) {
-				    P_ERR();
-				    goto key_ec_error;
-				}
-				ec_point = NULL; /* forget it */
-
-				/* create PKEY object */
-				if ((pk=EVP_PKEY_new()) == NULL) {
-				    goto key_ec_error;
-				}
-
-				/* assign EC key to PKEY */
-				if (!EVP_PKEY_assign_EC_KEY(pk, ec)) {
-				    P_ERR();
-				    goto key_ec_error;
-				}
-				ec=NULL;	/* forget it, moved to pk */
 
 				more_pubk(pk);
 
 				key_ec_error:
 				if(ec_point_container!=NULL) { ASN1_OCTET_STRING_free(ec_point_container); }
-				if(ec_point!=NULL) { EC_POINT_free(ec_point); }
-				if(ec_group!=NULL) { EC_GROUP_free(ec_group); }
-				if(ec!=NULL)       { EC_KEY_free(ec); }
-				if(pk)             { EVP_PKEY_free(pk); }
+				if(pk)                       { EVP_PKEY_free(pk); }
 
 			    }
 				break;
@@ -453,8 +355,17 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 				/* extract point into octet string */
 				pp = oecpoint->pValue;
 				if( (ed_point = d2i_ASN1_OCTET_STRING(NULL, &pp, oecpoint->ulValueLen)) == NULL ) {
-				    P_ERR();
-				    goto key_ed_error;
+				    /* Some tokens expose CKA_EC_POINT as raw bytes instead of DER-wrapped OCTET STRING. */
+				    ed_point = ASN1_OCTET_STRING_new();
+				    if(ed_point == NULL) {
+					P_ERR();
+					goto key_ed_error;
+				    }
+
+				    if(ASN1_OCTET_STRING_set(ed_point, oecpoint->pValue, oecpoint->ulValueLen) == 0) {
+					P_ERR();
+					goto key_ed_error;
+				    }
 				}
 
 				/* extract param into OID */
@@ -514,6 +425,76 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 			    }
 				break;
 				/* end of case CKK_EC_EDWARDS */
+
+#if defined(HAVE_PQC_OPENSSL)
+			    case CKK_ML_KEM:
+			    case CKK_ML_DSA:
+			    case CKK_SLH_DSA: {
+				/* Post-Quantum public keys (FIPS 203/204/205): the raw    */
+				/* public key is in CKA_VALUE and the parameter set in     */
+				/* CKA_PARAMETER_SET. Rebuild the EVP_PKEY directly with   */
+				/* EVP_PKEY_fromdata(). See pkcs11_cat for more details.   */
+				EVP_PKEY *pk = NULL;
+				EVP_PKEY_CTX *ctx = NULL;
+				const pqc_paramset_t *ps = NULL;
+				CK_ATTRIBUTE_PTR ovalue = NULL;
+				CK_ATTRIBUTE_PTR oparamset = NULL;
+				CK_KEY_TYPE kt = *(CK_KEY_TYPE *)(oktype->pValue);
+				key_type_t pqckt;
+
+				switch(kt) {
+				case CKK_ML_KEM:  pqckt = ml_kem;  break;
+				case CKK_ML_DSA:  pqckt = ml_dsa;  break;
+				default:          pqckt = slh_dsa; break;
+				}
+
+				ovalue    = pkcs11_get_attr_in_attrlist(attrs, CKA_VALUE);
+				oparamset = pkcs11_get_attr_in_attrlist(attrs, CKA_PARAMETER_SET);
+
+				if(ovalue==NULL || oparamset==NULL || oparamset->pValue==NULL) {
+			    	fprintf(stderr, "Error: object missing attribute(s) CKA_VALUE and/or CKA_PARAMETER_SET\n");
+			    	goto key_pqc_error;
+				}
+				if(oparamset->ulValueLen != sizeof(CK_ULONG)) {
+			    	fprintf(stderr, "Error: unexpected CKA_PARAMETER_SET size\n");
+				    goto key_pqc_error;
+				}
+
+				ps = pkcs11_pqc_paramset_from_value(pqckt, *(CK_ULONG *)(oparamset->pValue));
+				if(ps==NULL) {
+				    fprintf(stderr, "Error: unsupported/unknown PQC parameter set\n");
+				    goto key_pqc_error;
+				}
+
+				{
+				    OSSL_PARAM params[2];
+				    params[0] = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
+										 ovalue->pValue, ovalue->ulValueLen);
+				    params[1] = OSSL_PARAM_construct_end();
+
+				    if( (ctx = EVP_PKEY_CTX_new_from_name(NULL, ps->osslname, NULL)) == NULL ) {
+					P_ERR();
+					goto key_pqc_error;
+				    }
+				    if( EVP_PKEY_fromdata_init(ctx) <= 0 ) {
+					P_ERR();
+					goto key_pqc_error;
+				    }
+				    if( EVP_PKEY_fromdata(ctx, &pk, EVP_PKEY_PUBLIC_KEY, params) <= 0 ) {
+					P_ERR();
+					goto key_pqc_error;
+				    }
+				}
+
+				more_pubk(pk);
+
+				key_pqc_error:
+				if(ctx) { EVP_PKEY_CTX_free(ctx); }
+				if(pk) { EVP_PKEY_free(pk); }
+			    }
+				break;
+				/* end of case CKK_PQC */
+#endif /* HAVE_PQC_OPENSSL */
 
 			    default:
 				fprintf(stderr, "Sorry, (yet) unsupported key type\n");

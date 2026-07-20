@@ -369,6 +369,20 @@ static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, bool
 	    value = "CKK_EC_EDWARDS";
 	    break;
 
+#if defined(WITH_PQC)
+	case CKK_ML_KEM:
+	    value = "CKK_ML_KEM";
+	    break;
+
+	case CKK_ML_DSA:
+	    value = "CKK_ML_DSA";
+	    break;
+
+	case CKK_SLH_DSA:
+	    value = "CKK_SLH_DSA";
+	    break;
+#endif
+
 	default:
 	    value = "unsupported";
     }
@@ -771,6 +785,8 @@ static func_rc _output_wrapped_key_header(wrappedKeyCtx *wctx, FILE *fp) {
 	"#     CKA_DECRYPT\n"
 	"#     CKA_WRAP\n"
 	"#     CKA_UNWRAP\n"
+	"#     CKA_ENCAPSULATE\n"
+	"#     CKA_DECAPSULATE\n"
 	"#     CKA_SIGN\n"
 	"#     CKA_VERIFY\n"
 	"#     CKA_DERIVE\n"

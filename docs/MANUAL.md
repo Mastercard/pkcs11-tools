@@ -79,6 +79,7 @@ The following commands are supported:
 | `p11rewrap`     | unwraps a key, and wrap it again under one or several wrapping key(s)            |
 | `masqreq`       | tunes a CSR to adjust DN and other fields (without re-signing)                   |
 | `p11mkcert`     | generates a self-signed certificate, suitable for Java JCA                       |
+| `p11init`       | initializes a token and/or its user PIN, or resets an existing token             |
 
 ## common arguments
 
@@ -155,22 +156,62 @@ command line will override the corresponding environment variable.
 
 ## wrapper scripts
 
-To facilitate setting environment variables and/or arguments, there are wrapper scripts that can be used to interface
-with the cryptographic tokens. All wrapper scripts begin with `with_` and are followed by the name of the platform. The
-following table lists existing scripts:
+To facilitate setting environment variables and/or arguments, a set of wrapper scripts is provided to interface with the
+most common cryptographic tokens. All wrapper script names begin with `with_` and are followed by the name of the
+platform; you simply prefix your `pkcs11-tools` command with the relevant wrapper, e.g. `with_softhsm p11ls`. The
+following table lists the existing scripts:
 
-| script name    | library              | equipment                                             |
-| -------------- | -------------------- | ----------------------------------------------------- |
-| `with_beid`    | `libbeidpkcs11.so`   | Belgian national electronic ID card PKCS#11 interface |
-| `with_luna`    | `libCryptoki2_64.so` | Thales (Gemalto) Safenet Luna HSM                     |
-| `with_nfast`   | `libcknfast.so`      | Entrust (nCipher) nShield HSM                         |
-| `with_nss`     | `libsoftokn3.so`     | Mozilla.org NSS soft token                            |
-| `with_softhsm` | `libsofthsm2.so`     | OpenDNSSSEC SoftHSM v2                                |
-| `with_utimaco` | `libcs_pkcs11_R2.so` | Utimaco Security Server HSM                           |
+| script name     | library                                  | equipment                                             |
+| --------------- | ---------------------------------------- | ----------------------------------------------------- |
+| `with_aws`      | `libcloudhsm_pkcs11.so`                  | AWS CloudHSM                                          |
+| `with_beid`     | `libbeidpkcs11.so`                       | Belgian national electronic ID card PKCS#11 interface |
+| `with_kryoptic` | `libkryoptic_pkcs11.so`                  | [Kryoptic](https://github.com/latchset/kryoptic) soft token |
+| `with_luna`     | `libCryptoki2_64.so`                     | Thales (Gemalto) Safenet Luna HSM                     |
+| `with_nfast`    | `libcknfast.so`                          | Entrust (nCipher) nShield HSM                         |
+| `with_nss`      | `libsoftokn3.so`                         | Mozilla.org NSS soft token                            |
+| `with_softhsm`  | `libsofthsm2.so`                         | OpenDNSSEC SoftHSM v2                                 |
+| `with_utimaco`  | `libcs_pkcs11_R3.so` / `libcs_pkcs11_R2.so` | Utimaco Security Server HSM (R3 preferred, R2 fallback) |
 
-Each wrapper script is looking for a file `.pkcs11rc` within the current directory, or within any parent directory up to
-the root. This file is sourced as a shell script; default variables defined here will override defaults from the wrapper
-script.
+On macOS, the wrappers look for the corresponding `.dylib` library (the SoftHSM2 module keeps its `.so` extension on all
+platforms, as it is a libtool module).
+
+All wrappers share a common implementation, `with_pkcs11_common`, which is sourced by each `with_xxx` script. It locates
+the vendor library, sources the configuration file (see below), handles the options and environment variables described
+here, and finally executes the requested command with the right environment in place.
+
+### library auto-detection
+
+Each wrapper knows the filename(s) of its vendor library and a list of vendor-specific directories to search. If the
+library is not found there, a set of common locations is also probed (`/usr/lib`, `/usr/lib64`, the multiarch
+`/usr/lib/<arch>-linux-gnu` directory on Linux, `/usr/local/lib`, `$HOME/.local/lib`, and their `pkcs11` subdirectories).
+When the Homebrew environment is active (i.e. `HOMEBREW_PREFIX` is set, typically through `eval "$(brew shellenv)"`),
+`$HOMEBREW_PREFIX/lib` and `$HOMEBREW_PREFIX/lib/pkcs11` are searched as well. The auto-detection can always be
+overridden by setting `PKCS11LIB` to the full path of the library.
+
+### the `.pkcs11rc` configuration file
+
+Before executing the command, each wrapper looks for a configuration file, starting in the current directory and walking
+up the directory tree until `$HOME` is reached (the search never goes above `$HOME`). The first match wins. At each
+level, a vendor-specific file `.pkcs11rc.<vendor>` (e.g. `.pkcs11rc.softhsm`, `.pkcs11rc.nss`) is looked up first, then
+the generic `.pkcs11rc`. The file is sourced as a POSIX shell script, so any variable it sets overrides the wrapper
+defaults.
+
+Because the same generic `.pkcs11rc` may be shared by several vendors, the wrapper exports `$_p11_vendor` (a short
+identifier such as `softhsm`, `nss`, `luna`, `aws`, `beid`, `kryoptic`, `nfast`, `utimaco`) so the file can dispatch on
+it:
+
+```sh
+case ${_p11_vendor:-} in
+    softhsm) SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf ;;
+    luna)    PKCS11TOKENLABEL=mytoken ;;
+    nss)     PKCS11NSSDIR=sql:$HOME/nssdb ;;
+esac
+```
+
+The fastest way to get started is to let the wrapper generate a template for you:
+
+- `with_xxx -c` creates a fully commented `.pkcs11rc` template (with all vendor sections) in the current directory.
+- `with_xxx -e` opens the `.pkcs11rc` in `$VISUAL`/`$EDITOR` (falling back to `vi`), creating it first if none is found.
 
 As an example, you could create a `.pkcs11rc` file to access your favorite SoftHSM token:
 
@@ -186,13 +227,41 @@ Then just invoke `with_softhsm` in front of your pkcs11-tools command:
 $ with_softhsm p11ls
 ```
 
-when invoking the wrapper scripts, a few environment variables may be specified:
+### options
 
-- `NOSLOT`: when set to `1`, slot or token are unset. It allows you to trigger the interactive mode (handy if you need
-  to check which slots are available)
-- `SPY`: set this value to a target log file, or to `/dev/stdout` or `/dev/stderr` to invoke `pkcs11-spy.so`, a shim
-  PKCS#11 interface that will trace calls and forward them to the library. Please refer to
-  the [OpenSC project](https://github.com/OpenSC/OpenSC) for more information about the spy module.
+Wrapper options are consumed by the wrapper itself and never reach the executed command:
+
+| option    | description                                                                                   |
+| --------- | --------------------------------------------------------------------------------------------- |
+| `-n`      | no slot: unset `PKCS11SLOT` and `PKCS11TOKENLABEL`, triggering interactive slot selection      |
+| `-s`      | SHIM mode: trace PKCS#11 calls through `libpkcs11shim`, output to `stderr`                     |
+| `-S dest` | SHIM mode: trace PKCS#11 calls through `libpkcs11shim`, output to `dest` (a file, or `/dev/stdout`) |
+| `-c`      | create a template `.pkcs11rc` in the current directory and exit                               |
+| `-e`      | open `.pkcs11rc` in `$VISUAL`/`$EDITOR` (creating it first if absent)                          |
+| `-h`      | show a usage summary and exit                                                                  |
+
+The `-s`/`-S` options (and the equivalent `SHIM` environment variable) rely on
+[`libpkcs11shim`](https://github.com/Mastercard/libpkcs11shim), a lightweight Mastercard open-source PKCS#11 shim that
+logs every call before forwarding it to the vendor library — a handy way to debug interactions with a token. Install it
+separately so the wrappers can find it.
+
+### environment variables
+
+When invoking the wrapper scripts, a few environment variables may be specified:
+
+- `PKCS11LIB`: override the auto-detected library with an explicit path.
+- `PKCS11SLOT`: slot index to use (default: `0`, unless `PKCS11TOKENLABEL` is set).
+- `PKCS11TOKENLABEL`: select the slot by token label instead of by index.
+- `PKCS11PASSWORD`: the token PIN (defaults are vendor-specific, e.g. `changeit`).
+- `PKCS11NSSDIR`: NSS database directory (NSS only; defaults to `sql:$HOME/.pki/nssdb`).
+- `NOSLOT`: when set to `1`, slot and token are unset (equivalent to `-n`). It allows you to trigger the interactive
+  mode (handy if you need to check which slots are available).
+- `NORC`: when set to `1`, skip sourcing any `.pkcs11rc` file.
+- `SHIM`: set this value to a target log file, or to `/dev/stdout` or `/dev/stderr`, to interpose
+  [`libpkcs11shim`](https://github.com/Mastercard/libpkcs11shim), a shim PKCS#11 interface that traces every call and
+  forwards it to the vendor library (equivalent to `-S dest`). `libpkcs11shim` is a separate Mastercard open-source
+  project; install it and make sure it is reachable through one of the library search paths to use the SHIM/`-s`/`-S`
+  options.
 
 example:
 
@@ -258,6 +327,8 @@ The following table lists the meaning of abbreviations:
 | `wra`        | Wrapping                   |
 | `unw`        | Unwrapping                 |
 | `der`        | Derivation                 |
+| `ncp`        | Encapsulation (KEM)        |
+| `dcp`        | Decapsulation (KEM)        |
 
 The last column tells whether the operation takes place inside the boundaries of the cryptographic module (`HW`) or at the
 library level (`SW`).
@@ -392,6 +463,8 @@ For each object, a quick list of attributes is displayed. The following table li
 | `AAU`        | the key requires authentication each time it is used                   |
 | `ase`        | the key has always been sensitive                                      |
 | `alm`        | the key has associated allowed mechanisms (use `p11od` to reveal)      |
+| `dcp`        | the key can be used for decapsulation (KEM private key)                |
+| `dct`        | the key has a decapsulate template (use `p11od` to reveal)             |
 | `dec`        | the key can be used for decryption                                     |
 | `der`        | the key can be used for key derivation                                 |
 | `drt`        | the key has a derive template (use `p11od` to reveal)                  |
@@ -399,6 +472,8 @@ For each object, a quick list of attributes is displayed. The following table li
 | `imp`        | the key has been imported (e.g. unwrapped)                             |
 | `loc`        | the key has been generated locally                                     |
 | `NAS`        | the key has not always been sensitive                                  |
+| `ncp`        | the key can be used for encapsulation (KEM public key)                 |
+| `nct`        | the key has an encapsulate template (use `p11od` to reveal)            |
 | `NSE`        | the key is not sensitive (clear text value could leave token boundary) |
 | `nxt`        | the key has never been extractable                                     |
 | `prv`        | the object is private, i.e. requires login to access                   |
@@ -668,11 +743,15 @@ Generate a key or a key pair on a PKCS\#11 token, or generate and wrap under one
 options, but the more important are:
 
 - `-i`: the label of the key
-- `-k`: the key algorithm: `rsa`, `ec`, `des`, `aes`, `generic`, `hmac` (`hmac` and `generic` are synonyms), `hmacsha1`
-  , `hmacsha256`, `hmacsha384`, `hmacsha512` (these are nCipher-specific, and only available when the toolkit is
-  compiled with nCipher extensions)
-- `-b`: the key length in bits / `-q`: curve parameter name for elliptic curve. Please check
+- `-k`: the key algorithm: `rsa`, `ec`, `ed`, `des`, `aes`, `generic`, `hmac` (`hmac` and `generic` are synonyms)
+  , `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512` (these are nCipher-specific, and only available when the
+  toolkit is compiled with nCipher extensions), and, when compiled with Post-Quantum Cryptography support (the
+  default, see `--disable-pqc`), `mlkem`, `mldsa` and `slhdsa`
+- `-b`: the key length in bits / `-q`: curve/parameter set name for elliptic and Edwards keys. For EC keys, please check
   out `openssl ecparam -list_curves` for a list of supported curves (obviously, the PKCS\#11 token must support it).
+  For post-quantum keys, the parameter set is selected through `-b` for ML-KEM (`512`, `768`, `1024`; default `768`)
+  and ML-DSA (`44`, `65`, `87`; default `65`), and through `-q` for SLH-DSA (`{sha2,shake}-{128,192,256}{s,f}`, e.g.
+  `sha2-128s` (default) or `shake-256f`). See [post-quantum keys](#post-quantum-keys) below.
 
 ### attributes
 
@@ -744,7 +823,8 @@ curly braces. Valid examples:
 
 #### attribute array value
 
-For template attributes such as `CKA_UNWRAP_TEMPLATE` and `CKA_WRAP_TEMPLATE`, the value is provided as a list of
+For template attributes such as `CKA_UNWRAP_TEMPLATE`, `CKA_WRAP_TEMPLATE`, `CKA_DERIVE_TEMPLATE`,
+`CKA_ENCAPSULATE_TEMPLATE` and `CKA_DECAPSULATE_TEMPLATE`, the value is provided as a list of
 attributes, delimited by curly braces `{` and `}`, each attribute being separated by whitespaces and/or commas `,`.
 Valid examples:
 
@@ -774,12 +854,15 @@ The following table provides a list of currently supported key types:
 | `CKK_EC`             | `ec`                          |
 | `CKK_GENERIC_SECRET` | `generic_secret`, `generic`   |
 | `CKK_MD5_HMAC`       | `md5_hmac`                    |
+| `CKK_ML_DSA`         | `ml_dsa`, `mldsa`             |
+| `CKK_ML_KEM`         | `ml_kem`, `mlkem`             |
 | `CKK_RSA`            | `rsa`                         |
 | `CKK_SHA224_HMAC`    | `sha224_hmac`                 |
 | `CKK_SHA256_HMAC`    | `sha256_hmac`                 |
 | `CKK_SHA384_HMAC`    | `sha384_hmac`                 |
 | `CKK_SHA512_HMAC`    | `sha512_hmac`                 |
 | `CKK_SHA_1_HMAC`     | `sha_1_hmac`, `sha1_hmac`     |
+| `CKK_SLH_DSA`        | `slh_dsa`, `slhdsa`           |
 
 ### supported attributes
 
@@ -790,9 +873,13 @@ The following table describes a list of all supported attributes.
 | `CKA_ALLOWED_MECHANISMS` | `allowed_mechanisms` | mechanisms array |                                             |
 | `CKA_CLASS`              | `class`              | class            |                                             |
 | `CKA_COPYABLE`           | `copyable`           | boolean          |                                             |
+| `CKA_DECAPSULATE`        | `decapsulate`        | boolean          | `false`                                     |
+| `CKA_DECAPSULATE_TEMPLATE` | `decapsulate_template` | attributes array |                                             |
 | `CKA_DECRYPT`            | `decrypt`            | boolean          | `false`                                     |
 | `CKA_DERIVE`             | `derive`             | boolean          | `false`                                     |
 | `CKA_EC_PARAMS`          | `ec_params`          | hex              |                                             |
+| `CKA_ENCAPSULATE`        | `encapsulate`        | boolean          | `false`                                     |
+| `CKA_ENCAPSULATE_TEMPLATE` | `encapsulate_template` | attributes array |                                             |
 | `CKA_ENCRYPT`            | `encrypt`            | boolean          | `false`                                     |
 | `CKA_END_DATE`           | `end_date`           | date             |                                             |
 | `CKA_EXTRACTABLE`        | `extractable`        | boolean          | `false`                                     |
@@ -829,6 +916,36 @@ Generating, please wait... Key Generation succeeded
 For generating HMAC key on Entrust HSM, you need to use one of the following key types: `hmacsha1`, `hmacsha256`
 , `hmacsha384`, `hmacsha512`; In addition, specify `sign` and `verify`. The `-b` parameter specifies how many bits are
 used to generate the key. It is rounded up to the next byte boundary.
+
+### post-quantum keys
+
+When the toolkit is compiled with Post-Quantum Cryptography support (enabled by default, see `--disable-pqc` in the
+[install document](INSTALL.md)), `p11keygen` can generate the three NIST/PKCS\#11 v3.2 post-quantum algorithms:
+
+| key type | `-k` value | algorithm           | parameter set selector                                                       |
+| -------- | ---------- | ------------------- | ---------------------------------------------------------------------------- |
+| ML-KEM   | `mlkem`    | FIPS 203 (KEM)      | `-b 512`, `-b 768` (default), `-b 1024`                                       |
+| ML-DSA   | `mldsa`    | FIPS 204 (signature)| `-b 44`, `-b 65` (default), `-b 87`                                           |
+| SLH-DSA  | `slhdsa`   | FIPS 205 (signature)| `-q {sha2,shake}-{128,192,256}{s,f}`, e.g. `sha2-128s` (default), `shake-256f`|
+
+ML-DSA and SLH-DSA are signature algorithms: assert `sign` on the private key and `verify` on the public key. ML-KEM is
+a key encapsulation mechanism (KEM): assert `decapsulate` on the private key and `encapsulate` on the public key (these
+map to the new `CKA_DECAPSULATE` / `CKA_ENCAPSULATE` boolean attributes; `CKA_DECAPSULATE_TEMPLATE` /
+`CKA_ENCAPSULATE_TEMPLATE` are supported as well).
+
+```
+$ p11keygen -k mldsa -b 65 -i my-mldsa-key sign verify
+Generating, please wait... Key Generation succeeded
+$ p11keygen -k slhdsa -q sha2-128s -i my-slhdsa-key sign verify
+Generating, please wait... Key Generation succeeded
+$ p11keygen -k mlkem -b 768 -i my-mlkem-key encapsulate decapsulate
+Generating, please wait... Key Generation succeeded
+```
+
+Key generation and object inspection (`p11ls`, `p11od`, `p11cat`, `p11more`) only require any OpenSSL 3.x. Public key
+export, as well as CSR (`p11req`) and self-signed certificate (`p11mkcert`) creation for ML-DSA and SLH-DSA, rely on
+OpenSSL's native PQC implementation and therefore require `libcrypto >= 3.5.0`. When building against an older
+libcrypto, key generation and inspection remain available while those operations are disabled.
 
 ### creating wrapped keys
 
@@ -889,6 +1006,9 @@ Generate a PKCS\#10 CSR. Important options are:
 - `-o [filename]`: output to file
 - `-a [pkcs1 | pss]`: choose digital signature algorithm. The current default is `pkcs1` (PKCS\#1 v1.5); choose RSA-PSS with `pss`
 
+Post-quantum keys are supported: a CSR can be generated for ML-DSA and SLH-DSA keys (in which case a public key object is
+required). This requires the toolkit to be compiled with PQC support and a `libcrypto >= 3.5.0`.
+
 ```
 $ p11req -i test-rsa-2048 -d \'/CN=test/OU=my dept/C=BE\' -H sha256 -e DNS:anotherhost.int -e email:writeme\@mastercard.com
 -----BEGIN CERTIFICATE REQUEST-----
@@ -932,6 +1052,9 @@ Options are:
 - `-v`: be verbose.
 - `-o [filename]`: output to file
 - `-a [pkcs1 | pss]`: choose digital signature algorithm. The current default is `pkcs1` (PKCS\#1 v1.5); choose RSA-PSS with `pss`
+
+Post-quantum keys are supported: a self-signed certificate can be generated for ML-DSA and SLH-DSA keys (in which case a
+public key object is required). This requires the toolkit to be compiled with PQC support and a `libcrypto >= 3.5.0`.
 
 ```
 $ p11mkcert -i test-rsa-2048 -d \'/CN=test/OU=my dept/C=BE\' -H sha256 -e DNS:anotherhost.int -e email:writeme\@mastercard.com
@@ -1020,6 +1143,124 @@ xL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4o
 xL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4o
 xL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4oxL4o
 -----END CERTIFICATE REQUEST-----
+```
+
+## p11init
+
+`p11init` initializes a PKCS\#11 token and/or its user (crypto officer) PIN, and can also reset (reinitialize) an
+already initialized token. It maps directly to the PKCS\#11 `C_InitToken` and `C_InitPIN` functions.
+
+Unlike the other commands, `p11init` does **not** honour the `PKCS11PASSWORD`, `PKCS11SLOT` or `PKCS11TOKENLABEL`
+environment variables. Because its operations are destructive, the target token must always be made explicit on the
+command line (`-s`/`-t`, or chosen from the interactive list) and the PINs must always be passed as arguments or typed at
+the prompt — there are no hidden defaults coming from the environment. The `:::exec:<command>` convention is supported (to
+fetch a PIN from a subprocess), but the `:::nologin` convention is not.
+
+When running interactively (the default), any value that is not supplied on the command line is prompted for, mirroring the
+behaviour of the other commands. When neither a slot index (`-s`) nor a token label (`-t`) is given, `p11init` prints the
+**full slot list** and prompts for a slot index — exactly like `p11slotinfo` and the other commands. When a slot or token
+*is* given, the selected slot is displayed. The SO PIN and user PIN are read with echo turned off, so a terminal is
+required. Any PIN that is being **defined** interactively (the SO PIN when initializing a token, and the new user PIN)
+is asked **twice** and the two entries must match, to guard against a typo; a mismatch aborts the command without
+performing any action. In batch mode (`-B`), nothing is prompted: the slot/token must be known up-front and every required value
+**must** be passed as a command-line argument; the command fails safely (without performing any action) if anything is
+missing or inconsistent.
+
+Operations are selected with explicit flags, which can be combined:
+
+- `-I`: initialize a token (`C_InitToken`, Security Officer credentials). Needs a token label (`-T`) and the SO PIN
+  (`-O`); both are mandatory in batch mode, and prompted for in interactive mode.
+- `-U`: initialize/change the user (crypto officer) PIN (`C_InitPIN`). Needs the SO PIN (`-O`, used to log in as SO) and the
+  new user PIN (`-P`).
+- `-I -U`: do both, in one go (the token is initialized first, then the user PIN is set on the freshly created token).
+
+The slot is **not** filtered by compatibility: the whole list is shown and the chosen slot is validated *after* selection.
+For `-I`, the chosen slot must hold an **uninitialized** token, unless `-R` is given to authorize the (destructive)
+reinitialization of an already initialized one. For a standalone `-U`, an explicit `(y/N)` confirmation is requested before the
+user PIN is (re)set. While initializing, `p11init` also prints a short description of the operation being performed.
+
+Options are:
+
+- `-l <path>`: path to the PKCS\#11 library (or `PKCS11LIB`).
+- `-m <NSS config dir>`: NSS configuration directory (or `PKCS11NSSDIR`).
+- `-s <slot index>`: the slot **index**. When omitted in interactive mode, the slot list is shown and a
+  slot index is prompted for. In batch mode it must be provided (for `-I`, and for `-U` unless `-t` is used).
+  (The `PKCS11SLOT` environment variable is **not** read by `p11init`.)
+- `-t <token label>`: a token label, allowed **only** together with `-U` alone, to address an already initialized token.
+  It cannot be used with `-I`. (The `PKCS11TOKENLABEL` environment variable is **not** read by `p11init`.)
+- `-I`: initialize a token (see above). The chosen slot must hold an **uninitialized** token, unless `-R` is given.
+- `-R`: explicitly authorize the reinitialization (reset) of an **already initialized** token. This is a destructive
+  operation that erases all of the token content; it must be combined with `-I`. The slot may be picked interactively.
+- `-U`: initialize/change the user PIN (see above). A standalone `-U` asks for an explicit `(y/N)` confirmation before proceeding.
+- `-O <SO PIN | :::exec:<command>>`: the Security Officer PIN (prompted if omitted in interactive mode, mandatory in batch mode).
+- `-P <user PIN | :::exec:<command>>`: the new user PIN (used by `-U`; prompted if omitted in interactive mode).
+- `-T <token label>`: the token label to set when initializing a token (`-I`); mandatory in batch mode, prompted for in interactive mode.
+- `-B`: batch mode: never prompt. All required values must be passed as arguments, and interactive confirmations are skipped.
+- `-h`: print usage information.
+- `-V`: print version information.
+
+### Resetting (erasing) an existing token
+
+In PKCS\#11, calling `C_InitToken` on an already initialized token erases all of its content: this is how a token is
+reset. To avoid accidental data loss, `p11init` refuses to reinitialize an already initialized token unless the `-R`
+option is explicitly provided. With `-R`, the slot can be picked from the regular slot list (or given with `-s`). When
+running interactively (i.e. without `-B`), it then prints a warning showing the token being reset and asks for an
+explicit `(y/N)` confirmation (answer `y` then ENTER to proceed). In batch mode (`-B`), `-R` is sufficient and no prompt is displayed.
+
+Note that, as required by the standard, the SO PIN passed with `-O` when resetting an already initialized token must
+match the token's current SO PIN.
+
+### Examples
+
+Initialize a blank token at slot index `0`, setting its label and SO PIN:
+
+```
+$ p11init -l /path/to/libpkcs11.so -I -s 0 -O 12345678 -T "my token"
+Token at slot index 0 initialized successfully.
+```
+
+Set the user (crypto officer) PIN of an already initialized token, addressed by label:
+
+```
+$ p11init -l /path/to/libpkcs11.so -U -t "my token" -O 12345678 -P 87654321
+User (crypto officer) PIN initialized successfully.
+```
+
+Initialize a token and set its user PIN in a single invocation:
+
+```
+$ p11init -l /path/to/libpkcs11.so -I -U -s 0 -O 12345678 -P 87654321 -T "my token"
+Token at slot index 0 initialized successfully.
+User (crypto officer) PIN initialized successfully.
+```
+
+Reset (erase and reinitialize) an already initialized token, in batch mode:
+
+```
+$ p11init -l /path/to/libpkcs11.so -I -R -B -s 0 -O 12345678 -T "my token"
+Token at slot index 0 initialized successfully.
+```
+
+Fetch the SO PIN from a subprocess:
+
+```
+$ p11init -l /path/to/libpkcs11.so -U -t "my token" -O :::exec:\"getsopin -label my-token\" -P 87654321
+```
+
+Initialize a token interactively (the slot list is shown, then the slot index, token label and SO PIN are prompted):
+
+```
+$ p11init -l /path/to/libpkcs11.so -I
+PKCS#11 module slot list:
+Slot index: 0
+----------------
+...
+Enter slot index: 0
+Enter new token label: my token
+Enter Security Officer (SO) PIN:
+Confirm Security Officer (SO) PIN:
+Initializing token at slot index 0 with label 'my token'...
+Token at slot index 0 initialized successfully.
 ```
 
 ## p11wrap and p11unwrap

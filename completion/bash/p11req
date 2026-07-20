@@ -1,0 +1,58 @@
+# p11req(1) completion                                      -*- shell-script -*-
+#
+# Bash autocompletion for `p11req`.
+# Provides completions for options and PKCS#11 object labels.
+#
+# Depends on:
+#   - ./p11-common
+
+source "$(dirname "${BASH_SOURCE[0]}")/p11-common"
+
+_p11req_opts="-l -m -s -t -p -i -d -r -o -a -H -e -X -F -v -h -V"
+
+_p11req() {
+  local cur="${COMP_WORDS[COMP_CWORD]}"
+  local prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+  if [[ "$prev" == "-l"  || "$prev" == "-o" ]]; then
+    __p11_complete_filepath "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-m" ]]; then
+    __p11_complete_dirpath "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-s" ]]; then
+    __p11_complete_slots "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-t" ]]; then
+    __p11_complete_token_labels "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-i" ]]; then
+    __p11_complete_objects "$cur"
+    return
+  fi
+
+  if [[ "$prev" == "-a" ]]; then
+    COMPREPLY=( $(compgen -W "pkcs pkcs1 pss" -- "$cur") )
+    return
+  fi
+
+  if [[ "$prev" == "-e" ]]; then
+    __p11_complete_san_prefixes "$cur"
+    return
+  fi
+
+  if [[ "$cur" == -* ]]; then
+    __p11_complete_options "$cur" "${_p11req_opts}"
+    return
+  fi
+}
+
+complete -F _p11req p11req

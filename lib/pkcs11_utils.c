@@ -29,7 +29,11 @@ static CK_ATTRIBUTE_PTR new_attribute_for_string(CK_ATTRIBUTE_TYPE argattrtype, 
 static CK_ATTRIBUTE_PTR new_attribute_for_null_term_string(CK_ATTRIBUTE_TYPE argattrtype, char *arg);
 static CK_ATTRIBUTE_PTR new_attribute_for_hex_string(CK_ATTRIBUTE_TYPE argattrtype, char *arg);
 
-char * pkcs11_prompt( char * prompt, CK_BBOOL echo )
+/* prompt_core: print a prompt and read a whole line from stdin, optionally with
+** echo turned off. No decorative leading/trailing newline is emitted; that is left
+** to the caller, so that prompts can be laid out compactly when several are chained.
+*/
+static char * prompt_core( char * prompt, CK_BBOOL echo )
 {
     char * buf = NULL;
     char * res = NULL;
@@ -41,8 +45,8 @@ char * pkcs11_prompt( char * prompt, CK_BBOOL echo )
 	exit( RC_ERROR_MEMORY );
     }
 
-    fprintf( stderr, "\n%s", prompt );
-    fflush( stdout );
+    fprintf( stderr, "%s", prompt );
+    fflush( NULL );		/* flush all output streams */
 
     if ( !echo ) {
 	pkcs11_ll_echo_off();
@@ -80,13 +84,57 @@ char * pkcs11_prompt( char * prompt, CK_BBOOL echo )
 	pkcs11_ll_echo_on();
     }
 
-    printf("\n" );
+    return buf;
+}
+
+char * pkcs11_prompt( char * prompt, CK_BBOOL echo )
+{
+    char * buf;
+
+    fprintf( stderr, "\n" );
+    buf = prompt_core( prompt, echo );
+    printf( "\n" );
+
     return buf;
 }
 
 void pkcs11_prompt_free_buffer(char *arg)
 {
     if(arg) free(arg);
+}
+
+/* pkcs11_prompt_new_secret: prompt twice (with echo turned off) for a NEW secret
+** (e.g. a PIN being defined) and require both entries to be identical. This guards
+** against typos when setting a credential that cannot be verified otherwise.
+**
+** The two prompts are laid out compactly (one per line, no blank lines in between).
+**
+** Returns the confirmed secret on success (the caller must release it with
+** pkcs11_prompt_free_buffer), or NULL when the two entries do not match.
+*/
+char * pkcs11_prompt_new_secret( char * prompt, char * confirm_prompt )
+{
+    char * first;
+    char * second;
+    char * result = NULL;
+
+    fprintf( stderr, "\n" );
+    first = prompt_core( prompt, CK_FALSE );
+    fprintf( stderr, "\n" );
+    second = prompt_core( confirm_prompt, CK_FALSE );
+    fprintf( stderr, "\n" );
+
+    if ( first != NULL && second != NULL && strcmp( first, second ) == 0 ) {
+	result = first;
+	first = NULL; /* ownership transferred to the caller */
+    } else {
+	fprintf( stderr, "*** Error: the two entries do not match.\n" );
+    }
+
+    if ( first != NULL ) { pkcs11_prompt_free_buffer( first ); }
+    if ( second != NULL ) { pkcs11_prompt_free_buffer( second ); }
+
+    return result;
 }
 
 
@@ -190,6 +238,10 @@ CK_ATTRIBUTE_TYPE get_attribute_type(char *arg)
 	attrtype = CKA_ENCRYPT;
     } else if (strcasecmp(arg, "CKA_DECRYPT")==0 || strcasecmp(arg, "DECRYPT")==0) {
 	attrtype = CKA_DECRYPT;
+    } else if (strcasecmp(arg, "CKA_ENCAPSULATE")==0 || strcasecmp(arg, "ENCAPSULATE")==0) {
+	attrtype = CKA_ENCAPSULATE;
+    } else if (strcasecmp(arg, "CKA_DECAPSULATE")==0 || strcasecmp(arg, "DECAPSULATE")==0) {
+	attrtype = CKA_DECAPSULATE;
     } else if (strcasecmp(arg, "CKA_SIGN")==0 || strcasecmp(arg, "SIGN")==0) {
 	attrtype = CKA_SIGN;
     } else if (strcasecmp(arg, "CKA_VERIFY")==0 || strcasecmp(arg, "VERIFY")==0) {

@@ -956,6 +956,251 @@ inline func_rc pkcs11_genED( pkcs11Context * p11ctx,
 }
 
 
+#if defined(WITH_PQC)
+/* Post-Quantum key pair generation: ML-KEM (FIPS 203), ML-DSA (FIPS 204) and   */
+/* SLH-DSA (FIPS 205). The parameter set ('param', e.g. "ml-dsa-65") is mapped   */
+/* to its CKP_* value and carried through CKA_PARAMETER_SET. ML-DSA and SLH-DSA  */
+/* are signature keys (CKA_SIGN/CKA_VERIFY), ML-KEM is an encapsulation key      */
+/* (CKA_ENCAPSULATE/CKA_DECAPSULATE).                                            */
+static func_rc pkcs11_genPQCEX( pkcs11Context * p11ctx,
+				key_type_t keytype,
+				char *label,
+				char *param,
+				CK_ATTRIBUTE attrs[],
+				CK_ULONG numattrs,
+				CK_OBJECT_HANDLE_PTR pubkhandleptr,
+				CK_OBJECT_HANDLE_PTR prvkhandleptr,
+				key_generation_t gentype)
+{
+    func_rc rc = rc_ok;
+    CK_RV retcode;
+    int i;
+    CK_BBOOL ck_false = CK_FALSE;
+    CK_BBOOL ck_true = CK_TRUE;
+    const pqc_paramset_t *ps;
+    CK_ULONG paramset_value;
+    bool is_kem;
+
+    CK_MECHANISM mechanism = {
+	0 , NULL_PTR, 0
+    };
+
+    CK_BYTE id[64];
+
+    /* resolve the parameter set, falling back to the algorithm default */
+    ps = param ? pkcs11_pqc_paramset_from_name(param) : pkcs11_pqc_default_paramset(keytype);
+    if(ps == NULL || ps->keytype != keytype) {
+	fprintf(stderr, "***Error: unknown/unsupported parameter set '%s' for %s. Supported values are:\n",
+		param ? param : "(default)", pkcs11_pqc_keytype_kw(keytype));
+	pkcs11_pqc_print_paramsets(stderr, keytype);
+	rc = rc_error_invalid_parameter_for_method;
+	goto error;
+    }
+
+    mechanism.mechanism = ps->keygenmech;
+    paramset_value = pkcs11_pqc_paramset_value(ps);
+    is_kem = (keytype == ml_kem);
+    snprintf((char *)id, sizeof id, "%s-%s-%ld", pkcs11_pqc_keytype_kw(keytype), ps->cliname, time(NULL));
+
+    {
+	CK_ATTRIBUTE pubktemplate[] = {
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof(CK_BBOOL)},
+	    {CKA_PARAMETER_SET, &paramset_value, sizeof paramset_value },
+	    {CKA_LABEL, label, strlen(label) },
+	    {CKA_ID, id, strlen((const char *)id) },
+	    /* the single capability that applies to this key family */
+	    {is_kem ? CKA_ENCAPSULATE : CKA_VERIFY, &ck_true, sizeof ck_true},
+	    /* leave room for up to 5 additional attributes */
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	};
+
+	size_t pubk_template_len_max = (sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE));
+	size_t pubk_template_len_min = pubk_template_len_max - 5;
+	size_t pubk_num_elems = pubk_template_len_min;
+
+
+	CK_ATTRIBUTE prvktemplate[] = {
+	    {CKA_TOKEN, gentype == kg_token ? &ck_true : &ck_false, sizeof ck_true},
+	    {CKA_PRIVATE, &ck_true, sizeof ck_true},
+	    {CKA_SENSITIVE, &ck_true, sizeof ck_true},
+	    {CKA_EXTRACTABLE, gentype != kg_token ? &ck_true : &ck_false, sizeof ck_false},
+	    {CKA_PARAMETER_SET, &paramset_value, sizeof paramset_value },
+	    {CKA_LABEL, label, strlen(label) },
+	    {CKA_ID, id, strlen((const char *)id) },
+	    /* the single capability that applies to this key family */
+	    {is_kem ? CKA_DECAPSULATE : CKA_SIGN, &ck_true, sizeof ck_true},
+	    /* leave room for up to 5 additional attributes */
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	    {0L, NULL, 0L},
+	};
+
+	size_t prvk_template_len_max = (sizeof(prvktemplate)/sizeof(CK_ATTRIBUTE));
+	size_t prvk_template_len_min = prvk_template_len_max - 5;
+	size_t prvk_num_elems = prvk_template_len_min;
+
+	/* adjust private key: merge in applicable command-line attributes */
+	for(i=0; i<numattrs && prvk_num_elems<prvk_template_len_max; i++)
+	{
+	    switch(attrs[i].type) {
+	    case CKA_SENSITIVE:
+	    case CKA_EXTRACTABLE:
+	    case CKA_LABEL:
+	    case CKA_ID:
+	    case CKA_SIGN:
+	    case CKA_DECAPSULATE:
+	    case CKA_DERIVE:
+	    case CKA_TRUSTED:
+	    case CKA_MODIFIABLE:
+	    case CKA_UNWRAP_TEMPLATE:
+	    case CKA_DECAPSULATE_TEMPLATE:
+	    case CKA_DERIVE_TEMPLATE:
+	    case CKA_ALLOWED_MECHANISMS:
+	    {
+		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+						  prvktemplate,
+						  &prvk_num_elems,
+						  sizeof(CK_ATTRIBUTE),
+						  compare_CKA );
+
+		if(match && match->ulValueLen == attrs[i].ulValueLen) {
+		    match->pValue = attrs[i].pValue;
+		}
+	    }
+	    break;
+
+	    default:
+		/* pass */
+		break;
+	    }
+	}
+
+	/* adjust public key: merge in applicable command-line attributes */
+	for(i=0; i<numattrs && pubk_num_elems<pubk_template_len_max; i++)
+	{
+	    switch(attrs[i].type) {
+	    case CKA_LABEL:
+	    case CKA_ID:
+	    case CKA_VERIFY:
+	    case CKA_ENCAPSULATE:
+	    case CKA_DERIVE:
+	    case CKA_TRUSTED:
+	    case CKA_MODIFIABLE:
+	    case CKA_WRAP_TEMPLATE:
+	    case CKA_ENCAPSULATE_TEMPLATE:
+	    case CKA_DERIVE_TEMPLATE:
+	    case CKA_ALLOWED_MECHANISMS:
+	    {
+		CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+						  pubktemplate,
+						  &pubk_num_elems,
+						  sizeof(CK_ATTRIBUTE),
+						  compare_CKA );
+
+		if(match && match->ulValueLen == attrs[i].ulValueLen) {
+		    match->pValue = attrs[i].pValue;
+		}
+	    }
+	    break;
+
+	    default:
+		/* pass */
+		break;
+	    }
+	}
+
+	retcode = p11ctx->FunctionList.C_GenerateKeyPair(p11ctx->Session,
+							 &mechanism,
+							 pubktemplate, pubk_num_elems,
+							 prvktemplate, prvk_num_elems,
+							 pubkhandleptr, prvkhandleptr);
+
+	if (retcode != CKR_OK ) {
+	    pkcs11_error( retcode, "C_GenerateKeyPair" );
+	    rc = rc_error_pkcs11_api;
+	    goto error;
+	}
+
+	/* special case: we want to keep a local copy of the wrapped key */
+	if(gentype==kg_token_for_wrapping) {
+	    CK_OBJECT_HANDLE copyhandle=0;
+	    CK_BBOOL ck_extractable = has_extractable(attrs, numattrs);
+
+	    CK_ATTRIBUTE tokentemplate[] = {
+		{ CKA_TOKEN, &ck_true, sizeof ck_true },
+		{ CKA_EXTRACTABLE, &ck_extractable, sizeof ck_extractable }
+	    };
+
+	    retcode = p11ctx->FunctionList.C_CopyObject( p11ctx->Session,
+							 *prvkhandleptr,
+							 tokentemplate,
+							 sizeof tokentemplate / sizeof(CK_ATTRIBUTE),
+							 &copyhandle );
+	    if (retcode != CKR_OK ) {
+		pkcs11_warning( retcode, "C_CopyObject" );
+		fprintf(stderr, "***Warning: could not create a local copy for private key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
+	    }
+
+	    retcode = p11ctx->FunctionList.C_CopyObject( p11ctx->Session,
+							 *pubkhandleptr,
+							 tokentemplate,
+							 1, /* CKA_EXTRACTABLE is for private/secret keys only */
+							 &copyhandle );
+	    if (retcode != CKR_OK ) {
+		pkcs11_warning( retcode, "C_CopyObject" );
+		fprintf(stderr, "***Warning: could not create a local copy for public key '%s'. Retry key generation without wrapping, or with '-r' option.\n", label);
+	    }
+	}
+    }
+
+error:
+    return rc;
+}
+
+
+inline func_rc pkcs11_genMLKEM( pkcs11Context * p11ctx,
+				char *label,
+				char *param,
+				CK_ATTRIBUTE attrs[],
+				CK_ULONG numattrs,
+				CK_OBJECT_HANDLE_PTR pubkhandleptr,
+				CK_OBJECT_HANDLE_PTR prvkhandleptr,
+				key_generation_t gentype) {
+    return pkcs11_genPQCEX(p11ctx, ml_kem, label, param, attrs, numattrs, pubkhandleptr, prvkhandleptr, gentype);
+}
+
+
+inline func_rc pkcs11_genMLDSA( pkcs11Context * p11ctx,
+				char *label,
+				char *param,
+				CK_ATTRIBUTE attrs[],
+				CK_ULONG numattrs,
+				CK_OBJECT_HANDLE_PTR pubkhandleptr,
+				CK_OBJECT_HANDLE_PTR prvkhandleptr,
+				key_generation_t gentype) {
+    return pkcs11_genPQCEX(p11ctx, ml_dsa, label, param, attrs, numattrs, pubkhandleptr, prvkhandleptr, gentype);
+}
+
+
+inline func_rc pkcs11_genSLHDSA( pkcs11Context * p11ctx,
+				 char *label,
+				 char *param,
+				 CK_ATTRIBUTE attrs[],
+				 CK_ULONG numattrs,
+				 CK_OBJECT_HANDLE_PTR pubkhandleptr,
+				 CK_OBJECT_HANDLE_PTR prvkhandleptr,
+				 key_generation_t gentype) {
+    return pkcs11_genPQCEX(p11ctx, slh_dsa, label, param, attrs, numattrs, pubkhandleptr, prvkhandleptr, gentype);
+}
+#endif /* WITH_PQC */
+
+
 
 
 int pkcs11_testgenEC_support( pkcs11Context * p11ctx, const char *param)

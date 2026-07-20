@@ -73,7 +73,7 @@ mac_alg_t pick_algo(char *name, int *errflag) {
     }
 
     fprintf(stderr,"***Invalid KCV algorithm specified\n");
-    *errflag++;
+	(*errflag)++;
 
     return legacy;
 }
@@ -105,7 +105,7 @@ void print_usage(char *progname)
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
 	     "|\n"
-	     "+-> arguments marked with an asterix(*) are mandatory\n"
+	     "+-> arguments marked with an asterisk(*) are mandatory\n"
 	     "|   (except if environment variable sets the value)\n"
 	     "+-> arguments marked with a plus sign(+) can be repeated\n"
 	     "\n"
@@ -114,7 +114,7 @@ void print_usage(char *progname)
 	     "                      - TYPE\n"
 	     "                      - [TYPE/[ATTRIBUTE/]]VALUE\n"
 	     "\n"
-	     "                      TYPE must be be 'seck'\n"
+	     "                      TYPE must be 'seck'\n"
 	     "\n"
 	     "                      ATTRIBUTE is either:\n"
 	     "                      - 'id', 'label' or 'sn'\n"
@@ -127,16 +127,16 @@ void print_usage(char *progname)
 	     "\n"
 	     " ENVIRONMENT VARIABLES:\n"
 	     "    PKCS11LIB         : path to PKCS#11 library,\n"
-	     "                        overriden by option -l\n"
+	     "                        overridden by option -l\n"
 	     "    PKCS11NSSDIR      : NSS configuration directory directive,\n"
-	     "                        overriden by option -m\n"
+	     "                        overridden by option -m\n"
 	     "    PKCS11SLOT        : token slot (integer)\n"
-	     "                        overriden by PKCS11TOKENLABEL,\n"
+	     "                        overridden by PKCS11TOKENLABEL,\n"
 	     "                        options -t or -s\n"
 	     "    PKCS11TOKENLABEL  : token label\n"
-	     "                        overriden by options -t or -s\n"
+	     "                        overridden by options -t or -s\n"
 	     "    PKCS11PASSWORD    : password\n"
-	     "                        overriden by option -p\n"
+	     "                        overridden by option -p\n"
 	     "\n"
 	     , pkcs11_ll_basename(progname),
 	     MAX_KCV_CLEARTEXT_SIZE);

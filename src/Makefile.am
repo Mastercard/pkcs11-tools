@@ -16,7 +16,7 @@ AM_CPPFLAGS = \
 	-I$(top_builddir)/gl \
 	-I$(top_srcdir)/gl \
 	-I$(top_srcdir)/include \
-	-I$(top_srcdir)/include/oasis-pkcs11/working/3-00-current \
+	-I$(top_srcdir)/include/oasis-pkcs11/published/3-02 \
 	-I$(top_srcdir)/include/cryptoki
 
 AM_CFLAGS = $(LIBCRYPTO_CFLAGS) $(PTHREAD_CFLAGS)
@@ -42,7 +42,7 @@ libcommon_la_LDFLAGS = -static
 # p11 toolkit
 
 # the actual list of programs being compiled
-bin_PROGRAMS = p11mkcert p11rewrap p11wrap p11unwrap p11cp p11ls p11cat p11more p11od p11rm p11mv p11slotinfo p11req p11importcert p11importpubk p11importdata p11keycomp p11setattr masqreq p11keygen p11kcv
+bin_PROGRAMS = p11mkcert p11rewrap p11wrap p11unwrap p11cp p11ls p11cat p11more p11od p11rm p11mv p11slotinfo p11req p11importcert p11importpubk p11importdata p11keycomp p11setattr masqreq p11keygen p11kcv p11init
 
 
 SOURCES = $(bin_PROGRAMS:%=%.c)

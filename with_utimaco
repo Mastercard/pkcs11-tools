@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Copyright (c) 2020 Mastercard
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,201 +13,88 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# wrapper script for Utimaco tokens
+# see with_pkcs11_common for usage and alternate invocations
 #
-# Usage: with_xxxx p11command args... ==> execute the command using presets for the token
-#
-# each platform has its defaults.
-#
-# if not otherwise specified:
-# - default slot is set to 0 (define PKCS11SLOT or PKCS11TOKENLABEL to override)
-# - default password is generally set to 'changeit' (define PKCS11PASSWORD to override)
-#
-# You can set all the PKCS11XXXX variables in a configuration file (sourced by this script).
-# Two possibilites:
-# - $PWD/.pkcs11rc for a setup bound to a directory
-# - $HOME/.pkcs11rc for a user-wide setup
-#
-# alternate invocations:
-#
-# SPY=/dev/sdtout with_xxxx p11command args... ==> to interface with pkcs11-spy.so (from OpenSC) and print to stdout
-# SPY=p11.log with_xxxx p11command args... ==> to interface with pkcs11-spy.so (from OpenSC) and write logs to p11.log
-# NOSLOT with_xxxx p11command args... ==> unset slot and token variables, useful to force interactive mode
-# PKCS11TOKENLABEL="abc" with_xxxx p11command args... ==> you can set all PKCS11 variables you like,
-#                                                         including those that are vendor-specific
-#
-# Note that SPY mode does not support NSS.
+# Utimaco-specific notes:
+#   - supports both R2 and R3 client libraries (auto-detected)
+#   - CS_PKCS11_R2_CFG / CS_PKCS11_R3_CFG point to the Utimaco config file
 
 PKCS11PASSWORD=${PKCS11PASSWORD:-changeit}
 
-# Specific to vendor
-# Utimaco: since there is no standard install, we are making a few guesses
-PKCS11_LIBPATHS=( /usr/lib/pkcs11 /usr/lib /usr/local/lib/pkcs11 /usr/local/lib /opt/utimaco/lib $HOME/utimaco/pkcs11/lib $HOME/utimaco/lib )
-# Utimaco: we try to detect setups for either R3 or R2 clients
-PKCS11_LIBNAMES=( libcs_pkcs11_R3.so libcs_pkcs11_R2.so )
-PKCS11_CFGNAMES=( cs_pkcs11_R3.cfg cs_pkcs11_R2.cfg )
-PKCS11_CFGPATHS=( /opt/utimaco /usr/local/etc /etc $HOME/utimaco/pkcs11 $HOME/utimaco )
+_p11_vendor=utimaco
 
-LIB_ENVVARS=( CS_PKCS11_R2_CFG CS_PKCS11_R3_CFG )
+# vendor-specific settings
+# Utimaco: since there is no standard install, we try a few common locations
+PKCS11_LIBPATHS="/opt/utimaco/lib $HOME/utimaco/pkcs11/lib $HOME/utimaco/lib"
+case $(uname -s) in
+    Darwin) PKCS11_LIBNAMES="libcs_pkcs11_R3.dylib libcs_pkcs11_R2.dylib" ;;
+    *)      PKCS11_LIBNAMES="libcs_pkcs11_R3.so libcs_pkcs11_R2.so"       ;;
+esac
+PKCS11_CFGNAMES="cs_pkcs11_R3.cfg cs_pkcs11_R2.cfg"
+PKCS11_CFGPATHS="/opt/utimaco /usr/local/etc /etc $HOME/utimaco/pkcs11 $HOME/utimaco"
 
+LIB_ENVVARS="CS_PKCS11_R2_CFG CS_PKCS11_R3_CFG"
 
-# setup of CS_PKCS11_R2_CFG / CS_PKCS11_R3_CFG
-# we expect to find it in /opt/utimaco or in /usr/local/etc
-function find_utimaco_cfg_file()
+# Utimaco requires a config file — locate it if not already set
+_find_utimaco_cfg()
 {
-    for path in ${PKCS11_CFGPATHS[@]}; do
-	for file in ${PKCS11_CFGNAMES[@]}; do
-	    if [ -e $path/$file ]; then
-		echo $path/$file
-		return 0
-	    fi
-	done
+    for path in $PKCS11_CFGPATHS; do
+        for file in $PKCS11_CFGNAMES; do
+            if [ -e "$path/$file" ]; then
+                echo "$path/$file"
+                return 0
+            fi
+        done
     done
-
     echo "NOT_FOUND"
     return 1
 }
 
-CS_PKCS11_R3_CFG=${CS_PKCS11_R3_CFG:-$(find_utimaco_cfg_file)}
-CS_PKCS11_R2_CFG=${CS_PKCS11_R2_CFG:-$(find_utimaco_cfg_file)}
-
-if [ "$CS_PKCS11_R2_CFG" == "NOT_FOUND" -a "$CS_PKCS11_R3_CFG" == "NOT_FOUND" ]; then
-    echo "***Error: Utimaco configuration file not found, please set CS_PKCS11_R3_CFG/CS_PKCS11_R2_CFG accordingly."
-    exit 1
-fi
-
-########################################################################
-
-# find_p11_lib: a trivial function to find a library.
-function find_p11_lib()
+# Resolve and validate the config file *after* .pkcs11rc has been sourced, so a
+# user can point CS_PKCS11_R3_CFG/CS_PKCS11_R2_CFG at it from .pkcs11rc.
+# with_pkcs11_common calls this hook once the rc file has been loaded.
+p11_post_rc()
 {
-    for path in ${PKCS11_LIBPATHS[@]}; do
-	for lib in ${PKCS11_LIBNAMES[@]}; do
-	    if [ -e $path/$lib ]; then
-		echo $path/$lib
-		return 0
-	    fi
-	done
-    done
+    CS_PKCS11_R3_CFG=${CS_PKCS11_R3_CFG:-$(_find_utimaco_cfg)}
+    CS_PKCS11_R2_CFG=${CS_PKCS11_R2_CFG:-$(_find_utimaco_cfg)}
 
+    if [ "$CS_PKCS11_R2_CFG" = "NOT_FOUND" ] && [ "$CS_PKCS11_R3_CFG" = "NOT_FOUND" ]; then
+        echo "***Error: Utimaco configuration file not found, please set CS_PKCS11_R3_CFG/CS_PKCS11_R2_CFG accordingly." >&2
+        exit 1
+    fi
+
+    # Never export the NOT_FOUND sentinel to the library.
+    [ "$CS_PKCS11_R3_CFG" = "NOT_FOUND" ] && unset CS_PKCS11_R3_CFG
+    [ "$CS_PKCS11_R2_CFG" = "NOT_FOUND" ] && unset CS_PKCS11_R2_CFG
+}
+
+# Utimaco has multiple possible library names; override find_p11_lib.
+# Names are space-separated (PKCS11_LIBNAMES) while build_p11_libpaths emits
+# one path per line (paths may contain spaces).  Iterate names first using the
+# default IFS so they split on spaces, and only switch IFS to newline for the
+# inner path loop.  Doing it the other way round makes the inner name loop run
+# with IFS=newline, so PKCS11_LIBNAMES is never split and nothing is found.
+# Name-major order also means the preferred R3 library wins over R2 even when
+# R2 sits in an earlier search directory.
+find_p11_lib()
+{
+    _old_ifs=$IFS
+    for lib in $PKCS11_LIBNAMES; do
+        IFS='
+'
+        for path in $(build_p11_libpaths); do
+            if [ -e "$path/$lib" ]; then
+                echo "$path/$lib"
+                IFS=$_old_ifs
+                return 0
+            fi
+        done
+        IFS=$_old_ifs
+    done
     echo "NOT_FOUND"
     return 1
 }
 
-# find_shim_lib: find libpkcs11shim.so
-function find_shim_lib()
-{
-    lib=libpkcs11shim.so
-    case "$(uname -s)" in
-	*)
-	    paths=( /usr/local/lib /usr/lib )
-	    ;;
-    esac
-
-    for path in ${paths[@]}; do
-	if [ -e $path/$lib ]; then
-	    echo $path/$lib
-	    return 0
-	fi
-    done
-
-    echo "NOT_FOUND"
-    return 1
-}
-
-# find_spy_lib: find pkcs11-spy.so from OpenSC
-function find_spy_lib()
-{
-    lib=pkcs11-spy.so
-    paths=( /usr/lib/$(uname -m)-linux-gnu/pkcs11 /usr/lib64 /usr/local/lib /usr/local/opt/opensc/lib )
-
-    for path in ${paths[@]}; do
-	if [ -e $path/$lib ]; then
-	    echo $path/$lib
-	    return 0
-	fi
-    done
-
-    echo "NOT_FOUND"
-    return 1
-}
-
-
-# source .pkcs11rc from local directory, and if not, from $HOME directory
-if [ -z "$NORC" ]; then
-    if [ -e ./.pkcs11rc ]; then
-	source ./.pkcs11rc
-    elif [ -e $HOME/.pkcs11rc ]; then
-	source $HOME/.pkcs11rc
-    fi
-fi
-
-################################################################################
-
-# library
-PKCS11LIB=${PKCS11LIB:-$(find_p11_lib)}
-
-if [ "$PKCS11LIB" == "NOT_FOUND" ]; then
-    echo "***Error: PKCS#11 Library not found, please set PKCS11LIB accordingly."
-    exit 1
-fi
-
-# if SHIM is set, we want to use the libpkcs11shim
-#
-if [ -n "$SHIM" ]; then
-    echo "SHIM set, trying to hook libpkcs11shim.so, output goes to $SHIM"
-    PKCS11SHIM=$PKCS11LIB
-    PKCS11SHIM_OUTPUT=$SHIM
-    PKCS11LIB=$(find_shim_lib)
-    if [ "$PKCS11LIB" == "NOT_FOUND" ]; then
-	echo "***Error: libpkcs11shim.so Library not found, can't use SHIM option"
-	exit 1
-    fi
-elif [ -n "$SPY" ]; then
-    echo "SPY set, trying to hook pkcs11-spy.so, output goes to $SPY"
-    PKCS11SPY=$PKCS11LIB
-    PKCS11SPY_OUTPUT=$SPY
-    PKCS11LIB=$(find_spy_lib)
-    if [ "$PKCS11LIB" == "NOT_FOUND" ]; then
-	echo "***Error: pkcs11-spy.so Library not found, can't use SPY option"
-	exit 1
-    fi
-fi
-    
-    
-#if NOSLOT is defined, or if PKCS11TOKENLABEL is defined we skip PKCS11SLOT
-#(useful for p11slotinfo invocation)
-if [ -z "$NOSLOT" -a -z "$PKCS11TOKENLABEL" ]; then
-    PKCS11SLOT=${PKCS11SLOT:-0}
-fi
-
-# also, if NOSLOT is defined, we unset PKCS11TOKENLABEL and PKCS11SLOT
-if [ -n "$NOSLOT" ]; then
-    unset PKCS11TOKENLABEL PKCS11SLOT
-fi
-
-# Note: there is no default value for PKCS11TOKENLABEL
-
-################################################################################
-variables=(PKCS11LIB PKCS11NSSDIR PKCS11SLOT PKCS11TOKENLABEL PKCS11PASSWORD \
-		     PKCS11SHIM PKCS11SHIM_OUTPUT PKCS11SPY PKCS11SPY_OUTPUT)
-
-environment=
-for v in ${variables[@]}; do
-    if [ -n "${!v}" ]; then
-	environment+=("$v=${!v}")
-    fi
-done
-
-for v in ${LIB_ENVVARS[@]}; do
-    if [ -n "${!v}" ]; then
-	environment+=("$v=${!v}")
-    fi
-done
-
-quoted=
-for item in "$@"; do
-    quoted+=($(printf "%q" "$item"))
-done
-
-eval ${environment[@]} ${quoted[@]}
-exit $?
+# load common logic
+. "$(dirname "$0")/with_pkcs11_common" "$@"

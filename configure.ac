@@ -14,7 +14,7 @@ dnl limitations under the License.
 
 
 AC_PREREQ([2.64])
-AC_INIT([pkcs11-tools], [2.6.0], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
+AC_INIT([pkcs11-tools], [3.0.0], [https://github.com/Mastercard/pkcs11-tools/issues], [pkcs11-tools], [https://github.com/Mastercard/pkcs11-tools])
 AC_CONFIG_MACRO_DIR([m4])
 
 dnl adding AM_MAINTAINER_MODE to address autotools issues with git
@@ -72,34 +72,48 @@ AM_CONDITIONAL([TARGET_OS_MINGW32], [test "$mingw32" = "1"])
 AM_CONDITIONAL([TARGET_OS_SOLARIS], [test "x$host_os" == "xsolaris2.10"])
 
 PKG_PROG_PKG_CONFIG
-dnl for libcrypto, we are first detecting libcrypo11,
-dnl as older distros may still run on top of openssl 1.0,
-dnl but have v1.1.x accessible through libcrypto11.pc file
-dnl if libcrypto11 is detected, a guess is made that for redhat-based systems,
-dnl the rpm package will have a "11" suffix in the nam; openssl_rpm_suffix variable
-dnl is substituted for that purpose.
-
+dnl OpenSSL 3.x only: rely on canonical libcrypto pkg-config metadata.
 PKG_CHECK_MODULES([LIBCRYPTO],
-	          [libcrypto11 >= 1.1.1e],
+	          [libcrypto >= 3.0.0],
 		  [ ac_save_CPPFLAGS=$CPPFLAGS
 		    CPPFLAGS="${CPPFLAGS} ${LIBCRYPTO_CFLAGS}"
 		    AC_CHECK_DECLS([OPENSSL_NO_RSA, OPENSSL_NO_DSA, OPENSSL_NO_DH, OPENSSL_NO_EC],
 		                  [AC_MSG_FAILURE([The OpenSSL crypto library is missing features/algorithm to allow compilation])],
-    				  [],
-				  [[ #include <openssl/opensslconf.h> ]])
+			  [],
+			  [[ #include <openssl/opensslconf.h> ]])
 		    CPPFLAGS=${ac_save_CPPFLAGS}
-		    AC_SUBST([openssl_rpm_suffix],[11])
-		    ],
-		    [ PKG_CHECK_MODULES([LIBCRYPTO],
-					[libcrypto >= 1.1.1e],
-				    	[ ac_save_CPPFLAGS=$CPPFLAGS
-				      	  CPPFLAGS="${CPPFLAGS} ${LIBCRYPTO_CFLAGS}"
-				      	  AC_CHECK_DECLS([OPENSSL_NO_RSA, OPENSSL_NO_DSA, OPENSSL_NO_DH, OPENSSL_NO_EC],
-		                      	  	     	 [AC_MSG_FAILURE([The OpenSSL crypto library is missing features/algorithm to allow compilation])],
-						     	 [],
-						     	 [[ #include <openssl/opensslconf.h> ]])
-					  CPPFLAGS=${ac_save_CPPFLAGS}
-					  AC_SUBST([openssl_rpm_suffix],[]) ])])
+		    AC_SUBST([openssl_rpm_suffix],[]) ])
+
+AC_DEFINE([HAVE_OPENSSL3], [1], [define when building against OpenSSL 3.x or newer])
+AM_CONDITIONAL([HAVE_OPENSSL3], [test "x1" = "x1"])
+
+dnl ========================================================================
+dnl Post-Quantum Cryptography (PQC) support: ML-KEM, ML-DSA and SLH-DSA.
+dnl Key generation and object inspection only require PKCS#11 v3.2 mechanisms
+dnl (any OpenSSL 3.x). Public key export, CSR and certificate creation rely on
+dnl OpenSSL's native PQC implementation, available since libcrypto 3.5.0.
+dnl PQC support is enabled by default; it can be turned off with --disable-pqc.
+AC_ARG_ENABLE([pqc],
+	[AS_HELP_STRING([--disable-pqc],
+		[disable Post-Quantum Cryptography support (ML-KEM, ML-DSA, SLH-DSA); enabled by default])],
+	[enable_pqc=$enableval],
+	[enable_pqc=yes])
+
+haspqc="no"
+haspqcopenssl="no"
+AS_IF([test "x$enable_pqc" != xno],
+      [ AC_DEFINE([WITH_PQC], [1], [define to compile with Post-Quantum Cryptography support (ML-KEM, ML-DSA, SLH-DSA).])
+	haspqc="yes"
+	dnl OpenSSL native PQC algorithms (public key export, CSR, certificate) require libcrypto >= 3.5.0.
+	PKG_CHECK_MODULES([LIBCRYPTO_PQC],
+			  [libcrypto >= 3.5.0],
+			  [ AC_DEFINE([HAVE_PQC_OPENSSL], [1],
+				[define when libcrypto provides native PQC algorithms (>= 3.5.0): enables PQC public key export, CSR and certificate creation.])
+			    haspqcopenssl="yes" ],
+			  [ AC_MSG_NOTICE([libcrypto < 3.5.0: PQC key generation and inspection remain available, but public key export, CSR and certificate creation are disabled.]) ]) ])
+
+AM_CONDITIONAL([WITH_PQC], [test "x$haspqc" = "xyes"])
+AM_CONDITIONAL([HAVE_PQC_OPENSSL], [test "x$haspqcopenssl" = "xyes"])
 
 dnl on UNIX platforms, check for dynamic loader lib
 AM_COND_IF( [TARGET_OS_MINGW32],
@@ -230,5 +244,7 @@ AC_MSG_NOTICE([with_ncipher       : $hasncipher])
 AC_MSG_NOTICE([with_awscloudhsm   : $hasawscloudhsm])
 AC_MSG_NOTICE([libcrypto rpath    : $LIBCRYPTO_RPATH])
 AC_MSG_NOTICE([enable_duplicate   : $hasduplicate])
+AC_MSG_NOTICE([enable_pqc         : $haspqc])
+AC_MSG_NOTICE([pqc via openssl    : $haspqcopenssl])
 AC_MSG_NOTICE([------------------------------------------------------------------------])
 

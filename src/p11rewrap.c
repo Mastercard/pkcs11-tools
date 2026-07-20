@@ -116,7 +116,7 @@ void print_usage(char *progname) {
 		"  -n : allow duplicate objects\n"
 #endif
 	    "|\n"
-	    "+-> arguments marked with an asterix(*) are mandatory\n"
+	    "+-> arguments marked with an asterisk(*) are mandatory\n"
 	    "|   (except if environment variable sets the value)\n"
 	    "+-> arguments marked with a greater than sign(>) are mandatory and can be repeated\n"
 	    "\n"
@@ -125,6 +125,7 @@ void print_usage(char *progname) {
 	    "                 CKA_LABEL, CKA_ID,\n"
 	    "                 CKA_WRAP, CKA_UNWRAP,\n"
 	    "                 CKA_DECRYPT, CKA_ENCRYPT,\n"
+	    "                 CKA_ENCAPSULATE, CKA_DECAPSULATE,\n"
 	    "                 CKA_SIGN, CKA_VERIFY,\n"
 	    "                 CKA_SIGN_RECOVER, CKA_VERIFY_RECOVER,\n"
 	    "                 CKA_DERIVE,\n"
@@ -137,16 +138,16 @@ void print_usage(char *progname) {
 	    "\n"
 	    " ENVIRONMENT VARIABLES:\n"
 	    "    PKCS11LIB         : path to PKCS#11 library,\n"
-	    "                        overriden by option -l\n"
+	    "                        overridden by option -l\n"
 	    "    PKCS11NSSDIR      : NSS configuration directory directive,\n"
-	    "                        overriden by option -m\n"
+	    "                        overridden by option -m\n"
 	    "    PKCS11SLOT        : token slot (integer)\n"
-	    "                        overriden by PKCS11TOKENLABEL,\n"
+	    "                        overridden by PKCS11TOKENLABEL,\n"
 	    "                        options -t or -s\n"
 	    "    PKCS11TOKENLABEL  : token label\n"
-	    "                        overriden by options -t or -s\n"
+	    "                        overridden by options -t or -s\n"
 	    "    PKCS11PASSWORD    : password\n"
-	    "                        overriden by option -p\n"
+	    "                        overridden by option -p\n"
 	    "\n", pkcs11_ll_basename(progname));
 
     exit(EX_USAGE);

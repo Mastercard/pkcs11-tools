@@ -1,0 +1,471 @@
+#!/bin/sh
+# Copyright (c) 2020 Mastercard
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#   http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# with_pkcs11_common: common code sourced by all with_xxx wrapper scripts.
+#
+# Expected variables set by the caller before sourcing this file:
+#   PKCS11_LIBNAME       - library filename (e.g. libsofthsm2.so)
+#   PKCS11_LIBPATHS      - space-separated directories to search first
+#   LIB_ENVVARS          - space-separated env var names to forward
+#   _p11_vendor         - short vendor identifier (e.g. softhsm, luna, nss).
+#                          Set by each with_xxx wrapper. Used to:
+#                            1) load .pkcs11rc.<vendor> in priority over .pkcs11rc
+#                            2) dispatch inside .pkcs11rc via: case $_p11_vendor in
+#
+# Optional variables set by the caller:
+#   PKCS11PASSWORD       - token password (default: 'changeit')
+#   PKCS11SLOT           - slot number (default: 0 unless PKCS11TOKENLABEL is set)
+#   PKCS11NSSDIR         - NSS database directory (only needed for NSS tokens)
+#
+# Alternate invocations (set before calling the wrapper):
+#
+#   SHIM=/dev/stdout with_xxx cmd args...
+#       Route traffic through libpkcs11shim.so and print to stdout.
+#   SHIM=p11.log with_xxx cmd args...
+#       Route traffic through libpkcs11shim.so and write logs to p11.log.
+#   NOSLOT=1 with_xxx cmd args...
+#       Unset slot/token variables (force interactive slot selection).
+#   NORC=1 with_xxx cmd args...
+#       Skip sourcing any .pkcs11rc file.
+#   PKCS11TOKENLABEL="abc" with_xxx cmd args...
+#       Use token label instead of slot number.
+#   with_xxx -c
+#       Create a template .pkcs11rc in the current directory, with all vendor
+#       variables present but commented out.  Exits immediately.
+#   with_xxx -e
+#       Open .pkcs11rc in $VISUAL / $EDITOR (fallback: vi).  If no .pkcs11rc
+#       is found walking up from CWD to $HOME, creates one first.
+#   with_xxx -n cmd args...
+#       Force interactive slot selection (equivalent to NOSLOT=1).
+#   with_xxx -s cmd args...
+#       Enable SHIM mode; shim output goes to /dev/stderr.
+#   with_xxx -S dest cmd args...
+#       Enable SHIM mode; shim output goes to dest (file or /dev/stdout).
+#
+# .pkcs11rc lookup order (first match wins, walks up from CWD to $HOME):
+#   .pkcs11rc.<vendor>   - vendor-specific file (when _p11_vendor is set)
+#   .pkcs11rc            - generic file; use 'case $_p11_vendor in' to dispatch
+#
+# Example .pkcs11rc:
+#   case ${_p11_vendor:-} in
+#       softhsm) SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf ;;
+#       luna)    PKCS11TOKENLABEL=mytoken ;;
+#       nss)     PKCS11NSSDIR=sql:$HOME/nssdb ;;
+#   esac
+
+########################################################################
+
+# build_p11_libpaths: output unique search paths with defaults appended last.
+# Order is:
+#   1) vendor-defined PKCS11_LIBPATHS
+#   2) Homebrew prefix (if HOMEBREW_PREFIX is set in the environment)
+#   3) shared fallback paths (Linux-only triplet path included on Linux)
+p11_path_once()
+{
+    _p11_path=$1
+    [ -z "$_p11_path" ] && return 0
+    case ":$_p11_seen:" in
+        *:"$_p11_path":*) return 0 ;;
+    esac
+    _p11_seen="${_p11_seen}${_p11_path}:"
+    printf '%s\n' "$_p11_path"
+}
+
+build_p11_libpaths()
+{
+    _p11_seen=
+    _old_ifs=$IFS
+    # PKCS11_LIBPATHS is space-separated; force word splitting on spaces here.
+    IFS=' '
+
+    for _p11_path in $PKCS11_LIBPATHS; do
+        p11_path_once "$_p11_path"
+    done
+
+    IFS=$_old_ifs
+
+    # Homebrew: HOMEBREW_PREFIX is set by 'eval "$(brew shellenv)"' — no subprocess needed.
+    if [ -n "${HOMEBREW_PREFIX:-}" ]; then
+        p11_path_once "$HOMEBREW_PREFIX/lib"
+        p11_path_once "$HOMEBREW_PREFIX/lib/pkcs11"
+    fi
+
+    p11_path_once /usr/lib
+    p11_path_once /usr/lib/pkcs11
+    if [ "$(uname -s)" = "Linux" ]; then
+        _p11_triplet="$(uname -m)-linux-gnu"
+        p11_path_once /usr/lib64
+        p11_path_once /usr/lib64/pkcs11
+        p11_path_once "/usr/lib/$_p11_triplet"
+        p11_path_once "/usr/lib/$_p11_triplet/pkcs11"
+    fi
+    p11_path_once /usr/local/lib
+    p11_path_once /usr/local/lib/pkcs11
+    p11_path_once "$HOME/.local/lib"
+}
+
+# find_p11_lib: search PKCS11_LIBPATHS for PKCS11_LIBNAME
+# A with_xxx wrapper may define its own find_p11_lib() *before* sourcing this
+# file (e.g. with_utimaco, which probes several candidate library names via
+# PKCS11_LIBNAMES).  Only provide this default when no override is in place,
+# otherwise sourcing this file would clobber the wrapper's version.
+if ! type find_p11_lib > /dev/null 2>&1; then
+find_p11_lib()
+{
+    lib=$PKCS11_LIBNAME
+    # An empty library name would turn the test below into [ -e "$path/" ],
+    # which matches any existing directory and returns a bogus path; guard it.
+    [ -z "$lib" ] && { echo "NOT_FOUND"; return 1; }
+    _old_ifs=$IFS
+    IFS='
+'
+    for path in $(build_p11_libpaths); do
+        if [ -e "$path/$lib" ]; then
+            echo "$path/$lib"
+            IFS=$_old_ifs
+            return 0
+        fi
+    done
+    IFS=$_old_ifs
+    echo "NOT_FOUND"
+    return 1
+}
+fi
+
+# find_shim_lib: locate libpkcs11shim.dylib / libpkcs11shim.so
+# Try .dylib first (preferred on Darwin), then .so, in every search path.
+# As with find_p11_lib, a wrapper may override this; only define the default
+# when the wrapper has not already provided one.
+if ! type find_shim_lib > /dev/null 2>&1; then
+find_shim_lib()
+{
+    _old_ifs=$IFS
+    IFS='
+'
+    for path in $(build_p11_libpaths); do
+        if [ -e "$path/libpkcs11shim.dylib" ]; then
+            echo "$path/libpkcs11shim.dylib"
+            IFS=$_old_ifs
+            return 0
+        fi
+        if [ -e "$path/libpkcs11shim.so" ]; then
+            echo "$path/libpkcs11shim.so"
+            IFS=$_old_ifs
+            return 0
+        fi
+    done
+    IFS=$_old_ifs
+    echo "NOT_FOUND"
+    return 1
+}
+fi
+
+# find_cfg_file FILE PATH...
+# Generic helper: locate FILE in a list of directories.
+find_cfg_file()
+{
+    file=$1
+    shift
+    for path in "$@"; do
+        if [ -e "$path/$file" ]; then
+            echo "$path/$file"
+            return 0
+        fi
+    done
+    echo "NOT_FOUND"
+    return 1
+}
+
+# emit_rc_template: print a starter rc file for this vendor.
+# Each with_xxx wrapper overrides this with its own vendor-specific content.
+# This fallback is used when no wrapper-defined version exists.
+if ! type emit_rc_template > /dev/null 2>&1; then
+    emit_rc_template()
+    {
+        cat <<'EOF'
+# -*- sh -*-
+# .pkcs11rc - PKCS#11 token settings
+# Sourced automatically by with_xxx before executing any command.
+#
+# Use the case block below to set vendor-specific variables, or set them
+# directly if you only ever use one vendor in this directory.
+
+# ── Common settings ──────────────────────────────────────────────────────────
+# Token selection: use PKCS11SLOT *or* PKCS11TOKENLABEL (not both)
+#PKCS11SLOT=0
+#PKCS11TOKENLABEL=
+
+# Token PIN
+#PKCS11PASSWORD=changeit
+
+# Override library path (auto-detected by default)
+#PKCS11LIB=
+
+# ── Vendor-specific settings ─────────────────────────────────────────────────
+case ${_p11_vendor:-} in
+
+    aws)
+        # AWS CloudHSM: password format is "username:password"
+        #PKCS11PASSWORD=user:changeit
+        ;;
+
+    beid)
+        # Belgian eID: no PIN — entered directly via the card reader
+        ;;
+
+    kryoptic)
+        # Kryoptic TOML configuration file
+        #KRYOPTIC_CONF=$HOME/.config/kryoptic/token.conf
+        ;;
+
+    luna)
+        # SafeNet Luna: password may be "partition:password" depending on firmware
+        #PKCS11PASSWORD=changeit
+        ;;
+
+    nfast)
+        # Entrust nFast/nShield: OCS is slot 1 (slot 0 is the accelerator slot)
+        #PKCS11SLOT=1
+        #CKNFAST_LOADSHARING=1
+        #CKNFAST_FAKE_ACCELERATOR_LOGIN=1
+        # Debugging:
+        #CKNFAST_DEBUG=9
+        #CKNFAST_DEBUGDIR=/var/tmp
+        #CKNFAST_OVERRIDE_SECURITY_ASSURANCES=
+        ;;
+
+    nss)
+        # NSS (softokn3): slot 1 is the first user slot (slot 0 is internal)
+        # Create a database first: modutil -dbdir sql:. -create
+        #PKCS11SLOT=1
+        #PKCS11PASSWORD=ch@nge1t
+        #PKCS11NSSDIR=sql:.
+        #NSS_LIB_PARAMS=configDir=\'${PKCS11NSSDIR}\'
+        ;;
+
+    softhsm)
+        # SoftHSM2 configuration file
+        #SOFTHSM2_CONF=$HOME/.config/softhsm2/softhsm2.conf
+        ;;
+
+    utimaco)
+        # Utimaco configuration file (R3 preferred; R2 as fallback)
+        #CS_PKCS11_R3_CFG=/opt/utimaco/cs_pkcs11_R3.cfg
+        #CS_PKCS11_R2_CFG=/opt/utimaco/cs_pkcs11_R2.cfg
+        ;;
+
+esac
+# vim: set ft=sh :
+EOF
+    }
+fi
+
+########################################################################
+# print_help: usage summary printed by -h and on unknown options.
+print_help()
+{
+    _prog=$(basename "$0")
+    cat >&2 <<EOF
+Usage: $_prog [options] command [args...]
+       $_prog -c | -e | -h
+
+Options:
+  -n            No slot: unset PKCS11SLOT and PKCS11TOKENLABEL (interactive selection)
+  -s            SHIM mode: trace PKCS#11 calls, output to stderr
+  -S dest       SHIM mode: trace PKCS#11 calls, output to dest (file or /dev/stdout)
+  -c            Create a template .pkcs11rc in the current directory and exit
+  -e            Open .pkcs11rc in \$VISUAL/\$EDITOR (creates it first if absent)
+  -h            Show this help and exit
+
+Environment:
+  PKCS11LIB     Override library path (auto-detected otherwise)
+  PKCS11SLOT    Slot index to use (default: 0)
+  PKCS11TOKENLABEL  Select slot by token label instead of index
+  PKCS11PASSWORD    Token PIN (default: changeit)
+  PKCS11NSSDIR  NSS database directory (NSS only; default: sql:\$HOME/.pki/nssdb)
+  NOSLOT=1      Equivalent to -n
+  NORC=1        Skip sourcing any .pkcs11rc file
+  SHIM=dest     Equivalent to -S dest
+  HOMEBREW_PREFIX   Set by 'eval "\$(brew shellenv)"; used for library search
+
+.pkcs11rc:
+  Sourced automatically before executing the command.
+  Walk up from CWD to \$HOME; first match wins.
+  Use 'with_xxx -c' to create a template.
+EOF
+}
+
+########################################################################
+# Parse wrapper flags.
+# These are consumed here and do not reach the command being executed.
+while :; do
+    case "${1:-}" in
+        -n) NOSLOT=1          ; shift ;;
+        -s) SHIM=/dev/stderr  ; shift ;;
+        -S) shift
+            SHIM="${1:?'with_xxx -S requires a destination argument'}"
+            shift ;;
+        -h) print_help; exit 0 ;;
+        -c|-e) break ;;  # handled after the loop
+        -*) echo "***Error: unknown option: $1" >&2; print_help; exit 1 ;;
+        *)  break ;;
+    esac
+done
+
+# No arguments left after flag parsing: show help.
+if [ $# -eq 0 ]; then
+    print_help
+    exit 1
+fi
+
+########################################################################
+# Handle -c: create a template .pkcs11rc in the current directory.
+if [ "${1:-}" = "-c" ]; then
+    _rc_file=".pkcs11rc"
+    if [ -e "$_rc_file" ]; then
+        echo "***Error: $_rc_file already exists, not overwriting." >&2
+        exit 1
+    fi
+    emit_rc_template > "$_rc_file"
+    echo "Created $_rc_file" >&2
+    exit 0
+fi
+
+########################################################################
+# Handle -e: open .pkcs11rc in $VISUAL / $EDITOR (fallback: vi).
+if [ "${1:-}" = "-e" ]; then
+    _rc_file=""
+    _dir="$PWD"
+    while :; do
+        if [ -e "$_dir/.pkcs11rc" ]; then
+            _rc_file="$_dir/.pkcs11rc"
+            break
+        fi
+        [ "$_dir" = "$HOME" ] && break
+        [ "$_dir" = "/"    ] && break
+        _dir="${_dir%/*}"
+        [ -z "$_dir" ] && _dir="/"
+    done
+    if [ -z "$_rc_file" ]; then
+        _rc_file="$PWD/.pkcs11rc"
+        emit_rc_template > "$_rc_file"
+        echo "Created $_rc_file" >&2
+    fi
+    _editor="${VISUAL:-${EDITOR:-vi}}"
+    # eval allows VISUAL/EDITOR to contain flags (e.g. "code --wait" or "vi -R")
+    eval exec \"\$_editor\" \"\$_rc_file\"
+fi
+
+########################################################################
+# Source .pkcs11rc (or .pkcs11rc.<vendor> if _p11_vendor is set)
+# Walk up from CWD to $HOME, trying the vendor-specific file first and then the
+# generic one at each level; the first match wins.
+#
+# The walk NEVER goes above $HOME: a .pkcs11rc is only ever sourced from $HOME
+# or one of its subdirectories.  This is deliberate as the file is sourced as a
+# shell script, so honoring one found above $HOME (for instance a world-
+# writable /tmp/.pkcs11rc seen when running from outside your home tree) would
+# let another user execute code in this process.  When CWD is outside $HOME no
+# .pkcs11rc is sourced; keep your configuration under $HOME, or use NORC=1 to
+# skip this step entirely.
+if [ -z "${NORC:-}" ] && [ -n "${HOME:-}" ] && [ "$HOME" != "/" ]; then
+    # A .pkcs11rc is honored only when CWD is $HOME or a directory beneath it,
+    # so the walk below can never escape $HOME.  Strip any trailing slash from
+    # $HOME so the containment test and the loop's stop condition agree.
+    _home=${HOME%/}
+    case "$PWD/" in
+        "$_home"/*)
+            _dir="$PWD"
+            _found_rc=""
+            while :; do
+                if [ -n "${_p11_vendor:-}" ] && [ -e "$_dir/.pkcs11rc.$_p11_vendor" ]; then
+                    _found_rc="$_dir/.pkcs11rc.$_p11_vendor"
+                    break
+                fi
+                if [ -e "$_dir/.pkcs11rc" ]; then
+                    _found_rc="$_dir/.pkcs11rc"
+                    break
+                fi
+                # Stop at $HOME; never walk above it.  $HOME is always reached
+                # because CWD was verified to be within it.
+                [ "$_dir" = "$_home" ] && break
+                [ "$_dir" = "/" ] && break
+                _dir="${_dir%/*}"
+                # edge case: _dir becomes empty when a parent is a top-level dir
+                [ -z "$_dir" ] && _dir="/"
+            done
+            if [ -n "$_found_rc" ]; then
+                # shellcheck source=/dev/null
+                . "$_found_rc"
+            fi
+            unset _dir _found_rc
+            ;;
+    esac
+    unset _home
+fi
+
+########################################################################
+# Vendor post-rc hook
+# A with_xxx wrapper may define p11_post_rc() to finalize its environment
+# *after* .pkcs11rc has been sourced — e.g. to derive a variable from another
+# one that the user may have overridden in .pkcs11rc.  No-op when undefined.
+if type p11_post_rc > /dev/null 2>&1; then
+    p11_post_rc
+fi
+
+########################################################################
+# Resolve the vendor library
+PKCS11LIB=${PKCS11LIB:-$(find_p11_lib)}
+
+if [ "$PKCS11LIB" = "NOT_FOUND" ]; then
+    echo "***Error: PKCS#11 Library not found, please set PKCS11LIB accordingly." >&2
+    exit 1
+fi
+
+# SHIM mode: interpose libpkcs11shim between the app and the token library
+if [ -n "${SHIM:-}" ]; then
+    echo "SHIM set, trying to hook libpkcs11shim, output goes to $SHIM" >&2
+    PKCS11SHIM="$PKCS11LIB"
+    PKCS11SHIM_OUTPUT="$SHIM"
+    PKCS11LIB=$(find_shim_lib)
+    if [ "$PKCS11LIB" = "NOT_FOUND" ]; then
+        echo "***Error: libpkcs11shim not found, can't use SHIM option" >&2
+        exit 1
+    fi
+fi
+
+# Slot handling
+# If NOSLOT is defined, clear both PKCS11SLOT and PKCS11TOKENLABEL.
+# Otherwise, if PKCS11TOKENLABEL is set, skip the default slot.
+if [ -n "${NOSLOT:-}" ]; then
+    unset PKCS11TOKENLABEL PKCS11SLOT
+elif [ -z "${PKCS11TOKENLABEL:-}" ]; then
+    PKCS11SLOT=${PKCS11SLOT:-0}
+fi
+
+########################################################################
+# Build the environment and exec the command
+
+_variables="PKCS11LIB PKCS11NSSDIR PKCS11SLOT PKCS11TOKENLABEL PKCS11PASSWORD PKCS11SHIM PKCS11SHIM_OUTPUT"
+
+for _v in $_variables $LIB_ENVVARS; do
+    eval "_val=\${$_v-}"
+    if [ -n "$_val" ]; then
+        export "$_v=$_val"
+    fi
+done
+
+"$@"
+exit $?

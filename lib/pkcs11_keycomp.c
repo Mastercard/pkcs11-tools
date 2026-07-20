@@ -24,6 +24,8 @@
 #include <openssl/bio.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
 
 #include "pkcs11lib.h"
 
@@ -33,7 +35,7 @@ typedef struct s_p11_keycomp {
     CK_OBJECT_HANDLE unwrappingkey;
     CK_OBJECT_HANDLE sessionkey;
     char *targetlabel;
-    RSA *rsa;
+    EVP_PKEY *pk;
     int cnt;
     CK_C_UnwrapKey C_UnwrapKey;
     CK_C_DeriveKey C_DeriveKey;
@@ -52,7 +54,7 @@ KeyImportCtx *pkcs11_import_component_init(pkcs11Context *p11Context, char *unwr
     pkcs11AttrList *attrs = NULL;
     CK_ATTRIBUTE_PTR omod, oexp;
 
-    RSA *rsa = NULL;
+    EVP_PKEY *pk = NULL;
     BIGNUM *bn_modulus = NULL;
     BIGNUM *bn_exponent = NULL;
 
@@ -102,12 +104,9 @@ KeyImportCtx *pkcs11_import_component_init(pkcs11Context *p11Context, char *unwr
 	goto error;
     }
 
-    if( (rsa=RSA_new()) == NULL ) {
+    if( (pk = pkcs11_pkey_from_rsa_public(bn_modulus, bn_exponent)) == NULL ) {
 	goto error;
     }
-    RSA_set0_key(rsa, bn_modulus, bn_exponent, NULL);
-    bn_modulus = NULL; /* forget, moved to rsa */
-    bn_exponent = NULL; /* forget, moved to rsa */
 
     /* allocate structure */
     kctx = calloc(1, sizeof(_KeyImportCtx));
@@ -118,7 +117,7 @@ KeyImportCtx *pkcs11_import_component_init(pkcs11Context *p11Context, char *unwr
     }
 
     kctx->p11Context = p11Context;
-    kctx->rsa = rsa; rsa = NULL;
+    kctx->pk = pk; pk = NULL;
     kctx->cnt = 0;
     kctx->unwrappingkey = hPrivateKey;
     kctx->targetlabel = targetlabel;
@@ -133,7 +132,7 @@ KeyImportCtx *pkcs11_import_component_init(pkcs11Context *p11Context, char *unwr
 error:
     if(bn_modulus != NULL) { BN_free(bn_modulus); bn_modulus=NULL; }
     if(bn_exponent != NULL) { BN_free(bn_exponent); bn_exponent=NULL; }
-    if(rsa!=NULL) { RSA_free(rsa); rsa=NULL; }
+    if(pk!=NULL) { EVP_PKEY_free(pk); pk=NULL; }
     pkcs11_delete_attrlist(attrs);
 
     return (KeyImportCtx)kctx;
@@ -158,25 +157,43 @@ func_rc pkcs11_import_component(KeyImportCtx *kctx, unsigned char * comp, size_t
 	/* encrypt component with openssl using PKCS#1 1.5 as DATA */
 	/* unwrap as session key with PKCS#11 token using CKM_RSA_PKCS */
 
-	if(!(len<RSA_size(_kctx->rsa)-11)) {
-	    fprintf(stderr,"RSA key too short to wrap %d bytes of component\n", (int)len);
-	    rc = rc_error_wrapping_key_too_short;
-	    goto error;
+	{
+	    int key_size = EVP_PKEY_get_size(_kctx->pk);
+	    if (key_size <= 11 || (size_t)len > (size_t)(key_size - 11)) {
+		fprintf(stderr,"RSA key too short to wrap %d bytes of component\n", (int)len);
+		rc = rc_error_wrapping_key_too_short;
+		goto error;
+	    }
+	    pkcs1_len = (size_t)key_size;
 	}
-	
-	pkcs1_len = RSA_size(_kctx->rsa);
+
 	pkcs1 = calloc(pkcs1_len, sizeof(unsigned char));
-	
+
 	if (pkcs1==NULL) {
 	    fprintf(stderr,"memory error\n");
 	    rc = rc_error_memory;
 	    goto error;
 	}
 
-	if(RSA_public_encrypt(len, comp, pkcs1, _kctx->rsa, RSA_PKCS1_PADDING) == -1) {
-	    P_ERR();
-	    rc = rc_error_openssl_api;
-	    goto error;
+	{
+	    EVP_PKEY_CTX *ectx = EVP_PKEY_CTX_new(_kctx->pk, NULL);
+	    int enc_ok = 0;
+	    if (ectx == NULL) {
+		P_ERR();
+	    } else if (EVP_PKEY_encrypt_init(ectx) <= 0) {
+		P_ERR();
+	    } else if (EVP_PKEY_CTX_set_rsa_padding(ectx, RSA_PKCS1_PADDING) <= 0) {
+		P_ERR();
+	    } else if (EVP_PKEY_encrypt(ectx, pkcs1, &pkcs1_len, comp, len) <= 0) {
+		P_ERR();
+	    } else {
+		enc_ok = 1;
+	    }
+	    if (ectx) EVP_PKEY_CTX_free(ectx);
+	    if (!enc_ok) {
+		rc = rc_error_openssl_api;
+		goto error;
+	    }
 	}
 	
 	/* now load it into PKCS#11 token */
