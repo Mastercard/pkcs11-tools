@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased]
+### Changed
+- the `rfc5649` wrapping algorithm `flavour=` parameter has been harmonized. It now accepts both short aliases and full PKCS#11 mechanism names: `pad` (`CKM_AES_KEY_WRAP_PAD`), `kwp` (`CKM_AES_KEY_WRAP_KWP`), `nss` (`CKM_NSS_AES_KEY_WRAP_PAD`) and, on Luna-enabled builds, `luna` (`CKM_LUNA_AES_KWP`). Previously only `nss` and full mechanism names were accepted, so the PKCS#11 v3.0 KWP mechanism could only be selected with the verbose `flavour=CKM_AES_KEY_WRAP_KWP`; the new `flavour=kwp` alias makes it consistent with the other options. Full `CKM_*` mechanism names remain accepted, and an unrecognized mechanism now emits a warning (instead of being used silently), while still giving experienced users direct control over vendor-specific mechanisms
+
 ### Fixed
 - `p11wrap`: fixed usage-error handling so invalid/missing CLI arguments now return a non-zero status (`rc_error_usage`) instead of success.
 - `p11req` and `p11mkcert`: fixed error propagation so CSR/certificate generation failures now return a non-zero status (`rc_error_other_error`) instead of success.

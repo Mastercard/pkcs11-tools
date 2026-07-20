@@ -172,9 +172,35 @@ func_rc _wrappedkey_parser_wkey_set_wrapping_param_iv(wrappedKeyCtx *wctx, void 
 }
 
 /* dealing with flavour=xxx parameter */
-/* parser/lexer guarantee we are with oaep */
+/* parser/lexer guarantee we are with rfc5649 */
+/* The flavour pins the concrete AES key wrap mechanism used to implement the   */
+/* rfc5649 algorithm. It accepts both shorthand names (pad, kwp, nss, luna) and */
+/* full PKCS#11 mechanism names (e.g. CKM_AES_KEY_WRAP_KWP). Recognised RFC5649 */
+/* mechanisms are accepted silently; any other mechanism is still honoured (an  */
+/* experienced user may target a vendor-specific mechanism) but a warning is    */
+/* emitted to catch typos.                                                      */
 func_rc _wrappedkey_parser_wkey_set_wrapping_param_flavour(wrappedKeyCtx *wctx, CK_MECHANISM_TYPE wrapalg)
 {
+    switch(wrapalg) {
+    case CKM_AES_KEY_WRAP_PAD:      /* PKCS#11 v2.40 RFC5649               */
+    case CKM_AES_KEY_WRAP_KWP:      /* PKCS#11 v3.0 RFC5649                */
+    case CKM_NSS_AES_KEY_WRAP_PAD:  /* NSS variant (not fully compliant)   */
+#if defined(HAVE_LUNA)
+    case CKM_LUNA_AES_KWP:          /* Safenet/Gemalto Luna variant        */
+#endif
+	break;
+
+    default:
+	fprintf(stderr,
+		"***Warning: '%s' is not a recognised RFC5649 flavour; proceeding as requested "
+		"(accepted shortcuts: pad, kwp, nss"
+#if defined(HAVE_LUNA)
+		", luna"
+#endif
+		", or any full CKM_* mechanism name)\n",
+		pkcs11_get_mechanism_name_from_type(wrapalg));
+    }
+
     wctx->aes_params.aes_wrapping_mech = wrapalg;
     return rc_ok;
 }
