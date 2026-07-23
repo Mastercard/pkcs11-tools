@@ -27,6 +27,13 @@
 
 #define P11SEARCH_NUM_HANDLES 64
 
+/* Heap buffer used by pkcs11_alloc_fetch_all() to prefetch all matching object
+   handles before a mutation (cp/mv/rm/setattr). The buffer starts at
+   P11SEARCH_PREFETCH_INITIAL entries (~8 KB) and grows by doubling up to
+   P11SEARCH_PREFETCH_MAX entries (~1 MB); beyond that the operation bails out. */
+#define P11SEARCH_PREFETCH_INITIAL 1000
+#define P11SEARCH_PREFETCH_MAX     128000
+
 
 pkcs11Search * pkcs11_new_search( pkcs11Context *p11Context, CK_ATTRIBUTE_PTR search, CK_ULONG length)
 {
@@ -117,6 +124,84 @@ CK_OBJECT_HANDLE pkcs11_fetch_next(pkcs11Search *p11s)
     }
     return rv;
 
+}
+
+
+/* pkcs11_alloc_fetch_all() prefetches every matching object handle into a
+   single heap-allocated array. This is required before a mutation
+   (cp/mv/rm/setattr): the search cursor cannot be safely iterated while the
+   underlying objects are being modified, so all handles are collected first and
+   the search is closed afterwards.
+
+   The buffer starts at P11SEARCH_PREFETCH_INITIAL entries and grows by doubling
+   up to P11SEARCH_PREFETCH_MAX entries; if more objects are found the function
+   bails out with an error.
+
+   On success, *out_handles points to an array of *out_count handles that the
+   caller must release with pkcs11_free_handle_array(). Returns true on
+   success, false on error. */
+bool pkcs11_alloc_fetch_all(pkcs11Search *p11s, CK_OBJECT_HANDLE **out_handles, CK_ULONG *out_count)
+{
+    CK_OBJECT_HANDLE *handles = NULL;
+    CK_ULONG capacity = 0;
+    CK_ULONG count = 0;
+    CK_OBJECT_HANDLE hndl;
+
+    if(p11s==NULL || out_handles==NULL || out_count==NULL) {
+	return false;
+    }
+
+    capacity = P11SEARCH_PREFETCH_INITIAL;
+    handles = calloc(capacity, sizeof(CK_OBJECT_HANDLE));
+    if(handles==NULL) {
+	fprintf(stderr, "Error: can't allocate memory for prefetch handle array\n");
+	return false;
+    }
+
+    while( (hndl = pkcs11_fetch_next(p11s)) != 0 ) {
+	if(count == capacity) {
+	    CK_OBJECT_HANDLE *tmp;
+	    CK_ULONG new_capacity;
+
+	    /* enforce the hard upper bound to cap memory usage */
+	    if(capacity >= P11SEARCH_PREFETCH_MAX) {
+		fprintf(stderr,
+			"Error: too many objects to prefetch (limit=%lu)\n",
+			(unsigned long)P11SEARCH_PREFETCH_MAX);
+		free(handles);
+		return false;
+	    }
+
+	    new_capacity = capacity * 2;
+	    if(new_capacity > P11SEARCH_PREFETCH_MAX) {
+		new_capacity = P11SEARCH_PREFETCH_MAX;
+	    }
+
+	    tmp = realloc(handles, new_capacity * sizeof(CK_OBJECT_HANDLE));
+	    if(tmp==NULL) {
+		fprintf(stderr, "Error: can't grow prefetch handle array\n");
+		free(handles);
+		return false;
+	    }
+	    handles = tmp;
+	    capacity = new_capacity;
+	}
+	handles[count++] = hndl;
+    }
+
+    *out_handles = handles;
+    *out_count = count;
+    return true;
+}
+
+
+/* pkcs11_free_handle_array() releases an array previously allocated by
+   pkcs11_alloc_fetch_all(). Safe to call with a NULL pointer. */
+void pkcs11_free_handle_array(CK_OBJECT_HANDLE *handles)
+{
+    if(handles) {
+	free(handles);
+    }
 }
 
 

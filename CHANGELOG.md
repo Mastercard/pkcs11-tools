@@ -21,11 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - support for the Yubico (YubiHSM) vendor key types `CKK_YUBICO_AES128/192/256_CCM_WRAP` (AES keys with the CCM-wrap capability): `p11ls` shows them as `aes(<size>,yubico-ccm-wrap)`, `p11od` decodes them, and their key type can be used in attribute templates. They cannot be generated with `p11keygen` (delegated capabilities are not expressible through PKCS#11). Enabled by default, disable with `--without-yubico`
 - `with_yubico` wrapper script (and `yubico` case in `with_pkcs11_common`) for YubiHSM tokens
-- `--with-prefetch-max-objects=NUM` configure option (default `1000`)
 - "Vendor-specific limitations" section in the manual (Yubico and AWS CloudHSM)
 
 ### Changed
-- `p11cp`, `p11mv`, `p11rm` and `p11setattr` now prefetch matching object handles before mutating, avoiding a live `C_FindObjects` cursor during changes (fails on some tokens, e.g. YubiHSM); bounded by `PKCS11_PREFETCH_MAX_OBJECTS`
+- `p11cp`, `p11mv`, `p11rm` and `p11setattr` now prefetch matching object handles before mutating, avoiding a live `C_FindObjects` cursor during changes (fails on some tokens, e.g. YubiHSM); the handles are collected into a heap buffer (initial capacity `1000`) that grows automatically, to a maximum of  `128000` handles.
 - `p11importcert` no longer forces `CKA_MODIFIABLE` in the certificate template
 
 
