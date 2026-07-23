@@ -24,10 +24,6 @@
 #include <stdlib.h>
 #include "pkcs11lib.h"
 
-#ifndef PKCS11_PREFETCH_MAX_OBJECTS
-#define PKCS11_PREFETCH_MAX_OBJECTS 1000
-#endif
-
 
 func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, CK_ATTRIBUTE *p_attr, size_t cnt, int interactive)
 {
@@ -35,6 +31,7 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
     func_rc rv=rc_ok;
     pkcs11Search *search=NULL;
     pkcs11IdTemplate *idtmpl=NULL;
+    CK_OBJECT_HANDLE *handles=NULL;
     
     idtmpl = pkcs11_create_id(label);
     
@@ -45,20 +42,12 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
 	if(search) {		/* we just need one hit */
 
 	    CK_OBJECT_HANDLE hndl=0;
-	    CK_OBJECT_HANDLE handles[PKCS11_PREFETCH_MAX_OBJECTS];
 	    CK_ULONG handle_count = 0;
 	    CK_ULONG i = 0;
 
-	    while( (hndl = pkcs11_fetch_next(search))!=0 ) {
-		if(handle_count >= PKCS11_PREFETCH_MAX_OBJECTS) {
-		    fprintf(stderr,
-			    "Error: too many objects matched '%s' (limit=%d). Reconfigure with --with-prefetch-max-objects=NUM.\n",
-			    label,
-			    PKCS11_PREFETCH_MAX_OBJECTS);
-		    rv = rc_error_usage;
-		    goto error;
-		}
-		handles[handle_count++] = hndl;
+	    if( pkcs11_alloc_fetch_all(search, &handles, &handle_count) == false ) {
+		rv = rc_error_memory;
+		goto error;
 	    }
 
 	    pkcs11_delete_search(search);
@@ -154,6 +143,7 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
 error:
     if(search) { pkcs11_delete_search(search); }
     if(idtmpl) { pkcs11_delete_idtemplate(idtmpl); }
+    if(handles) { pkcs11_free_handle_array(handles); }
 
     return rv;
 }

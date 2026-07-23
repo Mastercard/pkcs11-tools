@@ -728,6 +728,8 @@ pkcs11Search *pkcs11_new_search(pkcs11Context *p11Context, CK_ATTRIBUTE_PTR temp
 pkcs11Search *pkcs11_new_search_from_idtemplate( pkcs11Context *p11Context, pkcs11IdTemplate *idtmpl);
 
 CK_OBJECT_HANDLE pkcs11_fetch_next(pkcs11Search *p11s);
+bool pkcs11_alloc_fetch_all(pkcs11Search *p11s, CK_OBJECT_HANDLE **out_handles, CK_ULONG *out_count);
+void pkcs11_free_handle_array(CK_OBJECT_HANDLE *handles);
 void pkcs11_delete_search(pkcs11Search *p11s);
 int pkcs11_label_exists(pkcs11Context *p11Context, char *label);
 int pkcs11_privatekey_exists(pkcs11Context *p11Context, char *label);

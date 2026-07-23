@@ -161,23 +161,6 @@ AC_ARG_ENABLE([duplicate],
 				[Flag used to enable duplicates])hasduplicate="yes"],
 			[])
 
-dnl max number of PKCS#11 objects prefetched before mutation commands (cp/mv/rm/setattr)
-AC_ARG_WITH([prefetch-max-objects],
-	[AS_HELP_STRING([--with-prefetch-max-objects=NUM],
-	[max number of PKCS#11 objects prefetched before mutation (default: 1000)])],
-	[p11_prefetch_max_objects="$withval"],
-	[p11_prefetch_max_objects="1000"])
-
-AS_CASE([$p11_prefetch_max_objects],
-	[""|*[!0-9]*],
-	[AC_MSG_FAILURE([--with-prefetch-max-objects expects a positive integer])])
-
-AS_IF([test "$p11_prefetch_max_objects" -le 0],
-	[AC_MSG_FAILURE([--with-prefetch-max-objects must be > 0])])
-
-AC_DEFINE_UNQUOTED([PKCS11_PREFETCH_MAX_OBJECTS], [$p11_prefetch_max_objects],
-	[Maximum number of PKCS#11 objects prefetched before mutation])
-
 dnl check if Gemalto Luna extensions can be compiled. If requested, specific file must exist in include/cryptoki
 AC_ARG_WITH([luna],
 	[AS_HELP_STRING([--with-luna],
@@ -284,5 +267,4 @@ AC_MSG_NOTICE([libcrypto rpath     : $LIBCRYPTO_RPATH])
 AC_MSG_NOTICE([enable_duplicate    : $hasduplicate])
 AC_MSG_NOTICE([enable_pqc          : $haspqc])
 AC_MSG_NOTICE([pqc via openssl     : $haspqcopenssl])
-AC_MSG_NOTICE([prefetch max objects: $p11_prefetch_max_objects])
 AC_MSG_NOTICE([------------------------------------------------------------------------])
