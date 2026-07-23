@@ -355,13 +355,14 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 	{CKA_VALUE, NULL, 0 },				     /* 7  */
 	{CKA_SERIAL_NUMBER, NULL, 0 },			     /* 8  */
 	{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 9  */
-	/* CKA_TRUSTED set at last position   */
-	/* this flag is FALSE by default      */
-	/* So we don't present it in case     */
-	/* library does not support attribute */
-	/* if trust flag is needed, then we expand */
-	/* the size of the structure by 1     */
+	{CKA_MODIFIABLE, &ck_false, sizeof ck_false }	     /* 10 */
+	/* CKA_TRUSTED and CKA_MODIFIABLE set at the end          */
+	/* We don't present them unless required by -T            */
+	/* This is to accomodate with unreliable token libraries  */
     };
+
+#define CERT_TEMPLATE_SIZE_TRUSTED (sizeof(certTemplate)/sizeof(CK_ATTRIBUTE))
+#define CERT_TEMPLATE_SIZE_NORMAL  (CERT_TEMPLATE_SIZE_TRUSTED-2)
 
     X509 *cert = NULL;
 
@@ -415,9 +416,10 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 			    certTemplate[8].pValue = serial_number;
 			    certTemplate[8].ulValueLen = serial_number_len;
 
+			    /* if trusted flag is set, our template contains CKA_TRUSTED=true and CKA_MODIFIABLE=false*/
 			    retCode = pC_CreateObject(p11Context->Session,
 						      certTemplate,
-						      (trusted ? sizeof(certTemplate) : sizeof(certTemplate)-1) / sizeof(CK_ATTRIBUTE),
+						      (trusted ? CERT_TEMPLATE_SIZE_TRUSTED : CERT_TEMPLATE_SIZE_NORMAL),
 						      &hCert);
 
 			    if(retCode != CKR_OK) {
