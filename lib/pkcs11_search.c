@@ -24,8 +24,11 @@
 #include <stdarg.h>
 #include "pkcs11lib.h"
 
-
-#define P11SEARCH_NUM_HANDLES 64
+/* When invoking C_FindObjects(), the caller provides a buffer of object handles to be filled. This
+   is the number of handles we allocate for that buffer. If more objects are
+   found, C_FindObjects() is called again to refill the buffer. 
+   256 should be more than enough for the vast majority of cases. */
+#define P11SEARCH_NUM_HANDLES 256
 
 /* Heap buffer used by pkcs11_alloc_fetch_all() to prefetch all matching object
    handles before a mutation (cp/mv/rm/setattr). The buffer starts at
@@ -97,23 +100,35 @@ pkcs11Search * pkcs11_new_search_from_idtemplate( pkcs11Context *p11Context, pkc
 
 
 
-CK_OBJECT_HANDLE pkcs11_fetch_next(pkcs11Search *p11s)
+/* pkcs11_fetch_next() returns the next matching object handle for an ongoing
+   search, or 0 when there are no more objects (or on error).
+
+   The search cursor is advanced transparently: when the internal handle buffer
+   is exhausted, C_FindObjects() is called again to refill it, so the caller can
+   simply loop until 0 is returned.
+
+   out_retCode is optional and may be NULL. When non-NULL, it receives the
+   CK_RV status of the underlying C_FindObjects() call, which lets the caller
+   distinguish a genuine end-of-search (CKR_OK) from an error. When NULL, the
+   status is simply not reported, which is convenient for best-effort callers
+   that only need the handles. */
+CK_OBJECT_HANDLE pkcs11_fetch_next(pkcs11Search *p11s, CK_RV *out_retCode)
 {
 
     CK_OBJECT_HANDLE rv = 0;
+    CK_RV retCode = CKR_OK;
 
     if(p11s) {
 	/* have we ever executed FindObjects? */
-	if(p11s->count==0 || (p11s->count>0 && p11s->index==p11s->count) ) {
-	    CK_RV retCode;    
+	if(p11s->count==0 || (p11s->count>0 && p11s->index==p11s->count) ) {   
 
 	    if ( ( retCode = p11s->FindObjects( p11s->p11Context->Session, 
 						p11s->handle_array,
 						p11s->allocated, 
-						&(p11s->count)  ) ) != CKR_OK )
-	    {
+						&(p11s->count)  ) ) != CKR_OK ) {
 		pkcs11_error( retCode, "C_FindObjects" );
-		return NULL_PTR;
+		if(out_retCode) { *out_retCode = retCode; }
+		return 0;
 	    }
 	    p11s->index=0;		/* reset index */
 	}
@@ -122,6 +137,8 @@ CK_OBJECT_HANDLE pkcs11_fetch_next(pkcs11Search *p11s)
 	    rv = p11s->handle_array[p11s->index++];
 	}
     }
+
+    if(out_retCode) { *out_retCode = retCode; }
     return rv;
 
 }
@@ -146,6 +163,7 @@ bool pkcs11_alloc_fetch_all(pkcs11Search *p11s, CK_OBJECT_HANDLE **out_handles, 
     CK_ULONG capacity = 0;
     CK_ULONG count = 0;
     CK_OBJECT_HANDLE hndl;
+    CK_RV retCode = CKR_OK;
 
     if(p11s==NULL || out_handles==NULL || out_count==NULL) {
 	return false;
@@ -158,7 +176,7 @@ bool pkcs11_alloc_fetch_all(pkcs11Search *p11s, CK_OBJECT_HANDLE **out_handles, 
 	return false;
     }
 
-    while( (hndl = pkcs11_fetch_next(p11s)) != 0 ) {
+    while( (hndl = pkcs11_fetch_next(p11s, &retCode)) != 0 ) {
 	if(count == capacity) {
 	    CK_OBJECT_HANDLE *tmp;
 	    CK_ULONG new_capacity;
@@ -187,6 +205,13 @@ bool pkcs11_alloc_fetch_all(pkcs11Search *p11s, CK_OBJECT_HANDLE **out_handles, 
 	    capacity = new_capacity;
 	}
 	handles[count++] = hndl;
+    }
+
+    /* pkcs11_fetch_next() returned 0: distinguish a genuine end-of-search
+       (CKR_OK) from an underlying C_FindObjects failure. */
+    if(retCode != CKR_OK) {
+	free(handles);
+	return false;
     }
 
     *out_handles = handles;
@@ -243,7 +268,7 @@ static int pkcs11_object_with_class_exists(pkcs11Context *p11Context, char *labe
 
 
     if(search) {		/* we just need one hit */
-	rv = pkcs11_fetch_next(search)!=0 ? 1 : 0 ;
+	rv = pkcs11_fetch_next(search, NULL)!=0 ? 1 : 0 ;
 	pkcs11_delete_search(search);
     }
 
@@ -266,8 +291,8 @@ static CK_OBJECT_HANDLE pkcs11_find_object_with_class(pkcs11Context *p11Context,
 
 
     if(search) {		/* we stop by the first hit */
-	
-	hndl = pkcs11_fetch_next(search);
+
+	hndl = pkcs11_fetch_next(search, NULL);
     
 	pkcs11_delete_search(search);
 
@@ -290,7 +315,7 @@ int pkcs11_label_exists(pkcs11Context *p11Context, char *label)
 
 
     if(search) {		/* we just need one hit */
-	rv = pkcs11_fetch_next(search)!=0 ? 1 : 0 ;
+	rv = pkcs11_fetch_next(search, NULL)!=0 ? 1 : 0 ;
 	pkcs11_delete_search(search);
     }
 
