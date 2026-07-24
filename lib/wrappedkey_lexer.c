@@ -1898,101 +1898,122 @@ YY_RULE_SETUP
 case 78:
 YY_RULE_SETUP
 #line 131 "wrappedkey_lexer.l"
-{ yylval.val_key = CKK_YUBICO_AES128_CCM_WRAP; return KEYTYPE; }
+{ 
+#if defined(HAVE_YUBICO)
+	yylval.val_key = CKK_YUBICO_AES128_CCM_WRAP; return KEYTYPE;
+#else
+	yyerror(NULL, "CKK_YUBICO_AES128_CCM_WRAP is not supported by this build");
+	yyterminate();
+#endif
+}
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 132 "wrappedkey_lexer.l"
-{ yylval.val_key = CKK_YUBICO_AES192_CCM_WRAP; return KEYTYPE; }
+#line 139 "wrappedkey_lexer.l"
+{
+#if defined(HAVE_YUBICO)
+	yylval.val_key = CKK_YUBICO_AES192_CCM_WRAP; return KEYTYPE;
+#else
+	yyerror(NULL, "CKK_YUBICO_AES192_CCM_WRAP is not supported by this build");
+	yyterminate();
+#endif
+}
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 133 "wrappedkey_lexer.l"
-{ yylval.val_key = CKK_YUBICO_AES256_CCM_WRAP; return KEYTYPE; }
+#line 148 "wrappedkey_lexer.l"
+{ 
+#if defined(HAVE_YUBICO	)
+	yylval.val_key = CKK_YUBICO_AES256_CCM_WRAP; return KEYTYPE;
+#else
+	yyerror(NULL, "CKK_YUBICO_AES256_CCM_WRAP is not supported by this build");
+	yyterminate();
+#endif
+}
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 135 "wrappedkey_lexer.l"
+#line 157 "wrappedkey_lexer.l"
 { yylval.val_cls = CKO_DATA ; return OCLASS; }
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 136 "wrappedkey_lexer.l"
+#line 158 "wrappedkey_lexer.l"
 { yylval.val_cls = CKO_CERTIFICATE ; return OCLASS; }
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 137 "wrappedkey_lexer.l"
+#line 159 "wrappedkey_lexer.l"
 { yylval.val_cls = CKO_PUBLIC_KEY ; return OCLASS; }
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 138 "wrappedkey_lexer.l"
+#line 160 "wrappedkey_lexer.l"
 { yylval.val_cls = CKO_PRIVATE_KEY ; return OCLASS; }
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
-#line 139 "wrappedkey_lexer.l"
+#line 161 "wrappedkey_lexer.l"
 { yylval.val_cls = CKO_SECRET_KEY ; return OCLASS; }
 	YY_BREAK
 case 86:
 YY_RULE_SETUP
-#line 140 "wrappedkey_lexer.l"
+#line 162 "wrappedkey_lexer.l"
 { yylval.val_cls = CKO_HW_FEATURE ; return OCLASS; }
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
-#line 141 "wrappedkey_lexer.l"
+#line 163 "wrappedkey_lexer.l"
 { yylval.val_cls = CKO_DOMAIN_PARAMETERS ; return OCLASS; }
 	YY_BREAK
 case 88:
 YY_RULE_SETUP
-#line 142 "wrappedkey_lexer.l"
+#line 164 "wrappedkey_lexer.l"
 { yylval.val_cls = CKO_MECHANISM ; return OCLASS; }
 	YY_BREAK
 case 89:
 YY_RULE_SETUP
-#line 143 "wrappedkey_lexer.l"
+#line 165 "wrappedkey_lexer.l"
 { yylval.val_cls = CKO_OTP_KEY ; return OCLASS; }
 	YY_BREAK
 case 90:
 YY_RULE_SETUP
-#line 145 "wrappedkey_lexer.l"
+#line 167 "wrappedkey_lexer.l"
 { return PARAMMGF; }
 	YY_BREAK
 case 91:
 YY_RULE_SETUP
-#line 146 "wrappedkey_lexer.l"
+#line 168 "wrappedkey_lexer.l"
 { yylval.val_mgf = CKG_MGF1_SHA1; return MGFTYPE; }
 	YY_BREAK
 case 92:
 YY_RULE_SETUP
-#line 147 "wrappedkey_lexer.l"
+#line 169 "wrappedkey_lexer.l"
 { yylval.val_mgf = CKG_MGF1_SHA224; return MGFTYPE; }
 	YY_BREAK
 case 93:
 YY_RULE_SETUP
-#line 148 "wrappedkey_lexer.l"
+#line 170 "wrappedkey_lexer.l"
 { yylval.val_mgf = CKG_MGF1_SHA256; return MGFTYPE; }
 	YY_BREAK
 case 94:
 YY_RULE_SETUP
-#line 149 "wrappedkey_lexer.l"
+#line 171 "wrappedkey_lexer.l"
 { yylval.val_mgf = CKG_MGF1_SHA384; return MGFTYPE; }
 	YY_BREAK
 case 95:
 YY_RULE_SETUP
-#line 150 "wrappedkey_lexer.l"
+#line 172 "wrappedkey_lexer.l"
 { yylval.val_mgf = CKG_MGF1_SHA512; return MGFTYPE; }
 	YY_BREAK
 case 96:
 YY_RULE_SETUP
-#line 152 "wrappedkey_lexer.l"
+#line 174 "wrappedkey_lexer.l"
 { return PARAMHASH; }
 	YY_BREAK
 case 97:
 YY_RULE_SETUP
-#line 154 "wrappedkey_lexer.l"
+#line 176 "wrappedkey_lexer.l"
 { yylval.val_mech = pkcs11_get_mechanism_type_from_name(yytext);
                      if (yylval.val_mech==0xFFFFFFFF) {
 			yyerror(NULL, "Unknown mechanism identifier <%s>", yytext);
@@ -2003,67 +2024,67 @@ YY_RULE_SETUP
 	YY_BREAK
 case 98:
 YY_RULE_SETUP
-#line 162 "wrappedkey_lexer.l"
+#line 184 "wrappedkey_lexer.l"
 { return PARAMLABEL; }
 	YY_BREAK
 case 99:
 YY_RULE_SETUP
-#line 163 "wrappedkey_lexer.l"
+#line 185 "wrappedkey_lexer.l"
 { return PARAMIV; }
 	YY_BREAK
 case 100:
 YY_RULE_SETUP
-#line 164 "wrappedkey_lexer.l"
+#line 186 "wrappedkey_lexer.l"
 { return PARAMFLAVOUR; }
 	YY_BREAK
 case 101:
 YY_RULE_SETUP
-#line 165 "wrappedkey_lexer.l"
+#line 187 "wrappedkey_lexer.l"
 { yylval.val_mech = CKM_NSS_AES_KEY_WRAP_PAD; return CKMECH; }
 	YY_BREAK
 case 102:
 YY_RULE_SETUP
-#line 166 "wrappedkey_lexer.l"
+#line 188 "wrappedkey_lexer.l"
 { return PARAMOUTER; }
 	YY_BREAK
 case 103:
 YY_RULE_SETUP
-#line 167 "wrappedkey_lexer.l"
+#line 189 "wrappedkey_lexer.l"
 { return PARAMINNER; }
 	YY_BREAK
 case 104:
 YY_RULE_SETUP
-#line 169 "wrappedkey_lexer.l"
+#line 191 "wrappedkey_lexer.l"
 { return WRAPPINGJOBHEADER; }
 	YY_BREAK
 case 105:
 YY_RULE_SETUP
-#line 170 "wrappedkey_lexer.l"
+#line 192 "wrappedkey_lexer.l"
 { return P_WRAPPINGKEY; }
 	YY_BREAK
 case 106:
 YY_RULE_SETUP
-#line 171 "wrappedkey_lexer.l"
+#line 193 "wrappedkey_lexer.l"
 { return P_FILENAME; }
 	YY_BREAK
 case 107:
 YY_RULE_SETUP
-#line 172 "wrappedkey_lexer.l"
+#line 194 "wrappedkey_lexer.l"
 { return P_ALGORITHM; }
 	YY_BREAK
 case 108:
 YY_RULE_SETUP
-#line 174 "wrappedkey_lexer.l"
+#line 196 "wrappedkey_lexer.l"
 { yylval.val_bool = 1; return TOK_BOOLEAN; }
 	YY_BREAK
 case 109:
 YY_RULE_SETUP
-#line 175 "wrappedkey_lexer.l"
+#line 197 "wrappedkey_lexer.l"
 { yylval.val_bool = 0; return TOK_BOOLEAN; }
 	YY_BREAK
 case 110:
 YY_RULE_SETUP
-#line 178 "wrappedkey_lexer.l"
+#line 200 "wrappedkey_lexer.l"
 {   if(strlen(yytext)%2==1) {
 			yyerror(NULL, "Invalid hexadecimal string <%s>: odd length", yytext);
 			yyterminate();
@@ -2094,32 +2115,32 @@ YY_RULE_SETUP
 	YY_BREAK
 case 111:
 YY_RULE_SETUP
-#line 206 "wrappedkey_lexer.l"
+#line 228 "wrappedkey_lexer.l"
 { memcpy(yylval.val_date.as_buffer, yytext, 8); return TOK_DATE; }
 	YY_BREAK
 case 112:
 YY_RULE_SETUP
-#line 208 "wrappedkey_lexer.l"
+#line 230 "wrappedkey_lexer.l"
 { yylval.val_dottednumber = strdup(yytext); return DOTTEDNUMBER; }
 	YY_BREAK
 case 113:
 /* rule 113 can match eol */
 YY_RULE_SETUP
-#line 210 "wrappedkey_lexer.l"
+#line 232 "wrappedkey_lexer.l"
 { /* ignore whitespace */ }
 	YY_BREAK
 case 114:
 YY_RULE_SETUP
-#line 212 "wrappedkey_lexer.l"
+#line 234 "wrappedkey_lexer.l"
 { return yytext[0]; } /* catch-all http://stackoverflow.com/questions/18837828/how-should-i-handle-lexical-errors-in-my-flex-lexer */
 	YY_BREAK
 /* gives it back to bison, so error comes from parser */
 case 115:
 YY_RULE_SETUP
-#line 215 "wrappedkey_lexer.l"
+#line 237 "wrappedkey_lexer.l"
 ECHO;
 	YY_BREAK
-#line 2123 "wrappedkey_lexer.c"
+#line 2144 "wrappedkey_lexer.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -3139,7 +3160,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 215 "wrappedkey_lexer.l"
+#line 237 "wrappedkey_lexer.l"
 
 
 

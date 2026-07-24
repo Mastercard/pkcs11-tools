@@ -356,9 +356,9 @@ CK_OBJECT_HANDLE pkcs11_importcert( pkcs11Context * p11Context, char *filename, 
 	{CKA_SERIAL_NUMBER, NULL, 0 },			     /* 8  */
 	{CKA_TRUSTED, &ck_true, sizeof ck_true },	     /* 9  */
 	{CKA_MODIFIABLE, &ck_false, sizeof ck_false }	     /* 10 */
-	/* CKA_TRUSTED and CKA_MODIFIABLE set at the end          */
-	/* We don't present them unless required by -T            */
-	/* This is to accomodate with unreliable token libraries  */
+	/* CKA_TRUSTED and CKA_MODIFIABLE set at the end           */
+	/* We don't present them unless required by -T             */
+	/* This is to accommodate unreliable token libraries       */
     };
 
 #define CERT_TEMPLATE_SIZE_TRUSTED (sizeof(certTemplate)/sizeof(CK_ATTRIBUTE))
