@@ -67,8 +67,9 @@ int pkcs11_rm_objects_with_label(pkcs11Context *p11Context, char *label, int int
 	    CK_ULONG i = 0;
 	    int ok_to_delete=1;
 
-	    if( pkcs11_alloc_fetch_all(search, &handles, &handle_count) == false ) {
-		rv = RC_ERROR_MEMORY;
+	    CK_RV fetch_rc = pkcs11_fetch_all_handles(search, &handles, &handle_count);
+	    if( fetch_rc != CKR_OK ) {
+		rv = (fetch_rc == CKR_HOST_MEMORY) ? RC_ERROR_MEMORY : RC_ERROR_PKCS11_API;
 		goto error;
 	    }
 

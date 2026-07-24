@@ -210,8 +210,9 @@ int pkcs11_mv_objects(pkcs11Context *p11Context, char *src, char *dest, int inte
 	    int ok_to_move=1;
 	    char choice;
 
-	    if( pkcs11_alloc_fetch_all(search, &handles, &handle_count) == false ) {
-		rv = RC_ERROR_MEMORY;
+	    CK_RV fetch_rc = pkcs11_fetch_all_handles(search, &handles, &handle_count);
+	    if( fetch_rc != CKR_OK ) {
+		rv = (fetch_rc == CKR_HOST_MEMORY) ? RC_ERROR_MEMORY : RC_ERROR_PKCS11_API;
 		goto error;
 	    }
 

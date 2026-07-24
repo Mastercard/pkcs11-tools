@@ -45,8 +45,9 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
 	    CK_ULONG handle_count = 0;
 	    CK_ULONG i = 0;
 
-	    if( pkcs11_alloc_fetch_all(search, &handles, &handle_count) == false ) {
-		rv = rc_error_memory;
+	    CK_RV fetch_rc = pkcs11_fetch_all_handles(search, &handles, &handle_count);
+	    if( fetch_rc != CKR_OK ) {
+		rv = (fetch_rc == CKR_HOST_MEMORY) ? rc_error_memory : rc_error_pkcs11_api;
 		goto error;
 	    }
 
