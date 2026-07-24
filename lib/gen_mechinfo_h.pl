@@ -34,17 +34,23 @@ for $file(@ARGV) {
 }
 
 # uniquify array
+# note: we key on the numeric value (hex()) so that codes written with a
+# different letter case (e.g. 0xDE43 vs 0xde43) are treated as identical.
 
 my %seen;
 my @uniq;
 
 foreach $item (@lines) {
-    push(@uniq, $item) unless $seen{$item->[1] }++;
+    push(@uniq, $item) unless $seen{hex($item->[1]) }++;
 }
 
 # sort. The key for CKM is the hex code.
+# We must sort numerically (not as strings) to stay consistent with the
+# bsearch() numeric comparator used in pkcs11_mechanism.c. A string sort would
+# misplace codes whose hex letters use a different case (e.g. lowercase 0xd9..
+# would sort after uppercase 0xDE..), breaking the binary search.
 
-my @sorted = sort { $a->[1] cmp $b->[1] } @uniq;
+my @sorted = sort { hex($a->[1]) <=> hex($b->[1]) } @uniq;
 
 #print Dumper(@sorted);
 

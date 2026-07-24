@@ -34,6 +34,7 @@ int pkcs11_cp_objects(pkcs11Context *p11Context, char *src, char *dest, int inte
     int rv=0;
     pkcs11Search *search=NULL;
     pkcs11IdTemplate *idtmpl=NULL;
+    CK_OBJECT_HANDLE *handles=NULL;
     char *destlabel;
     typedef enum { all, cert, pubk, prvk, seck }  objtype;
 
@@ -183,11 +184,21 @@ int pkcs11_cp_objects(pkcs11Context *p11Context, char *src, char *dest, int inte
 	if(search) {
 
 	    CK_OBJECT_HANDLE hndl=0;
+	    CK_ULONG handle_count = 0;
+	    CK_ULONG i = 0;
 	    int ok_to_copy=1;
 	    char choice;
 
-	    while( (hndl = pkcs11_fetch_next(search))!=0 ) {
+	    if( pkcs11_alloc_fetch_all(search, &handles, &handle_count) == false ) {
+		rv = RC_ERROR_MEMORY;
+		goto error;
+	    }
 
+	    pkcs11_delete_search(search);
+	    search = NULL;
+
+	    for(i=0; i<handle_count; i++) {
+		hndl = handles[i];
 		if(interactive) {
 		    pkcs11AttrList *attrs;
 		    char *prefixptr;
@@ -282,13 +293,14 @@ int pkcs11_cp_objects(pkcs11Context *p11Context, char *src, char *dest, int inte
 		    /* 	rv = RC_ERROR_PKCS11_API; */
 		    /* 	/\* goto error; *\/ */
 		    /* } */
-		}	    
+		}
 	    }
 	}
     }
 error:
     if(search) { pkcs11_delete_search(search); }
     if(idtmpl) { pkcs11_delete_idtemplate(idtmpl); }
+    if(handles) { pkcs11_free_handle_array(handles); }
     
     return rv;
 }

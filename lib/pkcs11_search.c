@@ -24,8 +24,18 @@
 #include <stdarg.h>
 #include "pkcs11lib.h"
 
+/* When invoking C_FindObjects(), the caller provides a buffer of object handles to be filled. This
+   is the number of handles we allocate for that buffer. If more objects are
+   found, C_FindObjects() is called again to refill the buffer. 
+   256 should be more than enough for the vast majority of cases. */
+#define P11SEARCH_NUM_HANDLES 256
 
-#define P11SEARCH_NUM_HANDLES 64
+/* Heap buffer used by pkcs11_alloc_fetch_all() to prefetch all matching object
+   handles before a mutation (cp/mv/rm/setattr). The buffer starts at
+   P11SEARCH_PREFETCH_INITIAL entries (~8 KB) and grows by doubling up to
+   P11SEARCH_PREFETCH_MAX entries (~1 MB); beyond that the operation bails out. */
+#define P11SEARCH_PREFETCH_INITIAL 1000
+#define P11SEARCH_PREFETCH_MAX     128000
 
 
 pkcs11Search * pkcs11_new_search( pkcs11Context *p11Context, CK_ATTRIBUTE_PTR search, CK_ULONG length)
@@ -90,23 +100,35 @@ pkcs11Search * pkcs11_new_search_from_idtemplate( pkcs11Context *p11Context, pkc
 
 
 
-CK_OBJECT_HANDLE pkcs11_fetch_next(pkcs11Search *p11s)
+/* pkcs11_fetch_next() returns the next matching object handle for an ongoing
+   search, or 0 when there are no more objects (or on error).
+
+   The search cursor is advanced transparently: when the internal handle buffer
+   is exhausted, C_FindObjects() is called again to refill it, so the caller can
+   simply loop until 0 is returned.
+
+   out_retCode is optional and may be NULL. When non-NULL, it receives the
+   CK_RV status of the underlying C_FindObjects() call, which lets the caller
+   distinguish a genuine end-of-search (CKR_OK) from an error. When NULL, the
+   status is simply not reported, which is convenient for best-effort callers
+   that only need the handles. */
+CK_OBJECT_HANDLE pkcs11_fetch_next(pkcs11Search *p11s, CK_RV *out_retCode)
 {
 
     CK_OBJECT_HANDLE rv = 0;
+    CK_RV retCode = CKR_OK;
 
     if(p11s) {
 	/* have we ever executed FindObjects? */
-	if(p11s->count==0 || (p11s->count>0 && p11s->index==p11s->count) ) {
-	    CK_RV retCode;    
+	if(p11s->count==0 || (p11s->count>0 && p11s->index==p11s->count) ) {   
 
 	    if ( ( retCode = p11s->FindObjects( p11s->p11Context->Session, 
 						p11s->handle_array,
 						p11s->allocated, 
-						&(p11s->count)  ) ) != CKR_OK )
-	    {
+						&(p11s->count)  ) ) != CKR_OK ) {
 		pkcs11_error( retCode, "C_FindObjects" );
-		return NULL_PTR;
+		if(out_retCode) { *out_retCode = retCode; }
+		return 0;
 	    }
 	    p11s->index=0;		/* reset index */
 	}
@@ -115,8 +137,96 @@ CK_OBJECT_HANDLE pkcs11_fetch_next(pkcs11Search *p11s)
 	    rv = p11s->handle_array[p11s->index++];
 	}
     }
+
+    if(out_retCode) { *out_retCode = retCode; }
     return rv;
 
+}
+
+
+/* pkcs11_alloc_fetch_all() prefetches every matching object handle into a
+   single heap-allocated array. This is required before a mutation
+   (cp/mv/rm/setattr): the search cursor cannot be safely iterated while the
+   underlying objects are being modified, so all handles are collected first and
+   the search is closed afterwards.
+
+   The buffer starts at P11SEARCH_PREFETCH_INITIAL entries and grows by doubling
+   up to P11SEARCH_PREFETCH_MAX entries; if more objects are found the function
+   bails out with an error.
+
+   On success, *out_handles points to an array of *out_count handles that the
+   caller must release with pkcs11_free_handle_array(). Returns true on
+   success, false on error. */
+bool pkcs11_alloc_fetch_all(pkcs11Search *p11s, CK_OBJECT_HANDLE **out_handles, CK_ULONG *out_count)
+{
+    CK_OBJECT_HANDLE *handles = NULL;
+    CK_ULONG capacity = 0;
+    CK_ULONG count = 0;
+    CK_OBJECT_HANDLE hndl;
+    CK_RV retCode = CKR_OK;
+
+    if(p11s==NULL || out_handles==NULL || out_count==NULL) {
+	return false;
+    }
+
+    capacity = P11SEARCH_PREFETCH_INITIAL;
+    handles = calloc(capacity, sizeof(CK_OBJECT_HANDLE));
+    if(handles==NULL) {
+	fprintf(stderr, "Error: can't allocate memory for prefetch handle array\n");
+	return false;
+    }
+
+    while( (hndl = pkcs11_fetch_next(p11s, &retCode)) != 0 ) {
+	if(count == capacity) {
+	    CK_OBJECT_HANDLE *tmp;
+	    CK_ULONG new_capacity;
+
+	    /* enforce the hard upper bound to cap memory usage */
+	    if(capacity >= P11SEARCH_PREFETCH_MAX) {
+		fprintf(stderr,
+			"Error: too many objects to prefetch (limit=%lu)\n",
+			(unsigned long)P11SEARCH_PREFETCH_MAX);
+		free(handles);
+		return false;
+	    }
+
+	    new_capacity = capacity * 2;
+	    if(new_capacity > P11SEARCH_PREFETCH_MAX) {
+		new_capacity = P11SEARCH_PREFETCH_MAX;
+	    }
+
+	    tmp = realloc(handles, new_capacity * sizeof(CK_OBJECT_HANDLE));
+	    if(tmp==NULL) {
+		fprintf(stderr, "Error: can't grow prefetch handle array\n");
+		free(handles);
+		return false;
+	    }
+	    handles = tmp;
+	    capacity = new_capacity;
+	}
+	handles[count++] = hndl;
+    }
+
+    /* pkcs11_fetch_next() returned 0: distinguish a genuine end-of-search
+       (CKR_OK) from an underlying C_FindObjects failure. */
+    if(retCode != CKR_OK) {
+	free(handles);
+	return false;
+    }
+
+    *out_handles = handles;
+    *out_count = count;
+    return true;
+}
+
+
+/* pkcs11_free_handle_array() releases an array previously allocated by
+   pkcs11_alloc_fetch_all(). Safe to call with a NULL pointer. */
+void pkcs11_free_handle_array(CK_OBJECT_HANDLE *handles)
+{
+    if(handles) {
+	free(handles);
+    }
 }
 
 
@@ -158,7 +268,7 @@ static int pkcs11_object_with_class_exists(pkcs11Context *p11Context, char *labe
 
 
     if(search) {		/* we just need one hit */
-	rv = pkcs11_fetch_next(search)!=0 ? 1 : 0 ;
+	rv = pkcs11_fetch_next(search, NULL)!=0 ? 1 : 0 ;
 	pkcs11_delete_search(search);
     }
 
@@ -181,8 +291,8 @@ static CK_OBJECT_HANDLE pkcs11_find_object_with_class(pkcs11Context *p11Context,
 
 
     if(search) {		/* we stop by the first hit */
-	
-	hndl = pkcs11_fetch_next(search);
+
+	hndl = pkcs11_fetch_next(search, NULL);
     
 	pkcs11_delete_search(search);
 
@@ -205,7 +315,7 @@ int pkcs11_label_exists(pkcs11Context *p11Context, char *label)
 
 
     if(search) {		/* we just need one hit */
-	rv = pkcs11_fetch_next(search)!=0 ? 1 : 0 ;
+	rv = pkcs11_fetch_next(search, NULL)!=0 ? 1 : 0 ;
 	pkcs11_delete_search(search);
     }
 

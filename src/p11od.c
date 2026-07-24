@@ -180,6 +180,10 @@ int main( int argc, char ** argv )
 	goto err;
     }
 
+    /* save optind before opening the library */
+    /* some tokens change its value - e.g. Yubikey */
+    int saved_optind = optind;
+
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
       goto err;
     }
@@ -189,16 +193,15 @@ int main( int argc, char ** argv )
       goto err;
     }
 
-
     retcode = pkcs11_open_session( p11Context, slot, tokenlabel, password, so, interactive);
 	
     if ( retcode == rc_ok )
     {
-	if(optind==argc) {	/* we have no label, dump all */
+	if(saved_optind==argc) {	/* we have no label, dump all */
 	    pkcs11_dump_object_with_label(p11Context, "CKA_TOKEN/{01}");
 	} else {
-	    while(optind<argc) {
-		pkcs11_dump_object_with_label(p11Context, argv[optind++]);
+	    while(saved_optind<argc) {
+		pkcs11_dump_object_with_label(p11Context, argv[saved_optind++]);
 	    }
 	}
 	

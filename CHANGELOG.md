@@ -5,7 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased]
+
 ### Fixed
+- `CKA_ID` is now derived for Edwards keys (`Ed25519`, `Ed448`), like EC keys
+- save `optind` before `C_Initialize` in `p11cat`/`p11cp`/`p11kcv`/`p11ls`/`p11more`/`p11mv`/`p11od`/`p11rm` (some libraries, e.g. YubiHSM, alter it)
+- mechanism/attribute name tables are now sorted to match the runtime `bsearch()` comparators (numeric / case-insensitive), fixing lookup of vendor mechanisms with lowercase hex codes (e.g. Yubico `0xd955xxxx`)
 - `p11wrap`: fixed usage-error handling so invalid/missing CLI arguments now return a non-zero status (`rc_error_usage`) instead of success.
 - `p11req` and `p11mkcert`: fixed error propagation so CSR/certificate generation failures now return a non-zero status (`rc_error_other_error`) instead of success.
 - `p11cp` and `p11mv`: fixed return-code propagation so copy/move failures are no longer silently reported as success by the command entry points.
@@ -13,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fixed extended object-filter parsing (`class/attr/value+...`) in search templates (`pkcs11_template`) by correcting `strsep` delimiter usage and attribute value tokenization.
 - fixed wrapped-key parser state leakage across parses by resetting `parsing_envelope` before each parse entry point (`pkcs11_prepare_wrappingctx`, `pkcs11_new_wrapped_key_from_file`).
 - `pkcs11_change_object_attributes`: fixed OID/ID retrieval to read `CKA_ID` (not `CKA_LABEL`) when inspecting matched objects.
+
+### Added
+- support for the Yubico (YubiHSM) vendor key types `CKK_YUBICO_AES128/192/256_CCM_WRAP` (AES keys with the CCM-wrap capability): `p11ls` shows them as `aes(<size>,yubico-ccm-wrap)`, `p11od` decodes them, and their key type can be used in attribute templates. They cannot be generated with `p11keygen` (delegated capabilities are not expressible through PKCS#11). Enabled by default, disable with `--without-yubico`
+- `with_yubico` wrapper script (and `yubico` case in `with_pkcs11_common`) for YubiHSM tokens
+- "Vendor-specific limitations" section in the manual (Yubico and AWS CloudHSM)
+
+### Changed
+- `p11cp`, `p11mv`, `p11rm` and `p11setattr` now prefetch matching object handles before mutating, avoiding a live `C_FindObjects` cursor during changes (fails on some tokens, e.g. YubiHSM); the handles are collected into a heap buffer (initial capacity `1000`) that grows automatically, to a maximum of  `128000` handles.
+- `p11importcert` no longer forces `CKA_MODIFIABLE` in the certificate template
+
 
 # [3.0.0] - 2026-06-30
 ### Added

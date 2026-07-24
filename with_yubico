@@ -1,0 +1,50 @@
+#!/bin/sh
+# Copyright (c) 2026 Mastercard
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#   http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# wrapper script for Yubico YubiHSM 2 tokens (https://www.yubico.com/products/hardware-security-module/)
+# see with_pkcs11_common for usage and alternate invocations
+#
+# Yubico-specific notes:
+#   - library: yubihsm_pkcs11.so (.dylib on macOS)
+#   - YUBIHSM_PKCS11_CONF: path to the PKCS#11 configuration file (highest precedence)
+#   - if YUBIHSM_PKCS11_CONF is not set, falls back to:
+#       ${XDG_CONFIG_HOME}/yubico/token.conf  or
+#       ${HOME}/.config/yubico/token.conf
+#   - the PKCS#11 password embeds the authentication key id (0001 is the default),
+#     e.g. "0001password"
+
+PKCS11PASSWORD=${PKCS11PASSWORD:-0001password}
+
+_p11_vendor=yubico
+
+# vendor-specific settings
+case $(uname -s) in
+    Darwin) PKCS11_LIBNAME=yubihsm_pkcs11.dylib ;;
+    *)      PKCS11_LIBNAME=yubihsm_pkcs11.so    ;;
+esac
+PKCS11_LIBPATHS=""
+LIB_ENVVARS="YUBIHSM_PKCS11_CONF"
+
+# set YUBIHSM_PKCS11_CONF to the default location if not already set and the file exists
+if [ -z "${YUBIHSM_PKCS11_CONF:-}" ]; then
+    _default_conf="${XDG_CONFIG_HOME:-$HOME/.config}/yubico/token.conf"
+    if [ -e "$_default_conf" ]; then
+        YUBIHSM_PKCS11_CONF="$_default_conf"
+    fi
+    unset _default_conf
+fi
+
+# load common logic
+. "$(dirname "$0")/with_pkcs11_common" "$@"

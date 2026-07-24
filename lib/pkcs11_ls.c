@@ -164,6 +164,20 @@ static char* value_for_keytype( pkcs11AttrList *attrlist )
 	    }
 	    break;
 
+#if defined(HAVE_YUBICO)
+	case CKK_YUBICO_AES128_CCM_WRAP:
+	    rv = "aes(128,yubico-ccm-wrap)";
+	    break;
+
+	case CKK_YUBICO_AES192_CCM_WRAP:
+	    rv = "aes(192,yubico-ccm-wrap)";
+	    break;
+
+	case CKK_YUBICO_AES256_CCM_WRAP:
+	    rv = "aes(256,yubico-ccm-wrap)";
+	    break;
+#endif
+
 	case CKK_MD5_HMAC:
 	    rv = "hmac-md5";
 	    break;
@@ -808,7 +822,7 @@ func_rc pkcs11_ls( pkcs11Context *p11Context, char *label)
 	    CK_OBJECT_HANDLE hndl=0;
 	    int objcnt = 0;
 
-	    while( (hndl = pkcs11_fetch_next(search))!=0 ) {
+	    while( (hndl = pkcs11_fetch_next(search, NULL))!=0 ) {
 
 		pkcs11AttrList *attrs;
 

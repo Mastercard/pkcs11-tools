@@ -104,6 +104,33 @@ CKK_EC_EDWARDS|EC_EDWARDS|EDWARDS|ED      { cllval.val_key = CKK_EC_EDWARDS    ;
 CKK_ML_KEM|ML_KEM|MLKEM                   { cllval.val_key = CKK_ML_KEM        ; return KEYTYPE; }
 CKK_ML_DSA|ML_DSA|MLDSA                   { cllval.val_key = CKK_ML_DSA        ; return KEYTYPE; }
 CKK_SLH_DSA|SLH_DSA|SLHDSA                { cllval.val_key = CKK_SLH_DSA       ; return KEYTYPE; }
+CKK_YUBICO_AES128_CCM_WRAP|YUBICO_AES128_CCM_WRAP { 
+#if defined(HAVE_YUBICO)
+	cllval.val_key = CKK_YUBICO_AES128_CCM_WRAP; 
+	return KEYTYPE; 
+#else
+	clerror(NULL, "Yubico AES128 CCM Wrap key type is not supported in this build");
+	yyterminate();
+#endif
+}
+CKK_YUBICO_AES192_CCM_WRAP|YUBICO_AES192_CCM_WRAP {
+#if defined(HAVE_YUBICO)
+	cllval.val_key = CKK_YUBICO_AES192_CCM_WRAP; 
+	return KEYTYPE; 
+#else
+	clerror(NULL, "Yubico AES192 CCM Wrap key type is not supported in this build");
+	yyterminate();
+#endif
+}
+CKK_YUBICO_AES256_CCM_WRAP|YUBICO_AES256_CCM_WRAP { 
+#if defined(HAVE_YUBICO)
+	cllval.val_key = CKK_YUBICO_AES256_CCM_WRAP; 
+	return KEYTYPE;
+#else
+	clerror(NULL, "Yubico AES256 CCM Wrap key type is not supported in this build");
+	yyterminate();
+#endif
+}
 
 CKO_DATA|DATA                             { cllval.val_cls = CKO_DATA ; return OCLASS; }
 CKO_CERTIFICATE|CERTIFICATE|CERT          { cllval.val_cls = CKO_CERTIFICATE ; return OCLASS; }

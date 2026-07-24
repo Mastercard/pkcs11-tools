@@ -171,6 +171,7 @@ following table lists the existing scripts:
 | `with_nss`      | `libsoftokn3.so`                         | Mozilla.org NSS soft token                            |
 | `with_softhsm`  | `libsofthsm2.so`                         | OpenDNSSEC SoftHSM v2                                 |
 | `with_utimaco`  | `libcs_pkcs11_R3.so` / `libcs_pkcs11_R2.so` | Utimaco Security Server HSM (R3 preferred, R2 fallback) |
+| `with_yubico`   | `yubihsm_pkcs11.so`                      | Yubico YubiHSM 2                                     |
 
 On macOS, the wrappers look for the corresponding `.dylib` library (the SoftHSM2 module keeps its `.so` extension on all
 platforms, as it is a libtool module).
@@ -864,6 +865,17 @@ The following table provides a list of currently supported key types:
 | `CKK_SHA_1_HMAC`     | `sha_1_hmac`, `sha1_hmac`     |
 | `CKK_SLH_DSA`        | `slh_dsa`, `slhdsa`           |
 
+When compiled with Yubico (YubiHSM) support (enabled by default, see
+`--without-yubico`), the following vendor key types are also recognized. They
+designate AES keys with the CCM-wrap capability and are reported by `p11ls` as
+`aes(<size>,yubico-ccm-wrap)`:
+
+| key type                     | alias                          |
+| ---------------------------- | ------------------------------ |
+| `CKK_YUBICO_AES128_CCM_WRAP` | `yubico_aes128_ccm_wrap`       |
+| `CKK_YUBICO_AES192_CCM_WRAP` | `yubico_aes192_ccm_wrap`       |
+| `CKK_YUBICO_AES256_CCM_WRAP` | `yubico_aes256_ccm_wrap`       |
+
 ### supported attributes
 
 The following table describes a list of all supported attributes.
@@ -1478,3 +1490,35 @@ The following diagram illustrate these steps:
 |                              |      |                                  |
 +------------------------------+      +----------------------------------+
 ```
+
+# Vendor-specific limitations
+
+Some platforms deviate from the PKCS\#11 standard or restrict the operations that
+can be performed through it. The known limitations are grouped below, per vendor.
+
+## AWS CloudHSM
+
+AWS CloudHSM support is disabled by default (see the `--with-awscloudhsm`
+configure option and the [installation instructions](INSTALL.md)). When enabled,
+the following limitations apply:
+
+- Certificates are not supported by the platform, therefore any command handling certificates will fail.
+- Changing attribute values is not supported by the platform; several commands rely on that capability to adjust `CKA_ID` across objects. These commands may occasionally report an error when executed; key material is usually created.
+- For the same reason, `p11mv` and `p11setattr` will not operate on this platform.
+- The platform does not allow for duplicate `CKA_ID` attributes, which occasionally brings issues when generating key material.
+- `p11od` will not work, due to the way CloudHSM handles attributes.
+- When using wrapped key files, `CKA_SIGN_RECOVER` and `CKA_VERIFY_RECOVER` are not supported, and should be commented out.
+- Wrap and unwrap templates are not supported by this platform. These should also be commented out in wrapped key files.
+
+## Yubico (YubiHSM)
+
+Yubico support is enabled by default when `include/cryptoki/yubico.h` is present
+(see the `--without-yubico` configure option). It adds recognition of the vendor
+key types `CKK_YUBICO_AES128_CCM_WRAP`, `CKK_YUBICO_AES192_CCM_WRAP` and
+`CKK_YUBICO_AES256_CCM_WRAP`, which designate AES keys carrying the CCM-wrap
+capability. The following limitations apply:
+
+- These CCM-wrap keys cannot be generated through `p11keygen`. Creating one requires specifying the set of delegated capabilities (the mechanisms the wrap key is allowed to delegate), and there is no way to express delegated capabilities through the PKCS\#11 interface. Such keys must therefore be created with a Yubico-native tool (e.g. `yubihsm-shell`); the toolkit is limited to inspecting them (`p11ls`, `p11od`, `p11cat`) and referencing their key type in templates.
+- `p11ls` reports these keys as `aes(<size>,yubico-ccm-wrap)` to distinguish them from ordinary AES keys, but they are otherwise handled as AES keys.
+- `p11cat` cannot disclose the value of these keys, as they are secret key objects.
+- `p11wrap`, `p11unwrap` and `p11rewrap` do not support the Yubico AES-CCM wrapping mechanism (`CKM_YUBICO_AES_CCM_WRAP`). Although an existing CCM-wrap key can technically wrap another object through PKCS\#11, this mechanism performs a *whole-object* export: the produced blob is a proprietary YubiHSM container that embeds the key material **together with all of its metadata** (object type, domains, capabilities). On unwrap, the object is reconstructed entirely from that blob and the PKCS\#11 attribute template supplied by the caller is ignored. This is fundamentally incompatible with the toolkit's wrapping model, which relies on a user-editable attribute template to describe the unwrapped key (key type, class, usage flags, etc.). Supporting it would mean carrying an opaque, vendor-specific format whose template section is meaningless — so it is intentionally left unsupported.

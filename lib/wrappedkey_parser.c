@@ -1867,7 +1867,7 @@ yyreduce:
 
 		    ctx->wrpkattribs->current_idx = ctx->wrpkattribs->saved_idx + 1; /*increment current idx from ctx->saved_idx */
 		    if(ctx->wrpkattribs->current_idx>=6) {
-			/* There exist only 5 templates */
+			/* There exist 5 templates */
 			yyerror(ctx, "***Error: too many templates specified");
 			YYERROR;
 		   }
@@ -2216,7 +2216,7 @@ yyreduce:
 
 		    ctx->pubkattribs->current_idx = ctx->pubkattribs->saved_idx + 1; /*increment current idx from ctx->saved_idx */
 		    if(ctx->pubkattribs->current_idx>=6) {
-			/* There exist only 5 templates */
+			/* There exist 5 templates */
 			yyerror(ctx, "***Error: too many templates specified");
 			YYERROR;
 		   }

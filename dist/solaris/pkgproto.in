@@ -45,6 +45,7 @@ f commands bin/with_nfast
 f commands bin/with_nss
 f commands bin/with_softhsm
 f commands bin/with_utimaco
+f commands bin/with_yubico
 f docs CHANGELOG.md
 f docs LICENSE.md
 f docs README.md

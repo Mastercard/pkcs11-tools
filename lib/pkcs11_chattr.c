@@ -31,6 +31,7 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
     func_rc rv=rc_ok;
     pkcs11Search *search=NULL;
     pkcs11IdTemplate *idtmpl=NULL;
+    CK_OBJECT_HANDLE *handles=NULL;
     
     idtmpl = pkcs11_create_id(label);
     
@@ -41,9 +42,19 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
 	if(search) {		/* we just need one hit */
 
 	    CK_OBJECT_HANDLE hndl=0;
+	    CK_ULONG handle_count = 0;
+	    CK_ULONG i = 0;
 
-	    while( (hndl = pkcs11_fetch_next(search))!=0 ) {
+	    if( pkcs11_alloc_fetch_all(search, &handles, &handle_count) == false ) {
+		rv = rc_error_memory;
+		goto error;
+	    }
+
+	    pkcs11_delete_search(search);
+	    search = NULL;
 		/* set the attributes */
+	    for(i=0; i<handle_count; i++) {
+		hndl = handles[i];
 
 		CK_RV rc;
 		int ok_to_move=1;
@@ -121,15 +132,18 @@ func_rc pkcs11_change_object_attributes(pkcs11Context *p11Context, char *label, 
 		    
 		    if ( rc != CKR_OK ) {
 			pkcs11_error( rc, "C_SetAttributeValue" );
-			rc = rc_error_pkcs11_api;
+			rv = rc_error_pkcs11_api;
 			/* we carry on anyway to cycle through all objects */
 		    }
 		}
 	    }
-	    pkcs11_delete_search(search);
 	}
-	pkcs11_delete_idtemplate(idtmpl);
     }
+
+error:
+    if(search) { pkcs11_delete_search(search); }
+    if(idtmpl) { pkcs11_delete_idtemplate(idtmpl); }
+    if(handles) { pkcs11_free_handle_array(handles); }
 
     return rv;
 }

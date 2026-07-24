@@ -198,6 +198,10 @@ int main( int argc, char ** argv )
 	goto err;
     }
 
+		/* save optind before opening the library */
+		/* some tokens change its value - e.g. Yubikey */
+		int saved_optind = optind;
+
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
       goto err;
     }
@@ -214,7 +218,7 @@ int main( int argc, char ** argv )
 #ifdef HAVE_DUPLICATES_ENABLED
 	p11Context->can_duplicate = can_duplicate;
 #endif
-	retcode = pkcs11_cp_objects(p11Context, argv[optind], argv[optind+1], ask_confirm, verbose);
+	retcode = pkcs11_cp_objects(p11Context, argv[saved_optind], argv[saved_optind+1], ask_confirm, verbose);
 
 	pkcs11_close_session( p11Context );
     }

@@ -117,7 +117,7 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 
 	    CK_OBJECT_HANDLE hndl=0;
 
-	    while( (hndl = pkcs11_fetch_next(search))!=0 ) {
+	    while( (hndl = pkcs11_fetch_next(search, NULL))!=0 ) {
 
 		pkcs11AttrList *attrs;
 
