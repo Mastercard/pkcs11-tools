@@ -2177,7 +2177,7 @@ YY_RULE_SETUP
 	cllval.val_key = CKK_YUBICO_AES128_CCM_WRAP; 
 	return KEYTYPE; 
 #else
-	clerror(NULL, "Yubico AES128 CCM Wrap key type is not supported in this build");
+	clerror(NULL, "Yubico AES128 CCM Wrap key type (CKK_YUBICO_AES128_CCM_WRAP) requires a build with Yubico support");
 	yyterminate();
 #endif
 }
@@ -2190,7 +2190,7 @@ YY_RULE_SETUP
 	cllval.val_key = CKK_YUBICO_AES192_CCM_WRAP; 
 	return KEYTYPE; 
 #else
-	clerror(NULL, "Yubico AES192 CCM Wrap key type is not supported in this build");
+	clerror(NULL, "Yubico AES192 CCM Wrap key type (CKK_YUBICO_AES192_CCM_WRAP) requires a build with Yubico support");
 	yyterminate();
 #endif
 }
@@ -2203,7 +2203,7 @@ YY_RULE_SETUP
 	cllval.val_key = CKK_YUBICO_AES256_CCM_WRAP; 
 	return KEYTYPE;
 #else
-	clerror(NULL, "Yubico AES256 CCM Wrap key type is not supported in this build");
+	clerror(NULL, "Yubico AES256 CCM Wrap key type (CKK_YUBICO_AES256_CCM_WRAP) requires a build with Yubico support");
 	yyterminate();
 #endif
 }

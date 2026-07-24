@@ -132,7 +132,7 @@ CKK_YUBICO_AES128_CCM_WRAP {
 #if defined(HAVE_YUBICO)
 	yylval.val_key = CKK_YUBICO_AES128_CCM_WRAP; return KEYTYPE;
 #else
-	yyerror(NULL, "CKK_YUBICO_AES128_CCM_WRAP is not supported by this build");
+	yyerror(NULL, "CKK_YUBICO_AES128_CCM_WRAP requires a build with Yubico support");
 	yyterminate();
 #endif
 }
@@ -140,7 +140,7 @@ CKK_YUBICO_AES192_CCM_WRAP {
 #if defined(HAVE_YUBICO)
 	yylval.val_key = CKK_YUBICO_AES192_CCM_WRAP; return KEYTYPE;
 #else
-	yyerror(NULL, "CKK_YUBICO_AES192_CCM_WRAP is not supported by this build");
+	yyerror(NULL, "CKK_YUBICO_AES192_CCM_WRAP requires a build with Yubico support");
 	yyterminate();
 #endif
 }
@@ -149,7 +149,7 @@ CKK_YUBICO_AES256_CCM_WRAP {
 #if defined(HAVE_YUBICO	)
 	yylval.val_key = CKK_YUBICO_AES256_CCM_WRAP; return KEYTYPE;
 #else
-	yyerror(NULL, "CKK_YUBICO_AES256_CCM_WRAP is not supported by this build");
+	yyerror(NULL, "CKK_YUBICO_AES256_CCM_WRAP requires a build with Yubico support");
 	yyterminate();
 #endif
 }
