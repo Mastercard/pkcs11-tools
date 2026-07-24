@@ -62,7 +62,7 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacda
 	    CK_OBJECT_HANDLE hndl=0;
 	    int count = 0, i=0, j=0;
 
-	    while( (hndl = pkcs11_fetch_next(search))!=0 ) {
+	    while( (hndl = pkcs11_fetch_next(search, NULL))!=0 ) {
 		count++;
 	    }
 	    pkcs11_delete_search(search); search=NULL;
@@ -78,7 +78,7 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacda
 	    search = pkcs11_new_search_from_idtemplate( p11Context, idtmpl );
 
 	    if(search) {
-		while( (hndl = pkcs11_fetch_next(search))!=0 && i<count) {
+		while( (hndl = pkcs11_fetch_next(search, NULL))!=0 && i<count) {
 		    hndl_array[i++] = hndl;
 		}
 		pkcs11_delete_search(search); search=NULL;

@@ -145,7 +145,7 @@ func_rc pkcs11_cat_object_with_label(pkcs11Context *p11Context, char *label, int
 
 	    CK_OBJECT_HANDLE hndl=0;
 
-	    while( (hndl = pkcs11_fetch_next(search))!=0 && rc==rc_ok ) {
+	    while( (hndl = pkcs11_fetch_next(search, NULL))!=0 && rc==rc_ok ) {
 		rc = pkcs11_cat_object_with_handle(p11Context, hndl, openssl_native_flag, NULL);
 	    }
 	}

@@ -716,7 +716,7 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 	    CK_OBJECT_HANDLE hndl=0;
 	    int objcnt = 0;
 
-	    while( (hndl = pkcs11_fetch_next(search))!=0 ) {
+	    while( (hndl = pkcs11_fetch_next(search, NULL))!=0 ) {
 
 		pkcs11AttrList *attrs;
 
