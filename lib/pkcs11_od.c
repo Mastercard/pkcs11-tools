@@ -462,6 +462,20 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	    info = "CKK_AES";
 	    break;
 
+#if defined(HAVE_YUBICO)
+	case CKK_YUBICO_AES128_CCM_WRAP:
+	    info = "CKK_YUBICO_AES128_CCM_WRAP";
+	    break;
+
+	case CKK_YUBICO_AES192_CCM_WRAP:
+	    info = "CKK_YUBICO_AES192_CCM_WRAP";
+	    break;
+
+	case CKK_YUBICO_AES256_CCM_WRAP:
+	    info = "CKK_YUBICO_AES256_CCM_WRAP";
+	    break;
+#endif
+
 	case CKK_BLOWFISH:
 	    info = "CKK_BLOWFISH";
 	    break;
@@ -701,8 +715,9 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 
 	    CK_OBJECT_HANDLE hndl=0;
 	    int objcnt = 0;
+	    CK_RV fetch_rc = CKR_OK;
 
-	    while( (hndl = pkcs11_fetch_next(search))!=0 ) {
+	    while( (hndl = pkcs11_fetch_next(search, &fetch_rc))!=0 ) {
 
 		pkcs11AttrList *attrs;
 
@@ -870,6 +885,18 @@ func_rc pkcs11_dump_object_with_label(pkcs11Context *p11Context, char *label)
 		}
 		pkcs11_delete_attrlist(attrs);
 
+	    }
+
+	    /* pkcs11_fetch_next() returns 0 both on end-of-search and on a
+	       C_FindObjects() failure. Distinguish the two so that a token or
+	       library error is not silently reported as success.
+
+	       TODO: no best-effort here on purpose - we abort as soon as the
+	       search fails. If partial output on error becomes desirable, the
+	       already-dumped objects could be kept while still returning a
+	       non-zero status to the caller. */
+	    if(fetch_rc != CKR_OK) {
+		rc = rc_error_pkcs11_api;
 	    }
 	    pkcs11_delete_search(search);
 	}

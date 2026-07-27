@@ -253,7 +253,7 @@ assignstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 
 		    ctx->wrpkattribs->current_idx = ctx->wrpkattribs->saved_idx + 1; /*increment current idx from ctx->saved_idx */
 		    if(ctx->wrpkattribs->current_idx>=6) {
-			/* There exist 5 templates */
+			/* 5 templates are available */
 			yyerror(ctx, "***Error: too many templates specified");
 			YYERROR;
 		   }
@@ -611,7 +611,7 @@ pubkstmt:	CKATTR_BOOL  ':' TOK_BOOLEAN
 
 		    ctx->pubkattribs->current_idx = ctx->pubkattribs->saved_idx + 1; /*increment current idx from ctx->saved_idx */
 		    if(ctx->pubkattribs->current_idx>=6) {
-			/* There exist 5 templates */
+			/* 5 templates are available */
 			yyerror(ctx, "***Error: too many templates specified");
 			YYERROR;
 		   }

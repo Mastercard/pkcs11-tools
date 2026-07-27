@@ -34,9 +34,10 @@
 
 /* target must point to a location with at least 3 bytes left */
 
-void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacdatasize, mac_alg_t algo, size_t num_bytes)
+func_rc pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacdatasize, mac_alg_t algo, size_t num_bytes)
 {
 
+    func_rc rc = rc_ok;
     pkcs11Search *search=NULL;
     pkcs11IdTemplate *idtmpl=NULL;
     CK_OBJECT_HANDLE *hndl_array=NULL;
@@ -61,16 +62,29 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacda
 	if(search) {		/* we just need one hit */
 	    CK_OBJECT_HANDLE hndl=0;
 	    int count = 0, i=0, j=0;
+	    CK_RV fetch_rc = CKR_OK;
 
-	    while( (hndl = pkcs11_fetch_next(search))!=0 ) {
+	    while( (hndl = pkcs11_fetch_next(search, &fetch_rc))!=0 ) {
 		count++;
 	    }
 	    pkcs11_delete_search(search); search=NULL;
+
+	    /* pkcs11_fetch_next() returns 0 both on end-of-search and on a
+	       C_FindObjects() failure. Distinguish the two so that a token or
+	       library error is not silently treated as an empty result set.
+
+	       TODO: no best-effort here on purpose - we abort as soon as the
+	       search fails. */
+	    if(fetch_rc != CKR_OK) {
+		rc = rc_error_pkcs11_api;
+		goto error;
+	    }
 
 	    /* allocate array */
 	    hndl_array = calloc(count, sizeof(CK_OBJECT_HANDLE));
 
 	    if(hndl_array==NULL) {
+		rc = rc_error_memory;
 		goto error;
 	    }
 
@@ -78,10 +92,15 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacda
 	    search = pkcs11_new_search_from_idtemplate( p11Context, idtmpl );
 
 	    if(search) {
-		while( (hndl = pkcs11_fetch_next(search))!=0 && i<count) {
+		while( (hndl = pkcs11_fetch_next(search, &fetch_rc))!=0 && i<count) {
 		    hndl_array[i++] = hndl;
 		}
 		pkcs11_delete_search(search); search=NULL;
+
+		if(fetch_rc != CKR_OK) {
+		    rc = rc_error_pkcs11_api;
+		    goto error;
+		}
 	    }
 
 	    for(j=0; j<i; j++) {
@@ -161,6 +180,14 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacda
 			    max_num_bytes = num_bytes = processed_len = MIN(a_check_value->ulValueLen, sizeof(processed));
 			    keytypestr = "CKA_CHECK_VALUE";
 			    memcpy(processed, a_check_value->pValue, processed_len);
+			} else if(a_keytype->pValue==NULL || a_keytype->ulValueLen!=sizeof(CK_KEY_TYPE)) {
+			    /* defensive code: YubiHSM does not currently support         */
+			    /* CKA_KEY_TYPE on this key - C_GetAttributeValue() reports it */
+			    /* as CK_UNAVAILABLE_INFORMATION with CKR_ATTRIBUTE_TYPE_INVALID, */
+			    /* leaving pValue NULL. Skip rather than dereference it.       */
+			    fprintf(stderr, "*** PKCS#11 Warning: No usable CKA_KEY_TYPE for object %s, skipping\n", buffer);
+			    pkcs11_delete_attrlist(attrs);
+			    continue;
 			} else {
 			    switch( *((CK_KEY_TYPE *)a_keytype->pValue)) {
 			    case CKK_DES:
@@ -387,4 +414,6 @@ void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacda
 	if(idtmpl) pkcs11_delete_idtemplate(idtmpl);
 
     }
+
+    return rc;
 }

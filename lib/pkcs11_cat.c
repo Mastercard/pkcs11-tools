@@ -144,9 +144,20 @@ func_rc pkcs11_cat_object_with_label(pkcs11Context *p11Context, char *label, int
 	if(search) {		/* we just need one hit */
 
 	    CK_OBJECT_HANDLE hndl=0;
+	    CK_RV fetch_rc = CKR_OK;
 
-	    while( (hndl = pkcs11_fetch_next(search))!=0 && rc==rc_ok ) {
+	    while( (hndl = pkcs11_fetch_next(search, &fetch_rc))!=0 && rc==rc_ok ) {
 		rc = pkcs11_cat_object_with_handle(p11Context, hndl, openssl_native_flag, NULL);
+	    }
+
+	    /* pkcs11_fetch_next() returns 0 both on end-of-search and on a
+	       C_FindObjects() failure. Distinguish the two so that a token or
+	       library error is not silently reported as success.
+
+	       TODO: no best-effort here on purpose - we abort as soon as the
+	       search fails. */
+	    if(rc==rc_ok && fetch_rc != CKR_OK) {
+		rc = rc_error_pkcs11_api;
 	    }
 	}
     }

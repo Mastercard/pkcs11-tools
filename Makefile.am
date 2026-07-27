@@ -27,6 +27,7 @@ EXTRA_DIST = \
 	with_utimaco	         \
 	with_aws		 \
 	with_kryoptic		 \
+	with_yubico		 \
 	with_pkcs11_common       \
 	docs/INSTALL.md	         \
 	docs/CONTRIBUTING.md     \
@@ -90,6 +91,7 @@ install-exec-hook:
 		$(srcdir)/with_utimaco \
 		$(srcdir)/with_aws     \
 		$(srcdir)/with_kryoptic \
+		$(srcdir)/with_yubico  \
 		$(srcdir)/with_pkcs11_common \
 		$(DESTDIR)$(bindir)
 

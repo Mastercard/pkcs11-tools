@@ -248,6 +248,10 @@ int main( int argc, char ** argv )
 	goto err;
     }
 
+	/* save optind before opening the library */
+	/* some tokens change its value - e.g. YubiHSM */
+	int saved_optind = optind;
+
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {
       goto err;
     }
@@ -262,8 +266,11 @@ int main( int argc, char ** argv )
 
     if ( retcode == rc_ok )
     {
-	while(optind<argc) {
-	    pkcs11_display_kcv(p11Context, argv[optind++], hmacdatasize, algo, kcvlen);
+	while(saved_optind<argc) {
+	    func_rc kcv_rc = pkcs11_display_kcv(p11Context, argv[saved_optind++], hmacdatasize, algo, kcvlen);
+	    if(kcv_rc != rc_ok) {
+		retcode = kcv_rc;
+	    }
 	}
 
 	pkcs11_close_session( p11Context );

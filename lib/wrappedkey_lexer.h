@@ -2,7 +2,6 @@
 #define yyHEADER_H 1
 #define yyIN_HEADER 1
 
-#line 5 "wrappedkey_lexer.h"
 #include <config.h>
 
 #line 8 "wrappedkey_lexer.h"
@@ -474,7 +473,7 @@ extern int yylex (void);
 #undef yyTABLES_NAME
 #endif
 
-#line 222 "wrappedkey_lexer.l"
+#line 247 "wrappedkey_lexer.l"
 
 
 #line 480 "wrappedkey_lexer.h"
