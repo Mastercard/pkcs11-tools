@@ -2,9 +2,10 @@
 #define yyHEADER_H 1
 #define yyIN_HEADER 1
 
+#line 5 "wrappedkey_lexer.h"
 #include <config.h>
 
-#line 7 "wrappedkey_lexer.h"
+#line 8 "wrappedkey_lexer.h"
 
 #define  YY_INT_ALIGNED short int
 
@@ -473,9 +474,9 @@ extern int yylex (void);
 #undef yyTABLES_NAME
 #endif
 
-#line 212 "wrappedkey_lexer.l"
+#line 222 "wrappedkey_lexer.l"
 
 
-#line 479 "wrappedkey_lexer.h"
+#line 480 "wrappedkey_lexer.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */

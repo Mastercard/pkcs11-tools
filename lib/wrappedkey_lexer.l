@@ -160,6 +160,16 @@ label              { return PARAMLABEL; }
 iv                 { return PARAMIV; }
 flavo[u]?r         { return PARAMFLAVOUR; }
 nss                { yylval.val_mech = CKM_NSS_AES_KEY_WRAP_PAD; return CKMECH; }
+kwp                { yylval.val_mech = CKM_AES_KEY_WRAP_KWP;     return CKMECH; }
+pad                { yylval.val_mech = CKM_AES_KEY_WRAP_PAD;     return CKMECH; }
+luna               {
+#if defined(HAVE_LUNA)
+                     yylval.val_mech = CKM_LUNA_AES_KWP; return CKMECH;
+#else
+                     yyerror(NULL, "flavour 'luna' (CKM_LUNA_AES_KWP) requires a build with Safenet/Gemalto Luna support");
+                     yyterminate();
+#endif
+                   }
 outer              { return PARAMOUTER; }
 inner              { return PARAMINNER; }
 
