@@ -884,7 +884,7 @@ typedef enum {
 } mac_alg_t;
 
 #define MAX_KCV_CLEARTEXT_SIZE 256
-void pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacdatasize, mac_alg_t algo, size_t kcvsize);
+func_rc pkcs11_display_kcv( pkcs11Context *p11Context, char *label, unsigned hmacdatasize, mac_alg_t algo, size_t kcvsize);
 
 /* wrap/unwrap functions */
 func_rc pkcs11_prepare_wrappingctx(wrappedKeyCtx *wctx, char *wrappingjob);

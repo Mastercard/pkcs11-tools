@@ -181,7 +181,7 @@ int main( int argc, char ** argv )
     }
 
     /* save optind before opening the library */
-    /* some tokens change its value - e.g. Yubikey */
+    /* some tokens change its value - e.g. YubiHSM */
     int saved_optind = optind;
 
     if((p11Context = pkcs11_newContext( library, nsscfgdir ))==NULL) {

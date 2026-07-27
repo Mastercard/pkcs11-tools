@@ -146,7 +146,7 @@ CKK_YUBICO_AES192_CCM_WRAP {
 }
 
 CKK_YUBICO_AES256_CCM_WRAP { 
-#if defined(HAVE_YUBICO	)
+#if defined(HAVE_YUBICO)
 	yylval.val_key = CKK_YUBICO_AES256_CCM_WRAP; return KEYTYPE;
 #else
 	yyerror(NULL, "CKK_YUBICO_AES256_CCM_WRAP requires a build with Yubico support");
