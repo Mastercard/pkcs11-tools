@@ -143,10 +143,12 @@ func_rc pkcs11_initialize( pkcs11Context * p11Context )
 	 * CKR_ARGUMENTS_BAD, so we fall back to the standard args, then NULL.
 	 */
 	rv = pC_Initialize( &NSS_InitArgs );
-	if ( rv == CKR_ARGUMENTS_BAD ) {
+	if ( rv != CKR_OK && rv!=CKR_CRYPTOKI_ALREADY_INITIALIZED ) {
+	    pkcs11_warning( rv, "C_Initialize" );
 	    rv = pC_Initialize( &InitArgs );
 	}
-	if ( rv == CKR_ARGUMENTS_BAD ) {
+	if ( rv != CKR_OK && rv!=CKR_CRYPTOKI_ALREADY_INITIALIZED ) {
+	    pkcs11_warning( rv, "C_Initialize" );
 	    rv = pC_Initialize( NULL_PTR );
 	}
     } else {
