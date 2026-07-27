@@ -133,7 +133,7 @@ typedef struct CK_NSS_C_INITIALIZE_ARGS {
 	CK_LOCKMUTEX LockMutex;
 	CK_UNLOCKMUTEX UnlockMutex;
 	CK_FLAGS flags;
-	CK_CHAR_PTR *LibraryParameters;
+    CK_CHAR_PTR LibraryParameters;
 	CK_VOID_PTR pReserved;
 } CK_NSS_C_INITIALIZE_ARGS;
 

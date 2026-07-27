@@ -108,10 +108,16 @@ NSS has a comprehensive set of mechanisms implemented in software, and given cer
 turned into FIPS 140-2 level 2 containers. However, there is one API call that is not compliant with the PKCS\#11
 standard, it's the call to `C_Initialize`. NSS requires to use a supplementary member in the structure passed as an
 argument, to contain (amongst other things) the location of the NSS database.
-`pkcs11-tools` can interface with NSS tokens. There are two ways to specify where to find the key and cert databases:
+`pkcs11-tools` can interface with NSS tokens. The primary way to specify where to find the key and cert databases is:
 
-- either by setting the `PKCS11NSSDIR` environment variable
+- by setting the `PKCS11NSSDIR` environment variable
 - or by using the `-m` optional argument.
+
+When both are present, `-m` (command line) overrides `PKCS11NSSDIR` as usual. In wrapper mode (`with_nss`),
+`PKCS11NSSDIR` is the primary source used for validation and runtime initialization consistency.
+
+Advanced compatibility note: `NSS_LIB_PARAMS` is still forwarded by `with_nss`, but its `configDir=` is only used as
+a fallback when `PKCS11NSSDIR` is explicitly unset/empty. This path is mainly relevant with recent NSS versions.
 
 For both the environment variable and the optional argument, when used, it must contain the path to the directory where
 the NSS database is located (where you will find `key3.db`, `cert8.db` and `secmod.db`); It can be prefixed with `sql:`
@@ -255,6 +261,8 @@ When invoking the wrapper scripts, a few environment variables may be specified:
 - `PKCS11TOKENLABEL`: select the slot by token label instead of by index.
 - `PKCS11PASSWORD`: the token PIN (defaults are vendor-specific, e.g. `changeit`).
 - `PKCS11NSSDIR`: NSS database directory (NSS only; defaults to `sql:$HOME/.pki/nssdb`).
+- `NSS_LIB_PARAMS`: forwarded as-is by `with_nss`; its `configDir=` is used only when `PKCS11NSSDIR` is unset/empty,
+  and is mainly relevant with recent NSS versions.
 - `NOSLOT`: when set to `1`, slot and token are unset (equivalent to `-n`). It allows you to trigger the interactive
   mode (handy if you need to check which slots are available).
 - `NORC`: when set to `1`, skip sourcing any `.pkcs11rc` file.

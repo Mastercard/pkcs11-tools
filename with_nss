@@ -23,7 +23,8 @@
 #     Set it in .pkcs11rc (or the environment) to use a different location.
 #   - to create an NSS token: modutil -dbdir sql:. -create
 #                              modutil -dbdir sql:. -changepw "NSS Certificate DB"
-#   - NSS_LIB_PARAMS is forwarded to the command if set
+#   - NSS_LIB_PARAMS is forwarded to the command if set (typically useful with
+#     recent NSS versions only)
 
 PKCS11SLOT=1
 # The password is a bit different than usual, this one should satisfy password complexity requirements
@@ -35,29 +36,49 @@ PKCS11PASSWORD=${PKCS11PASSWORD:-ch@nge1t}
 # environment) to use a different location.
 PKCS11NSSDIR=${PKCS11NSSDIR:-sql:$HOME/.pki/nssdb}
 
-# PKCS11NSSDIR is the NSS database directory.  It is passed straight to the
-# tools (as the '-m' configDir) and is therefore the directory NSS will use, so
-# no NSS_LIB_PARAMS massaging is needed here.  The p11_post_rc hook below runs
-# *after* .pkcs11rc has been sourced (so it sees any override of PKCS11NSSDIR)
-# and simply verifies that the directory exists, failing early rather than
-# letting NSS silently operate on a missing/unexpected path.  An explicit
-# NSS_LIB_PARAMS (environment or .pkcs11rc) is still forwarded for advanced
-# setups that drive NSS without PKCS11NSSDIR.
+# PKCS11NSSDIR is the primary NSS database directory for this wrapper and for
+# pkcs11-tools NSS initialization. The p11_post_rc hook runs *after* .pkcs11rc
+# has been sourced and validates PKCS11NSSDIR first.
+#
+# Option 3 (advanced fallback): if PKCS11NSSDIR is explicitly unset/empty, the
+# hook falls back to configDir found in NSS_LIB_PARAMS when present.
 p11_post_rc()
 {
-    # Nothing to validate when PKCS11NSSDIR is not set (e.g. the user drives NSS
-    # purely through an explicit NSS_LIB_PARAMS).
-    [ -n "${PKCS11NSSDIR:-}" ] || return 0
+    _nssdbspec=
+    _nssdbsource=
+
+    # Primary source: PKCS11NSSDIR (matches what pkcs11-tools uses with -m).
+    if [ -n "${PKCS11NSSDIR:-}" ]; then
+        _nssdbspec=$PKCS11NSSDIR
+        _nssdbsource="PKCS11NSSDIR"
+    else
+        # Advanced fallback: configDir from NSS_LIB_PARAMS when PKCS11NSSDIR is
+        # explicitly empty/unset.
+        case "${NSS_LIB_PARAMS:-}" in
+        configDir=*|*[!_a-zA-Z0-9]configDir=*)
+            _nssdbspec=${NSS_LIB_PARAMS#*configDir=}
+            # Value may be single-quoted, double-quoted, or bare.
+            case "$_nssdbspec" in
+            \'*) _nssdbspec=${_nssdbspec#\'}; _nssdbspec=${_nssdbspec%%\'*} ;;
+            \"*) _nssdbspec=${_nssdbspec#\"}; _nssdbspec=${_nssdbspec%%\"*} ;;
+            *) _nssdbspec=${_nssdbspec%% *} ;;
+            esac
+            _nssdbsource="NSS_LIB_PARAMS"
+            ;;
+        esac
+    fi
+
+    [ -n "$_nssdbspec" ] || return 0
 
     # Strip a leading database-type prefix ("sql:", "dbm:", ...) to get the path.
-    _nssdir=${PKCS11NSSDIR#*:}
+    _nssdir=${_nssdbspec#*:}
     if [ -n "$_nssdir" ] && [ ! -d "$_nssdir" ]; then
-        echo "***Error: NSS database directory '$_nssdir' does not exist (PKCS11NSSDIR='$PKCS11NSSDIR')." >&2
-        echo "          Create it first, e.g.:  mkdir -p '$_nssdir' && certutil -N -d '$PKCS11NSSDIR'" >&2
-        echo "          or set PKCS11NSSDIR to an existing database directory." >&2
+        echo "***Error: NSS database directory '$_nssdir' does not exist ($_nssdbsource='$_nssdbspec')." >&2
+        echo "          Create it first, e.g.:  mkdir -p '$_nssdir' && certutil -N -d '$_nssdbspec'" >&2
+        echo "          or set PKCS11NSSDIR (or NSS_LIB_PARAMS configDir when PKCS11NSSDIR is unset) to an existing directory." >&2
         exit 1
     fi
-    unset _nssdir
+    unset _nssdir _nssdbspec _nssdbsource
 }
 
 _p11_vendor=nss

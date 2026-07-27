@@ -126,7 +126,7 @@ func_rc pkcs11_initialize( pkcs11Context * p11Context )
     NSS_InitArgs.LockMutex = NULL_PTR;
     NSS_InitArgs.UnlockMutex = NULL_PTR;
     NSS_InitArgs.flags = CKF_OS_LOCKING_OK;
-    NSS_InitArgs.LibraryParameters = (CK_CHAR_PTR *) p11Context->nssinitparams;
+    NSS_InitArgs.LibraryParameters = (CK_CHAR_PTR) p11Context->nssinitparams;
     NSS_InitArgs.pReserved = NULL_PTR;
 
     pC_Initialize = pFunctionList->C_Initialize;
