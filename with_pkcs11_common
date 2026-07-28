@@ -252,7 +252,6 @@ case ${_p11_vendor:-} in
         #PKCS11SLOT=1
         #PKCS11PASSWORD=ch@nge1t
         #PKCS11NSSDIR=sql:.
-        #NSS_LIB_PARAMS=configDir=\'${PKCS11NSSDIR}\'
         ;;
 
     softhsm)
@@ -297,11 +296,14 @@ Options:
   -h            Show this help and exit
 
 Environment:
-  PKCS11LIB     Override library path (auto-detected otherwise)
-  PKCS11SLOT    Slot index to use (default: 0)
-  PKCS11TOKENLABEL  Select slot by token label instead of index
-  PKCS11PASSWORD    Token PIN (default: changeit)
-  PKCS11NSSDIR  NSS database directory (NSS only; default: sql:\$HOME/.pki/nssdb)
+  PKCS11LIB             Override library path (auto-detected otherwise)
+  PKCS11SLOT            Slot index to use (default: 0)
+  PKCS11TOKENLABEL      Select slot by token label instead of index
+  PKCS11PASSWORD        Token PIN (default: changeit)
+  PKCS11NSSDIR          NSS database directory (NSS only; default: sql:\$HOME/.pki/nssdb)
+  NSS_LIB_PARAMS        NSS params forwarded as-is (NSS wrappers); configDir is used
+                         only when PKCS11NSSDIR is empty/unset, and is mainly relevant
+                         on recent NSS versions.
   NOSLOT=1      Equivalent to -n
   NORC=1        Skip sourcing any .pkcs11rc file
   SHIM=dest     Equivalent to -S dest
