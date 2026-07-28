@@ -1,6 +1,6 @@
 name: build-and-check
 
-# Build every supported distro image with buildx.sh and run the full test
+# Build 3 supported distro images with buildx.sh and run the full test
 # suite. `make check` (SoftHSM + NSS integration tests and the unit tests,
 # including the PQC test) runs *inside* the Docker build, so a failing test
 # fails `docker buildx build`, which fails the job.
@@ -16,6 +16,12 @@ name: build-and-check
 #  * --local-source builds from the checked-out git history (bind-mounted as
 #    /host-repo), so we need submodules and tags -> submodules: recursive and
 #    fetch-depth: 0.
+#  * All three distros build in Linux containers. deb12 and ol9 run the full
+#    `make check` inside the Docker build. mingw64 is a MinGW-w64
+#    cross-compilation (Fedora base) and is build-only: `make check` is not run
+#    there (the unit tests would need a Windows runtime/Wine and the integration
+#    tests a Windows SoftHSM module), but the produced Windows binaries are
+#    PQC-capable.
 
 on:
   push:
