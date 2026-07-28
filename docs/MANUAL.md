@@ -104,10 +104,19 @@ The following arguments are common to almost every command:
 
 ## Exit status
 
-All commands return `0` on success and a non-zero code on failure.
+Commands return `0` on success and a non-zero code when the command as a whole
+could not be carried out.
 
 - usage or argument errors return a non-zero status
-- command execution failures (PKCS#11/API/object-processing errors) return a non-zero status
+- failures to load or initialize the PKCS#11 library, or to open a session /
+  log in to the token, return a non-zero status
+
+Note, however, that some commands iterate over several objects and report
+per-object PKCS#11 errors as diagnostics on `stderr` without necessarily
+changing the exit status. For instance, `p11rm` prints a `C_DestroyObject`
+error for every object it fails to delete but still returns `0` when the
+session was opened successfully. Do not rely on the exit status alone to detect
+individual object-processing failures; inspect the diagnostic output as well.
 
 ## Interfacing with NSS tokens
 

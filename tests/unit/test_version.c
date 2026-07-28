@@ -59,6 +59,7 @@ int main(void)
 
 #else /* POSIX */
 
+#include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -111,22 +112,31 @@ static int capture_version_info(char *progname, char *buf, size_t bufsz,
     /* parent: drain the pipe (banner is tiny, well under the pipe buffer),
      * then reap the child */
     close(fds[1]);
+    int read_failed = 0;
     for (;;) {
         ssize_t n = read(fds[0], buf + total, bufsz - 1 - total);
-        if (n > 0)
+        if (n > 0) {
             total += (size_t)n;
-        if (n == 0 || total >= bufsz - 1)
-            break;
-        if (n < 0)
-            break;
+            if (total >= bufsz - 1)
+                break;
+            continue;
+        }
+        if (n == 0)
+            break;              /* EOF: the child closed its stderr */
+        if (errno == EINTR)
+            continue;           /* interrupted before any data; retry */
+        read_failed = 1;        /* genuine read() error: harness failure */
+        break;
     }
     buf[total] = '\0';
     close(fds[0]);
 
+    /* Always reap the child, even on a read error, so it can't become a
+     * zombie; then propagate any read failure to the caller. */
     if (waitpid(pid, status, 0) != pid)
         return -1;
 
-    return 0;
+    return read_failed ? -1 : 0;
 }
 
 /* print_version_info() must exit with RC_ERROR_USAGE. */
