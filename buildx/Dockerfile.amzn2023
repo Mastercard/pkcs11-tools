@@ -49,7 +49,9 @@ ARG DISTRO_SHORT_NAME
 USER root
 ENV TZ=UTC
 
-# Update package repositories and install required build tools
+# Install required packages for building and running the test suite.
+# SoftHSM drives the integration tests exercised by `make check`; nss-tools
+# provides certutil/libsoftokn3 for the NSS-backed tests.
 RUN dnf update -y && \
     dnf install -y \
     gcc \
@@ -65,7 +67,10 @@ RUN dnf update -y && \
     gzip \
     rpm-build \
     wget \
+    openssl \
     openssl-devel \
+    softhsm \
+    nss-tools \
     && dnf clean all
 
 # Reuse pandoc static binary from official image to avoid flaky GitHub release download.
@@ -187,6 +192,7 @@ RUN mkdir -p /artifacts
 RUN ./bootstrap.sh --shallow-clone \
     && ./configure --with-awscloudhsm $CONFIG_ARGS \
     && make -j $(nproc) \
+    && make check \
     && make install DESTDIR=/tar_build
 
 # install documentation
@@ -203,6 +209,7 @@ RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
 RUN make distclean \
     && ./configure --prefix=/usr --with-awscloudhsm $CONFIG_ARGS \
     && make -j $(nproc) \
+    && make check \
     && make install DESTDIR=/rpm_build
 
 # Install documentation

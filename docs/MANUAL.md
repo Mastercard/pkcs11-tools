@@ -102,6 +102,22 @@ The following arguments are common to almost every command:
 * `-V` will print version information
 * `-n` when configured with the `--enable-duplicate` feature, this option allows the user to generate objects with the same label.
 
+## Exit status
+
+Commands return `0` on success and a non-zero code when the command as a whole
+could not be carried out.
+
+- usage or argument errors return a non-zero status
+- failures to load or initialize the PKCS#11 library, or to open a session /
+  log in to the token, return a non-zero status
+
+Note, however, that some commands iterate over several objects and report
+per-object PKCS#11 errors as diagnostics on `stderr` without necessarily
+changing the exit status. For instance, `p11rm` prints a `C_DestroyObject`
+error for every object it fails to delete but still returns `0` when the
+session was opened successfully. Do not rely on the exit status alone to detect
+individual object-processing failures; inspect the diagnostic output as well.
+
 ## Interfacing with NSS tokens
 
 NSS has a comprehensive set of mechanisms implemented in software, and given certain conditions, its keystores can be
@@ -291,6 +307,9 @@ When an object does not have a label value, then the `CKA_ID` attribute is used,
 as `[object_class]/id/{[hex-string-of-CKA_ID-value]}`
 
 e.g.: `prvk/id/{39363231313338383739}`
+
+Some commands also accept an extended object filter by appending `+attribute=value` pairs to the main object selector.
+For example: `cert/sn/12335344+CKA_ENCRYPT/{01}`.
 
 ## Commands accepting PKCS\#11 attributes
 
@@ -650,6 +669,8 @@ Certificate:
 
 given an object identifier, rename an object or a class of object. If no object class is given ( i.e. `pubk/`, `prvk/`
 , `cert/`, `seck/` or `data/`) then all objects of the class are renamed.
+
+The destination can be provided as a plain label or as a class-prefixed label (for example `seck/new-name`).
 
 The tool is interactive by default: if a match is found, the user is requested to confirm the action. To force a
 non-interactive execution, use `-y` argument.

@@ -47,7 +47,9 @@ USER root
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 
-# Install required packages for building the project
+# Install required packages for building and running the test suite.
+# SoftHSM drives the integration tests exercised by `make check`; libnss3-tools
+# provides certutil/libsoftokn3 for the NSS-backed tests.
 RUN apt-get update && apt-get install -y \
     build-essential \
     autoconf \
@@ -63,10 +65,50 @@ RUN apt-get update && apt-get install -y \
     tar \
     gzip \
     dpkg-dev \
+    softhsm2 \
+    libnss3-tools \
     && rm -rf /var/lib/apt/lists/*
+
+# On Debian/Ubuntu the NSS softoken (libsoftokn3.so and its sibling libraries)
+# lives in a `nss/` subdirectory of the multiarch libdir, which the test
+# harness' softoken search does not look into. Expose the directory under a path
+# the harness does check (/usr/local/lib/nss) so the NSS-backed tests run
+# instead of self-skipping; symlinking the whole directory keeps the sibling
+# libs (libfreebl3.so, ...) colocated with libsoftokn3.so.
+RUN ln -s "/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/nss" /usr/local/lib/nss
 
 # Reuse pandoc static binary from official image to avoid flaky GitHub release download.
 COPY --from=pandocbin /usr/local/bin/pandoc /usr/local/bin/pandoc
+
+
+# Build OpenSSL 3.5 from source as a static library, because Ubuntu 22.04 ships
+# libssl 3.0. OpenSSL >= 3.5 is required for native post-quantum (ML-DSA /
+# SLH-DSA / ML-KEM) support, so the tools -- and their PQC test surface -- are
+# linked against this self-contained libcrypto instead of the system one.
+FROM base AS opensslbuilder
+USER root
+ARG REPO_SSLVERIFY
+ARG IGNORE_PROXY
+ARG OPENSSL_VERSION="openssl-3.5.0"
+
+WORKDIR /opt/openssl-src
+RUN if [ "$IGNORE_PROXY" = "true" ]; then \
+            if [ "$REPO_SSLVERIFY" != "true" ]; then \
+                env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u no_proxy -u NO_PROXY git -c http.sslVerify=false clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
+            else \
+                env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u no_proxy -u NO_PROXY git clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
+            fi; \
+        elif [ "$REPO_SSLVERIFY" != "true" ]; then \
+            git -c http.sslVerify=false clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
+        else \
+            git clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
+        fi
+RUN ./Configure no-shared no-tests no-docs --prefix=/opt/openssl3 --openssldir=/opt/openssl3/ssl \
+    && make -j $(nproc) \
+    && make install_sw \
+    && mkdir -p /opt/openssl3/ssl \
+    && install -m 644 apps/openssl.cnf /opt/openssl3/ssl/openssl.cnf \
+    && rm -rf /opt/openssl-src
 
 
 # Source stage: --local-source mode.
@@ -174,6 +216,16 @@ FROM gitcloned AS builder
 USER root
 ARG CONFIG_ARGS
 
+# Bring in the statically-built OpenSSL 3.5 (libcrypto.a, headers, pkg-config
+# metadata). Prepend its pkg-config directories so libcrypto >= 3.5 is found
+# before the system 3.0, and put its `openssl` CLI first on PATH so the PQC
+# integration test verifies CSRs/certs with a PQC-capable tool.
+COPY --from=opensslbuilder /opt/openssl3 /opt/openssl3
+ENV PATH=/opt/openssl3/bin:$PATH
+ENV PKG_CONFIG_PATH=/opt/openssl3/lib64/pkgconfig:/opt/openssl3/lib/pkgconfig
+ENV OPENSSL_CONF=/opt/openssl3/ssl/openssl.cnf
+ENV OPENSSL_MODULES=/opt/openssl3/lib/ossl-modules
+
 # Prepare artifacts directory in builder so final stage can reuse it.
 RUN mkdir -p /artifacts
 
@@ -184,6 +236,7 @@ RUN mkdir -p /artifacts
 RUN ./bootstrap.sh --shallow-clone \
     && ./configure $CONFIG_ARGS \
     && make -j $(nproc)\
+    && make check \
     && make install-strip DESTDIR=/tar_build \
     && mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
     && install -m 644 -t /tar_build/usr/local/share/doc/pkcs11-tools \
@@ -197,6 +250,7 @@ RUN ./bootstrap.sh --shallow-clone \
 RUN make distclean \
     && ./configure --prefix=/usr --libdir=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH) $CONFIG_ARGS \
     && make -j $(nproc) \
+    && make check \
     && make install-strip DESTDIR=/deb_build \
     && mkdir -p /deb_build/usr/share/doc/pkcs11-tools \
     && install -m 644 -t /deb_build/usr/share/doc/pkcs11-tools \
@@ -232,7 +286,7 @@ RUN . /src/.meta/env \
     && echo "Section: utils" >> DEBIAN/control \
     && echo "Priority: optional" >> DEBIAN/control \
     && echo "Architecture: $PKG_ARCH" >> DEBIAN/control \
-    && echo "Depends: libc6, libssl3" >> DEBIAN/control \
+    && echo "Depends: libc6" >> DEBIAN/control \
     && echo "Maintainer: $PKG_MAINTAINER" >> DEBIAN/control \
     && echo "Description: a set of tools for manipulation of PKCS#11 objects" >> DEBIAN/control
 
