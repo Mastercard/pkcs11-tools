@@ -184,10 +184,10 @@ accepts the following values:
 :   PKCS#1 OAEP RSA wrapping (`CKM_RSA_PKCS_OAEP`).  RSA wrapping key only.
     This is the default algorithm.  Optional parameters (comma-separated):
 
-    `hash=`*CKM_SHA_1*|*CKM_SHA224*|*CKM_SHA256*|*CKM_SHA384*|*CKM_SHA512*
+    `hash=`*CKM_SHA_1* | *CKM_SHA224* | *CKM_SHA256* | *CKM_SHA384* | *CKM_SHA512*
     :   Hash algorithm (default: `CKM_SHA_1`).
 
-    `mgf=`*CKG_MGF1_SHA1*|*CKG_MGF1_SHA224*|*CKG_MGF1_SHA256*|*CKG_MGF1_SHA384*|*CKG_MGF1_SHA512*
+    `mgf=`*CKG_MGF1_SHA1* | *CKG_MGF1_SHA224* | *CKG_MGF1_SHA256* | *CKG_MGF1_SHA384* | *CKG_MGF1_SHA512*
     :   Mask generation function (default: `CKG_MGF1_SHA1`).
 
     `label="`*string*`"`

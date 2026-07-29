@@ -184,10 +184,10 @@ available slots for selection.
 
             `label="<value>"` — OAEP label/source argument.
 
-            `mgf=CKG_MGF1_SHA1|CKG_MGF1_SHA224|CKG_MGF1_SHA256|CKG_MGF1_SHA384|CKG_MGF1_SHA512`
+            `mgf=` `CKG_MGF1_SHA1` | `CKG_MGF1_SHA224` | `CKG_MGF1_SHA256` | `CKG_MGF1_SHA384` | `CKG_MGF1_SHA512`
             — mask generation function (default: `CKG_MGF1_SHA1`).
 
-            `hash=CKM_SHA_1|CKM_SHA224|CKM_SHA256|CKM_SHA384|CKM_SHA512`
+            `hash=` `CKM_SHA_1` | `CKM_SHA224` | `CKM_SHA256` | `CKM_SHA384` | `CKM_SHA512`
             — hashing algorithm (default: `CKM_SHA_1`).
 
             Surround the algorithm string with single quotes when passing
