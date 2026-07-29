@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- manual pages for every command, plus `pkcs11-tools(7)` (common options, token selection, PIN handling, interactive mode, object addressing and environment variables), `pkcs11-wrap(5)` (the wrapped key file format) and `pkcs11rc(5)` (the `.pkcs11rc` configuration file). The pages are authored in markdown under the `man` directory, converted to roff with `pandoc` at build time (an optional build dependency), installed by `make install`, and included in the deb, rpm, apk, Solaris and tarball packages. The Windows (mingw64) artifacts ship them as HTML under `doc/`
 - comprehensive test suite: unit tests over `libp11` (driven by a programmable mock PKCS#11 module) and shell integration tests against SoftHSM2 and NSS softoken. Integration tests self-skip when a backend is unavailable (no false failures). Run tests with `make check`, or individual tests with `make check TESTS=<path>`. Coverage support via `./configure --enable-coverage` followed by `make coverage`
 - GitHub Actions `build-and-check` workflow runs full `make check` inside a representative distro matrix (deb12, ol9, mingw64)
 - support for the Yubico (YubiHSM) vendor key types `CKK_YUBICO_AES128/192/256_CCM_WRAP` (AES keys with the CCM-wrap capability): `p11ls` shows them as `aes(<size>,yubico-ccm-wrap)`, `p11od` decodes them, and their key type can be used in attribute templates. They cannot be generated with `p11keygen` (delegated capabilities are not expressible through PKCS#11). Enabled by default, disable with `--without-yubico`
@@ -203,7 +204,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial public release
 
 [3.0.0]: https://github.com/Mastercard/pkcs11-tools/tree/v3.0.0
-[Unreleased]: https://github.com/Mastercard/pkcs11-tools/compare/v3.0.0...HEAD
 [2.6.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.6.0
 [2.5.1]: https://github.com/Mastercard/pkcs11-tools/tree/v2.5.1
 [2.5.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.5.0
