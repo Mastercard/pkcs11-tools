@@ -367,6 +367,23 @@ To disable all programmable completion for the shell, use `shopt -u progcomp` (r
 
 Please refer to [docs/MANUAL.md](docs/MANUAL.md) for instructions / how-to guide.
 
+### Manual pages
+
+Manual pages are installed by `make install` (and by the binary packages). They cover every command, plus three
+reference pages:
+
+```console
+$ man pkcs11-tools     # overview: common options, token selection, PIN handling, environment variables
+$ man pkcs11-wrap      # the file format used by p11wrap, p11unwrap and p11rewrap
+$ man pkcs11rc         # the .pkcs11rc configuration file
+$ man p11keygen        # ... and one page per command
+```
+
+The pages are authored in markdown, under the [`man`](man) directory, and converted to roff with
+[`pandoc`](https://pandoc.org) at build time. `pandoc` is an optional build dependency: when it is missing,
+`configure` warns and falls back to the pre-generated pages shipped in the release tarball. On Windows, where
+there is no `man` command, the pages are shipped as HTML files instead.
+
 ## Contributing
 
 If you wish to contribute to this project, please refer to the rules in [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).

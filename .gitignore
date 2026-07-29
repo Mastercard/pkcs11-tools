@@ -88,3 +88,9 @@ pkcs11-tools-*.zip
 
 # Generated zsh completion
 /_p11tools
+
+# Generated manual pages (produced from man/*.md with pandoc)
+/man/*.1
+/man/*.5
+/man/*.7
+/man/*.html

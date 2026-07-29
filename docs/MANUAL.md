@@ -1,5 +1,9 @@
 # Introduction
 
+> **Note:** this document is the how-to guide of the toolkit. A reference manual is also available as manual pages:
+> `man pkcs11-tools` for the common concepts, `man pkcs11-wrap` for the wrapped key file format, `man pkcs11rc` for the
+> configuration file, and one page per command (e.g. `man p11keygen`). Their markdown sources live in the `man` directory.
+
 ## Motivations for this project
 
 Cryptographic tokens (smart cards, HSMs, software crypto libraries) implementing

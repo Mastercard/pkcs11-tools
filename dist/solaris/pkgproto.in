@@ -54,3 +54,44 @@ f docs docs/CONTRIBUTING.md
 f docs docs/INSTALL.md
 f docs docs/MANUAL.md
 f docs docs/TPLICENSES.md
+
+# manual pages
+d manpages share/man 0755 root bin
+d manpages share/man/man1 0755 root bin
+d manpages share/man/man5 0755 root bin
+d manpages share/man/man7 0755 root bin
+f manpages share/man/man1/masqreq.1
+f manpages share/man/man1/p11cat.1
+f manpages share/man/man1/p11cp.1
+f manpages share/man/man1/p11importcert.1
+f manpages share/man/man1/p11importdata.1
+f manpages share/man/man1/p11importpubk.1
+f manpages share/man/man1/p11init.1
+f manpages share/man/man1/p11kcv.1
+f manpages share/man/man1/p11keycomp.1
+f manpages share/man/man1/p11keygen.1
+f manpages share/man/man1/p11ls.1
+f manpages share/man/man1/p11mkcert.1
+f manpages share/man/man1/p11more.1
+f manpages share/man/man1/p11mv.1
+f manpages share/man/man1/p11od.1
+f manpages share/man/man1/p11req.1
+f manpages share/man/man1/p11rewrap.1
+f manpages share/man/man1/p11rm.1
+f manpages share/man/man1/p11setattr.1
+f manpages share/man/man1/p11slotinfo.1
+f manpages share/man/man1/p11unwrap.1
+f manpages share/man/man1/p11wrap.1
+f manpages share/man/man1/with_aws.1
+f manpages share/man/man1/with_beid.1
+f manpages share/man/man1/with_kryoptic.1
+f manpages share/man/man1/with_luna.1
+f manpages share/man/man1/with_nfast.1
+f manpages share/man/man1/with_nss.1
+f manpages share/man/man1/with_pkcs11_common.1
+f manpages share/man/man1/with_softhsm.1
+f manpages share/man/man1/with_utimaco.1
+f manpages share/man/man1/with_yubico.1
+f manpages share/man/man5/pkcs11-wrap.5
+f manpages share/man/man5/pkcs11rc.5
+f manpages share/man/man7/pkcs11-tools.7

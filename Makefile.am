@@ -39,7 +39,7 @@ EXTRA_DIST = \
 	COPYING
 
 
-SUBDIRS = gl lib src
+SUBDIRS = gl lib src man
 
 ACLOCAL_AMFLAGS = -I m4
 

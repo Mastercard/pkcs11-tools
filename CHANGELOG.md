@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- manual pages for every command, plus `pkcs11-tools(7)` (common options, token selection, PIN handling, interactive mode, object addressing and environment variables), `pkcs11-wrap(5)` (the wrapped key file format) and `pkcs11rc(5)` (the `.pkcs11rc` configuration file). The pages are authored in markdown under the `man` directory, converted to roff with `pandoc` at build time (an optional build dependency), installed by `make install`, and included in the deb, rpm, apk, Solaris and tarball packages. The Windows (mingw64) artifacts ship them as HTML under `doc/`
 - support for the Yubico (YubiHSM) vendor key types `CKK_YUBICO_AES128/192/256_CCM_WRAP` (AES keys with the CCM-wrap capability): `p11ls` shows them as `aes(<size>,yubico-ccm-wrap)`, `p11od` decodes them, and their key type can be used in attribute templates. They cannot be generated with `p11keygen` (delegated capabilities are not expressible through PKCS#11). Enabled by default, disable with `--without-yubico`
 - `with_yubico` wrapper script (and `yubico` case in `with_pkcs11_common`) for YubiHSM tokens
 - "Vendor-specific limitations" section in the manual (Yubico and AWS CloudHSM)

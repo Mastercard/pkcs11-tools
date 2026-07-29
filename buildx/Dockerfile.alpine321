@@ -212,6 +212,11 @@ RUN mkdir -p /build/usr/share/doc/pkcs11-tools \
     docs/TPLICENSES.md \
     docs/CONTRIBUTING.md
 
+# The manual pages are installed by `make install` (generated from their
+# markdown sources with pandoc). They are left uncompressed: the pages of the
+# wrapper scripts are `.so` links to with_pkcs11_common(1), which mandoc (the
+# man implementation on Alpine) only resolves reliably on uncompressed pages.
+
 
 # Final stage
 FROM builder AS final
