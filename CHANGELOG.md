@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - support for the Yubico (YubiHSM) vendor key types `CKK_YUBICO_AES128/192/256_CCM_WRAP` (AES keys with the CCM-wrap capability): `p11ls` shows them as `aes(<size>,yubico-ccm-wrap)`, `p11od` decodes them, and their key type can be used in attribute templates. They cannot be generated with `p11keygen` (delegated capabilities are not expressible through PKCS#11). Enabled by default, disable with `--without-yubico`
 - `with_yubico` wrapper script (and `yubico` case in `with_pkcs11_common`) for YubiHSM tokens
 - "Vendor-specific limitations" section in the manual (Yubico and AWS CloudHSM)
+- `p11mkcert`: new `-F` (fake-signing) option, producing a dummy, always-invalid signature. This allows generating a certificate when the private key does not have `CKA_SIGN` asserted, mirroring the existing `-F` option of `p11req`. Previously the option was documented but not implemented
 
 ### Changed
 
@@ -31,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fixed extended object-filter parsing (`class/attr/value+...`) in search templates (`pkcs11_template`) by correcting `strsep` delimiter usage and attribute value tokenization.
 - fixed wrapped-key parser state leakage across parses by resetting `parsing_envelope` before each parse entry point (`pkcs11_prepare_wrappingctx`, `pkcs11_new_wrapped_key_from_file`).
 - `pkcs11_change_object_attributes`: fixed OID/ID retrieval to read `CKA_ID` (not `CKA_LABEL`) when inspecting matched objects.
+- `masqreq`: removed a bogus `-H` (hashing algorithm) entry from the usage message; the option was never accepted by `getopt()` and is meaningless since `masqreq` never re-signs the request.
+- `p11cp`: removed a stray `)` character from the `getopt()` option string.
 
 
 # [3.0.0] - 2026-06-30

@@ -21,6 +21,7 @@ p11mkcert - generate a self-signed X.509 certificate using a key on a PKCS#11 to
 \[**-H** *hashalgo*]
 \[**-e** *sanfield* ...]
 \[**-X**]
+\[**-F**]
 \[**-v**]
 \[**-n**]
 \[**-h**]
@@ -37,8 +38,7 @@ token (**-j**).
 The primary use case is Java JCA code-signing platforms and other scenarios
 that require a certificate paired with a hardware-protected private key. The
 private key must have **CKA_SIGN** set to `true`, unless the fake-signing mode
-(**-F** from **p11req**(1) is not available here; for self-signed certs the
-signing is always real) is not applicable here — signing is always performed.
+(**-F**) is used, in which case a dummy (invalid) signature is produced.
 
 The Subject DN must be specified in strict OpenSSL format, beginning with a
 leading `/` character. By default the DN components are written in
@@ -127,6 +127,11 @@ available slots for selection.
 :   Add Subject Key Identifier and Authority Key Identifier X.509v3
     extensions. The value is the SHA-1 hash of the key modulus (or equivalent
     for non-RSA keys).
+
+**-F**
+:   Fake signing. Do not compute a real signature; instead emit a dummy,
+    always-invalid signature. This is useful when the private key does not have
+    **CKA_SIGN** asserted but a certificate is nevertheless required.
 
 **-v**
 :   Verbose output: print the decoded content of the generated certificate to

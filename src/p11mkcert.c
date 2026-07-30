@@ -69,6 +69,9 @@ void print_usage(char *progname)
 	     "                  - email:[rfc822 compatible mail address]\n"
 	     "                  - IP:[IPv4 address]\n"
 	     "  -X : add Subject Key Identifier X509v3 extension (value is SHA1 of key modulus)\n"
+	     "  -F : fake signing, do not sign and put dummy information in signature.\n"
+	     "       Useful when the private key does not have CKA_SIGN asserted, but a\n"
+	     "       certificate is yet required. The resulting signature is always invalid.\n"
              "  -v : be verbose, output content of generated certificate to standard output\n"
 	     "  -h : print usage information\n"
 	     "  -V : print version information\n"
@@ -121,6 +124,7 @@ int main( int argc, char ** argv )
     int days = 365;		/* default is one year */
     bool reverse = false;
     bool import = false;		/* by default, no import to token */
+    bool fake = false;		/* fake signing (dummy signature) */
 #ifdef HAVE_DUPLICATES_ENABLED
     bool can_duplicate = false;
 #endif
@@ -151,7 +155,7 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:o:a:i:s:t:d:rje:p:u:XH:vhVn" ) ) != -1 ) {
+    while ( ( argnum = getopt( argc, argv, "l:m:o:a:i:s:t:d:rje:p:u:XH:vFhVn" ) ) != -1 ) {
 	switch ( argnum ) {
 	case 'o':
 	    filename = optarg;
@@ -250,6 +254,10 @@ int main( int argc, char ** argv )
 
 	case 'X':
 	    ski = true;		/* we want a subject key identifier and an authority key identifier */
+	    break;
+
+	case 'F':
+	    fake = true;
 	    break;
 
 	case 'v':
@@ -430,6 +438,7 @@ int main( int argc, char ** argv )
 						       sig_alg,
 						       hash_alg,
 						       hPrivateKey,
+						       fake,
 						       attrlist);
 
 	    if(x509) {

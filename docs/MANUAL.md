@@ -479,7 +479,7 @@ For each object, a quick list of attributes is displayed. The following table li
 | `dcp`        | the key can be used for decapsulation (KEM private key)                |
 | `dct`        | the key has a decapsulate template (use `p11od` to reveal)             |
 | `dec`        | the key can be used for decryption                                     |
-| `der`        | the key can be used for key derivation                                 |
+| `drv`        | the key can be used for key derivation                                 |
 | `drt`        | the key has a derive template (use `p11od` to reveal)                  |
 | `enc`        | the key can be used for encryption                                     |
 | `imp`        | the key has been imported (e.g. unwrapped)                             |
@@ -498,7 +498,7 @@ For each object, a quick list of attributes is displayed. The following table li
 | `sir`        | the key can be used for signature with recovery                        |
 | `tok`        | the object is on token (always true)                                   |
 | `tru`        | the object is trusted (`CKA_TRUST` attribute is set to `true`)         |
-| `unw`        | the key can be used for key unwrapping                                 |
+| `uwr`        | the key can be used for key unwrapping                                 |
 | `uwt`        | the key has an unwrap template (use `p11od` to reveal)                 |
 | `vfy`        | the key can be used for signature verification                         |
 | `vre`        | the key can be used for signature verification with recovery           |
@@ -1072,7 +1072,7 @@ Options are:
 - `-H` : hashing algorithm (`sha1`, `sha256`, \.... )
 - `-X`: add a subject key identifier extension to the CSR.
 - `-F`: do not perform signature. This can be useful in some case where the private key does not have `CKA_SIGN`
-  property asserted, but where a CSR is yet required. The resulting signature is always invalid.
+  property asserted, but where a certificate is yet required. The resulting signature is always invalid.
 - `-v`: be verbose.
 - `-o [filename]`: output to file
 - `-a [pkcs1 | pss]`: choose digital signature algorithm. The current default is `pkcs1` (PKCS\#1 v1.5); choose RSA-PSS with `pss`

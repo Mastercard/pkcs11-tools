@@ -115,13 +115,6 @@ Inspect the result verbosely:
 
     masqreq -c input.csr -d '/CN=test/C=BE' -v
 
-# BUGS
-
-The usage message printed by **masqreq -h** advertises a **-H** option to
-select a hashing algorithm. That option is not implemented: it is not part of
-the accepted command-line options, and it would be meaningless anyway, since
-**masqreq** never re-signs the request.
-
 # SEE ALSO
 
 **pkcs11-tools**(7), **p11req**(1), **p11mkcert**(1), **p11importcert**(1)
