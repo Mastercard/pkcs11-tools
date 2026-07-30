@@ -126,7 +126,7 @@ int main( int argc, char ** argv )
     }
 
     /* get the command-line arguments */
-    while ( ( argnum = getopt( argc, argv, "l:m:p:s:t:yvShVn)" ) ) != -1 )
+    while ( ( argnum = getopt( argc, argv, "l:m:p:s:t:yvShVn" ) ) != -1 )
     {
 	switch ( argnum )
 	{

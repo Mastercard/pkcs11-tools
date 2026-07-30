@@ -153,6 +153,7 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
 				    sig_alg_t sig_alg,
 				    hash_alg_t hash_alg,
 				    CK_OBJECT_HANDLE hprivkey,
+				    bool fake,
 				    pkcs11AttrList *attrlist) 
 {
     X509 *crt = NULL, *retval = NULL;
@@ -229,7 +230,7 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
     }
 
     /* step 4: bind the PKCS#11 private key handle into the provider. */
-    signing_pk = pkcs11_provider_make_pkey(prov_libctx, key_type, pk, p11Context, hprivkey, false);
+    signing_pk = pkcs11_provider_make_pkey(prov_libctx, key_type, pk, p11Context, hprivkey, fake);
     if(signing_pk == NULL) {
 	goto err;
     }
