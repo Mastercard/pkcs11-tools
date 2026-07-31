@@ -60,37 +60,11 @@ MAN5_PAGES = \
 MAN7_PAGES = \
 	pkcs11-tools.7
 
-ALL_MANPAGES = $(MAN1_PAGES) $(MAN1_LINKS) $(MAN5_PAGES) $(MAN7_PAGES)
+GENERATED_MANPAGES = $(MAN1_PAGES) $(MAN5_PAGES) $(MAN7_PAGES)
+ALL_MANPAGES = $(GENERATED_MANPAGES) $(MAN1_LINKS)
 
-MARKDOWN_PAGES = \
-	masqreq.1.md \
-	p11cat.1.md \
-	p11cp.1.md \
-	p11importcert.1.md \
-	p11importdata.1.md \
-	p11importpubk.1.md \
-	p11init.1.md \
-	p11kcv.1.md \
-	p11keycomp.1.md \
-	p11keygen.1.md \
-	p11ls.1.md \
-	p11mkcert.1.md \
-	p11more.1.md \
-	p11mv.1.md \
-	p11od.1.md \
-	p11req.1.md \
-	p11rewrap.1.md \
-	p11rm.1.md \
-	p11setattr.1.md \
-	p11slotinfo.1.md \
-	p11unwrap.1.md \
-	p11wrap.1.md \
-	with_pkcs11_common.1.md \
-	pkcs11-wrap.5.md \
-	pkcs11rc.5.md \
-	pkcs11-tools.7.md
-
-HTML_PAGES = $(MARKDOWN_PAGES:.md=.html)
+MARKDOWN_PAGES = $(GENERATED_MANPAGES:=.md)
+HTML_PAGES = $(GENERATED_MANPAGES:=.html)
 
 # metadata injected into every page; MAN_DATE is bumped manually when the
 # manual pages are substantially revised, to keep builds reproducible.
@@ -138,187 +112,13 @@ html-manpages: $(HTML_PAGES)
 .PHONY: html-manpages
 
 
-masqreq.1: $(srcdir)/masqreq.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/masqreq.1.md
+$(GENERATED_MANPAGES): %: $(srcdir)/%.md
+	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $<
 
-p11cat.1: $(srcdir)/p11cat.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11cat.1.md
+$(HTML_PAGES): %.html: $(srcdir)/%.md
+	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $<
 
-p11cp.1: $(srcdir)/p11cp.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11cp.1.md
-
-p11importcert.1: $(srcdir)/p11importcert.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11importcert.1.md
-
-p11importdata.1: $(srcdir)/p11importdata.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11importdata.1.md
-
-p11importpubk.1: $(srcdir)/p11importpubk.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11importpubk.1.md
-
-p11init.1: $(srcdir)/p11init.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11init.1.md
-
-p11kcv.1: $(srcdir)/p11kcv.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11kcv.1.md
-
-p11keycomp.1: $(srcdir)/p11keycomp.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11keycomp.1.md
-
-p11keygen.1: $(srcdir)/p11keygen.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11keygen.1.md
-
-p11ls.1: $(srcdir)/p11ls.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11ls.1.md
-
-p11mkcert.1: $(srcdir)/p11mkcert.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11mkcert.1.md
-
-p11more.1: $(srcdir)/p11more.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11more.1.md
-
-p11mv.1: $(srcdir)/p11mv.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11mv.1.md
-
-p11od.1: $(srcdir)/p11od.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11od.1.md
-
-p11req.1: $(srcdir)/p11req.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11req.1.md
-
-p11rewrap.1: $(srcdir)/p11rewrap.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11rewrap.1.md
-
-p11rm.1: $(srcdir)/p11rm.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11rm.1.md
-
-p11setattr.1: $(srcdir)/p11setattr.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11setattr.1.md
-
-p11slotinfo.1: $(srcdir)/p11slotinfo.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11slotinfo.1.md
-
-p11unwrap.1: $(srcdir)/p11unwrap.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11unwrap.1.md
-
-p11wrap.1: $(srcdir)/p11wrap.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/p11wrap.1.md
-
-with_pkcs11_common.1: $(srcdir)/with_pkcs11_common.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/with_pkcs11_common.1.md
-
-pkcs11-wrap.5: $(srcdir)/pkcs11-wrap.5.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/pkcs11-wrap.5.md
-
-pkcs11rc.5: $(srcdir)/pkcs11rc.5.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/pkcs11rc.5.md
-
-pkcs11-tools.7: $(srcdir)/pkcs11-tools.7.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $(srcdir)/pkcs11-tools.7.md
-
-masqreq.1.html: $(srcdir)/masqreq.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/masqreq.1.md
-
-p11cat.1.html: $(srcdir)/p11cat.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11cat.1.md
-
-p11cp.1.html: $(srcdir)/p11cp.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11cp.1.md
-
-p11importcert.1.html: $(srcdir)/p11importcert.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11importcert.1.md
-
-p11importdata.1.html: $(srcdir)/p11importdata.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11importdata.1.md
-
-p11importpubk.1.html: $(srcdir)/p11importpubk.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11importpubk.1.md
-
-p11init.1.html: $(srcdir)/p11init.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11init.1.md
-
-p11kcv.1.html: $(srcdir)/p11kcv.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11kcv.1.md
-
-p11keycomp.1.html: $(srcdir)/p11keycomp.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11keycomp.1.md
-
-p11keygen.1.html: $(srcdir)/p11keygen.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11keygen.1.md
-
-p11ls.1.html: $(srcdir)/p11ls.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11ls.1.md
-
-p11mkcert.1.html: $(srcdir)/p11mkcert.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11mkcert.1.md
-
-p11more.1.html: $(srcdir)/p11more.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11more.1.md
-
-p11mv.1.html: $(srcdir)/p11mv.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11mv.1.md
-
-p11od.1.html: $(srcdir)/p11od.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11od.1.md
-
-p11req.1.html: $(srcdir)/p11req.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11req.1.md
-
-p11rewrap.1.html: $(srcdir)/p11rewrap.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11rewrap.1.md
-
-p11rm.1.html: $(srcdir)/p11rm.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11rm.1.md
-
-p11setattr.1.html: $(srcdir)/p11setattr.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11setattr.1.md
-
-p11slotinfo.1.html: $(srcdir)/p11slotinfo.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11slotinfo.1.md
-
-p11unwrap.1.html: $(srcdir)/p11unwrap.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11unwrap.1.md
-
-p11wrap.1.html: $(srcdir)/p11wrap.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/p11wrap.1.md
-
-with_pkcs11_common.1.html: $(srcdir)/with_pkcs11_common.1.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/with_pkcs11_common.1.md
-
-pkcs11-wrap.5.html: $(srcdir)/pkcs11-wrap.5.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/pkcs11-wrap.5.md
-
-pkcs11rc.5.html: $(srcdir)/pkcs11rc.5.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/pkcs11rc.5.md
-
-pkcs11-tools.7.html: $(srcdir)/pkcs11-tools.7.md
-	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $(srcdir)/pkcs11-tools.7.md
-
-with_aws.1:
-	$(AM_V_GEN)echo '.so man1/with_pkcs11_common.1' > $@
-
-with_beid.1:
-	$(AM_V_GEN)echo '.so man1/with_pkcs11_common.1' > $@
-
-with_kryoptic.1:
-	$(AM_V_GEN)echo '.so man1/with_pkcs11_common.1' > $@
-
-with_luna.1:
-	$(AM_V_GEN)echo '.so man1/with_pkcs11_common.1' > $@
-
-with_nfast.1:
-	$(AM_V_GEN)echo '.so man1/with_pkcs11_common.1' > $@
-
-with_nss.1:
-	$(AM_V_GEN)echo '.so man1/with_pkcs11_common.1' > $@
-
-with_softhsm.1:
-	$(AM_V_GEN)echo '.so man1/with_pkcs11_common.1' > $@
-
-with_utimaco.1:
-	$(AM_V_GEN)echo '.so man1/with_pkcs11_common.1' > $@
-
-with_yubico.1:
+$(MAN1_LINKS): %.1:
 	$(AM_V_GEN)echo '.so man1/with_pkcs11_common.1' > $@
 
 
