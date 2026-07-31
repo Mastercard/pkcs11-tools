@@ -233,7 +233,7 @@ available slots for selection.
 
 **-n**
 :   Allow creation of duplicate objects (objects with the same label). Only
-    available when the toolkit is built with **--enable-duplicates**.
+    available when the toolkit is built with **--enable-duplicate**.
 
 **-h**
 :   Print usage information and exit.

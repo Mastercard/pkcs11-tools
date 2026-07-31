@@ -28,7 +28,7 @@ imported certificate object is computed according to IBM PKCS#11 JCE rules
 key types), so that it matches a previously imported or generated key pair.
 
 If a certificate with the same label already exists on the token, the operation
-is aborted unless the toolkit was built with **--enable-duplicates** and the
+is aborted unless the toolkit was built with **--enable-duplicate** and the
 **-n** flag is given.
 
 The trust bit (**CKA_TRUST**) can optionally be set using **-T**; this
