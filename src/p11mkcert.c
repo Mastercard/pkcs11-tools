@@ -68,7 +68,7 @@ void print_usage(char *progname)
 	     "                  - DNS:[host name]\n"
 	     "                  - email:[rfc822 compatible mail address]\n"
 	     "                  - IP:[IPv4 address]\n"
-	     "  -X : add Subject Key Identifier X509v3 extension (value is SHA1 of key modulus)\n"
+	     "  -X : add Subject Key Identifier X509v3 extension\n"
 	     "  -F : fake signing, do not sign and put dummy information in signature.\n"
 	     "       Useful when the private key does not have CKA_SIGN asserted, but a\n"
 	     "       certificate is yet required. The resulting signature is always invalid.\n"
