@@ -39,7 +39,7 @@ Use **-T** to additionally set **CKA_TRUSTED=true** (SO privilege is usually
 required).
 
 If a public key with the same label already exists on the token, the operation
-is aborted unless the toolkit was built with **--enable-duplicates** and the
+is aborted unless the toolkit was built with **--enable-duplicate** and the
 **-n** flag is given.
 
 When neither **-s** nor **-t** is given, and no corresponding environment

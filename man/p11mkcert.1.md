@@ -140,7 +140,7 @@ available slots for selection.
 **-n**
 :   Allow creation of duplicate objects (a certificate with the same label
     already on the token). Only available when the toolkit is built with
-    **--enable-duplicates**.
+    **--enable-duplicate**.
 
 **-h**
 :   Print usage information and exit.

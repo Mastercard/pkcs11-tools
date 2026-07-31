@@ -24,7 +24,7 @@ PKCS#11 token as a **CKO_DATA** object. This allows arbitrary binary or text
 files to be stored alongside keys and certificates on the token.
 
 If a data object with the same label already exists on the token, the operation
-is aborted unless the toolkit was built with **--enable-duplicates** and the
+is aborted unless the toolkit was built with **--enable-duplicate** and the
 **-n** flag is given.
 
 When neither **-s** nor **-t** is given, and no corresponding environment
