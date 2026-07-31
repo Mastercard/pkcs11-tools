@@ -207,6 +207,11 @@ RUN make distclean \
     docs/CONTRIBUTING.md \
     && mkdir -p /deb_build/DEBIAN
 
+# Manual pages must be compressed in Debian packages (Debian Policy 12.1).
+# The pages themselves are produced by `make install` (they are generated from
+# their markdown sources with pandoc, which is available in this image).
+RUN if [ -d /deb_build/usr/share/man ]; then find /deb_build/usr/share/man -type f ! -name '*.gz' -exec gzip -9n {} + ; fi
+
 # Final stage
 FROM builder AS final
 USER root

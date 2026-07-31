@@ -287,6 +287,9 @@ cp -r %{_sourcedir}/prebuilt/usr %{buildroot}
 %{_bindir}/*
 %{_datadir}/bash-completion/completions/*
 %{_datadir}/zsh/site-functions/_p11tools
+%{_mandir}/man1/*
+%{_mandir}/man5/*
+%{_mandir}/man7/*
 
 %doc
 %{_docdir}/pkcs11-tools

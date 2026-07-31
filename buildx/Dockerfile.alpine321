@@ -212,6 +212,10 @@ RUN mkdir -p /build/usr/share/doc/pkcs11-tools \
     docs/TPLICENSES.md \
     docs/CONTRIBUTING.md
 
+# The manual pages are installed by `make install` (generated from their
+# markdown sources with pandoc). abuild requires manual pages to be compressed.
+RUN if [ -d /build/usr/share/man ]; then find /build/usr/share/man -type f ! -name '*.gz' -exec gzip -9n {} + ; fi
+
 
 # Final stage
 FROM builder AS final

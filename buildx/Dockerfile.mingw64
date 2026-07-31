@@ -26,6 +26,8 @@ ARG SOURCE_MODE="git"
 ARG PROXY_ROOT_CA="DUMMY.pem"
 ARG CONFIG_ARGS=""
 
+FROM pandoc/minimal:3-static AS pandocbin
+
 # Default fallback for the "extra-headers" build context: an empty filesystem.
 # Overridden when buildx.sh is invoked with --extra-header to bind-mount
 # additional cryptoki headers (e.g. real ncipher.h / luna.h) without polluting
@@ -65,6 +67,10 @@ RUN dnf update -y \
     perl \
     && dnf clean all
 
+
+# Reuse pandoc static binary from official image: it is used to generate the
+# manual pages, which are shipped as HTML for Windows users (no man(1) there).
+COPY --from=pandocbin /usr/local/bin/pandoc /usr/local/bin/pandoc
 
 # Source stage: --local-source mode.
 # The build context is the local workspace (a git checkout with submodules
@@ -243,6 +249,25 @@ RUN mkdir -p /dist \
     && cp README.md CHANGELOG.md COPYING /dist/ \
     && cp docs/INSTALL.md docs/MANUAL.md docs/TPLICENSES.md /dist/ \
     && ls -la /dist/
+
+# Windows has no man(1) command: the manual pages are shipped as HTML instead,
+# generated from the very same markdown sources with pandoc.
+RUN chmod -R u+rwX /src \
+    && make -C man html-manpages \
+    && mkdir -p /dist/doc \
+    && cp man/*.html /dist/doc/ \
+    && { \
+        echo '<!DOCTYPE html><html><head><meta charset="utf-8">'; \
+        echo '<title>pkcs11-tools manual pages</title></head><body>'; \
+        echo '<h1>pkcs11-tools manual pages</h1><ul>'; \
+        for h in $(ls /dist/doc/*.html | grep -v '/index\.html$' | sort); do \
+            b=$(basename "$h"); \
+            n=$(echo "$b" | sed -E 's/\.([0-9])\.html$/(\1)/'); \
+            echo "<li><a href=\"$b\">$n</a></li>"; \
+        done; \
+        echo '</ul></body></html>'; \
+    } > /dist/doc/index.html \
+    && ls -la /dist/doc/
 
 # Final stage: package the binaries into both .zip (Windows-friendly) and .tar.gz
 FROM builder AS final

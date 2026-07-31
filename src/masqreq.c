@@ -49,7 +49,6 @@ void print_usage(char *progname)
 	     COMMAND_SUMMARY
 	     "* -c <file> : input file with PKCS#10 request, to extract public key from\n"
 	     "  -o <file> : output file for PKCS#10 request (stdout if not specified)\n"
-	     "  -H sha1|sha256|sha384|sha512: Hashing algorithm (default is sha1)\n"
 	     "* -d <SubjectDN>: subject DN, OpenSSL formatted, e.g. /CN=mysite.net/O=My Org/C=BE\n"
 	     "  -r reverse order of subject DN (for compatibility with previous versions)\n"
 	     "+ -e <SANField> : subject alternative Name field, OpenSSL formatted.\n"

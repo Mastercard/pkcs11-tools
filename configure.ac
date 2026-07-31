@@ -43,6 +43,22 @@ gl_EARLY		dnl GNULIB early macro init
 
 AC_PATH_PROG([PERL],[perl])	dnl needed to execute scripts in lib directory
 AC_PROG_MKDIR_P			dnl needed for dist/solaris build
+
+dnl pandoc is used to generate the manual pages from their markdown sources.
+dnl It is optional: when absent, pre-generated manual pages (as shipped in the
+dnl distribution tarball) are installed instead, if present.
+AC_PATH_PROG([PANDOC],[pandoc])
+manpages="yes"
+AS_IF([test "x$PANDOC" = "x"],
+      [AS_IF([test -f "$srcdir/man/pkcs11-tools.7"],
+             [manpages="pre-generated"
+	      AC_MSG_WARN([pandoc not found: installing the pre-generated manual pages shipped with this distribution.])],
+             [manpages="no"
+	      AC_MSG_WARN([pandoc not found and no pre-generated manual pages available: manual pages will not be built nor installed.])])],
+      [manpages="generated"])
+AM_CONDITIONAL([HAVE_PANDOC], [test "x$PANDOC" != "x"])
+AM_CONDITIONAL([HAVE_PREBUILT_MANPAGES], [test "x$manpages" = "xpre-generated"])
+
 AC_CHECK_PROGS([TAR], [gtar tar]) dnl need to find tar (GNU tar preferred)
 
 dnl we need FLEX, not LEX
@@ -242,6 +258,7 @@ AC_CONFIG_HEADERS([include/config.h])
 AC_CONFIG_FILES([	gl/Makefile
 			lib/Makefile
 			src/Makefile
+			man/Makefile
 			Makefile
 			dist/solaris/pkgproto
 			dist/solaris/pkginfo
@@ -267,4 +284,5 @@ AC_MSG_NOTICE([libcrypto rpath     : $LIBCRYPTO_RPATH])
 AC_MSG_NOTICE([enable_duplicate    : $hasduplicate])
 AC_MSG_NOTICE([enable_pqc          : $haspqc])
 AC_MSG_NOTICE([pqc via openssl     : $haspqcopenssl])
+AC_MSG_NOTICE([manual pages        : $manpages])
 AC_MSG_NOTICE([------------------------------------------------------------------------])
