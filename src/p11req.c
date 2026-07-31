@@ -64,7 +64,7 @@ void print_usage(char *progname)
 	     "                  - DNS:[host name]\n"
 	     "                  - email:[rfc822 compatible mail address]\n"
 	     "                  - IP:[IPv4 address]\n"
-	     "  -X : add Subject Key Identifier X509v3 to request (value is SHA1 of key modulus)\n"
+	     "  -X : add Subject Key Identifier X509v3 to request\n"
 	     "  -F : fake signing, do not sign and put dummy information in signature\n"
              "  -v : be verbose, output content of generated PKCS#10 to standard output\n"	    
 	     "  -h : print usage information\n"

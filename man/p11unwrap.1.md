@@ -17,6 +17,7 @@ p11unwrap - unwrap a key onto a PKCS#11 token from a wrapped key file
 \[**-S**]
 \[**-h**]
 \[**-V**]
+\[**-n**]
 \[*ATTRIBUTE***=***value* ...]
 
 # DESCRIPTION
