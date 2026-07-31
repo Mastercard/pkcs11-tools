@@ -1070,7 +1070,7 @@ Options are:
 - `-e` ( may be specified several times): SAN field. It is prefixed with `DNS:` for a DNS entry, `email:` for an email
   entry, and `IP:` for an IPv4 address.
 - `-H` : hashing algorithm (`sha1`, `sha256`, \.... )
-- `-X`: add a subject key identifier extension to the CSR.
+- `-X`: add a subject key identifier extension to the certificate.
 - `-F`: do not perform signature. This can be useful in some case where the private key does not have `CKA_SIGN`
   property asserted, but where a certificate is yet required. The resulting signature is always invalid.
 - `-v`: be verbose.
