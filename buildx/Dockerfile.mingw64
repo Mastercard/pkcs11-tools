@@ -66,6 +66,40 @@ RUN dnf update -y \
     && dnf clean all
 
 
+# Cross-compile OpenSSL 3.5 for MinGW-w64. Fedora's mingw64-openssl is < 3.5, so
+# the Windows binaries can generate/inspect PQC keys but cannot export public
+# keys or create PQC CSRs/certificates ("pqc via openssl: no"). Building OpenSSL
+# 3.5 for the mingw target and installing it into the mingw sysroot brings full
+# PQC support (ML-DSA/SLH-DSA/ML-KEM) to the shipped Windows binaries. Installed
+# with DESTDIR so only OpenSSL's files (with a sysroot-correct pkg-config prefix)
+# are overlaid onto the sysroot in the builder stage.
+FROM base AS opensslbuilder
+USER root
+ARG REPO_SSLVERIFY
+ARG IGNORE_PROXY
+ARG OPENSSL_VERSION="openssl-3.5.0"
+ARG MINGW_SYSROOT="/usr/x86_64-w64-mingw32/sys-root/mingw"
+
+WORKDIR /opt/openssl-src
+RUN if [ "$IGNORE_PROXY" = "true" ]; then \
+            if [ "$REPO_SSLVERIFY" != "true" ]; then \
+                env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u no_proxy -u NO_PROXY git -c http.sslVerify=false clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
+            else \
+                env -u http_proxy -u https_proxy -u HTTP_PROXY -u HTTPS_PROXY -u all_proxy -u ALL_PROXY -u no_proxy -u NO_PROXY git clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
+            fi; \
+        elif [ "$REPO_SSLVERIFY" != "true" ]; then \
+            git -c http.sslVerify=false clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
+        else \
+            git clone --depth 1 -b ${OPENSSL_VERSION} https://github.com/openssl/openssl.git .; \
+        fi
+RUN ./Configure mingw64 shared no-apps no-tests no-docs --libdir=lib \
+        --cross-compile-prefix=x86_64-w64-mingw32- \
+        --prefix=${MINGW_SYSROOT} --openssldir=${MINGW_SYSROOT}/ssl \
+    && make -j $(nproc) \
+    && make install_sw DESTDIR=/staging \
+    && rm -rf /opt/openssl-src
+
+
 # Source stage: --local-source mode.
 # The build context is the local workspace (a git checkout with submodules
 # already populated). We bind-mount it read-only into the build and clone
@@ -166,6 +200,11 @@ FROM gitcloned AS builder
 USER root
 ARG CONFIG_ARGS
 
+# Overlay the cross-compiled OpenSSL 3.5 onto the mingw sysroot so
+# mingw64-configure picks up libcrypto >= 3.5 (full PQC support: CSR/cert/pubkey
+# export) and the shipped libcrypto DLL is the 3.5 build.
+COPY --from=opensslbuilder /staging/usr/x86_64-w64-mingw32/sys-root/mingw/ /usr/x86_64-w64-mingw32/sys-root/mingw/
+
 # Prepare artifacts directory in builder so final stage can reuse it.
 # (chmod -R u+rwX /src works around a Docker Desktop overlayfs quirk that
 # leaves /src non-writable to root in this stage on macOS.)
@@ -227,6 +266,12 @@ RUN chmod -R u+rwX /src \
             $CONFIG_ARGS)
 
 RUN chmod -R u+rwX /src && make -j$(nproc)
+
+# NOTE: `make check` is not run for the mingw64 target. The suite is built for
+# Windows (x86_64 .exe): the unit tests would need a Windows-capable runtime
+# (Wine) and the integration tests a Windows SoftHSM module (.dll), neither of
+# which is available in this Linux cross-build. mingw64 is therefore build-only;
+# the produced binaries are, however, PQC-capable (linked against OpenSSL 3.5).
 
 # Collect output binaries, required DLLs and documentation into a staging directory.
 # (cp of docs is merged in the same RUN to avoid a Docker Desktop layer-boundary

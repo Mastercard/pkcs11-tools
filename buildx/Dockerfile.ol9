@@ -67,8 +67,10 @@ RUN OL=ol$(rpm --eval "%{rhel}") EL=el$(rpm --eval "%{rhel}") \
     tar \
     gzip \
     rpm-build \
-    wget \ 
+    wget \
     openssl-devel \
+    softhsm \
+    nss-tools \
     && dnf clean all
 
 # Reuse pandoc static binary from official image to avoid flaky GitHub release download.
@@ -188,39 +190,33 @@ RUN mkdir -p /artifacts
 RUN ./bootstrap.sh --shallow-clone \
     && ./configure $CONFIG_ARGS \
     && make -j $(nproc) \
+    && make check \
     && make install DESTDIR=/tar_build
 
 # Install documentation
-RUN if [ -w /tar_build ]; then \
-            mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
-            && install -m 644 -t /tar_build/usr/local/share/doc/pkcs11-tools \
-            README.md CHANGELOG.md COPYING \
-            docs/INSTALL.md \
-            docs/MANUAL.md \
-            docs/TPLICENSES.md \
-            docs/CONTRIBUTING.md; \
-        else \
-            echo "Skipping tar docs install: /tar_build is not writable"; \
-        fi
+RUN mkdir -p /tar_build/usr/local/share/doc/pkcs11-tools \
+    && install -m 644 -t /tar_build/usr/local/share/doc/pkcs11-tools \
+    README.md CHANGELOG.md COPYING \
+    docs/INSTALL.md \
+    docs/MANUAL.md \
+    docs/TPLICENSES.md \
+    docs/CONTRIBUTING.md
 
 # Build again the project for rpm package (/usr)
 RUN make distclean \
     && ./configure --prefix=/usr $CONFIG_ARGS \
     && make -j $(nproc) \
+    && make check \
     && make install DESTDIR=/rpm_build
 
 # Install documentation
-RUN if [ -w /rpm_build ]; then \
-            mkdir -p /rpm_build/usr/share/doc/pkcs11-tools \
-            && install -m 644 -t /rpm_build/usr/share/doc/pkcs11-tools \
-            README.md CHANGELOG.md COPYING \
-            docs/INSTALL.md \
-            docs/MANUAL.md \
-            docs/TPLICENSES.md \
-            docs/CONTRIBUTING.md; \
-        else \
-            echo "Skipping rpm docs install: /rpm_build is not writable"; \
-        fi
+RUN mkdir -p /rpm_build/usr/share/doc/pkcs11-tools \
+    && install -m 644 -t /rpm_build/usr/share/doc/pkcs11-tools \
+    README.md CHANGELOG.md COPYING \
+    docs/INSTALL.md \
+    docs/MANUAL.md \
+    docs/TPLICENSES.md \
+    docs/CONTRIBUTING.md
 
 
 # Final stage

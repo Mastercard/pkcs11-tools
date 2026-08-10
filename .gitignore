@@ -8,6 +8,28 @@
 .deps/
 .libs/
 
+## code coverage artefacts
+*.gcda
+*.gcno
+*.gcov
+/coverage/
+
+## test suite artefacts
+*.trs
+/tests/test-suite.log
+/tests/unit/test_utils
+/tests/unit/test_ec
+/tests/unit/test_error
+/tests/unit/test_template
+/tests/unit/test_version
+/tests/unit/test_attribctx
+/tests/unit/test_wrappedkey
+/tests/unit/test_pqc
+/tests/unit/*.log
+/tests/integration/*.log
+/tests/preload/notty.so
+/tests/mock/mock_pkcs11.so
+
 ## development tools
 .gdb_history
 .python-version
@@ -37,6 +59,7 @@ Makefile.in
 .dirstamp
 /missing
 /ylwrap
+/test-driver
 /m4
 !m4/ax_create_target_h.m4
 !m4/ax_lib_socket_nsl.m4
