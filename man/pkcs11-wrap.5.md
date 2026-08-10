@@ -74,9 +74,8 @@ Attribute names are case-insensitive.  The following attributes are recognized:
     `CKO_DOMAIN_PARAMETERS`, `CKO_MECHANISM`, `CKO_OTP_KEY`.
 
 **CKA_KEY_TYPE:** *keytype*
-:   Key type.  Canonical names (e.g. `CKK_AES`) or short aliases
-    (e.g. `aes`, `rsa`, `ec`, `generic`).  All key types supported by the
-    command-line attribute parser are also valid here; see **pkcs11-tools**(7).
+:   Key type.  Canonical names (e.g. `CKK_AES`).  All key types supported by
+    the command-line attribute parser are also valid here; see **pkcs11-tools**(7).
 
 **CKA_TOKEN:** *boolean*
 :   Whether the key is a token object.  Default: `true`.
