@@ -63,7 +63,7 @@ available slots for selection.
 **-n**
 :   Allow importing even if a data object with the same label already exists
     (creates a duplicate object). Only available when the toolkit is built
-    with **--enable-duplicates**.
+    with **--enable-duplicate**.
 
 **-h**
 :   Print usage information and exit.

@@ -125,8 +125,7 @@ available slots for selection.
 
 **-X**
 :   Add Subject Key Identifier and Authority Key Identifier X.509v3
-    extensions. The value is the SHA-1 hash of the key modulus (or equivalent
-    for non-RSA keys).
+    extensions.  The value is the `CKA_ID` value of the key.
 
 **-F**
 :   Fake signing. Do not compute a real signature; instead emit a dummy,

@@ -108,7 +108,7 @@ available slots for selection.
 
 **-X**
 :   Add a Subject Key Identifier X.509v3 extension to the CSR. The value is
-    the SHA-1 hash of the key modulus (or equivalent for non-RSA keys).
+    the `CKA_ID` value of the key.
 
 **-F**
 :   Fake signing: do not perform a real signature. The resulting CSR has a

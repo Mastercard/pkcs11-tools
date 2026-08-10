@@ -78,7 +78,7 @@ available slots for selection.
 **-n**
 :   Allow importing even if a certificate with the same label already exists
     on the token (creates a duplicate object). Only available when the toolkit
-    is built with **--enable-duplicates**.
+    is built with **--enable-duplicate**.
 
 **-h**
 :   Print usage information and exit.
