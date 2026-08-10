@@ -102,10 +102,6 @@ RUN ./Configure mingw64 shared no-apps no-tests no-docs --libdir=lib \
     && make install_sw DESTDIR=/staging \
     && rm -rf /opt/openssl-src
 
-# Reuse pandoc static binary from official image: it is used to generate the
-# manual pages, which are shipped as HTML for Windows users (no man(1) there).
-COPY --from=pandocbin /usr/local/bin/pandoc /usr/local/bin/pandoc
-
 # Source stage: --local-source mode.
 # The build context is the local workspace (a git checkout with submodules
 # already populated). We bind-mount it read-only into the build and clone
@@ -210,6 +206,9 @@ ARG CONFIG_ARGS
 # mingw64-configure picks up libcrypto >= 3.5 (full PQC support: CSR/cert/pubkey
 # export) and the shipped libcrypto DLL is the 3.5 build.
 COPY --from=opensslbuilder /staging/usr/x86_64-w64-mingw32/sys-root/mingw/ /usr/x86_64-w64-mingw32/sys-root/mingw/
+
+# Bring pandoc into this stage for HTML manpage generation.
+COPY --from=pandocbin /usr/local/bin/pandoc /usr/local/bin/pandoc
 
 # Prepare artifacts directory in builder so final stage can reuse it.
 # (chmod -R u+rwX /src works around a Docker Desktop overlayfs quirk that
