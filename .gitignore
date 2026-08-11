@@ -117,3 +117,8 @@ pkcs11-tools-*.zip
 /man/*.5
 /man/*.7
 /man/*.html
+
+# Documentation local preview/build artifacts
+/.venv-docs/
+/site/
+

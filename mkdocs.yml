@@ -1,0 +1,25 @@
+site_name: pkcs11-tools Documentation
+site_description: Documentation for pkcs11-tools
+site_url: https://mastercard.github.io/pkcs11-tools/
+repo_url: https://github.com/Mastercard/pkcs11-tools
+repo_name: Mastercard/pkcs11-tools
+docs_dir: docs
+
+theme:
+  name: material
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - tables
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Installation: INSTALL.md
+  - Manual: MANUAL.md
+  - Contributing: CONTRIBUTING.md
+  - Third-party Licenses: TPLICENSES.md

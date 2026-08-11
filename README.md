@@ -199,6 +199,31 @@ To avoid specifying command line arguments, environment variables can be specifi
 | `-t`       |token name                         |`PKCS11TOKENLABEL`  |
 | `-p`       |token password                     |`PKCS11PASSWORD`    |
 
+## Documentation site (GitHub Pages)
+
+This repository can publish its Markdown documentation as a GitHub Pages site using MkDocs.
+
+### Validate locally
+
+```bash
+python3 -m venv .venv-docs
+source .venv-docs/bin/activate
+pip install -r requirements-docs.txt
+mkdocs serve
+```
+
+Then open `http://127.0.0.1:8000`.
+
+To run a strict build check locally:
+
+```bash
+mkdocs build --strict
+```
+
+### Branch-based test deployment
+
+The workflow `.github/workflows/docs-pages.yml` is configured to deploy documentation when pushing to branch `docs/pages-poc` (and via manual dispatch).
+
 To extract the value of a non-sensitive object, use `p11cat`:
 
 ```bash
