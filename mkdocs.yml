@@ -7,12 +7,28 @@ docs_dir: docs
 
 theme:
   name: material
+  logo: assets/mastercard-team-icon.png
+  favicon: assets/mastercard-team-icon.png
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: teal
+      accent: amber
 
 markdown_extensions:
   - toc:
       permalink: true
   - admonition
   - tables
+  - attr_list
+  - md_in_html
+
+extra_css:
+  - stylesheets/extra.css
 
 plugins:
   - search
