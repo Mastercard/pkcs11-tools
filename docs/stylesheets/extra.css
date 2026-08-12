@@ -62,3 +62,27 @@
     margin: 0;
     color: color-mix(in srgb, var(--md-default-fg-color) 82%, white);
 }
+
+.banner-demo {
+    margin: 0.8rem 0 1.5rem;
+    border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 14%, transparent);
+    border-radius: 14px;
+    padding: 0.75rem;
+    background: #ffffff;
+}
+
+.banner-demo img {
+    width: 100%;
+    display: block;
+    border-radius: 10px;
+}
+
+.banner-demo p {
+    margin: 0.6rem 0 0.2rem;
+}
+
+.md-content img[src*="media/tutorial/"] {
+    border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 16%, transparent);
+    border-radius: 12px;
+    margin-top: 0.4rem;
+}

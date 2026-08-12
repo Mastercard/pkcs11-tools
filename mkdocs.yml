@@ -34,6 +34,7 @@ plugins:
   - search
 
 nav:
+  - Tutorial: TUTORIAL.md
   - Home: index.md
   - Installation: INSTALL.md
   - Manual: MANUAL.md
