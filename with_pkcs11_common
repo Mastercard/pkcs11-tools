@@ -96,7 +96,7 @@ build_p11_libpaths()
 
     IFS=$_old_ifs
 
-    # Homebrew: HOMEBREW_PREFIX is set by 'eval "$(brew shellenv)"' — no subprocess needed.
+    # Homebrew: HOMEBREW_PREFIX is set by 'eval "$(brew shellenv)"' - no subprocess needed.
     if [ -n "${HOMEBREW_PREFIX:-}" ]; then
         p11_path_once "$HOMEBREW_PREFIX/lib"
         p11_path_once "$HOMEBREW_PREFIX/lib/pkcs11"
@@ -222,7 +222,7 @@ case ${_p11_vendor:-} in
         ;;
 
     beid)
-        # Belgian eID: no PIN — entered directly via the card reader
+        # Belgian eID: no PIN - entered directly via the card reader
         ;;
 
     kryoptic)
@@ -428,7 +428,7 @@ fi
 ########################################################################
 # Vendor post-rc hook
 # A with_xxx wrapper may define p11_post_rc() to finalize its environment
-# *after* .pkcs11rc has been sourced — e.g. to derive a variable from another
+# *after* .pkcs11rc has been sourced - e.g. to derive a variable from another
 # one that the user may have overridden in .pkcs11rc.  No-op when undefined.
 if type p11_post_rc > /dev/null 2>&1; then
     p11_post_rc
