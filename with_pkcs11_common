@@ -202,7 +202,7 @@ if ! type emit_rc_template > /dev/null 2>&1; then
 # Use the case block below to set vendor-specific variables, or set them
 # directly if you only ever use one vendor in this directory.
 
-# ── Common settings ──────────────────────────────────────────────────────────
+# -- Common settings ----------------------------------------------------------
 # Token selection: use PKCS11SLOT *or* PKCS11TOKENLABEL (not both)
 #PKCS11SLOT=0
 #PKCS11TOKENLABEL=
@@ -213,7 +213,7 @@ if ! type emit_rc_template > /dev/null 2>&1; then
 # Override library path (auto-detected by default)
 #PKCS11LIB=
 
-# ── Vendor-specific settings ─────────────────────────────────────────────────
+# -- Vendor-specific settings -------------------------------------------------
 case ${_p11_vendor:-} in
 
     aws)
