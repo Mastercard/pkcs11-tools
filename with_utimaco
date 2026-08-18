@@ -36,7 +36,7 @@ PKCS11_CFGPATHS="/opt/utimaco /usr/local/etc /etc $HOME/utimaco/pkcs11 $HOME/uti
 
 LIB_ENVVARS="CS_PKCS11_R2_CFG CS_PKCS11_R3_CFG"
 
-# Utimaco requires a config file — locate it if not already set
+# Utimaco requires a config file - locate it if not already set
 _find_utimaco_cfg()
 {
     for path in $PKCS11_CFGPATHS; do
