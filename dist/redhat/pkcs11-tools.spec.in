@@ -55,5 +55,8 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %doc *.md COPYING docs/*.md
 %{_bindir}/*
+%{_mandir}/man1/*
+%{_mandir}/man5/*
+%{_mandir}/man7/*
 
 %changelog

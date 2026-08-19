@@ -81,6 +81,11 @@ In order to build the project from scratch, you will need
    ```sh
    $ sudo apt-get install bison flex
    ```
+ - optionally, [`pandoc`](https://pandoc.org). It is used to generate the manual pages from their markdown sources, located in the `man` directory. If `pandoc` is not found, `configure` emits a warning and the build proceeds: the pre-generated manual pages shipped in the release tarball are installed instead, and if none are available (e.g. when building from a `git` clone without `pandoc`), no manual page is installed. The binaries are unaffected.
+   If your host is Debian-based (e.g. Ubuntu), you can execute the following command:
+   ```sh
+   $ sudo apt-get install pandoc
+   ```
  - a connection to Internet (to fetch `gnulib` and the pkcs11 headers)
 
 
@@ -265,7 +270,7 @@ The build produces two archives in the current directory:
 - `pkcs11-tools-mingw64-x86_64-<version>.zip` (Windows-friendly format)
 - `pkcs11-tools-mingw64-x86_64-<version>.tar.gz`
 
-Each archive contains all `.exe` files and their required DLLs (`libcrypto`, `libssl`, `libwinpthread`, `libgcc_s_seh`), along with the documentation. Extract the archive on your Windows machine to run the tools.
+Each archive contains all `.exe` files and their required DLLs (`libcrypto`, `libssl`, `libwinpthread`, `libgcc_s_seh`), along with the documentation. Since Windows has no `man` command, the manual pages are shipped as HTML files in the `doc` subdirectory of the archive; open `doc/index.html` in a browser to browse them. Extract the archive on your Windows machine to run the tools.
 
 Notes:
 - Unlike the other distros, the `mingw64` target always produces Windows `x86_64` binaries regardless of the host architecture (it uses the MinGW-w64 cross-compiler inside a Fedora container).

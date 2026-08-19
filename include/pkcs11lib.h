@@ -701,6 +701,7 @@ CK_VOID_PTR pkcs11_create_X509_CERT(pkcs11Context *p11Context,
                     sig_alg_t sig_alg,
 				    hash_alg_t hash_alg,
 				    CK_OBJECT_HANDLE hprivkey,
+				    bool fake,
 				    pkcs11AttrList *attrlist);
 
 void write_X509_CERT(CK_VOID_PTR crt, char *filename, bool verbose);
