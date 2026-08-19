@@ -24,7 +24,7 @@ Some features:
 
 Version 3.1.0 makes pkcs11-tools easier to deploy and more dependable across tokens. Complete manual pages now cover every command, the wrapped-key format and `.pkcs11rc`; they are installed with the toolkit and included in distribution packages. Windows packages include HTML documentation.
 
-This release also adds YubiHSM support (including CCM-wrap key), practical `rfc5649(flavour=kwp)` aliases, and a comprehensive unit and integration test suite. Object-changing commands now work reliably with tokens that reject modifications during an active object search, while several CLI error-handling and parsing issues have been corrected. See the [manual](docs/MANUAL.md) and [change log](CHANGELOG.md) for details.
+This release also adds YubiHSM support (including CCM-wrap keys), practical `rfc5649(flavour=kwp)` aliases, and a comprehensive unit and integration test suite. Object-changing commands now work reliably with tokens that reject modifications during an active object search, while several CLI error-handling and parsing issues have been corrected. See the [manual](docs/MANUAL.md) and [change log](CHANGELOG.md) for details.
 
 ### July 2026
 After three years of waiting, the 3.0.0 release is finally here! It brings support for OpenSSL 3.x, Post-Quantum Cryptography (PQC), new commands, updated grammar for wrapped keys, new wrapping methods, better integration with [libpkcs11shim](https://github.com/Mastercard/libpkcs11shim), support for new token types (including [Kryoptic](https://github.com/latchset/kryoptic)), a major overhaul of the `with_xxx` wrapper scripts, a distribution build subsystem leveraging Docker, and many other improvements. Please refer to the [manual](docs/MANUAL.md) and the [change log](CHANGELOG.md) for details.
