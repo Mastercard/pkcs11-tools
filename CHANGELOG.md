@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [Unreleased]
 
+# [3.1.0] - 2026-08-19
+
 ### Added
 
 - manual pages for every command, plus `pkcs11-tools(7)` (common options, token selection, PIN handling, interactive mode, object addressing and environment variables), `pkcs11-wrap(5)` (the wrapped key file format) and `pkcs11rc(5)` (the `.pkcs11rc` configuration file). The pages are authored in markdown under the `man` directory, converted to roff with `pandoc` at build time (an optional build dependency), installed by `make install`, and included in the deb, rpm, apk, Solaris and tarball packages. The Windows (mingw64) artifacts ship them as HTML under `doc/`
@@ -206,6 +208,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial public release
 
+[3.1.0]: https://github.com/Mastercard/pkcs11-tools/tree/v3.1.0
 [3.0.0]: https://github.com/Mastercard/pkcs11-tools/tree/v3.0.0
 [2.6.0]: https://github.com/Mastercard/pkcs11-tools/tree/v2.6.0
 [2.5.1]: https://github.com/Mastercard/pkcs11-tools/tree/v2.5.1
