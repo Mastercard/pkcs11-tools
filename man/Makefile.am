@@ -112,13 +112,22 @@ html-manpages: $(HTML_PAGES)
 .PHONY: html-manpages
 
 
-$(GENERATED_MANPAGES): %: $(srcdir)/%.md
+SUFFIXES = .1 .5 .7 .md .html .1.md .5.md .7.md
+
+
+.1.md.1:
 	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $<
 
-$(HTML_PAGES): %.html: $(srcdir)/%.md
+.5.md.5:
+	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $<
+
+.7.md.7:
+	$(AM_V_GEN)$(PANDOC) $(PANDOC_FLAGS) -o $@ $<
+
+.md.html:
 	$(AM_V_GEN)$(PANDOC) $(PANDOC_HTML_FLAGS) -o $@ $<
 
-$(MAN1_LINKS): %.1:
+$(MAN1_LINKS):
 	$(AM_V_GEN)echo '.so man1/with_pkcs11_common.1' > $@
 
 
