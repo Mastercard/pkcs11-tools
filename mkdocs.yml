@@ -1,0 +1,42 @@
+site_name: pkcs11-tools Documentation
+site_description: Documentation for pkcs11-tools
+site_url: https://mastercard.github.io/pkcs11-tools/
+repo_url: https://github.com/Mastercard/pkcs11-tools
+repo_name: Mastercard/pkcs11-tools
+docs_dir: docs
+
+theme:
+  name: material
+  logo: assets/mastercard-team-icon.png
+  favicon: assets/mastercard-team-icon.png
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: teal
+      accent: amber
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - tables
+  - attr_list
+  - md_in_html
+
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - search
+
+nav:
+  - Tutorial: TUTORIAL.md
+  - Home: index.md
+  - Installation: INSTALL.md
+  - Manual: MANUAL.md
+  - Contributing: CONTRIBUTING.md
+  - Third-party Licenses: TPLICENSES.md

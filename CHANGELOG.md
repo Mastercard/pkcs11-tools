@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- step-by-step tutorial page with split VHS demos (`docs/vhs/*.tape`) and generated media (`docs/media/tutorial/*.gif`), including a short homepage banner animation
+- documentation website based on MkDocs Material, with a dedicated GitHub Pages workflow (`.github/workflows/docs-pages.yml`) and local preview/build instructions; initial homepage styling and team avatar branding are included
 - manual pages for every command, plus `pkcs11-tools(7)` (common options, token selection, PIN handling, interactive mode, object addressing and environment variables), `pkcs11-wrap(5)` (the wrapped key file format) and `pkcs11rc(5)` (the `.pkcs11rc` configuration file). The pages are authored in markdown under the `man` directory, converted to roff with `pandoc` at build time (an optional build dependency), installed by `make install`, and included in the deb, rpm, apk, Solaris and tarball packages. The Windows (mingw64) artifacts ship them as HTML under `doc/`
 - comprehensive test suite: unit tests over `libp11` (driven by a programmable mock PKCS#11 module) and shell integration tests against SoftHSM2 and NSS softoken. Integration tests self-skip when a backend is unavailable (no false failures). Run tests with `make check`, or individual tests with `make check TESTS=<path>`. Coverage support via `./configure --enable-coverage` followed by `make coverage`
 - GitHub Actions `build-and-check` workflow runs full `make check` inside a representative distro matrix (deb12, ol9, mingw64)

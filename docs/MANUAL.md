@@ -769,7 +769,7 @@ seck/aes-wrapping-key:
  CKA_ALLOWED_MECHANISMS:
   0000  81 10 00 00 00 00 00 00                            CKM_AES_ECB
   0008  82 10 00 00 00 00 00 00                            CKM_AES_CBC
-  ```
+```
 
 ## p11keygen
 
