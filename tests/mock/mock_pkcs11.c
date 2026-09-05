@@ -43,6 +43,10 @@
  *                              one extra empty slot is always appended.
  *   MOCK_P11_LOGIN_REQUIRED=0  clear CKF_LOGIN_REQUIRED on the token (default 1).
  *   MOCK_P11_PIN=1234          the user PIN C_Login checks (default "1234").
+ *   MOCK_P11_MONTGOMERY_PUBLIC=<label>
+ *                              seed an X25519/X448 public key with this label.
+ *   MOCK_P11_MONTGOMERY_ALG=X25519|X448
+ *                              algorithm for that public key (default X25519).
  *   MOCK_P11_FAIL=SPEC[;SPEC]  fault injection. Each SPEC is
  *                                  C_Name@N=CKR_CONST
  *                              meaning: the N-th call to C_Name returns the
@@ -603,6 +607,64 @@ static void seed_default_keypair(void)
     pkey_put(hs, pk);
 }
 
+/* Optionally seed a standards-shaped Montgomery public key for object-tool
+ * integration tests. Each CLI invocation reloads the mock, so the key need
+ * only be self-consistent within the current process. */
+static void seed_default_montgomery_public(void)
+{
+    const char *label = getenv("MOCK_P11_MONTGOMERY_PUBLIC");
+    const char *alg = getenv("MOCK_P11_MONTGOMERY_ALG");
+    static const unsigned char oid_x25519[] = { 0x06, 0x03, 0x2b, 0x65, 0x6e };
+    static const unsigned char oid_x448[] = { 0x06, 0x03, 0x2b, 0x65, 0x6f };
+    const unsigned char *params;
+    CK_ULONG params_len;
+    EVP_PKEY *pk = NULL;
+    unsigned char pub[56];
+    size_t pub_len = sizeof pub;
+    CK_OBJECT_CLASS pubc = CKO_PUBLIC_KEY;
+    CK_KEY_TYPE keytype = CKK_EC_MONTGOMERY;
+    CK_BBOOL yes = CK_TRUE;
+    unsigned char id[] = { 0x41 };
+
+    if (label == NULL || label[0] == '\0')
+        return;
+    if (alg == NULL || alg[0] == '\0')
+        alg = "X25519";
+
+    if (strcmp(alg, "X25519") == 0) {
+        params = oid_x25519;
+        params_len = sizeof oid_x25519;
+    } else if (strcmp(alg, "X448") == 0) {
+        params = oid_x448;
+        params_len = sizeof oid_x448;
+    } else {
+        return;
+    }
+
+    pk = EVP_PKEY_Q_keygen(NULL, NULL, alg);
+    if (pk == NULL ||
+        EVP_PKEY_get_raw_public_key(pk, pub, &pub_len) != 1) {
+        EVP_PKEY_free(pk);
+        return;
+    }
+
+    {
+        CK_ATTRIBUTE pubt[] = {
+            { CKA_CLASS,     &pubc,    sizeof pubc    },
+            { CKA_KEY_TYPE,  &keytype, sizeof keytype },
+            { CKA_TOKEN,     &yes,     sizeof yes     },
+            { CKA_LABEL,     (void *)label, (CK_ULONG)strlen(label) },
+            { CKA_ID,        id,       sizeof id      },
+            { CKA_DERIVE,    &yes,     sizeof yes     },
+            { CKA_EC_PARAMS, (void *)params, params_len },
+            { CKA_EC_POINT,  pub,      (CK_ULONG)pub_len },
+        };
+        (void)obj_create_from_template(pubt, sizeof pubt / sizeof pubt[0]);
+    }
+
+    EVP_PKEY_free(pk);
+}
+
 #ifdef MOCK_HAVE_PQC
 /* Optionally seed a real PQC key pair so a separate p11ls / p11od / p11req /
  * p11mkcert process finds a usable ML-DSA or SLH-DSA key on the token.
@@ -696,6 +758,7 @@ CK_DEFINE_FUNCTION(CK_RV, C_Initialize)(CK_VOID_PTR pInitArgs)
     FAULT("C_Initialize");
     seed_default_objects();
     seed_default_keypair();
+    seed_default_montgomery_public();
 #ifdef MOCK_HAVE_PQC
     seed_default_pqc_keypair();
 #endif
@@ -818,6 +881,7 @@ static const CK_MECHANISM_TYPE g_mechs[] = {
     CKM_DSA_KEY_PAIR_GEN, CKM_DSA, CKM_DSA_SHA1, CKM_DSA_SHA256,
     CKM_EC_KEY_PAIR_GEN, CKM_ECDSA, CKM_ECDSA_SHA256,
     CKM_EC_EDWARDS_KEY_PAIR_GEN, CKM_EDDSA,
+    CKM_EC_MONTGOMERY_KEY_PAIR_GEN,
     CKM_DH_PKCS_KEY_PAIR_GEN, CKM_DH_PKCS_DERIVE,
     CKM_AES_KEY_GEN, CKM_AES_ECB, CKM_AES_CBC, CKM_AES_CBC_PAD,
     CKM_AES_KEY_WRAP, CKM_AES_KEY_WRAP_PAD,

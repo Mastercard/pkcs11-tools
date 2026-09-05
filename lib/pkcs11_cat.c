@@ -87,14 +87,17 @@ static void write_pubk(EVP_PKEY* pk, int openssl_native_flag, BIO *sink)
 	    pkcs11_pkey_write_params_pem(sink ? sink : bio_stdout, pk);
 	    break;
 
-	case EVP_PKEY_X25519:
 	case EVP_PKEY_ED25519:
 	    fprintf(stderr,"***WARNING: Edwards 25519 elliptic curves have no usable curve parameters\n");
 	    break;
 
-	case EVP_PKEY_X448:
 	case EVP_PKEY_ED448:
 	    fprintf(stderr,"***WARNING: Edwards 448 elliptic curves have no usable curve parameters\n");
+	    break;
+
+	case EVP_PKEY_X25519:
+	case EVP_PKEY_X448:
+	    fprintf(stderr,"***WARNING: Montgomery elliptic curves have no usable curve parameters\n");
 	    break;
 	    
 	default:
@@ -480,6 +483,33 @@ func_rc pkcs11_cat_object_with_handle(pkcs11Context *p11Context, CK_OBJECT_HANDL
 		}
 		    break;
 		    /* end of case_CKK_EC_EDWARDS */
+		case CKK_EC_MONTGOMERY: {
+		    CK_ATTRIBUTE_PTR oecparams;
+		    CK_ATTRIBUTE_PTR oecpoint;
+		    EVP_PKEY *pk = NULL;
+
+		    oecparams = pkcs11_get_attr_in_attrlist(attrs, CKA_EC_PARAMS);
+		    oecpoint = pkcs11_get_attr_in_attrlist(attrs, CKA_EC_POINT);
+		    if(oecparams == NULL || oecpoint == NULL) {
+			fprintf(stderr, "Error: object missing attribute(s) CKA_EC_PARAMS and/or CKA_EC_POINT\n");
+			break;
+		    }
+
+		    pk = pkcs11_pkey_from_montgomery_public(oecparams->pValue,
+						       oecparams->ulValueLen,
+						       oecpoint->pValue,
+						       oecpoint->ulValueLen);
+		    if(pk == NULL) {
+			fprintf(stderr, "Error: unable to construct an X25519/X448 public key\n");
+			P_ERR();
+			break;
+		    }
+
+		    write_pubk(pk, openssl_native_flag, sink);
+		    EVP_PKEY_free(pk);
+		}
+		    break;
+		    /* end of case_CKK_EC_MONTGOMERY */
 
 #if defined(HAVE_PQC_OPENSSL)
 		case CKK_ML_KEM:

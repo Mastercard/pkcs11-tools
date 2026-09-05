@@ -22,6 +22,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stddef.h>
+#include <limits.h>
 #include <unistd.h>
 #include <assert.h>
 #include "pkcs11lib.h"
@@ -31,6 +32,8 @@
 
 static const uint8_t id_edwards25519[] = { 0x13, 0x0C, 'e', 'd', 'w', 'a', 'r', 'd', 's', '2', '5', '5', '1', '9' };
 static const uint8_t id_edwards448[] = { 0x13, 0x0A, 'e', 'd', 'w', 'a', 'r', 'd', 's', '4', '4', '8' };
+static const uint8_t id_curve25519[] = { 0x13, 0x0A, 'c', 'u', 'r', 'v', 'e', '2', '5', '5', '1', '9' };
+static const uint8_t id_curve448[] = { 0x13, 0x08, 'c', 'u', 'r', 'v', 'e', '4', '4', '8' };
 
 /* Edwards curves may be specified it two flavours: 
  * - as an OID, in which case it will be parsed by d2i_ASN1_OBJECT
@@ -47,6 +50,46 @@ inline bool pkcs11_is_ed_param_named_25519(const uint8_t *ecparam, size_t ecpara
 inline bool pkcs11_is_ed_param_named_448(const uint8_t *ecparam, size_t ecparamlen)
 {
     return ecparamlen==sizeof id_edwards448 && memcmp(ecparam, id_edwards448, sizeof id_edwards448)==0;
+}
+
+
+/* Resolve either an RFC 8410 OID or a PKCS#11 curveName PrintableString. */
+const char *pkcs11_montgomery_params2name(const CK_BYTE *param, CK_ULONG param_len)
+{
+    const unsigned char *pp;
+    ASN1_OBJECT *obj = NULL;
+    const char *name = NULL;
+    int nid;
+
+    if(param == NULL || param_len == 0 || param_len > LONG_MAX) {
+	return NULL;
+    }
+
+    if(param_len == sizeof id_curve25519 &&
+	memcmp(param, id_curve25519, sizeof id_curve25519) == 0) {
+	return "X25519";
+    }
+    if(param_len == sizeof id_curve448 &&
+	memcmp(param, id_curve448, sizeof id_curve448) == 0) {
+	return "X448";
+    }
+
+    pp = param;
+    obj = d2i_ASN1_OBJECT(NULL, &pp, (long)param_len);
+    if(obj == NULL || pp != param + param_len) {
+	goto cleanup;
+    }
+
+    nid = OBJ_obj2nid(obj);
+    if(nid == NID_X25519) {
+	name = "X25519";
+    } else if(nid == NID_X448) {
+	name = "X448";
+    }
+
+cleanup:
+    if(obj) { ASN1_OBJECT_free(obj); }
+    return name;
 }
 
 

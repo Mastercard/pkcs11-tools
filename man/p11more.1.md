@@ -31,6 +31,10 @@ The behaviour by object type is the same as for **p11cat**(1):
 - **Secret keys and private keys**: the command refuses to execute.
 - **Data objects**: the raw content is displayed.
 
+X25519 and X448 public keys represented as PKCS#11 v3
+**CKK_EC_MONTGOMERY** objects are decoded in the same way as other supported
+public keys.
+
 When neither **-s** nor **-t** is given, and no corresponding environment
 variable is set, the command enters interactive mode and offers the list of
 available slots for selection. See **pkcs11-tools**(7).

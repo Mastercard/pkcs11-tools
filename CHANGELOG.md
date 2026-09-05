@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [Unreleased]
 
+### Added
+
+- `p11ls`, `p11od`, `p11cat` and `p11more` now recognize PKCS#11 v3 `CKK_EC_MONTGOMERY` public keys. X25519 and X448 keys using RFC 8410 OIDs or the PKCS#11 `curve25519`/`curve448` parameter names can be listed, decoded and exported as SubjectPublicKeyInfo; raw `CKA_EC_POINT` values and legacy DER OCTET STRING wrappers are accepted.
+
 # [3.1.0] - 2026-08-19
 
 ### Added

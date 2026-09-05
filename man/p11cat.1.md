@@ -34,6 +34,12 @@ The behaviour depends on the object type:
   clear.
 - **Data objects**: the raw content is exported.
 
+PKCS#11 v3 **CKK_EC_MONTGOMERY** public keys are supported for X25519 and
+X448. The standard raw **CKA_EC_POINT** representation is exported as an RFC
+8410 SubjectPublicKeyInfo. A DER OCTET STRING-wrapped point is also accepted
+for compatibility. **CKA_EC_PARAMS** may contain the RFC 8410 algorithm OID or
+the PKCS#11 `curve25519`/`curve448` PrintableString form.
+
 When neither **-s** nor **-t** is given, and no corresponding environment
 variable is set, the command enters interactive mode and offers the list of
 available slots for selection. See **pkcs11-tools**(7).

@@ -569,6 +569,12 @@ keys, the output is tuned either to yield native format for RSA keys, and parame
 - if the object is a secret or a private key, the commands refuses to execute
 - if the object is a data file, the raw content is exported
 
+PKCS#11 v3 Montgomery public keys are supported for X25519 and X448. The
+standard raw `CKA_EC_POINT` representation is exported as an RFC 8410
+SubjectPublicKeyInfo. For compatibility, a DER OCTET STRING-wrapped point is
+also accepted. `CKA_EC_PARAMS` may contain the RFC 8410 algorithm OID or the
+PKCS#11 `curve25519`/`curve448` PrintableString form.
+
 Here is an example of execution, yielding the public key in SPKI format:
 
 ```
@@ -612,6 +618,10 @@ VjppRh5/+4vzQZ2WK9FJI27On+B2y3ioFHXy65qiBpWndifnFmgOLBsCAwEAAQ==
 
 Extract the content of an object and display it in human-readable format. The same result could be achieved by
 using `p11cat` and piping the output into the relevant `openssl` command. Here is an example of such command output:
+
+X25519 and X448 public keys represented as PKCS#11 v3
+`CKK_EC_MONTGOMERY` objects are decoded in the same way as other supported
+public keys.
 
 ```
 $ p11more cert/a-self-signed

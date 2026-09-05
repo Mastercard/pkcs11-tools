@@ -355,6 +355,19 @@ static int ls_pubk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 		}
 		break;
 
+	    case CKK_EC_MONTGOMERY:
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_EC_PARAMS),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    const char *name;
+		    ec_params = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_EC_PARAMS );
+		    name = pkcs11_montgomery_params2name((CK_BYTE *)(ec_params->pValue),
+							 ec_params->ulValueLen);
+		    snprintf(keykind, sizeof keykind, "mont(%s)", name ? name : "unknown(\?\?\?)");
+		}
+		break;
+
 	    case CKK_DSA:
 		specialized_attrs = pkcs11_new_attrlist(p11Context,
 							_ATTR(CKA_PRIME),
@@ -551,6 +564,19 @@ static int ls_prvk(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 									ec_params->ulValueLen,
 									ecname,
 									sizeof ecname ));
+		}
+		break;
+
+	    case CKK_EC_MONTGOMERY:
+		specialized_attrs = pkcs11_new_attrlist(p11Context,
+							_ATTR(CKA_EC_PARAMS),
+							_ATTR_END );
+		if(specialized_attrs && pkcs11_read_attr_from_handle (specialized_attrs, hndl) ) {
+		    const char *name;
+		    ec_params = pkcs11_get_attr_in_attrlist ( specialized_attrs, CKA_EC_PARAMS );
+		    name = pkcs11_montgomery_params2name((CK_BYTE *)(ec_params->pValue),
+							 ec_params->ulValueLen);
+		    snprintf(keykind, sizeof keykind, "mont(%s)", name ? name : "unknown(\?\?\?)");
 		}
 		break;
 
