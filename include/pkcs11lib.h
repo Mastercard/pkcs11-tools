@@ -205,8 +205,9 @@ typedef enum {
     hmacsha224,
     hmacsha256,
     hmacsha384,
-    hmacsha512
+    hmacsha512,
 #endif
+    mont			/* Montgomery EC */
 } key_type_t;
 
 /* supported wrapping methods */
@@ -508,6 +509,11 @@ void pkcs11_ec_freeoid(CK_BYTE_PTR buf);
 char * pkcs11_ed_oid2curvename(CK_BYTE *param, CK_ULONG param_len, char *where, size_t maxlen);
 // void pkcs11_ed_freeoid(CK_BYTE_PTR buf);
 
+/* PKCS#11 Montgomery parameters are either RFC 8410 OIDs or the curveName
+ * PrintableStrings defined by RFC 7748. The returned name is a static OpenSSL
+ * algorithm name ("X25519" or "X448"), or NULL for unsupported input. */
+const char *pkcs11_montgomery_params2name(const CK_BYTE *param, CK_ULONG param_len);
+
 #if defined(WITH_PQC)
 /* pkcs11_pqc.c */
 
@@ -609,6 +615,15 @@ func_rc pkcs11_genED( pkcs11Context * p11Context,
 		      CK_OBJECT_HANDLE_PTR hPublicKey,
 		      CK_OBJECT_HANDLE_PTR hPrivateKey,
 		      key_generation_t gentype);
+
+func_rc pkcs11_genMONT( pkcs11Context * p11Context,
+			char *label,
+			char *param,
+			CK_ATTRIBUTE attrs[],
+			CK_ULONG numattrs,
+			CK_OBJECT_HANDLE_PTR hPublicKey,
+			CK_OBJECT_HANDLE_PTR hPrivateKey,
+			key_generation_t gentype);
 
 #if defined(WITH_PQC)
 func_rc pkcs11_genMLKEM( pkcs11Context * p11Context,
@@ -804,6 +819,10 @@ EVP_PKEY *pkcs11_pkey_from_dh_public(const BIGNUM *p, const BIGNUM *g,
 				     const BIGNUM *pub);
 EVP_PKEY *pkcs11_pkey_from_ec_public(const char *group_name,
 				     const unsigned char *pub, size_t pub_len);
+EVP_PKEY *pkcs11_pkey_from_montgomery_public(const unsigned char *ecparams,
+					     size_t ecparams_len,
+					     const unsigned char *ecpoint,
+					     size_t ecpoint_len);
 
 int pkcs11_pkey_write_params_pem(BIO *out, EVP_PKEY *pk);
 int pkcs11_pkey_write_rsa_pubkey_pkcs1_pem(BIO *out, EVP_PKEY *pk);

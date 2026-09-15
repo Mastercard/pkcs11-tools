@@ -168,6 +168,7 @@ integration_tests = \
 	integration/mock_keycomp.sh \
 	integration/mock_faults.sh \
 	integration/mock_init.sh \
+	integration/mock_montgomery.sh \
 	integration/mock_pqc.sh \
 	integration/nss_mode.sh \
 	integration/nss_wrap.sh

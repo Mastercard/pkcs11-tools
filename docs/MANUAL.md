@@ -569,6 +569,12 @@ keys, the output is tuned either to yield native format for RSA keys, and parame
 - if the object is a secret or a private key, the commands refuses to execute
 - if the object is a data file, the raw content is exported
 
+PKCS#11 v3 Montgomery public keys are supported for X25519 and X448. The
+standard raw `CKA_EC_POINT` representation is exported as an RFC 8410
+SubjectPublicKeyInfo. For compatibility, a DER OCTET STRING-wrapped point is
+also accepted. `CKA_EC_PARAMS` may contain the RFC 8410 algorithm OID or the
+PKCS#11 `curve25519`/`curve448` PrintableString form.
+
 Here is an example of execution, yielding the public key in SPKI format:
 
 ```
@@ -612,6 +618,10 @@ VjppRh5/+4vzQZ2WK9FJI27On+B2y3ioFHXy65qiBpWndifnFmgOLBsCAwEAAQ==
 
 Extract the content of an object and display it in human-readable format. The same result could be achieved by
 using `p11cat` and piping the output into the relevant `openssl` command. Here is an example of such command output:
+
+X25519 and X448 public keys represented as PKCS#11 v3
+`CKK_EC_MONTGOMERY` objects are decoded in the same way as other supported
+public keys.
 
 ```
 $ p11more cert/a-self-signed
@@ -777,12 +787,15 @@ Generate a key or a key pair on a PKCS\#11 token, or generate and wrap under one
 options, but the more important are:
 
 - `-i`: the label of the key
-- `-k`: the key algorithm: `rsa`, `ec`, `ed`, `des`, `aes`, `generic`, `hmac` (`hmac` and `generic` are synonyms)
+- `-k`: the key algorithm: `rsa`, `ec`, `ed`, `mont`/`montgomery`, `des`, `aes`, `generic`, `hmac`
+  (`hmac` and `generic` are synonyms)
   , `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512` (these are nCipher-specific, and only available when the
   toolkit is compiled with nCipher extensions), and, when compiled with Post-Quantum Cryptography support (the
   default, see `--disable-pqc`), `mlkem`, `mldsa` and `slhdsa`
-- `-b`: the key length in bits / `-q`: curve/parameter set name for elliptic and Edwards keys. For EC keys, please check
+- `-b`: the key length in bits / `-q`: curve/parameter set name for elliptic, Edwards, and Montgomery keys. For EC
+  keys, please check
   out `openssl ecparam -list_curves` for a list of supported curves (obviously, the PKCS\#11 token must support it).
+  Montgomery keys accept `X25519` (default) or `X448` and enable `CKA_DERIVE` on both keys by default.
   For post-quantum keys, the parameter set is selected through `-b` for ML-KEM (`512`, `768`, `1024`; default `768`)
   and ML-DSA (`44`, `65`, `87`; default `65`), and through `-q` for SLH-DSA (`{sha2,shake}-{128,192,256}{s,f}`, e.g.
   `sha2-128s` (default) or `shake-256f`). See [post-quantum keys](#post-quantum-keys) below.

@@ -28,6 +28,7 @@
  */
 
 #include <config.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -338,6 +339,62 @@ EVP_PKEY *pkcs11_pkey_from_ec_public(const char *group_name,
 out:
     if (params) OSSL_PARAM_free(params);
     if (bld) OSSL_PARAM_BLD_free(bld);
+    return pk;
+}
+
+
+/*
+ * Build an X25519 or X448 public key from PKCS#11 CKA_EC_PARAMS and
+ * CKA_EC_POINT. PKCS#11 defines the Montgomery public value as raw RFC 7748
+ * bytes. A DER OCTET STRING wrapper is also accepted for compatibility with
+ * tokens that apply the conventional-EC CKA_EC_POINT encoding here.
+ */
+EVP_PKEY *pkcs11_pkey_from_montgomery_public(const unsigned char *ecparams,
+					     size_t ecparams_len,
+					     const unsigned char *ecpoint,
+					     size_t ecpoint_len)
+{
+    const char *type;
+    const unsigned char *raw;
+    size_t raw_len;
+    size_t expected_len;
+    const unsigned char *pp;
+    ASN1_OCTET_STRING *wrapped = NULL;
+    EVP_PKEY *pk = NULL;
+
+    if(ecparams == NULL || ecparams_len == 0 ||
+	 ecparams_len > (size_t)(CK_ULONG)-1 ||
+	 ecpoint == NULL || ecpoint_len == 0) {
+	return NULL;
+    }
+
+    type = pkcs11_montgomery_params2name(ecparams, (CK_ULONG)ecparams_len);
+    if(type == NULL) {
+	return NULL;
+    }
+    expected_len = strcmp(type, "X25519") == 0 ? 32 : 56;
+    raw = ecpoint;
+    raw_len = ecpoint_len;
+
+    if(raw_len != expected_len) {
+	if(ecpoint_len > LONG_MAX) {
+	    return NULL;
+	}
+	pp = ecpoint;
+	wrapped = d2i_ASN1_OCTET_STRING(NULL, &pp, (long)ecpoint_len);
+	if(wrapped == NULL || pp != ecpoint + ecpoint_len) {
+	    goto cleanup;
+	}
+	raw = ASN1_STRING_get0_data(wrapped);
+	raw_len = (size_t)ASN1_STRING_length(wrapped);
+    }
+
+    if(raw_len == expected_len) {
+	pk = EVP_PKEY_new_raw_public_key_ex(NULL, type, NULL, raw, raw_len);
+    }
+
+cleanup:
+    if(wrapped) { ASN1_OCTET_STRING_free(wrapped); }
     return pk;
 }
 

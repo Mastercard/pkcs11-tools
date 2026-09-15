@@ -426,6 +426,37 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 			    }
 				break;
 				/* end of case CKK_EC_EDWARDS */
+			    case CKK_EC_MONTGOMERY: {
+				CK_ATTRIBUTE_PTR oecparams;
+				CK_ATTRIBUTE_PTR oecpoint;
+				EVP_PKEY *pk = NULL;
+
+				oecparams = pkcs11_get_attr_in_attrlist(attrs, CKA_EC_PARAMS);
+				oecpoint = pkcs11_get_attr_in_attrlist(attrs, CKA_EC_POINT);
+				if(oecparams == NULL || oecparams->pValue == NULL ||
+				   oecparams->ulValueLen == 0 || oecpoint == NULL ||
+				   oecpoint->pValue == NULL || oecpoint->ulValueLen == 0) {
+				    fprintf(stderr, "Error: object missing attribute(s) CKA_EC_PARAMS and/or CKA_EC_POINT\n");
+				    rc = rc_error_ec_or_ed_missing_public_key;
+				    break;
+				}
+
+				pk = pkcs11_pkey_from_montgomery_public(oecparams->pValue,
+								   oecparams->ulValueLen,
+								   oecpoint->pValue,
+								   oecpoint->ulValueLen);
+				if(pk == NULL) {
+				    fprintf(stderr, "Error: unable to construct an X25519/X448 public key\n");
+				    P_ERR();
+				    rc = rc_error_invalid_parameter_for_method;
+				    break;
+				}
+
+				more_pubk(pk);
+				EVP_PKEY_free(pk);
+			    }
+				break;
+				/* end of case CKK_EC_MONTGOMERY */
 
 #if defined(HAVE_PQC_OPENSSL)
 			    case CKK_ML_KEM:
@@ -499,6 +530,7 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 
 			    default:
 				fprintf(stderr, "Sorry, (yet) unsupported key type\n");
+				rc = rc_error_unsupported;
 				break;
 			    }
 

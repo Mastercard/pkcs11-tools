@@ -376,6 +376,10 @@ static void hexdump (attrib_repr *item, void *addr, unsigned long len, bool temp
 	    info = "CKK_EC_EDWARDS";
 	    break;
 
+	case CKK_EC_MONTGOMERY:
+	    info = "CKK_EC_MONTGOMERY";
+	    break;
+
 #if defined(WITH_PQC)
 	case CKK_ML_KEM:
 	    info = "CKK_ML_KEM";

@@ -64,7 +64,8 @@ void print_usage(char *progname) {
 	    "  -p <token PIN> | :::exec:<command> | :::nologin\n"
 	    "  -S : login with SO privilege\n"
 	    "* -i <key_alias>: label/alias of the key\n"
-	    "* -k <key type> : aes, des, rsa, dsa, dh, ec, ed, generic / hmac"
+	    "* -k <key type> : aes, des, rsa, dsa, dh, ec, ed,\n"
+	    "                  mont / montgomery, generic / hmac"
 #if defined(WITH_PQC)
 	    ",\n"
 	    "                  mlkem, mldsa, slhdsa"
@@ -98,6 +99,7 @@ void print_usage(char *progname) {
 	    "                    for EC: prime256v1, secp384r1 and secp521r1\n"
 	    "                            (default: prime256v1)\n"
 	    "                    for ED: ED25519 or ED448 (default: ED25519)\n"
+	    "                    for MONT: X25519 or X448 (default: X25519)\n"
 #if defined(WITH_PQC)
 	    "                    for SLH-DSA: {sha2,shake}-{128,192,256}{s,f},\n"
 	    "                                 e.g. sha2-128s (default), shake-256f\n"
@@ -310,6 +312,9 @@ int main(int argc, char **argv) {
 		keytype = ec;
 	    } else if (strcasecmp(optarg, "ed") == 0) {
 		keytype = ed;
+	    } else if (strcasecmp(optarg, "mont") == 0 ||
+		       strcasecmp(optarg, "montgomery") == 0) {
+		keytype = mont;
 	    } else if (strcasecmp(optarg, "dsa") == 0) {
 		keytype = dsa;
 	    } else if (strcasecmp(optarg, "dh") == 0) {
@@ -537,6 +542,19 @@ int main(int argc, char **argv) {
 				       &pubkhandle,
 				       &keyhandle,
 				       keygentype);
+
+		if (retcode == rc_ok) {
+		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);
+		}
+		break;
+
+	    case mont:
+		retcode = pkcs11_genMONT(p11Context, label, param ? param : "X25519",
+					 pkcs11_get_attrlist_from_attribctx(actx),
+					 pkcs11_get_attrnum_from_attribctx(actx),
+					 &pubkhandle,
+					 &keyhandle,
+					 keygentype);
 
 		if (retcode == rc_ok) {
 		    retcode = pkcs11_adjust_keypair_id(p11Context, pubkhandle, keyhandle);

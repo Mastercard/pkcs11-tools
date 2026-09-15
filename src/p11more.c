@@ -199,7 +199,11 @@ int main( int argc, char ** argv )
     if ( retcode == rc_ok )
     {
 	while(saved_optind<argc) {
-	    pkcs11_more_object_with_label(p11Context, argv[saved_optind++]);
+	    func_rc object_rc = pkcs11_more_object_with_label(p11Context,
+							argv[saved_optind++]);
+	    if(retcode == rc_ok && object_rc != rc_ok) {
+		retcode = object_rc;
+	    }
 	}
 	
 	pkcs11_close_session( p11Context );

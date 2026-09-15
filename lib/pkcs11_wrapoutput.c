@@ -369,6 +369,10 @@ static void fprintf_key_type(FILE *fp, char *unused, CK_ATTRIBUTE_PTR attr, bool
 	    value = "CKK_EC_EDWARDS";
 	    break;
 
+	case CKK_EC_MONTGOMERY:
+	    value = "CKK_EC_MONTGOMERY";
+	    break;
+
 #if defined(WITH_PQC)
 	case CKK_ML_KEM:
 	    value = "CKK_ML_KEM";

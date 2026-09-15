@@ -60,6 +60,7 @@ static CK_ULONG get_EC_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
 static CK_ULONG get_EC_params(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
 static CK_ULONG get_ED_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
 static CK_ULONG get_ED_params(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
+static CK_ULONG get_MONT_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
 static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf);
 static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 				     char *filename,
@@ -387,6 +388,40 @@ error:
     return rv;
 }
 
+/* get_MONT_point: unlike Edwards curves, Montgomery public keys are natively  */
+/* supported by the OpenSSL EVP interface; the raw RFC 7748 bytes are stored   */
+/* directly as CKA_EC_POINT (PKCS#11 v3 form), without OCTET STRING wrapping.  */
+static CK_ULONG get_MONT_point(EVP_PKEY *pubkey, CK_BYTE_PTR *buf)
+{
+    CK_ULONG rv = 0;
+    size_t len = 0;
+
+    assert( *buf == NULL );		/* make sure we point to nowhere */
+
+    if(EVP_PKEY_get_raw_public_key(pubkey, NULL, &len) != 1 || len == 0) {
+	P_ERR();
+	goto error;
+    }
+
+    *buf = OPENSSL_malloc(len);
+    if(*buf == NULL) {
+	P_ERR();
+	goto error;
+    }
+
+    if(EVP_PKEY_get_raw_public_key(pubkey, *buf, &len) != 1) {
+	P_ERR();
+	OPENSSL_free(*buf);
+	*buf = NULL;
+	goto error;
+    }
+
+    rv = (CK_ULONG)len;
+
+error:
+    return rv;
+}
+
 
 /*  get_EVP_PKEY_sha1: will retrieve RSA public key and compute SHA-1 digest
     on modulus, represented as big-endian binary digit,
@@ -529,6 +564,19 @@ static CK_ULONG get_EVP_PKEY_sha1(EVP_PKEY *pubkey, CK_BYTE_PTR *buf) {
     case EVP_PKEY_ED448: {
 	CK_BYTE_PTR point = NULL;
 	CK_ULONG point_len = get_ED_point(pubkey, &point);
+	if (point_len > 0) {
+	    rv = sha1_bytes_to_buf(point, (size_t)point_len, buf);
+	    OPENSSL_free(point);
+	}
+    }
+	break;
+
+    /* For Montgomery, the SHA-1 input is the raw RFC 7748 public key,
+       i.e. exactly the byte sequence stored under CKA_EC_POINT. */
+    case EVP_PKEY_X25519:
+    case EVP_PKEY_X448: {
+	CK_BYTE_PTR point = NULL;
+	CK_ULONG point_len = get_MONT_point(pubkey, &point);
 	if (point_len > 0) {
 	    rv = sha1_bytes_to_buf(point, (size_t)point_len, buf);
 	    OPENSSL_free(point);
@@ -1116,6 +1164,136 @@ static CK_OBJECT_HANDLE _importpubk( pkcs11Context * p11Context,
 		    case CKA_VERIFY_RECOVER: /* not in template onwards */
 		    case CKA_DERIVE:
 		    case CKA_TRUSTED:
+		    case CKA_PRIVATE:
+		    case CKA_COPYABLE:
+		    case CKA_MODIFIABLE:
+		    case CKA_DESTROYABLE:
+		    case CKA_START_DATE:
+		    case CKA_END_DATE:
+		    case CKA_SUBJECT:
+		    case CKA_PUBLIC_KEY_INFO:
+		    {
+			size_t next_pubk_num_elems = pubk_num_elems;
+
+			CK_ATTRIBUTE_PTR match = lsearch( &attrs[i],
+							  pubktemplate,
+							  &next_pubk_num_elems,
+							  sizeof(CK_ATTRIBUTE),
+							  compare_CKA );
+
+			/* if we have a match and the record was not created by lsearch */
+			/* steal the pointer from attrs array. */
+			/* It's OK as the template is sitting on the stack, no need */
+			/* to dealloc when leaving scope  */
+			if(match) {
+			    if(next_pubk_num_elems==pubk_num_elems) {
+				match->pValue = attrs[i].pValue;           /* copy pointer */
+				match->ulValueLen = attrs[i].ulValueLen;   /* adjust length */
+			    }
+			    else {
+				/* everything was copied by lsearch */
+				/* just increment array length */
+				pubk_num_elems = next_pubk_num_elems;
+			    }
+			} else {
+			    fprintf(stderr, "***Error: can't update attribute array - skipping 0x%08lx\n", attrs[i].type);
+			    /* TODO print attribute text */
+			}
+		    }
+		    break;
+
+		    default:
+			if(!is_attribute_skipped(attrs[i].type)) {
+			    fprintf(stderr, "***Warning: attribute 0x%08lx skipped\n", attrs[i].type);
+			    /* pass */
+			}
+			break;
+		    }
+		}
+
+		retCode = p11Context->FunctionList.C_CreateObject(p11Context->Session,
+								  pubktemplate,
+								  pubk_num_elems,
+								  &pubkhandle);
+
+		if(retCode != CKR_OK) {
+		    pkcs11_error( retCode, "CreateObject" );
+		}
+
+		/* if we are here, we have to free up memory anyway */
+	    }
+
+	    if(pubkey_hash)  { OPENSSL_free(pubkey_hash); }
+	    if(ec_params)    { OPENSSL_free(ec_params); }
+	    if(ec_point)     { OPENSSL_free(ec_point); }
+	}
+	    break;
+
+	case EVP_PKEY_X25519:
+	case EVP_PKEY_X448: {
+	    CK_BYTE_PTR pubkey_hash = NULL;
+	    CK_ULONG pubkey_hash_len = 0;
+
+	    CK_BYTE_PTR ec_params = NULL;
+	    CK_ULONG ec_params_len = 0;
+
+	    CK_BYTE_PTR ec_point = NULL;
+	    CK_ULONG ec_point_len = 0;
+
+	    CK_ATTRIBUTE pubktemplate[] = {
+		{CKA_CLASS, &pubkClass, sizeof pubkClass },          /* 0  */
+		{CKA_KEY_TYPE, &pubkType, sizeof pubkType},	     /* 1  */
+		{CKA_ID, NULL, 0},				     /* 2  */
+		{CKA_LABEL, label, label ? strlen(label) : 0 },	     /* 3  */
+		{CKA_DERIVE, source == source_file ? &ck_true : &ck_false, sizeof ck_false }, /* 4  */
+		{CKA_TOKEN, &ck_true, sizeof ck_true},		     /* 5  */
+		{CKA_EC_PARAMS, NULL, 0 },                           /* 6  */
+		{CKA_EC_POINT, NULL, 0 },                            /* 7  */
+		/* leave room for up to 12 additional attributes */
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+		{0L, NULL, 0L},
+	    };
+
+	    size_t pubk_template_len_max = (sizeof(pubktemplate)/sizeof(CK_ATTRIBUTE));
+	    size_t pubk_template_len_min = pubk_template_len_max - 12;
+	    size_t pubk_num_elems = pubk_template_len_min;
+
+	    pubkType = CKK_EC_MONTGOMERY;
+	    pubkey_hash_len = get_EVP_PKEY_sha1( pubk, &pubkey_hash);
+
+	    ec_params_len = get_ED_params( pubk, &ec_params);           /* RFC 8410 OID */
+	    ec_point_len  = get_MONT_point( pubk, &ec_point);           /* raw RFC 7748 bytes */
+
+	    if( ec_params_len > 0 && ec_point_len > 0 ) {
+
+		/* we have everything, let's fill in the template */
+
+		pubktemplate[2].pValue = pubkey_hash; /* CKA_ID */
+		pubktemplate[2].ulValueLen = pubkey_hash_len;
+
+		pubktemplate[6].pValue = ec_params;
+		pubktemplate[6].ulValueLen = ec_params_len;
+
+		pubktemplate[7].pValue = ec_point;
+		pubktemplate[7].ulValueLen = ec_point_len;
+
+		for(i=0; i<numattrs && pubk_num_elems<pubk_template_len_max; i++)
+		{
+		    switch(attrs[i].type) {
+		    case CKA_LABEL:
+		    case CKA_ID:
+		    case CKA_DERIVE:
+		    case CKA_TRUSTED: /* not in template onwards */
 		    case CKA_PRIVATE:
 		    case CKA_COPYABLE:
 		    case CKA_MODIFIABLE:

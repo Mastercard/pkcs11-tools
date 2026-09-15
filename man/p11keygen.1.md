@@ -100,6 +100,9 @@ available slots for selection.
     `ed`
     :   Edwards-curve key pair (default: **ED25519**).
 
+    `mont` | `montgomery`
+    :   Montgomery-curve key pair for key agreement (default: **X25519**).
+
     `generic` | `hmac`
     :   Generic-secret (HMAC) key (default size: 160 bits). The two names are
         synonyms.
@@ -154,6 +157,9 @@ available slots for selection.
     chosen curve.
 
     For **ed**: `ED25519` or `ED448` (default: `ED25519`).
+
+    For **mont** or **montgomery**: `X25519` or `X448` (default: `X25519`).
+    Generated public and private keys have **CKA_DERIVE** enabled by default.
 
     For **slhdsa**: a variant of the form `{sha2,shake}-{128,192,256}{s,f}`,
     e.g. `sha2-128s` (default) or `shake-256f`. Only with **--enable-pqc**.
@@ -349,6 +355,11 @@ Generate a 2048-bit RSA key pair with sign and verify:
     p11keygen -l /usr/lib/softhsm/libsofthsm2.so -t "my token" \
         -p changeit -i my-rsa-key -k rsa -b 2048 \
         sign verify
+
+Generate an X25519 key pair for key agreement:
+
+    p11keygen -l /usr/lib/softhsm/libsofthsm2.so -t "my token" \
+        -p changeit -i my-x25519-key -k mont -q X25519
 
 Generate a 256-bit HMAC generic key:
 

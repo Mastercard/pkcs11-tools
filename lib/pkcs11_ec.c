@@ -22,6 +22,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stddef.h>
+#include <limits.h>
 #include <unistd.h>
 #include <assert.h>
 #include "pkcs11lib.h"
@@ -31,6 +32,8 @@
 
 static const uint8_t id_edwards25519[] = { 0x13, 0x0C, 'e', 'd', 'w', 'a', 'r', 'd', 's', '2', '5', '5', '1', '9' };
 static const uint8_t id_edwards448[] = { 0x13, 0x0A, 'e', 'd', 'w', 'a', 'r', 'd', 's', '4', '4', '8' };
+static const uint8_t id_curve25519[] = { 0x13, 0x0A, 'c', 'u', 'r', 'v', 'e', '2', '5', '5', '1', '9' };
+static const uint8_t id_curve448[] = { 0x13, 0x08, 'c', 'u', 'r', 'v', 'e', '4', '4', '8' };
 
 /* Edwards curves may be specified it two flavours: 
  * - as an OID, in which case it will be parsed by d2i_ASN1_OBJECT
@@ -47,6 +50,46 @@ inline bool pkcs11_is_ed_param_named_25519(const uint8_t *ecparam, size_t ecpara
 inline bool pkcs11_is_ed_param_named_448(const uint8_t *ecparam, size_t ecparamlen)
 {
     return ecparamlen==sizeof id_edwards448 && memcmp(ecparam, id_edwards448, sizeof id_edwards448)==0;
+}
+
+
+/* Resolve either an RFC 8410 OID or a PKCS#11 curveName PrintableString. */
+const char *pkcs11_montgomery_params2name(const CK_BYTE *param, CK_ULONG param_len)
+{
+    const unsigned char *pp;
+    ASN1_OBJECT *obj = NULL;
+    const char *name = NULL;
+    int nid;
+
+    if(param == NULL || param_len == 0 || param_len > LONG_MAX) {
+	return NULL;
+    }
+
+    if(param_len == sizeof id_curve25519 &&
+	memcmp(param, id_curve25519, sizeof id_curve25519) == 0) {
+	return "X25519";
+    }
+    if(param_len == sizeof id_curve448 &&
+	memcmp(param, id_curve448, sizeof id_curve448) == 0) {
+	return "X448";
+    }
+
+    pp = param;
+    obj = d2i_ASN1_OBJECT(NULL, &pp, (long)param_len);
+    if(obj == NULL || pp != param + param_len) {
+	goto cleanup;
+    }
+
+    nid = OBJ_obj2nid(obj);
+    if(nid == NID_X25519) {
+	name = "X25519";
+    } else if(nid == NID_X448) {
+	name = "X448";
+    }
+
+cleanup:
+    if(obj) { ASN1_OBJECT_free(obj); }
+    return name;
 }
 
 
@@ -87,6 +130,8 @@ bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_typ
 
 #define ED25519           "1.3.101.112"
 #define ED448             "1.3.101.113"
+#define X25519            "1.3.101.110"
+#define X448              "1.3.101.111"
 
 	OBJ_obj2txt(repr, sizeof repr - 1, obj, 1);
 
@@ -123,22 +168,31 @@ bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_typ
 		rc = true;
 	    }
 	}
-	/* although we could use the OID for key generation,                        */
-	/* it seems like HSM implementations prefer using the curve strings instead */
-	/* note that PKCS#11 3.0 requires to support both ways.                     */
-	if ( keytype == ed ) {
+	/* Although the OID is valid for key generation, PKCS#11 implementations
+	 * commonly use the standardized curveName PrintableString form. */
+	if ( keytype == ed || keytype == mont ) {
+	    const uint8_t *named_param;
 	    size_t wanted_len;
 
-	    if (strncmp(ED25519, repr, strlen(ED25519)) == 0) {
+	    if (keytype == ed && strcmp(ED25519, repr) == 0) {
 		wanted_len = sizeof id_edwards25519;
-		pp = (uint8_t *)id_edwards25519;
+		named_param = id_edwards25519;
 	    }
-	    else if (strncmp(ED448, repr, strlen(ED448)) == 0 ) {
+	    else if (keytype == ed && strcmp(ED448, repr) == 0) {
 		wanted_len = sizeof id_edwards448;
-		pp = (uint8_t *)id_edwards448;
+		named_param = id_edwards448;
+	    }
+	    else if (keytype == mont && strcmp(X25519, repr) == 0) {
+		wanted_len = sizeof id_curve25519;
+		named_param = id_curve25519;
+	    }
+	    else if (keytype == mont && strcmp(X448, repr) == 0) {
+		wanted_len = sizeof id_curve448;
+		named_param = id_curve448;
 	    }
 	    else {
-		fprintf(stderr, "Error: unsupported edwards curve");
+		fprintf(stderr, "Error: unsupported %s curve\n",
+			keytype == ed ? "Edwards" : "Montgomery");
 		goto err;
 	    }
 
@@ -148,7 +202,7 @@ bool pkcs11_ex_curvename2oid(char *name, CK_BYTE **where, CK_ULONG *len, key_typ
 		P_ERR();
 		goto err;
 	    }
-	    memcpy(*where,pp,wanted_len);
+	    memcpy(*where, named_param, wanted_len);
 
 	    *len = wanted_len;
 	    rc = true;

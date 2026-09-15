@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [Unreleased]
 
+### Added
+
+- `p11keygen` can now generate PKCS#11 v3 `CKK_EC_MONTGOMERY` X25519 and X448 key pairs with `CKA_DERIVE` enabled by default. `p11importpubk` imports X25519 and X448 public keys as `CKK_EC_MONTGOMERY` objects with `CKA_DERIVE` enabled. `p11ls`, `p11od`, `p11cat` and `p11more` recognize these public keys when they use RFC 8410 OIDs or the PKCS#11 `curve25519`/`curve448` parameter names, and can list, decode and export them as SubjectPublicKeyInfo; raw `CKA_EC_POINT` values and legacy DER OCTET STRING wrappers are accepted. `p11cat` and `p11more` now fail when a matching object cannot be exported because required Montgomery attributes are missing or malformed.
+
 # [3.1.0] - 2026-08-19
 
 ### Added

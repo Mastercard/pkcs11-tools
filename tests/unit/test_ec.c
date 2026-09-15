@@ -25,6 +25,7 @@
 #include <string.h>
 
 #include <openssl/crypto.h>
+#include <openssl/evp.h>
 
 #include "pkcs11lib.h"
 #include "test_harness.h"
@@ -93,12 +94,137 @@ static void test_ec_curve_non_ec_oid(void)
     TH_CHECK(oid == NULL && oidlen == 0, "nothing allocated on failure");
 }
 
+static void test_montgomery_parameter_names(void)
+{
+    static const CK_BYTE oid_x25519[] = { 0x06, 0x03, 0x2b, 0x65, 0x6e };
+    static const CK_BYTE oid_x448[] = { 0x06, 0x03, 0x2b, 0x65, 0x6f };
+    static const CK_BYTE curve25519[] = {
+        0x13, 0x0a, 'c', 'u', 'r', 'v', 'e', '2', '5', '5', '1', '9'
+    };
+    static const CK_BYTE curve448[] = {
+        0x13, 0x08, 'c', 'u', 'r', 'v', 'e', '4', '4', '8'
+    };
+    static const CK_BYTE unknown_oid[] = { 0x06, 0x03, 0x2b, 0x65, 0x70 };
+    static const CK_BYTE trailing_data[] = { 0x06, 0x03, 0x2b, 0x65, 0x6e, 0x00 };
+    const char *name;
+
+    name = pkcs11_montgomery_params2name(oid_x25519, sizeof oid_x25519);
+    TH_CHECK(name != NULL && strcmp(name, "X25519") == 0,
+             "X25519 RFC 8410 OID is recognized");
+    name = pkcs11_montgomery_params2name(oid_x448, sizeof oid_x448);
+    TH_CHECK(name != NULL && strcmp(name, "X448") == 0,
+             "X448 RFC 8410 OID is recognized");
+    name = pkcs11_montgomery_params2name(curve25519, sizeof curve25519);
+    TH_CHECK(name != NULL && strcmp(name, "X25519") == 0,
+             "curve25519 PrintableString is recognized");
+    name = pkcs11_montgomery_params2name(curve448, sizeof curve448);
+    TH_CHECK(name != NULL && strcmp(name, "X448") == 0,
+             "curve448 PrintableString is recognized");
+    TH_CHECK(pkcs11_montgomery_params2name(unknown_oid,
+                                            sizeof unknown_oid) == NULL,
+             "non-Montgomery OID is rejected");
+    TH_CHECK(pkcs11_montgomery_params2name(trailing_data,
+                                            sizeof trailing_data) == NULL,
+             "DER parameters with trailing data are rejected");
+    TH_CHECK(pkcs11_montgomery_params2name(NULL, 0) == NULL,
+             "empty Montgomery parameters are rejected");
+}
+
+static void test_montgomery_curve_generation_parameters(void)
+{
+    static const CK_BYTE curve25519[] = {
+        0x13, 0x0a, 'c', 'u', 'r', 'v', 'e', '2', '5', '5', '1', '9'
+    };
+    static const CK_BYTE curve448[] = {
+        0x13, 0x08, 'c', 'u', 'r', 'v', 'e', '4', '4', '8'
+    };
+    CK_BYTE *params = NULL;
+    CK_ULONG params_len = 0;
+    bool ok;
+
+    ok = pkcs11_ex_curvename2oid("X25519", &params, &params_len, mont);
+    TH_CHECK(ok && params_len == sizeof curve25519 &&
+             memcmp(params, curve25519, sizeof curve25519) == 0,
+             "X25519 generation uses the curve25519 PrintableString");
+    OPENSSL_free(params);
+
+    params = NULL;
+    params_len = 0;
+    ok = pkcs11_ex_curvename2oid("X448", &params, &params_len, mont);
+    TH_CHECK(ok && params_len == sizeof curve448 &&
+             memcmp(params, curve448, sizeof curve448) == 0,
+             "X448 generation uses the curve448 PrintableString");
+    OPENSSL_free(params);
+
+    params = NULL;
+    params_len = 0;
+    ok = pkcs11_ex_curvename2oid("prime256v1", &params, &params_len, mont);
+    TH_CHECK(!ok && params == NULL && params_len == 0,
+             "a non-Montgomery curve is rejected for Montgomery generation");
+}
+
+static void test_montgomery_public_key_builder(void)
+{
+    static const unsigned char oid_x25519[] = { 0x06, 0x03, 0x2b, 0x65, 0x6e };
+    static const unsigned char oid_x448[] = { 0x06, 0x03, 0x2b, 0x65, 0x6f };
+    static const unsigned char x25519_public[32] = {
+        0x85, 0x20, 0xf0, 0x09, 0x89, 0x30, 0xa7, 0x54,
+        0x74, 0x8b, 0x7d, 0xdc, 0xb4, 0x3e, 0xf7, 0x5a,
+        0x0d, 0xbf, 0x3a, 0x0d, 0x26, 0x38, 0x1a, 0xf4,
+        0xeb, 0xa4, 0xa9, 0x8e, 0xaa, 0x9b, 0x4e, 0x6a
+    };
+    unsigned char wrapped_x25519[34] = { 0x04, 0x20 };
+    unsigned char x448_public[56] = { 0x05 };
+    unsigned char exported[56];
+    size_t exported_len;
+    EVP_PKEY *pk;
+
+    pk = pkcs11_pkey_from_montgomery_public(oid_x25519,
+                                             sizeof oid_x25519,
+                                             x25519_public,
+                                             sizeof x25519_public);
+    TH_CHECK(pk != NULL && EVP_PKEY_is_a(pk, "X25519") == 1,
+             "raw X25519 public key is constructed");
+    exported_len = sizeof exported;
+    TH_CHECK(pk != NULL &&
+             EVP_PKEY_get_raw_public_key(pk, exported, &exported_len) == 1 &&
+             exported_len == sizeof x25519_public &&
+             memcmp(exported, x25519_public, exported_len) == 0,
+             "constructed X25519 key preserves public bytes");
+    EVP_PKEY_free(pk);
+
+    memcpy(wrapped_x25519 + 2, x25519_public, sizeof x25519_public);
+    pk = pkcs11_pkey_from_montgomery_public(oid_x25519,
+                                             sizeof oid_x25519,
+                                             wrapped_x25519,
+                                             sizeof wrapped_x25519);
+    TH_CHECK(pk != NULL && EVP_PKEY_is_a(pk, "X25519") == 1,
+             "DER-wrapped X25519 public key is accepted for compatibility");
+    EVP_PKEY_free(pk);
+
+    pk = pkcs11_pkey_from_montgomery_public(oid_x448, sizeof oid_x448,
+                                             x448_public, sizeof x448_public);
+    TH_CHECK(pk != NULL && EVP_PKEY_is_a(pk, "X448") == 1,
+             "raw X448 public key is constructed");
+    EVP_PKEY_free(pk);
+
+    pk = pkcs11_pkey_from_montgomery_public(oid_x25519,
+                                             sizeof oid_x25519,
+                                             x25519_public,
+                                             sizeof x25519_public - 1);
+    TH_CHECK(pk == NULL, "incorrect X25519 public-key length is rejected");
+    EVP_PKEY_free(pk);
+}
+
 int main(void)
 {
     TH_RUN(test_ec_curve_roundtrip);
     TH_RUN(test_ec_curve_by_oid);
     TH_RUN(test_ec_curve_unknown);
     TH_RUN(test_ec_curve_non_ec_oid);
+    TH_RUN(test_montgomery_parameter_names);
+    TH_RUN(test_montgomery_curve_generation_parameters);
+    TH_RUN(test_montgomery_public_key_builder);
 
     return TH_SUMMARY();
 }

@@ -42,7 +42,7 @@ _p11keygen() {
   fi
 
   if [[ "$prev" == "-k" ]]; then
-    COMPREPLY=( $(compgen -W "aes des rsa ec ed dsa dh generic hmac hmacsha1 hmacsha224 hmacsha256 hmacsha384 hmacsha512 mlkem mldsa slhdsa" -- "$cur") )
+    COMPREPLY=( $(compgen -W "aes des rsa ec ed mont montgomery dsa dh generic hmac hmacsha1 hmacsha224 hmacsha256 hmacsha384 hmacsha512 mlkem mldsa slhdsa" -- "$cur") )
     return
   fi
 
@@ -112,6 +112,9 @@ _p11keygen() {
       ed)
         COMPREPLY=( $(compgen -W "ED25519 ED448" -- "$cur") )
         ;;
+      mont|montgomery)
+        COMPREPLY=( $(compgen -W "X25519 X448" -- "$cur") )
+        ;;
       mlkem)
         COMPREPLY=( $(compgen -W "ml-kem-512 ml-kem-768 ml-kem-1024" -- "$cur") )
         ;;
@@ -123,7 +126,7 @@ _p11keygen() {
         ;;
       "")
         # No -k found: fallback to EC curves
-        COMPREPLY=( $(compgen -W "prime256v1 secp384r1 secp521r1 ED25519 ED448" -- "$cur") )
+        COMPREPLY=( $(compgen -W "prime256v1 secp384r1 secp521r1 ED25519 ED448 X25519 X448" -- "$cur") )
         ;;
       *)
         # Key type does not use -q (e.g. aes, des, rsa, hmac...)
