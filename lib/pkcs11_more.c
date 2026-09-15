@@ -433,8 +433,11 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 
 				oecparams = pkcs11_get_attr_in_attrlist(attrs, CKA_EC_PARAMS);
 				oecpoint = pkcs11_get_attr_in_attrlist(attrs, CKA_EC_POINT);
-				if(oecparams == NULL || oecpoint == NULL) {
+				if(oecparams == NULL || oecparams->pValue == NULL ||
+				   oecparams->ulValueLen == 0 || oecpoint == NULL ||
+				   oecpoint->pValue == NULL || oecpoint->ulValueLen == 0) {
 				    fprintf(stderr, "Error: object missing attribute(s) CKA_EC_PARAMS and/or CKA_EC_POINT\n");
+				    rc = rc_error_ec_or_ed_missing_public_key;
 				    break;
 				}
 
@@ -445,6 +448,7 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 				if(pk == NULL) {
 				    fprintf(stderr, "Error: unable to construct an X25519/X448 public key\n");
 				    P_ERR();
+				    rc = rc_error_invalid_parameter_for_method;
 				    break;
 				}
 
@@ -526,6 +530,7 @@ func_rc pkcs11_more_object_with_label(pkcs11Context *p11Context, char *label)
 
 			    default:
 				fprintf(stderr, "Sorry, (yet) unsupported key type\n");
+				rc = rc_error_unsupported;
 				break;
 			    }
 

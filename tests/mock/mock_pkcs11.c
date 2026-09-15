@@ -47,6 +47,10 @@
  *                              seed an X25519/X448 public key with this label.
  *   MOCK_P11_MONTGOMERY_ALG=X25519|X448
  *                              algorithm for that public key (default X25519).
+ *   MOCK_P11_MONTGOMERY_MISSING=point|params
+ *                              omit one public-key attribute for error tests.
+ *   MOCK_P11_MONTGOMERY_MALFORMED=point|params
+ *                              corrupt one public-key attribute for error tests.
  *   MOCK_P11_FAIL=SPEC[;SPEC]  fault injection. Each SPEC is
  *                                  C_Name@N=CKR_CONST
  *                              meaning: the N-th call to C_Name returns the
@@ -614,8 +618,11 @@ static void seed_default_montgomery_public(void)
 {
     const char *label = getenv("MOCK_P11_MONTGOMERY_PUBLIC");
     const char *alg = getenv("MOCK_P11_MONTGOMERY_ALG");
+    const char *missing = getenv("MOCK_P11_MONTGOMERY_MISSING");
+    const char *malformed = getenv("MOCK_P11_MONTGOMERY_MALFORMED");
     static const unsigned char oid_x25519[] = { 0x06, 0x03, 0x2b, 0x65, 0x6e };
     static const unsigned char oid_x448[] = { 0x06, 0x03, 0x2b, 0x65, 0x6f };
+    static const unsigned char unknown_oid[] = { 0x06, 0x03, 0x2b, 0x65, 0x70 };
     const unsigned char *params;
     CK_ULONG params_len;
     EVP_PKEY *pk = NULL;
@@ -647,6 +654,12 @@ static void seed_default_montgomery_public(void)
         EVP_PKEY_free(pk);
         return;
     }
+    if (malformed != NULL && strcmp(malformed, "params") == 0) {
+        params = unknown_oid;
+        params_len = sizeof unknown_oid;
+    } else if (malformed != NULL && strcmp(malformed, "point") == 0) {
+        pub_len--;
+    }
 
     {
         CK_ATTRIBUTE pubt[] = {
@@ -659,7 +672,14 @@ static void seed_default_montgomery_public(void)
             { CKA_EC_PARAMS, (void *)params, params_len },
             { CKA_EC_POINT,  pub,      (CK_ULONG)pub_len },
         };
-        (void)obj_create_from_template(pubt, sizeof pubt / sizeof pubt[0]);
+        CK_ULONG count = sizeof pubt / sizeof pubt[0];
+
+        if (missing != NULL && strcmp(missing, "params") == 0) {
+            pubt[6] = pubt[--count];
+        } else if (missing != NULL && strcmp(missing, "point") == 0) {
+            count--;
+        }
+        (void)obj_create_from_template(pubt, count);
     }
 
     EVP_PKEY_free(pk);
@@ -1049,6 +1069,10 @@ CK_DEFINE_FUNCTION(CK_RV, C_InitPIN)(CK_SESSION_HANDLE hSession,
 
 /* ---- object management ------------------------------------------------- */
 
+static CK_ATTRIBUTE_PTR tmpl_attr(CK_ATTRIBUTE_PTR t, CK_ULONG n,
+                                  CK_ATTRIBUTE_TYPE type);
+static const char *montgomery_name_from_params(const CK_ATTRIBUTE *params);
+
 CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(CK_SESSION_HANDLE hSession,
                                           CK_ATTRIBUTE_PTR pTemplate,
                                           CK_ULONG ulCount,
@@ -1060,6 +1084,33 @@ CK_DEFINE_FUNCTION(CK_RV, C_CreateObject)(CK_SESSION_HANDLE hSession,
         return CKR_SESSION_HANDLE_INVALID;
     if (phObject == NULL)
         return CKR_ARGUMENTS_BAD;
+
+    /* Validate standards-shaped Montgomery public-key templates, as a real
+     * token would: CKA_EC_PARAMS must name a known curve and CKA_EC_POINT
+     * must carry the raw RFC 7748 public bytes (no DER OCTET STRING
+     * wrapper). */
+    {
+        CK_ATTRIBUTE_PTR kt = tmpl_attr(pTemplate, ulCount, CKA_KEY_TYPE);
+        if (kt != NULL && kt->pValue != NULL &&
+            kt->ulValueLen == sizeof(CK_KEY_TYPE) &&
+            *(CK_KEY_TYPE *)kt->pValue == CKK_EC_MONTGOMERY) {
+            CK_ATTRIBUTE_PTR params = tmpl_attr(pTemplate, ulCount,
+                                                CKA_EC_PARAMS);
+            CK_ATTRIBUTE_PTR point = tmpl_attr(pTemplate, ulCount,
+                                               CKA_EC_POINT);
+            const char *name = montgomery_name_from_params(params);
+            CK_ULONG want;
+
+            if (params == NULL || point == NULL)
+                return CKR_TEMPLATE_INCOMPLETE;
+            if (name == NULL)
+                return CKR_TEMPLATE_INCONSISTENT;
+            want = strcmp(name, "X25519") == 0 ? 32 : 56;
+            if (point->pValue == NULL || point->ulValueLen != want)
+                return CKR_TEMPLATE_INCONSISTENT;
+        }
+    }
+
     h = obj_create_from_template(pTemplate, ulCount);
     if (h == CK_INVALID_HANDLE)
         return CKR_DEVICE_MEMORY;
@@ -1285,6 +1336,46 @@ static CK_ULONG tmpl_ulong(CK_ATTRIBUTE_PTR t, CK_ULONG n,
     return def;
 }
 
+static CK_ATTRIBUTE_PTR tmpl_attr(CK_ATTRIBUTE_PTR t, CK_ULONG n,
+                                  CK_ATTRIBUTE_TYPE type)
+{
+    CK_ULONG i;
+    for (i = 0; i < n; i++)
+        if (t[i].type == type)
+            return &t[i];
+    return NULL;
+}
+
+static const char *montgomery_name_from_params(const CK_ATTRIBUTE *params)
+{
+    static const unsigned char oid_x25519[] = {
+        0x06, 0x03, 0x2b, 0x65, 0x6e
+    };
+    static const unsigned char oid_x448[] = {
+        0x06, 0x03, 0x2b, 0x65, 0x6f
+    };
+    static const unsigned char curve25519[] = {
+        0x13, 0x0a, 'c', 'u', 'r', 'v', 'e', '2', '5', '5', '1', '9'
+    };
+    static const unsigned char curve448[] = {
+        0x13, 0x08, 'c', 'u', 'r', 'v', 'e', '4', '4', '8'
+    };
+
+    if (params == NULL || params->pValue == NULL)
+        return NULL;
+    if ((params->ulValueLen == sizeof oid_x25519 &&
+         memcmp(params->pValue, oid_x25519, sizeof oid_x25519) == 0) ||
+        (params->ulValueLen == sizeof curve25519 &&
+         memcmp(params->pValue, curve25519, sizeof curve25519) == 0))
+        return "X25519";
+    if ((params->ulValueLen == sizeof oid_x448 &&
+         memcmp(params->pValue, oid_x448, sizeof oid_x448) == 0) ||
+        (params->ulValueLen == sizeof curve448 &&
+         memcmp(params->pValue, curve448, sizeof curve448) == 0))
+        return "X448";
+    return NULL;
+}
+
 /* Create a CKO_SECRET_KEY object from a caller template plus a computed key
  * value. CKA_CLASS/CKA_KEY_TYPE default sensibly if the template omits them. */
 static CK_OBJECT_HANDLE mk_secret(CK_ATTRIBUTE_PTR t, CK_ULONG n,
@@ -1417,6 +1508,66 @@ CK_DEFINE_FUNCTION(CK_RV, C_GenerateKeyPair)(
         EVP_PKEY_up_ref(pk);
         pkey_put(hp, pk);          /* public handle owns one ref */
         pkey_put(hs, pk);          /* private handle owns the other */
+        *phPub = hp;
+        *phPriv = hs;
+        return CKR_OK;
+    }
+
+    if (pMechanism->mechanism == CKM_EC_MONTGOMERY_KEY_PAIR_GEN) {
+        CK_ATTRIBUTE_PTR params = tmpl_attr(pPubTmpl, ulPubCount,
+                                            CKA_EC_PARAMS);
+        const char *name = montgomery_name_from_params(params);
+        CK_OBJECT_CLASS pubc = CKO_PUBLIC_KEY, privc = CKO_PRIVATE_KEY;
+        CK_KEY_TYPE kt = CKK_EC_MONTGOMERY;
+        unsigned char pub[56];
+        size_t publen = sizeof pub;
+        EVP_PKEY *pk;
+        CK_OBJECT_HANDLE hp = CK_INVALID_HANDLE, hs = CK_INVALID_HANDLE;
+        mock_object *op, *os;
+        CK_RV rv = CKR_OK;
+
+        if (params == NULL)
+            return CKR_TEMPLATE_INCOMPLETE;
+        if (name == NULL)
+            return CKR_TEMPLATE_INCONSISTENT;
+        pk = EVP_PKEY_Q_keygen(NULL, NULL, name);
+        if (pk == NULL ||
+            EVP_PKEY_get_raw_public_key(pk, pub, &publen) != 1) {
+            EVP_PKEY_free(pk);
+            return CKR_FUNCTION_FAILED;
+        }
+
+        hp = obj_create_from_template(pPubTmpl, ulPubCount);
+        if (hp == CK_INVALID_HANDLE) {
+            EVP_PKEY_free(pk);
+            return CKR_DEVICE_MEMORY;
+        }
+        hs = obj_create_from_template(pPrivTmpl, ulPrivCount);
+        if (hs == CK_INVALID_HANDLE) {
+            obj_free(obj_from_handle(hp));
+            EVP_PKEY_free(pk);
+            return CKR_DEVICE_MEMORY;
+        }
+
+        op = obj_from_handle(hp);
+        os = obj_from_handle(hs);
+        if ((rv = obj_set_attr(op, CKA_CLASS, &pubc, sizeof pubc)) != CKR_OK ||
+            (rv = obj_set_attr(op, CKA_KEY_TYPE, &kt, sizeof kt)) != CKR_OK ||
+            (rv = obj_set_attr(op, CKA_EC_POINT, pub,
+                               (CK_ULONG)publen)) != CKR_OK ||
+            (rv = obj_set_attr(os, CKA_CLASS, &privc, sizeof privc)) != CKR_OK ||
+            (rv = obj_set_attr(os, CKA_KEY_TYPE, &kt, sizeof kt)) != CKR_OK ||
+            (rv = obj_set_attr(os, CKA_EC_PARAMS, params->pValue,
+                               params->ulValueLen)) != CKR_OK) {
+            obj_free(op);
+            obj_free(os);
+            EVP_PKEY_free(pk);
+            return rv;
+        }
+
+        EVP_PKEY_up_ref(pk);
+        pkey_put(hp, pk);
+        pkey_put(hs, pk);
         *phPub = hp;
         *phPriv = hs;
         return CKR_OK;

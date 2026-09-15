@@ -183,7 +183,7 @@ CK_RV pkcs11_setObjectAttributes( pkcs11Context * p11Context, CK_OBJECT_HANDLE o
 }
 
 
-/* adjust CKA_ID for RSA key pair, to set it to SHA1(modulus) for RSA and SHA1(ec_point) for EC */
+/* Adjust CKA_ID from the public value: RSA modulus, EC point, or CKA_VALUE. */
 func_rc pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hPublicKey, CK_OBJECT_HANDLE hPrivateKey)
 {
     func_rc rc = rc_error_other_error;
@@ -213,6 +213,7 @@ func_rc pkcs11_adjust_keypair_id(pkcs11Context * p11Context, CK_OBJECT_HANDLE hP
 	    /* if EC or Edwards, we hash the point */
 	case CKK_EC:
 	case CKK_EC_EDWARDS:
+	case CKK_EC_MONTGOMERY:
 	    attr = pkcs11_get_attr_in_attrlist ( attrs, CKA_EC_POINT );
 	    break;
 
@@ -401,6 +402,7 @@ key_type_t pkcs11_get_key_type(pkcs11Context *p11Context, CK_OBJECT_HANDLE hndl)
 	{ CKK_RSA, rsa, },
 	{ CKK_EC, ec, },
 	{ CKK_EC_EDWARDS, ed },
+	{ CKK_EC_MONTGOMERY, mont },
 	{ CKK_DSA, dsa, },
 	{ CKK_DH, dh, },
 	{ CKK_GENERIC_SECRET, generic, },
@@ -467,4 +469,3 @@ char *pkcs11_alloclabelforhandle(pkcs11Context *p11Context, CK_OBJECT_HANDLE hnd
 
 
 /**************************************************************************/
-

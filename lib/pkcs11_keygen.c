@@ -710,6 +710,7 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
     int i;
     CK_BBOOL ck_false = CK_FALSE;
     CK_BBOOL ck_true = CK_TRUE;
+    CK_BBOOL ck_derive = keytype == mont ? CK_TRUE : CK_FALSE;
 
     CK_BYTE  *ex_param;
     CK_ULONG ex_param_len;
@@ -731,6 +732,11 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
 	snprintf((char *)id, sizeof id, "ed-%s-%ld", param, time(NULL));
 	break;
 
+    case mont:
+	mechanism.mechanism = CKM_EC_MONTGOMERY_KEY_PAIR_GEN;
+	snprintf((char *)id, sizeof id, "mont-%s-%ld", param, time(NULL));
+	break;
+
     default:
 	fprintf(stderr, "***Error: unmanaged keytype\n");
 	assert(0);
@@ -739,7 +745,7 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
     /* adjust EC parameter */
     if( pkcs11_ex_curvename2oid(param, &ex_param, &ex_param_len, keytype) == false) {
 	fprintf(stderr,"***Error: unknown/unsupported %s curve parameter name '%s'\n",
-		keytype == ed ? "Edwards" : "elliptic",
+		keytype == ed ? "Edwards" : keytype == mont ? "Montgomery" : "elliptic",
 		param);
 	rc = rc_error_invalid_parameter_for_method;
 	goto error;
@@ -758,7 +764,7 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
 #if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */
 	    {CKA_VERIFY_RECOVER, &ck_false, sizeof ck_false},
 #endif
-	    {CKA_DERIVE, &ck_false, sizeof ck_false},
+	    {CKA_DERIVE, &ck_derive, sizeof ck_derive},
 	    /* leave room for up to 5 additional attributes */
 	    {0L, NULL, 0L},
 	    {0L, NULL, 0L},
@@ -787,7 +793,7 @@ static func_rc pkcs11_genEX( pkcs11Context * p11ctx,
 #if !defined(HAVE_AWSCLOUDHSM)	/* AWS CloudHSM cannot handle CKA_SIGN_RECOVER or CKA_VERIFY_RECOVER */
 	    {CKA_SIGN_RECOVER, &ck_false, sizeof ck_false},
 #endif
-	    {CKA_DERIVE, &ck_false, sizeof ck_false},
+	    {CKA_DERIVE, &ck_derive, sizeof ck_derive},
 	    /* leave room for up to 5 additional attributes */
 	    {0L, NULL, 0L},
 	    {0L, NULL, 0L},
@@ -953,6 +959,18 @@ inline func_rc pkcs11_genED( pkcs11Context * p11ctx,
 			     CK_OBJECT_HANDLE_PTR prvkhandleptr,
 			     key_generation_t gentype) {
     return pkcs11_genEX(p11ctx, ed, label, param, attrs, numattrs, pubkhandleptr, prvkhandleptr, gentype);
+}
+
+
+inline func_rc pkcs11_genMONT( pkcs11Context * p11ctx,
+			       char *label,
+			       char *param,
+			       CK_ATTRIBUTE attrs[],
+			       CK_ULONG numattrs,
+			       CK_OBJECT_HANDLE_PTR pubkhandleptr,
+			       CK_OBJECT_HANDLE_PTR prvkhandleptr,
+			       key_generation_t gentype) {
+    return pkcs11_genEX(p11ctx, mont, label, param, attrs, numattrs, pubkhandleptr, prvkhandleptr, gentype);
 }
 
 
@@ -1285,4 +1303,3 @@ cleanup:
 
     return rc;
 }
-

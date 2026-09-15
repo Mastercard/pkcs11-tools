@@ -207,7 +207,12 @@ int main( int argc, char ** argv )
     if ( retcode == rc_ok )
     {
 	while(saved_optind<argc) {
-	    pkcs11_cat_object_with_label(p11Context, argv[saved_optind++], openssl_native, NULL);
+	    func_rc object_rc = pkcs11_cat_object_with_label(p11Context,
+						       argv[saved_optind++],
+						       openssl_native, NULL);
+	    if(retcode == rc_ok && object_rc != rc_ok) {
+		retcode = object_rc;
+	    }
 	}
 	
 	pkcs11_close_session( p11Context );

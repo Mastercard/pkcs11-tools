@@ -205,8 +205,9 @@ typedef enum {
     hmacsha224,
     hmacsha256,
     hmacsha384,
-    hmacsha512
+    hmacsha512,
 #endif
+    mont			/* Montgomery EC */
 } key_type_t;
 
 /* supported wrapping methods */
@@ -614,6 +615,15 @@ func_rc pkcs11_genED( pkcs11Context * p11Context,
 		      CK_OBJECT_HANDLE_PTR hPublicKey,
 		      CK_OBJECT_HANDLE_PTR hPrivateKey,
 		      key_generation_t gentype);
+
+func_rc pkcs11_genMONT( pkcs11Context * p11Context,
+			char *label,
+			char *param,
+			CK_ATTRIBUTE attrs[],
+			CK_ULONG numattrs,
+			CK_OBJECT_HANDLE_PTR hPublicKey,
+			CK_OBJECT_HANDLE_PTR hPrivateKey,
+			key_generation_t gentype);
 
 #if defined(WITH_PQC)
 func_rc pkcs11_genMLKEM( pkcs11Context * p11Context,

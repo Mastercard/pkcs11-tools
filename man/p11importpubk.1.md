@@ -33,6 +33,10 @@ depending on the key type:
 
 - RSA, DSA, DH keys: all usage attributes set to `true`.
 - EC keys: **CKA_DERIVE=false**, **CKA_VERIFY=true**, **CKA_MODIFIABLE=true**.
+- Montgomery (X25519, X448) keys: **CKA_DERIVE=true**; the public key is
+  stored as a PKCS#11 v3 **CKK_EC_MONTGOMERY** object with the raw RFC 7748
+  public bytes as **CKA_EC_POINT** and the RFC 8410 algorithm OID as
+  **CKA_EC_PARAMS**.
 
 When *ATTRIBUTE=VALUE* pairs are specified, they replace the defaults entirely.
 Use **-T** to additionally set **CKA_TRUSTED=true** (SO privilege is usually

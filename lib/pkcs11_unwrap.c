@@ -673,6 +673,7 @@ static func_rc _unwrap_cbcpad(pkcs11Context *p11Context, wrappedKeyCtx *wctx, ch
 		case CKK_RSA:
 		case CKK_EC:
 		case CKK_EC_EDWARDS:
+		case CKK_EC_MONTGOMERY:
 #if defined(WITH_PQC)
 		case CKK_ML_KEM:
 		case CKK_ML_DSA:
@@ -997,6 +998,7 @@ static func_rc _unwrap_aes_key_wrap_mech(pkcs11Context *p11Context, wrappedKeyCt
 		case CKK_RSA:
 		case CKK_EC:
 		case CKK_EC_EDWARDS:
+		case CKK_EC_MONTGOMERY:
 #if defined(WITH_PQC)
 		case CKK_ML_KEM:
 		case CKK_ML_DSA:

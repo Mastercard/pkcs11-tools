@@ -130,6 +130,39 @@ static void test_montgomery_parameter_names(void)
              "empty Montgomery parameters are rejected");
 }
 
+static void test_montgomery_curve_generation_parameters(void)
+{
+    static const CK_BYTE curve25519[] = {
+        0x13, 0x0a, 'c', 'u', 'r', 'v', 'e', '2', '5', '5', '1', '9'
+    };
+    static const CK_BYTE curve448[] = {
+        0x13, 0x08, 'c', 'u', 'r', 'v', 'e', '4', '4', '8'
+    };
+    CK_BYTE *params = NULL;
+    CK_ULONG params_len = 0;
+    bool ok;
+
+    ok = pkcs11_ex_curvename2oid("X25519", &params, &params_len, mont);
+    TH_CHECK(ok && params_len == sizeof curve25519 &&
+             memcmp(params, curve25519, sizeof curve25519) == 0,
+             "X25519 generation uses the curve25519 PrintableString");
+    OPENSSL_free(params);
+
+    params = NULL;
+    params_len = 0;
+    ok = pkcs11_ex_curvename2oid("X448", &params, &params_len, mont);
+    TH_CHECK(ok && params_len == sizeof curve448 &&
+             memcmp(params, curve448, sizeof curve448) == 0,
+             "X448 generation uses the curve448 PrintableString");
+    OPENSSL_free(params);
+
+    params = NULL;
+    params_len = 0;
+    ok = pkcs11_ex_curvename2oid("prime256v1", &params, &params_len, mont);
+    TH_CHECK(!ok && params == NULL && params_len == 0,
+             "a non-Montgomery curve is rejected for Montgomery generation");
+}
+
 static void test_montgomery_public_key_builder(void)
 {
     static const unsigned char oid_x25519[] = { 0x06, 0x03, 0x2b, 0x65, 0x6e };
@@ -190,6 +223,7 @@ int main(void)
     TH_RUN(test_ec_curve_unknown);
     TH_RUN(test_ec_curve_non_ec_oid);
     TH_RUN(test_montgomery_parameter_names);
+    TH_RUN(test_montgomery_curve_generation_parameters);
     TH_RUN(test_montgomery_public_key_builder);
 
     return TH_SUMMARY();

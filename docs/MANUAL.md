@@ -787,12 +787,15 @@ Generate a key or a key pair on a PKCS\#11 token, or generate and wrap under one
 options, but the more important are:
 
 - `-i`: the label of the key
-- `-k`: the key algorithm: `rsa`, `ec`, `ed`, `des`, `aes`, `generic`, `hmac` (`hmac` and `generic` are synonyms)
+- `-k`: the key algorithm: `rsa`, `ec`, `ed`, `mont`/`montgomery`, `des`, `aes`, `generic`, `hmac`
+  (`hmac` and `generic` are synonyms)
   , `hmacsha1`, `hmacsha256`, `hmacsha384`, `hmacsha512` (these are nCipher-specific, and only available when the
   toolkit is compiled with nCipher extensions), and, when compiled with Post-Quantum Cryptography support (the
   default, see `--disable-pqc`), `mlkem`, `mldsa` and `slhdsa`
-- `-b`: the key length in bits / `-q`: curve/parameter set name for elliptic and Edwards keys. For EC keys, please check
+- `-b`: the key length in bits / `-q`: curve/parameter set name for elliptic, Edwards, and Montgomery keys. For EC
+  keys, please check
   out `openssl ecparam -list_curves` for a list of supported curves (obviously, the PKCS\#11 token must support it).
+  Montgomery keys accept `X25519` (default) or `X448` and enable `CKA_DERIVE` on both keys by default.
   For post-quantum keys, the parameter set is selected through `-b` for ML-KEM (`512`, `768`, `1024`; default `768`)
   and ML-DSA (`44`, `65`, `87`; default `65`), and through `-q` for SLH-DSA (`{sha2,shake}-{128,192,256}{s,f}`, e.g.
   `sha2-128s` (default) or `shake-256f`). See [post-quantum keys](#post-quantum-keys) below.
